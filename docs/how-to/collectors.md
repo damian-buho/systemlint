@@ -47,15 +47,17 @@ no wildcard is passed when it exists, and an absent one is not an error.
   since a symlink’s own mode means nothing on Linux.
 - `exec`: the argv runs directly, never through a shell, with an empty
   environment except `LC_ALL=C`, a timeout and an output cap. Its `stdout`,
-  `stderr` and exit code are passed to the plugin.
+  `stderr` and exit code are passed to the plugin, which judges the exit; an
+  absent program is passed as exit 127, as a shell reports it.
 
 Every source is read-only and capped at 16 MiB per file or stream; `exec`
 and the plugin call each time out after 30 seconds. Under `--root <dir>` every
 path, symlinks and `..` included, resolves inside that directory through
 `openat2` `RESOLVE_IN_ROOT` (Linux 5.6 or later), so an image’s symlink to
-`/etc/shadow` reads the image’s file, never the host’s. `exec` collectors do
-not run there: they are recorded as `skipped` with the reason, never as an
-error.
+`/etc/shadow` reads the image’s file, never the host’s. `exec` never runs
+there: a collector that only runs a command is recorded as `skipped` with the
+reason, never as an error, and one that also reads `files` or `stat` runs
+without the command input.
 
 A file that exists but cannot be read, such as `/etc/shadow` in an
 unprivileged run, fails the whole collector with that path in its reason,

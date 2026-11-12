@@ -42,7 +42,7 @@ pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) 
     let mut described: HashMap<String, Result<Describe, String>> = HashMap::new();
     let mut planned = Vec::new();
     for (index, collector) in collectors.iter().enumerate() {
-        if collector.read.exec.is_some() && !options.live {
+        if collector.read.exec.is_some() && !options.live && collector.read.files.is_empty() && collector.read.stat.is_empty() {
             log::debug!("collector {} skipped: exec under --root", collector.id);
             outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": format!("runs {} on a live host only, and --root {} was given", collector.read.exec.as_deref().unwrap_or_default()[0], options.root.path().display())}));
             continue;
@@ -185,11 +185,19 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
         }
     }
     let mut inputs: Vec<Input> = files.into_values().map(Input::File).collect();
-    if let Some(argv) = &collector.read.exec {
-        let args: Vec<&str> = argv[1..].iter().map(String::as_str).collect();
-        let output = runner::run(Path::new(&argv[0]), &args, None, options.timeout, OUTPUT_CAP).map_err(|e| format!("{}: {e}", argv[0]))?;
-        let exit = output.code();
-        inputs.push(Input::Exec(ExecInput { argv: argv.clone(), stdout: String::from_utf8_lossy(&output.stdout).into_owned(), stderr: String::from_utf8_lossy(&output.stderr).into_owned(), exit }));
+    match &collector.read.exec {
+        Some(argv) if !options.live => log::debug!("collector {}: {} not run under --root", collector.id, argv[0]),
+        Some(argv) if matches!(root.stat(&argv[0]), Err(e) if e.kind() == io::ErrorKind::NotFound) => {
+            log::debug!("collector {}: {} is absent, passed as exit 127", collector.id, argv[0]);
+            inputs.push(Input::Exec(ExecInput { argv: argv.clone(), stdout: String::new(), stderr: format!("{}: not found\n", argv[0]), exit: 127 }));
+        }
+        Some(argv) => {
+            let args: Vec<&str> = argv[1..].iter().map(String::as_str).collect();
+            let output = runner::run(Path::new(&argv[0]), &args, None, options.timeout, OUTPUT_CAP).map_err(|e| format!("{}: {e}", argv[0]))?;
+            let exit = output.code();
+            inputs.push(Input::Exec(ExecInput { argv: argv.clone(), stdout: String::from_utf8_lossy(&output.stdout).into_owned(), stderr: String::from_utf8_lossy(&output.stderr).into_owned(), exit }));
+        }
+        None => {}
     }
     Ok(inputs)
 }

@@ -18,6 +18,8 @@ const PLUGINS: &[(&str, &str, &str)] = &[
     ("echo", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"a":1,"nested":{"secret":"hunter2"}},"diagnostics":[{"path":"/etc/x","line":2,"message":"odd"}],"redact":["/nested/secret","/absent"]}'"#),
     ("dump", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("live", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("mixed", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("absent", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("derive", r#"[{"op":"codename","needs":["os.release"]}]"#, r#"printf '%s\n' '{"facts":{"seen":true}}'"#),
     ("loop", r#"[{"op":"release","needs":["apt.codename"]}]"#, r#"printf '%s\n' '{"facts":{}}'"#),
     ("base", r#"[{"op":"release"}]"#, r#"printf '%s\n' '{"facts":{"VERSION_CODENAME":"resolute"}}'"#),
@@ -111,6 +113,26 @@ fn exec_is_skipped_under_root_and_runs_live() {
     assert_eq!(live["meta"]["subject"]["kind"], "host");
     let exec = request("live")["inputs"][0].clone();
     assert_eq!((exec["stdout"].as_str(), exec["stderr"].as_str(), exec["exit"].as_i64()), (Some("out\n"), Some("err\n"), Some(3)));
+}
+
+#[test]
+fn a_collector_with_files_keeps_them_under_root_without_its_exec() {
+    let c = collector("id: mixed\nread:\n  files: [/etc/os-release]\n  exec: [/bin/false]\nparse: {plugin: mixed, op: parse}\ninto: mixed\n");
+    let doc = collect(&[c], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["mixed"]["status"], "ok", "{doc}");
+    let inputs = request("mixed")["inputs"].as_array().unwrap().clone();
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(inputs[0]["path"], "/etc/os-release");
+}
+
+#[test]
+fn an_absent_program_reaches_the_plugin_as_exit_127() {
+    let c = collector("id: absent\nread:\n  exec: [/nonexistent/systemlint-test, -T]\nparse: {plugin: absent, op: parse}\ninto: absent\n");
+    let doc = collect(&[c], &plugins(), &options(true));
+    assert_eq!(doc["collectors"]["absent"]["status"], "ok", "{doc}");
+    let exec = request("absent")["inputs"][0].clone();
+    assert_eq!((exec["exit"].as_i64(), exec["stdout"].as_str()), (Some(127), Some("")));
+    assert_eq!(exec["stderr"], "/nonexistent/systemlint-test: not found\n");
 }
 
 #[test]
