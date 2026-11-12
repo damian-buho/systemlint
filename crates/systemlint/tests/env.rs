@@ -69,6 +69,7 @@ fn every_source_lands_with_secrets_hashed_and_proxy_passwords_masked() {
     assert_eq!(env["image"][image_config().to_str().unwrap()]["vars"]["NODE_TLS_REJECT_UNAUTHORIZED"], "0");
     assert!(env["defaults"]["/etc/default/app"]["vars"]["APP_API_TOKEN"].as_str().unwrap().starts_with("hmac-sha256:"));
     assert_eq!(env["defaults"]["/etc/default/app"]["vars"]["APP_EMPTY_PASSWORD"], "");
+    assert_eq!(env["files"]["/etc/environment"]["vars"]["B19_SECRETS_ENABLED"], "True", "a switch word stays clear, so secret-name passes it");
     assert_eq!(env["files"]["/etc/profile.d/site.sh"]["vars"]["https_proxy"], "http://user:[redacted]@proxy.example:3128");
     let text = document.to_string();
     for secret in ["abc123", "hunter2", ":pw@"] {

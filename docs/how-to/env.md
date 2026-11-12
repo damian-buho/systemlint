@@ -69,7 +69,9 @@ A value stays in clear only for the names the rules read and that hold no
 secret: `PATH`, `LANG`, `LANGUAGE`, `LC_*`, `LD_*`, every `*_proxy` (any case,
 a password in the URL replaced by `[redacted]`), `NODE_OPTIONS`,
 `NODE_TLS_REJECT_UNAUTHORIZED`, `GIT_SSL_NO_VERIFY`, `PYTHONHTTPSVERIFY`,
-`CURL_CA_BUNDLE`, `SSL_CERT_FILE`, `SSL_CERT_DIR` and `REQUESTS_CA_BUNDLE`.
+`CURL_CA_BUNDLE`, `SSL_CERT_FILE`, `SSL_CERT_DIR` and `REQUESTS_CA_BUNDLE`,
+plus any value that is a switch word (`true`, `false`, `yes`, `no`, `on`,
+`off`, `0` or `1`, any case), which holds no secret whatever its name.
 Every other non-empty value becomes `hmac-sha256:` and a keyed hash, so a rule
 still sees whether a variable is set, empty, or equal to another.
 
@@ -95,7 +97,7 @@ collect:
 | `env/tls-verify` | error | `NODE_TLS_REJECT_UNAUTHORIZED=0`, `PYTHONHTTPSVERIFY=0` or any `GIT_SSL_NO_VERIFY` |
 | `env/ca-override` | info | `CURL_CA_BUNDLE`, `SSL_CERT_FILE`, `SSL_CERT_DIR` or `REQUESTS_CA_BUNDLE` |
 | `env/proxy-http` | info | an `http_proxy`, `https_proxy` or `all_proxy` of `http://` to a host other than loopback |
-| `env/secret-name` | warning | a non-empty credential-shaped name (`*SECRET*`, `*TOKEN*`, `*PASSWORD*`, `*API_KEY*`, …) in a file, unit or image; a running process is skipped, as it may have read the value from a secret store |
+| `env/secret-name` | warning | a credential-shaped name (`*SECRET*`, `*TOKEN*`, `*PASSWORD*`, `*API_KEY*`, …) set to anything but empty or a switch word (`B19_SECRETS_ENABLED=true` passes) in a file, unit or image; a running process is skipped, as it may have read the value from a secret store |
 | `env/path-entry` | warning | a relative or empty `PATH` entry |
 
 A subject is the source and the environment, such as

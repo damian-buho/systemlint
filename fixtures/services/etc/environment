@@ -4,3 +4,4 @@
 
 PATH="/usr/local/bin:/usr/bin:/bin:."
 LANG=C.UTF-8
+B19_SECRETS_ENABLED=True

@@ -10,6 +10,9 @@ use serde_json::{Map, Value, json};
 use systemlint_formats::{Sections, mask, parse_ini, text, unquote};
 use systemlint_protocol::{Describe, Diagnostic, Input, Reply, Request, Result};
 
+/// Switch words a value stays in clear as, whatever its name, compared without case.
+pub const TOGGLES: [&str; 8] = ["true", "false", "yes", "no", "on", "off", "0", "1"];
+
 /// Names whose values stay in clear: the rules read them, and they hold no secret.
 pub const CLEAR: [&str; 11] = ["PATH", "LANG", "LANGUAGE", "NODE_OPTIONS", "NODE_TLS_REJECT_UNAUTHORIZED", "GIT_SSL_NO_VERIFY", "PYTHONHTTPSVERIFY", "CURL_CA_BUNDLE", "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE"];
 
@@ -51,7 +54,7 @@ fn pointer(segment: &str) -> String {
     segment.replace('~', "~0").replace('/', "~1")
 }
 
-/// Adds one environment at `key`: `kind`, `vars`, the `path` entries when `PATH` is set, and `extra`; every other value is marked for hashing.
+/// Adds one environment at `key`: `kind`, `vars`, the `path` entries when `PATH` is set, and `extra`; every other value but a switch word is marked for hashing.
 pub fn place(reply: &mut Reply, key: &str, kind: &str, vars: BTreeMap<String, String>, extra: Map<String, Value>) {
     let mut env = json!({"kind": kind});
     if let Some(path) = vars.get("PATH") {
@@ -59,7 +62,7 @@ pub fn place(reply: &mut Reply, key: &str, kind: &str, vars: BTreeMap<String, St
     }
     let mut shown = Map::new();
     for (name, value) in vars {
-        if !value.is_empty() && !clear(&name) {
+        if !value.is_empty() && !clear(&name) && !TOGGLES.iter().any(|t| t.eq_ignore_ascii_case(&value)) {
             reply.hash.push(format!("/{}/vars/{}", pointer(key), pointer(&name)));
         }
         let value = if proxy(&name) { mask(&value) } else { value };
