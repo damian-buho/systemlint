@@ -5,17 +5,18 @@
 //! The generic parsers: bytes in, facts out.
 
 use serde_json::Value;
-use systemlint_protocol::{Describe, Diagnostic, Input, Reply, Request, Result};
+use systemlint_protocol::{Describe, Diagnostic, FileInput, Input, Reply, Request, Result};
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
-    Describe::new("formats", &[("ini", &[]), ("kv", &[]), ("lines", &[]), ("regex", &[]), ("toml", &[])])
+    Describe::new("formats", &[("ini", &[]), ("kv", &[]), ("lines", &[]), ("regex", &[]), ("stat", &[]), ("toml", &[])])
 }
 
 /// Runs one op.
 pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
         "kv" => Ok(kv(&request.inputs)),
+        "stat" => Ok(stat(&request.inputs)),
         other => Err(format!("op {other} is not implemented yet").into()),
     }
 }
@@ -59,6 +60,21 @@ pub fn kv(inputs: &[Input]) -> Reply {
     reply
 }
 
+/// Every input’s stat keyed by its path; an input the core sent without one gets a diagnostic.
+pub fn stat(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        match input {
+            Input::File(FileInput { path, stat: Some(stat), .. }) => {
+                reply.facts.insert(path.clone(), serde_json::to_value(stat).unwrap_or_default());
+            }
+            Input::File(FileInput { path, .. }) => reply.diagnostics.push(Diagnostic { path: path.clone(), line: None, message: "no stat; list it under read.stat".to_owned() }),
+            Input::Exec(exec) => reply.diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: "a command has no stat".to_owned() }),
+        }
+    }
+    reply
+}
+
 /// The value of `raw` as a shell reads one word: `"…"` with `\"`, `\\`, `\$` and `` \` `` escapes, `'…'` literal, else as is.
 pub fn unquote(raw: &str) -> std::result::Result<String, String> {
     let Some(quote) = raw.chars().next().filter(|c| *c == '"' || *c == '\'') else {
@@ -85,7 +101,7 @@ pub fn unquote(raw: &str) -> std::result::Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use systemlint_protocol::{ExecInput, FileInput};
+    use systemlint_protocol::{ExecInput, FileKind, Stat};
 
     fn file(path: &str, content: &str) -> Input {
         Input::File(FileInput { path: path.to_owned(), content: Some(content.to_owned()), content_base64: None, stat: None })
@@ -95,7 +111,7 @@ mod tests {
     fn describe_lists_the_generic_parsers() {
         let describe = describe();
         assert_eq!(describe.name, "formats");
-        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["ini", "kv", "lines", "regex", "toml"]);
+        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["ini", "kv", "lines", "regex", "stat", "toml"]);
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
     }
 
@@ -142,6 +158,18 @@ mod tests {
         assert!(unquote("\"").is_err());
         assert!(unquote("'").is_err());
         assert!(unquote(r#""a"b""#).is_err());
+    }
+
+    #[test]
+    fn stat_keys_each_stat_by_path_and_names_inputs_without_one() {
+        let stat = Stat { kind: FileKind::File, mode: "0666".into(), uid: 0, gid: 0, size: 3, world_writable: true, group_writable: true, setuid: false, setgid: false };
+        let with = Input::File(FileInput { path: "/etc/sudoers.d/x".into(), content: None, content_base64: None, stat: Some(stat) });
+        let exec = Input::Exec(ExecInput { argv: vec!["/bin/true".into()], stdout: String::new(), stderr: String::new(), exit: 0 });
+        let reply = super::stat(&[with, file("/etc/a", "x"), exec]);
+        assert_eq!(reply.facts["/etc/sudoers.d/x"]["mode"], "0666");
+        assert_eq!(reply.facts["/etc/sudoers.d/x"]["world-writable"], true);
+        assert_eq!(reply.facts.len(), 1);
+        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/a", "/bin/true"]);
     }
 
     #[test]

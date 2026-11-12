@@ -65,7 +65,7 @@ and from stderr and kills a plugin that has not answered `--describe` within
 
 ```console
 $ systemlint-formats --describe
-{"name":"formats","version":"0.1.0","protocol":1,"ops":[{"op":"ini"},{"op":"kv"},{"op":"lines"},{"op":"regex"},{"op":"toml"}]}
+{"name":"formats","version":"0.1.0","protocol":1,"ops":[{"op":"ini"},{"op":"kv"},{"op":"lines"},{"op":"regex"},{"op":"stat"},{"op":"toml"}]}
 ```
 
 | Field | Meaning |
