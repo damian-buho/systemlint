@@ -157,6 +157,8 @@ pub struct Reply {
     pub diagnostics: Vec<Diagnostic>,
     #[serde(default)]
     pub redact: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hash: Vec<String>,
 }
 
 /// A problem found in one input, by path and line.

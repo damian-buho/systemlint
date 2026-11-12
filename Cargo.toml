@@ -15,13 +15,16 @@ repository = "https://kiota.ch/damian-buho/systemlint"
 [workspace.dependencies]
 clap = { version = "=4.6.7", features = ["derive"] }
 env_logger = { version = "=0.11.11", default-features = false }
+hmac = "=0.13.0"
 jsonschema = { version = "=0.61.1", default-features = false }
 log = "=0.4.35"
-rustix = { version = "=1.1.6", features = ["fs", "process", "system"] }
+rustix = { version = "=1.1.6", features = ["fs", "process", "rand", "system"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde-saphyr = "=2.1.1"
 serde_json = "=1.0.154"
+sha2 = { version = "=0.11.1", default-features = false }
 systemlint-apt = { path = "crates/systemlint-apt" }
+systemlint-env = { path = "crates/systemlint-env" }
 systemlint-formats = { path = "crates/systemlint-formats" }
 systemlint-protocol = { path = "crates/systemlint-protocol" }
 systemlint-sshd = { path = "crates/systemlint-sshd" }

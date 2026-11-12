@@ -25,6 +25,8 @@ pub struct Collector {
     pub read: Read,
     pub parse: Parse,
     pub into: String,
+    #[serde(default)]
+    pub live: bool,
 }
 
 /// The `read:` sources.
@@ -37,6 +39,8 @@ pub struct Read {
     pub stat: Vec<String>,
     #[serde(default)]
     pub exec: Option<Vec<String>>,
+    #[serde(default, rename = "image-config")]
+    pub image_config: bool,
 }
 
 /// The `parse:` plugin op.

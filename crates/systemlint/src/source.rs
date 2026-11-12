@@ -93,7 +93,7 @@ impl Root {
     pub fn read(&self, path: &str, cap: u64) -> io::Result<Vec<u8>> {
         let file = File::from(self.open_at(path, OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOCTTY)?);
         if !file.metadata()?.is_file() {
-            return Err(io::Error::other("not a regular file"));
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "not a regular file"));
         }
         let mut bytes = Vec::new();
         file.take(cap + 1).read_to_end(&mut bytes)?;

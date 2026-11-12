@@ -13,16 +13,19 @@ repository.workspace = true
 [dependencies]
 clap.workspace = true
 env_logger.workspace = true
+hmac.workspace = true
 jsonschema.workspace = true
 log.workspace = true
 rustix.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 systemlint-protocol.workspace = true
 wait-timeout.workspace = true
 
 [dev-dependencies]
 systemlint-apt.workspace = true
+systemlint-env.workspace = true
 systemlint-formats.workspace = true
 systemlint-sshd.workspace = true

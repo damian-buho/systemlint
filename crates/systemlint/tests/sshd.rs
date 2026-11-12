@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
 
 use serde_json::{Value, json};
-use systemlint::collect::{Options, inputs};
+use systemlint::collect::{HashKey, Options, inputs};
 use systemlint::collector::Collector;
 use systemlint::judge::{Check, Outcome, compile, lint};
 use systemlint::rules::Library;
@@ -24,7 +24,7 @@ fn repository() -> PathBuf {
 // The fixture read by the shipped collector under --root, with the captured `sshd -T` added when `effective` is set.
 fn document(effective: bool) -> Value {
     let collector = Collector::parse(&std::fs::read_to_string(repository().join("collectors/sshd.yaml")).unwrap()).unwrap();
-    let options = Options { root: Root::open(&repository().join("fixtures/sshd")).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60) };
+    let options = Options { root: Root::open(&repository().join("fixtures/sshd")).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None };
     let mut given = inputs(&collector, &options).unwrap();
     assert!(given.iter().all(|i| matches!(i, Input::File(_))), "exec never runs under --root");
     if effective {

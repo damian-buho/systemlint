@@ -12,4 +12,5 @@ repository.workspace = true
 
 [dependencies]
 serde_json.workspace = true
+systemlint-formats.workspace = true
 systemlint-protocol.workspace = true

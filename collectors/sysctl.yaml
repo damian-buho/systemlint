@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: sysctl
+read:
+  files: [/etc/sysctl.conf, /etc/sysctl.d/*.conf, /run/sysctl.d/*.conf, /usr/local/lib/sysctl.d/*.conf, /usr/lib/sysctl.d/*.conf, /lib/sysctl.d/*.conf]
+  exec: [/usr/sbin/sysctl, -a]
+parse: {plugin: formats, op: sysctl}
+into: sysctl

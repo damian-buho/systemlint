@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
 
 use serde_json::{Map, Value, json};
-use systemlint::collect::{Options, inputs, lookup, rfc3339};
+use systemlint::collect::{HashKey, Options, inputs, lookup, rfc3339};
 use systemlint::collector::Collector;
 use systemlint::judge::{Check, compile, lint};
 use systemlint::rules::Library;
@@ -24,7 +24,7 @@ fn collector(id: &str) -> Collector {
 
 // Each shipped collector in an order that meets its needs, read through the core and parsed by the plugin library in-process.
 fn document(root: &str) -> Value {
-    let options = Options { root: Root::open(&repository().join("fixtures").join(root)).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60) };
+    let options = Options { root: Root::open(&repository().join("fixtures").join(root)).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None };
     let mut facts = Map::new();
     let mut outcomes = Map::new();
     for id in ["os-release", "apt-lists", "apt-sources", "apt-installed"] {

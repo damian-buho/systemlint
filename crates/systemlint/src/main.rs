@@ -34,7 +34,7 @@ const EXIT_PLUGIN: u8 = 4;
 /// Collects operating system facts and lints them with declarative rules.
 #[derive(Parser)]
 #[command(name = "systemlint", version = VERSION, arg_required_else_help = true)]
-#[command(after_help = "Examples:\n  systemlint facts\n  systemlint facts --root /mnt/image --save image.facts.yaml\n  systemlint lint image.facts.yaml\n  systemlint comply cis-ubuntu-26.04\n  systemlint plugin list\n\nDocs: https://kiota.ch/damian-buho/systemlint\nIssues: https://kiota.ch/damian-buho/systemlint/issues")]
+#[command(after_help = "Examples:\n  systemlint facts\n  systemlint facts --root /mnt/image --save image.facts.yaml\n  systemlint lint --root rootfs --image-config config.json --tags env\n  systemlint lint image.facts.yaml\n  systemlint comply cis-ubuntu-26.04\n  systemlint plugin list\n\nDocs: https://kiota.ch/damian-buho/systemlint\nIssues: https://kiota.ch/damian-buho/systemlint/issues")]
 struct Cli {
     /// Configuration file [default: /etc/systemlint/config.yaml when it exists]
     #[arg(long, global = true, value_name = "PATH")]
@@ -57,6 +57,9 @@ enum Command {
         /// Read this root filesystem instead of the live host; commands do not run
         #[arg(long, value_name = "DIR")]
         root: Option<PathBuf>,
+        /// Also read this OCI image config or docker inspect JSON, for the image’s environment
+        #[arg(long, value_name = "PATH")]
+        image_config: Option<PathBuf>,
         /// Write the document to PATH instead of stdout: JSON when it ends in .json, else YAML
         #[arg(long, value_name = "PATH")]
         save: Option<PathBuf>,
@@ -116,6 +119,9 @@ struct Input {
     /// Collect from this root filesystem instead of the live host
     #[arg(long, value_name = "DIR")]
     root: Option<PathBuf>,
+    /// Also read this OCI image config or docker inspect JSON, for the image’s environment
+    #[arg(long, value_name = "PATH", conflicts_with = "facts")]
+    image_config: Option<PathBuf>,
 }
 
 /// How `lint` and `comply` print their answer.
@@ -147,7 +153,7 @@ fn main() -> ExitCode {
         }
     };
     match cli.command {
-        Command::Facts { root, save, json } => ExitCode::from(facts(&config, root.as_deref(), save.as_deref(), json, cli.quiet)),
+        Command::Facts { root, image_config, save, json } => ExitCode::from(facts(&config, root.as_deref(), image_config, save.as_deref(), json, cli.quiet)),
         Command::Lint { input, tags, fail_on, format } => ExitCode::from(lint(&config, &input, &tags, fail_on, format, cli.quiet)),
         Command::Comply { standard, input, format } => ExitCode::from(comply(&config, &standard, &input, format, cli.quiet)),
         Command::Plugin(PluginCommand::List { json }) => ExitCode::from(plugin_list(&config, json, cli.quiet)),
@@ -158,7 +164,7 @@ fn exe() -> PathBuf {
     std::env::current_exe().and_then(|p| p.canonicalize()).unwrap_or_else(|_| PathBuf::from("/usr/local/bin/systemlint"))
 }
 
-fn gather(config: &Config, root: Option<&Path>, quiet: bool) -> Result<(Value, bool), u8> {
+fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, quiet: bool) -> Result<(Value, bool), u8> {
     let trust = Trust::invoking_user();
     let (collectors, mut refusals) = collector::load(&collector::directories(&exe(), &config.collect.directories), &trust);
     let (plugins, plugin_refusals) = discovery::discover(&discovery::directories(&exe(), discovery::BESIDE, &config.plugins.directories), &trust);
@@ -172,7 +178,14 @@ fn gather(config: &Config, root: Option<&Path>, quiet: bool) -> Result<(Value, b
         EXIT_CONFIG
     })?;
     log::debug!("collecting {} collectors with {} plugins from {} (live {live})", collectors.len(), plugins.len(), root.path().display());
-    let options = Options { root, live, now: SystemTime::now(), timeout: collect::TIMEOUT };
+    let hash_key = match &config.collect.hash_key {
+        Some(text) => collect::HashKey::configured(text),
+        None => collect::HashKey::random().map_err(|error| {
+            eprintln!("{error}");
+            EXIT_CONFIG
+        })?,
+    };
+    let options = Options { root, live, now: SystemTime::now(), timeout: collect::TIMEOUT, hash_key, image_config };
     let document = collect::collect(&collectors, &plugins, &options);
     if collectors.is_empty() && !quiet {
         eprintln!("No collectors found. Searched: {}", collector::directories(&exe(), &config.collect.directories).iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
@@ -185,8 +198,8 @@ fn gather(config: &Config, root: Option<&Path>, quiet: bool) -> Result<(Value, b
     Ok((document, refusals.is_empty()))
 }
 
-fn facts(config: &Config, root: Option<&Path>, save: Option<&Path>, json: bool, quiet: bool) -> u8 {
-    let (document, trusted) = match gather(config, root, quiet) {
+fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, save: Option<&Path>, json: bool, quiet: bool) -> u8 {
+    let (document, trusted) = match gather(config, root, image_config, quiet) {
         Ok(gathered) => gathered,
         Err(code) => return code,
     };
@@ -207,7 +220,7 @@ fn facts_for(config: &Config, input: &Input, quiet: bool) -> Result<(Value, bool
             eprintln!("{error}");
             EXIT_CONFIG
         }),
-        None => gather(config, input.root.as_deref(), quiet),
+        None => gather(config, input.root.as_deref(), input.image_config.clone(), quiet),
     }
 }
 

@@ -54,12 +54,14 @@ pub struct Comply {
     pub directories: Vec<PathBuf>,
 }
 
-/// The `collect:` section.
+/// The `collect:` section: where collectors live, and the key hashed values share across runs.
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Collect {
     #[serde(default)]
     pub directories: Vec<PathBuf>,
+    #[serde(default, rename = "hash-key")]
+    pub hash_key: Option<String>,
 }
 
 /// The `plugins:` section.
@@ -80,6 +82,9 @@ impl Config {
             if dir.is_relative() {
                 *dir = base.join(&*dir);
             }
+        }
+        if config.collect.hash_key.as_deref().is_some_and(|k| k.chars().count() < 16) {
+            return Err(format!("{}: collect.hash-key needs 16 characters or more, or a hash of a short value is guessed", path.display()));
         }
         if let Some(text) = &config.lint.fail_on {
             text.parse::<FailOn>().map_err(|e| format!("{}: lint.{e}", path.display()))?;

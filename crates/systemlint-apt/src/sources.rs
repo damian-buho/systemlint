@@ -42,15 +42,7 @@ fn words(text: &str) -> Vec<String> {
     text.split([' ', '\t', '\n', ',']).filter(|w| !w.is_empty()).map(str::to_owned).collect()
 }
 
-/// `uri` with its password replaced, so no credential reaches the facts.
-pub fn mask(uri: &str) -> String {
-    let Some((scheme, rest)) = uri.split_once("://") else { return uri.to_owned() };
-    let authority = rest.split('/').next().unwrap_or_default();
-    match authority.rsplit_once('@').and_then(|(info, host)| info.split_once(':').map(|(user, _)| (user, host))) {
-        Some((user, host)) => format!("{scheme}://{user}:[redacted]@{host}{}", &rest[authority.len()..]),
-        None => uri.to_owned(),
-    }
-}
+pub use systemlint_formats::mask;
 
 /// The `/var/lib/apt/lists` file name apt derives from `uri` and `suite`, before `InRelease` or `Release`.
 pub fn list_name(uri: &str, suite: &str) -> String {

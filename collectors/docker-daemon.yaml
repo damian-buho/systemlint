@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: docker-daemon
+read:
+  files: [/etc/docker/daemon.json]
+parse: {plugin: formats, op: json}
+into: docker.daemon

@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
-use systemlint::collect::{Options, REDACTED, SCHEMA, base64, collect, rfc3339};
+use systemlint::collect::{HashKey, Options, REDACTED, SCHEMA, base64, collect, rfc3339};
 use systemlint::collector::Collector;
 use systemlint::discovery::Plugin;
 use systemlint::source::Root;
@@ -25,6 +25,10 @@ const PLUGINS: &[(&str, &str, &str)] = &[
     ("base", r#"[{"op":"release"}]"#, r#"printf '%s\n' '{"facts":{"VERSION_CODENAME":"resolute"}}'"#),
     ("broken", r#"[{"op":"parse"}]"#, "echo crashed >&2; exit 1"),
     ("garbage", r#"[{"op":"parse"}]"#, "echo not json"),
+    ("hasher", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"env":{"TOKEN":"s3cret","EMPTY":"","N":1,"BOTH":"x"}},"hash":["/env/TOKEN","/env/EMPTY","/env/N","/env/BOTH","/absent"],"redact":["/env/BOTH"]}'"#),
+    ("image", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("proc", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("dirs", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
 ];
 
 fn plugins() -> Vec<Plugin> {
@@ -57,7 +61,7 @@ fn fixture() -> PathBuf {
 
 fn options(live: bool) -> Options {
     let root = if live { Path::new("/").to_path_buf() } else { fixture() };
-    Options { root: Root::open(&root).unwrap(), live, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60) }
+    Options { root: Root::open(&root).unwrap(), live, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None }
 }
 
 fn collector(yaml: &str) -> Collector {
@@ -194,4 +198,63 @@ fn base64_matches_rfc_4648() {
         assert_eq!(base64(plain.as_bytes()), encoded);
     }
     assert_eq!(base64(&[0xff, 0xfe, 0x00]), "//4A");
+}
+
+#[test]
+fn hash_key_follows_rfc_4231_and_names_itself() {
+    let key = HashKey::configured("Jefe");
+    assert_eq!(key.hash("what do ya want for nothing?"), "hmac-sha256:5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843");
+    assert_eq!(key.id().len(), 16);
+    assert_ne!(key.id(), HashKey::configured("Jeff").id());
+    let (a, b) = (HashKey::random().unwrap(), HashKey::random().unwrap());
+    assert_ne!(a.hash("x"), b.hash("x"), "two runs never share a random key");
+    assert!(!format!("{a:?}").contains("key:"), "Debug never prints the key");
+}
+
+#[test]
+fn hash_replaces_marked_strings_before_redaction_and_keeps_empty_ones() {
+    let c = collector("id: hasher\nparse: {plugin: hasher, op: parse}\ninto: h\n");
+    let doc = collect(&[c], &plugins(), &options(false));
+    let env = &doc["h"]["env"];
+    assert_eq!(env["TOKEN"], HashKey::configured("a fixture hash key").hash("s3cret"));
+    assert_eq!((env["EMPTY"].as_str(), env["N"].as_i64(), env["BOTH"].as_str()), (Some(""), Some(1), Some(REDACTED)));
+    assert!(!doc.to_string().contains("s3cret"));
+    assert_eq!(doc["collectors"]["hasher"]["hashed"], 2);
+    assert_eq!(doc["meta"]["hash-key"]["source"], "configured");
+    assert_eq!(doc["meta"]["hash-key"]["id"], HashKey::configured("a fixture hash key").id());
+}
+
+#[test]
+fn a_live_collector_is_skipped_under_root() {
+    let c = collector("id: proc\nlive: true\nread:\n  files: [/proc/self/stat]\nparse: {plugin: proc, op: parse}\ninto: proc\n");
+    let doc = collect(std::slice::from_ref(&c), &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["proc"]["status"], "skipped");
+    assert!(doc["collectors"]["proc"]["reason"].as_str().unwrap().contains("live host only, and --root"), "{doc}");
+    assert_eq!(collect(&[c], &plugins(), &options(true))["collectors"]["proc"]["status"], "ok");
+}
+
+#[test]
+fn an_image_config_is_read_from_the_host_only_when_given() {
+    let c = collector("id: image\nread:\n  image-config: true\nparse: {plugin: image, op: parse}\ninto: image\n");
+    let without = collect(std::slice::from_ref(&c), &plugins(), &options(false));
+    assert_eq!(without["collectors"]["image"]["status"], "skipped");
+    assert!(without["collectors"]["image"]["reason"].as_str().unwrap().contains("no --image-config"), "{without}");
+    let config = Path::new(env!("CARGO_TARGET_TMPDIR")).join("image-config.json");
+    std::fs::write(&config, r#"{"config":{"Env":["A=1"]}}"#).unwrap();
+    let with = collect(std::slice::from_ref(&c), &plugins(), &Options { image_config: Some(config.clone()), ..options(false) });
+    assert_eq!(with["collectors"]["image"]["status"], "ok", "{with}");
+    assert_eq!(with["meta"]["subject"]["image-config"], config.to_str().unwrap());
+    let input = request("image")["inputs"][0].clone();
+    assert_eq!((input["path"].as_str(), input["content"].as_str()), (config.to_str(), Some(r#"{"config":{"Env":["A=1"]}}"#)));
+    let missing = collect(&[c], &plugins(), &Options { image_config: Some(config.with_extension("absent")), ..options(false) });
+    assert!(missing["collectors"]["image"]["reason"].as_str().unwrap().contains("can’t read image config"), "{missing}");
+}
+
+#[test]
+fn a_glob_matching_a_directory_skips_it() {
+    let c = collector("id: dirs\nread:\n  files: [/etc/*]\nparse: {plugin: dirs, op: parse}\ninto: dirs\n");
+    let doc = collect(&[c], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["dirs"]["status"], "ok", "{doc}");
+    let paths: Vec<String> = request("dirs")["inputs"].as_array().unwrap().iter().map(|i| i["path"].as_str().unwrap().to_owned()).collect();
+    assert_eq!(paths, ["/etc/os-release"]);
 }

@@ -57,3 +57,10 @@ fn a_waiver_without_a_day_or_reason_and_a_bad_fail_on_are_refused() {
     }
     assert!(Config::load(&write("fail-on", "lint:\n  fail-on: loud\n")).unwrap_err().contains("lint.fail-on \"loud\""));
 }
+
+#[test]
+fn a_hash_key_needs_16_characters() {
+    assert!(Config::load(&write("key-15", "collect:\n  hash-key: fifteen-chars-x\n")).unwrap_err().contains("16 characters or more"));
+    assert!(Config::load(&write("key-15-wide", "collect:\n  hash-key: ñññññññññññññññ\n")).is_err(), "characters, not bytes");
+    assert_eq!(Config::load(&write("key-16", "collect:\n  hash-key: sixteen-chars-xx\n")).unwrap().collect.hash_key.as_deref(), Some("sixteen-chars-xx"));
+}

@@ -6,10 +6,12 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use hmac::{Hmac, KeyInit, Mac};
 use serde_json::{Map, Value, json};
+use sha2::Sha256;
 use systemlint_protocol::{Describe, Diagnostic, ExecInput, FileInput, Input, PROTOCOL, Reply, Request, VERSION};
 
 use crate::collector::{Collector, overlaps};
@@ -26,6 +28,9 @@ pub const TIMEOUT: Duration = Duration::from_secs(30);
 /// What a value a plugin marks secret is replaced with.
 pub const REDACTED: &str = "[redacted]";
 
+/// What a hashed value starts with.
+pub const HASHED: &str = "hmac-sha256:";
+
 /// How one collection runs.
 #[derive(Debug)]
 pub struct Options {
@@ -33,6 +38,51 @@ pub struct Options {
     pub live: bool,
     pub now: SystemTime,
     pub timeout: Duration,
+    pub hash_key: HashKey,
+    pub image_config: Option<PathBuf>,
+}
+
+/// The key every value a plugin marks for hashing is keyed with: random per run unless the config sets one.
+#[derive(Clone)]
+pub struct HashKey {
+    key: Vec<u8>,
+    configured: bool,
+}
+
+impl std::fmt::Debug for HashKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HashKey({}, {})", if self.configured { "configured" } else { "random" }, self.id())
+    }
+}
+
+impl HashKey {
+    /// A fresh random 32-byte key from the kernel.
+    pub fn random() -> Result<Self, String> {
+        let mut key = vec![0u8; 32];
+        let mut filled = 0;
+        while filled < key.len() {
+            filled += rustix::rand::getrandom(&mut key[filled..], rustix::rand::GetRandomFlags::empty()).map_err(|e| format!("can’t draw a random hash key: {e}"))?;
+        }
+        Ok(Self { key, configured: false })
+    }
+
+    /// The key a configuration sets, so documents from several hosts compare.
+    pub fn configured(text: &str) -> Self {
+        Self { key: text.as_bytes().to_vec(), configured: true }
+    }
+
+    /// `value` as `hmac-sha256:` and the hex HMAC-SHA256 under this key.
+    pub fn hash(&self, value: &str) -> String {
+        let mut mac = <Hmac<Sha256> as KeyInit>::new_from_slice(&self.key).unwrap_or_else(|_| unreachable!("HMAC takes a key of any length"));
+        mac.update(value.as_bytes());
+        let hex: String = mac.finalize().into_bytes().iter().map(|b| format!("{b:02x}")).collect();
+        format!("{HASHED}{hex}")
+    }
+
+    /// A short public name for the key, equal in two documents exactly when their hashes compare.
+    pub fn id(&self) -> String {
+        self.hash("systemlint hash key id")[HASHED.len()..HASHED.len() + 16].to_owned()
+    }
 }
 
 /// The facts document: `meta`, `collectors.<id>` outcomes, and every fact at the top level.
@@ -42,6 +92,16 @@ pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) 
     let mut described: HashMap<String, Result<Describe, String>> = HashMap::new();
     let mut planned = Vec::new();
     for (index, collector) in collectors.iter().enumerate() {
+        let skip = match (collector.live && !options.live, collector.read.image_config && options.image_config.is_none()) {
+            (true, _) => Some(format!("reads the live host only, and --root {} was given", options.root.path().display())),
+            (_, true) => Some("reads an image config, and no --image-config was given".to_owned()),
+            _ => None,
+        };
+        if let Some(reason) = skip {
+            log::debug!("collector {} skipped: {reason}", collector.id);
+            outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": reason}));
+            continue;
+        }
         if collector.read.exec.is_some() && !options.live && collector.read.files.is_empty() && collector.read.stat.is_empty() {
             log::debug!("collector {} skipped: exec under --root", collector.id);
             outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": format!("runs {} on a live host only, and --root {} was given", collector.read.exec.as_deref().unwrap_or_default()[0], options.root.path().display())}));
@@ -71,16 +131,19 @@ pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) 
         let collector = &collectors[index];
         let outcome = gather(collector, &needs, collectors, &facts, &outcomes)
             .and_then(|given| run(collector, plugin, given, options, &now))
-            .and_then(|(value, diagnostics, redacted)| place(&mut facts, &collector.into, value).map(|()| (diagnostics, redacted)));
+            .and_then(|(value, diagnostics, redacted, hashed)| place(&mut facts, &collector.into, value).map(|()| (diagnostics, redacted, hashed)));
         let outcome = match outcome {
-            Ok((diagnostics, redacted)) => {
-                log::debug!("collector {} ok into {}, {} diagnostics, {} redacted", collector.id, collector.into, diagnostics.len(), redacted.len());
+            Ok((diagnostics, redacted, hashed)) => {
+                log::debug!("collector {} ok into {}, {} diagnostics, {} redacted, {hashed} hashed", collector.id, collector.into, diagnostics.len(), redacted.len());
                 let mut ok = json!({"status": "ok", "plugin": plugin.name, "op": collector.parse.op});
                 if !diagnostics.is_empty() {
                     ok["diagnostics"] = json!(diagnostics);
                 }
                 if !redacted.is_empty() {
                     ok["redacted"] = json!(redacted);
+                }
+                if hashed > 0 {
+                    ok["hashed"] = json!(hashed);
                 }
                 ok
             }
@@ -96,12 +159,16 @@ pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) 
             outcome["into"] = Value::from(collector.into.clone());
         }
     }
-    let subject = if options.live {
+    let mut subject = if options.live {
         json!({"kind": "host", "name": rustix::system::uname().nodename().to_string_lossy()})
     } else {
         json!({"kind": "root", "path": options.root.path()})
     };
-    let meta = json!({"schema": SCHEMA, "systemlint": VERSION, "plugins": versions, "collected-at": now, "subject": subject, "privileged": rustix::process::geteuid().is_root()});
+    if let Some(path) = &options.image_config {
+        subject["image-config"] = json!(path);
+    }
+    let hash_key = json!({"source": if options.hash_key.configured { "configured" } else { "random" }, "id": options.hash_key.id()});
+    let meta = json!({"schema": SCHEMA, "systemlint": VERSION, "plugins": versions, "collected-at": now, "subject": subject, "privileged": rustix::process::geteuid().is_root(), "hash-key": hash_key});
     facts.insert("meta".to_owned(), meta);
     facts.insert("collectors".to_owned(), Value::Object(outcomes));
     Value::Object(facts)
@@ -135,13 +202,14 @@ fn gather(collector: &Collector, needs: &[String], collectors: &[Collector], fac
     Ok(given)
 }
 
-fn run(collector: &Collector, plugin: &Plugin, facts: BTreeMap<String, Value>, options: &Options, now: &str) -> Result<(Value, Vec<Diagnostic>, Vec<String>), String> {
+fn run(collector: &Collector, plugin: &Plugin, facts: BTreeMap<String, Value>, options: &Options, now: &str) -> Result<(Value, Vec<Diagnostic>, Vec<String>, usize), String> {
     let request = Request { protocol: PROTOCOL, op: collector.parse.op.clone(), root: options.root.path().display().to_string(), now: Some(now.to_owned()), inputs: inputs(collector, options)?, facts };
     log::debug!("collector {} sends {} inputs to {} {}", collector.id, request.inputs.len(), plugin.name, request.op);
     let body = serde_json::to_vec(&request).map_err(|e| format!("can’t encode the request: {e}"))?;
     let output = runner::call(&plugin.path, &[], Some(body), options.timeout, OUTPUT_CAP).map_err(|e| format!("plugin {}: {e}", plugin.name))?;
     let reply: Reply = serde_json::from_slice(&output.stdout).map_err(|e| format!("plugin {} replied with invalid protocol JSON: {e}", plugin.name))?;
     let mut value = Value::Object(reply.facts.into_iter().collect());
+    let hashed = hash(&mut value, &reply.hash, &options.hash_key, &collector.id);
     let mut redacted = Vec::new();
     for pointer in reply.redact {
         match value.pointer_mut(&pointer) {
@@ -152,7 +220,24 @@ fn run(collector: &Collector, plugin: &Plugin, facts: BTreeMap<String, Value>, o
             None => log::debug!("collector {}: redact {pointer} names no fact", collector.id),
         }
     }
-    Ok((value, reply.diagnostics, redacted))
+    Ok((value, reply.diagnostics, redacted, hashed))
+}
+
+/// Replaces each non-empty string the `pointers` name with its keyed hash, returning how many were hashed.
+pub fn hash(value: &mut Value, pointers: &[String], key: &HashKey, collector: &str) -> usize {
+    let mut hashed = 0;
+    for pointer in pointers {
+        match value.pointer_mut(pointer) {
+            Some(Value::String(text)) if !text.is_empty() => {
+                *text = key.hash(text);
+                hashed += 1;
+            }
+            Some(Value::String(_)) => log::trace!("collector {collector}: hash {pointer} is empty, kept"),
+            Some(other) => log::debug!("collector {collector}: hash {pointer} names a {}, not a string", if other.is_object() { "object" } else { "non-string" }),
+            None => log::debug!("collector {collector}: hash {pointer} names no fact"),
+        }
+    }
+    hashed
 }
 
 /// Reads every source of `collector`: file contents and stats merged by path, then the command.
@@ -171,6 +256,7 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
                     }
                 }
                 Err(e) if e.kind() == io::ErrorKind::NotFound => log::debug!("collector {}: {path} is absent", collector.id),
+                Err(e) if e.kind() == io::ErrorKind::InvalidInput => log::debug!("collector {}: {path} is not a regular file, skipped", collector.id),
                 Err(e) => return Err(format!("can’t read {path}: {e}")),
             }
         }
@@ -183,6 +269,12 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
                 Err(e) => return Err(format!("can’t stat {path}: {e}")),
             }
         }
+    }
+    if let (true, Some(path)) = (collector.read.image_config, &options.image_config) {
+        let text = image_config(path)?;
+        log::debug!("collector {}: image config {} has {} bytes", collector.id, path.display(), text.len());
+        let name = path.display().to_string();
+        files.insert(name.clone(), FileInput { content: Some(text), ..blank(&name) });
     }
     let mut inputs: Vec<Input> = files.into_values().map(Input::File).collect();
     match &collector.read.exec {
@@ -200,6 +292,17 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
         None => {}
     }
     Ok(inputs)
+}
+
+/// The image config the operator named, a host file outside any root, as text under the output cap.
+fn image_config(path: &Path) -> Result<String, String> {
+    let file = std::fs::File::open(path).map_err(|e| format!("can’t read image config {}: {e}", path.display()))?;
+    let mut text = String::new();
+    io::Read::read_to_string(&mut io::Read::take(file, OUTPUT_CAP + 1), &mut text).map_err(|e| format!("can’t read image config {}: {e}", path.display()))?;
+    if text.len() as u64 > OUTPUT_CAP {
+        return Err(format!("image config {} is larger than {OUTPUT_CAP} bytes", path.display()));
+    }
+    Ok(text)
 }
 
 /// The value at dotted `path` in `facts`.
