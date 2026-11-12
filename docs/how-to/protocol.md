@@ -68,7 +68,7 @@ and from stderr and kills a plugin that has not answered `--describe` within
 
 ```console
 $ systemlint-formats --describe
-{"name":"formats","version":"0.1.0","protocol":1,"ops":[{"op":"ini"},{"op":"json"},{"op":"kv"},{"op":"lines"},{"op":"regex"},{"op":"stat"},{"op":"sysctl"},{"op":"toml"}]}
+{"name":"formats","version":"0.1.0","protocol":1,"ops":[{"op":"csv"},{"op":"exec"},{"op":"ini"},{"op":"json"},{"op":"kv"},{"op":"lines"},{"op":"stat"},{"op":"sysctl"},{"op":"toml"},{"op":"yaml"}]}
 ```
 
 | Field | Meaning |

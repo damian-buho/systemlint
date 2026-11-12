@@ -17,7 +17,7 @@ pub type Sections = BTreeMap<String, BTreeMap<String, Vec<String>>>;
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
-    Describe::new("formats", &[("csv", &[]), ("exec", &[]), ("ini", &[]), ("json", &[]), ("kv", &[]), ("lines", &[]), ("regex", &[]), ("stat", &[]), ("sysctl", &[]), ("toml", &[]), ("yaml", &[])])
+    Describe::new("formats", &[("csv", &[]), ("exec", &[]), ("ini", &[]), ("json", &[]), ("kv", &[]), ("lines", &[]), ("stat", &[]), ("sysctl", &[]), ("toml", &[]), ("yaml", &[])])
 }
 
 /// Runs one op.
@@ -33,7 +33,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "sysctl" => Ok(sysctl(&request.inputs)),
         "toml" => Ok(toml(&request.inputs)),
         "yaml" => Ok(yaml(&request.inputs)),
-        other => Err(format!("op {other} is not implemented yet").into()),
+        other => Err(format!("unknown op {other}").into()),
     }
 }
 
@@ -455,7 +455,7 @@ mod tests {
     fn describe_lists_the_generic_parsers() {
         let describe = describe();
         assert_eq!(describe.name, "formats");
-        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["csv", "exec", "ini", "json", "kv", "lines", "regex", "stat", "sysctl", "toml", "yaml"]);
+        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["csv", "exec", "ini", "json", "kv", "lines", "stat", "sysctl", "toml", "yaml"]);
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
     }
 
@@ -560,7 +560,7 @@ mod tests {
     }
 
     #[test]
-    fn other_ops_are_not_implemented() {
+    fn an_unknown_op_is_refused_by_name() {
         let request = Request { protocol: 1, op: "regex".into(), root: "/".into(), now: None, inputs: vec![], facts: Default::default() };
         assert!(op(request).unwrap_err().to_string().contains("regex"));
     }
