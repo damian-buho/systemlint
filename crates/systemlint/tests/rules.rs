@@ -66,6 +66,16 @@ fn ruleset_overrides_merge_expect_by_keyword_and_drop_the_old_message() {
 }
 
 #[test]
+fn an_override_replaces_the_rationale_and_adds_references_once() {
+    let lib = library(&[("t", "rules:\n  a/x: {fact: x, expect: {minLength: 3}, rationale: old, references: [{title: A, url: 'https://a.example'}]}\n"), ("p", "extends: [t]\nrules:\n  a/x: {rationale: new, references: [{title: A, url: 'https://a.example'}, {title: B, url: 'https://b.example'}]}\n")]);
+    let x = &lib.resolve("p").unwrap()["a/x"];
+    assert_eq!(x.rationale.as_deref(), Some("new"));
+    assert_eq!(x.references.iter().map(|r| r.title.as_str()).collect::<Vec<_>>(), ["A", "B"]);
+    let bad = BTreeMap::from([("bad".to_owned(), systemlint::yaml::from_str::<Ruleset>("rules:\n  a/y: {fact: y, expect: {}, references: [{url: 'https://a.example'}]}\n").unwrap())]);
+    assert!(Library::new(bad).unwrap_err().contains("missing field `title`"), "a reference needs a title");
+}
+
+#[test]
 fn a_policy_overrides_a_rule_by_id_without_extending_and_selection_keeps_it() {
     let lib = library(&[("lenient", "rules:\n  os/supported: 4.2\n  shadow/private: off\n")]);
     let picked = lib.select(&["lenient".into(), "fixture-b:*".into()]).unwrap();

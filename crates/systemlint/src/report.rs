@@ -188,8 +188,8 @@ fn header(label: &str, check: &Check, on: bool) -> String {
     check.title.as_deref().map_or_else(|| format!("{label}: {id}"), |title| format!("{label}: {id} {title}"))
 }
 
-/// The failing checks of one rule as a block: level and highest score, a line per location, the fix once when every location shares it.
-fn failure_block(out: &mut String, group: &[&Check], on: bool) {
+/// The failing checks of one rule as a block: level and highest score, a line per location, the fix once when every location shares it, then why and the references when `verbose`.
+fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     let worst = group.iter().copied().max_by(|a, b| a.score.unwrap_or_default().total_cmp(&b.score.unwrap_or_default())).unwrap_or(group[0]);
     let (word, code) = level_word(worst.severity);
     let label = format!("{} ({:.1})", paint(on, code, word), worst.score.unwrap_or_default());
@@ -212,6 +212,12 @@ fn failure_block(out: &mut String, group: &[&Check], on: bool) {
     }
     if let Some(fix) = problems[0][0].fix.as_deref().filter(|_| shared) {
         let _ = writeln!(out, "Fix: {fix}");
+    }
+    if let Some(why) = worst.rationale.as_deref().filter(|_| verbose) {
+        let _ = writeln!(out, "Why: {why}");
+    }
+    for reference in worst.references.iter().filter(|_| verbose) {
+        let _ = writeln!(out, "See: {} <{}>", reference.title, reference.url);
     }
     out.push('\n');
 }
@@ -316,8 +322,8 @@ fn standard_block(out: &mut String, report: &Report, on: bool) {
     out.push('\n');
 }
 
-/// One block per rule: not run reasons, unknowns, waivers, failures lowest score first, each standard, then the rating and counts unless `quiet`.
-pub fn lint_human(document: &Value, checks: &[Check], compliance: &[Report], quiet: bool, on: bool) -> String {
+/// One block per rule: not run reasons, unknowns, waivers, failures lowest score first (with why and references when `verbose`), each standard, then the rating and counts unless `quiet`.
+pub fn lint_human(document: &Value, checks: &[Check], compliance: &[Report], quiet: bool, verbose: bool, on: bool) -> String {
     let mut out = String::new();
     let mut not_run: BTreeMap<&str, (BTreeSet<&str>, BTreeSet<&str>)> = BTreeMap::new();
     for check in checks {
@@ -346,7 +352,7 @@ pub fn lint_human(document: &Value, checks: &[Check], compliance: &[Report], qui
         out.push('\n');
     }
     for group in ranked(checks) {
-        failure_block(&mut out, &group, on);
+        failure_block(&mut out, &group, verbose, on);
     }
     for report in compliance {
         standard_block(&mut out, report, on);
@@ -481,7 +487,15 @@ fn taxonomies(compliance: &[Report]) -> Vec<Value> {
     compliance.iter().map(|r| json!({"name": r.standard, "fullName": r.name, "taxa": r.controls.iter().map(taxon).collect::<Vec<_>>()})).collect()
 }
 
-/// The descriptor of every rule the checks name: tags, docs, default level, `security-severity` from the score and the controls it covers.
+/// A rule’s rationale and references as SARIF `help`, in plain text and markdown, or `None` when it has neither.
+fn help(check: &Check) -> Option<Value> {
+    let (mut text, mut markdown) = (check.rationale.clone().into_iter().collect::<Vec<_>>(), check.rationale.clone().into_iter().collect::<Vec<_>>());
+    text.extend(check.references.iter().map(|r| format!("{}: {}", r.title, r.url)));
+    markdown.extend(check.references.iter().map(|r| format!("- [{}]({})", r.title.replace(']', "\\]"), r.url)));
+    (!text.is_empty()).then(|| json!({"text": text.join("\n"), "markdown": markdown.join("\n\n")}))
+}
+
+/// The descriptor of every rule the checks name: title, tags, docs, rationale and references, default level, `security-severity` from the score and the controls it covers.
 fn descriptors(checks: &[Check], compliance: &[Report]) -> Vec<Value> {
     let mut seen = std::collections::BTreeMap::new();
     for check in checks {
@@ -490,8 +504,14 @@ fn descriptors(checks: &[Check], compliance: &[Report]) -> Vec<Value> {
     seen.into_iter()
         .map(|(id, check)| {
             let mut rule = json!({"id": id, "defaultConfiguration": {"level": level(check.severity)}, "properties": {"tags": check.tags}});
-            if let Some(docs) = &check.docs {
+            if let Some(title) = &check.title {
+                rule["shortDescription"] = json!({"text": title});
+            }
+            if let Some(docs) = check.docs.as_ref().or(check.references.first().map(|r| &r.url)) {
                 rule["helpUri"] = json!(docs);
+            }
+            if let Some(help) = help(check) {
+                rule["help"] = help;
             }
             if let Some(score) = check.score {
                 rule["properties"]["security-severity"] = json!(format!("{score:.1}"));

@@ -12,7 +12,7 @@ use jsonschema::{Keyword, ValidationError, Validator};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::rules::{Score, Severity, Spec, When, glob};
+use crate::rules::{Reference, Score, Severity, Spec, When, glob};
 use crate::version::compare_deb;
 
 /// What one rule found on one subject.
@@ -78,6 +78,10 @@ pub struct Check {
     pub fix: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub docs: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rationale: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<Reference>,
 }
 
 impl Check {
@@ -455,6 +459,8 @@ fn base(rule: &Rule, outcome: Outcome, bound: &[String]) -> Check {
         tags: rule.spec.tags.clone(),
         fix: None,
         docs: rule.spec.docs.clone(),
+        rationale: rule.spec.rationale.clone(),
+        references: rule.spec.references.clone(),
     }
 }
 

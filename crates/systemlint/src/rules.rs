@@ -42,6 +42,14 @@ pub enum When {
     Any(Vec<Map<String, Value>>),
 }
 
+/// A source a rule rests on: its title and link.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Reference {
+    pub title: String,
+    pub url: String,
+}
+
 /// One rule as a ruleset writes it, a definition when it has `fact`, else an override.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -64,6 +72,10 @@ pub struct Spec {
     pub fix: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub docs: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rationale: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<Reference>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
     #[serde(skip)]
@@ -120,7 +132,7 @@ fn entry(raw: &Value) -> Result<Spec, String> {
     }
 }
 
-/// `over` on top of `base`: set fields win, `expect` merges keyword by keyword and drops the inherited message, tags add up.
+/// `over` on top of `base`: set fields win, `expect` merges keyword by keyword and drops the inherited message, tags and references add up.
 fn merge(base: Spec, over: Spec) -> Spec {
     let expect_changed = over.expect.is_some();
     let expect = match (base.expect, over.expect) {
@@ -133,6 +145,8 @@ fn merge(base: Spec, over: Spec) -> Spec {
     let score_set = over.score.is_some();
     let mut tags = base.tags;
     tags.extend(over.tags.into_iter().filter(|t| !tags.contains(t)).collect::<Vec<_>>());
+    let mut references = base.references;
+    references.extend(over.references.into_iter().filter(|r| !references.contains(r)).collect::<Vec<_>>());
     Spec {
         title: over.title.or(base.title),
         fact: over.fact.or(base.fact),
@@ -143,6 +157,8 @@ fn merge(base: Spec, over: Spec) -> Spec {
         message: over.message.or(if expect_changed { None } else { base.message }),
         fix: over.fix.or(base.fix),
         docs: over.docs.or(base.docs),
+        rationale: over.rationale.or(base.rationale),
+        references,
         tags,
         pinned: over.pinned || (!score_set && base.pinned),
     }

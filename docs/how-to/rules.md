@@ -26,6 +26,9 @@ apt/https:
   message: "{subject} fetches over {got}"
   fix: switch the source to https://
   docs: https://wiki.debian.org/SourcesList
+  rationale: anyone on the path can swap a package or hold back an update
+  references:
+    - {title: "SourcesList", url: "https://wiki.debian.org/SourcesList"}
   tags: [apt, cis-ubuntu-26.04:1.2.1.2]
 ```
 
@@ -40,6 +43,8 @@ apt/https:
 | `message` | the finding’s sentence, with `{got}`, `{field}`, `{fact}` and `{subject}` filled in |
 | `fix` | how to fix it, with the same placeholders; the human report lists the subjects above it, so a fix that leaves `{subject}` out reads once for all of them |
 | `docs` | a link |
+| `rationale` | why the rule matters, shown in JSON, SARIF `help` and under `-v` in the human report |
+| `references` | a list of `{title, url}` sources; an override adds to the list instead of replacing it |
 | `tags` | slugs; a tag with `:` names a control of a standard |
 
 A fact path is dotted (`os.release.VERSION_ID`), or a JSON Pointer when it
@@ -164,7 +169,8 @@ worst sits just above the rating and counts
 (`Rating B · 5 errors, 9 warnings, 0 info · 577 pass, 24 not run, 21 skip`).
 A failure block opens with the level, the highest score of the rule, its ID and
 `title`, lists each subject on its own dash line with the value it failed on, and
-ends with one `Fix:` line, or a fix under each subject when they differ.
+ends with one `Fix:` line, or a fix under each subject when they differ; `-v`
+adds a `Why:` line with the rationale and a `See:` line per reference.
 Failures that name each other, the two sides of `apt/duplicate`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
 or level, score, rule, subject, message, fix; under `--standard`, a `standard`

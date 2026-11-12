@@ -127,6 +127,9 @@ struct Look {
     /// Colour the human report: auto, always or never; auto is off under NO_COLOR, SYSTEMLINT_NO_COLOR, TERM=dumb or off a terminal
     #[arg(long, value_enum, value_name = "WHEN", default_value_t = Colour::Auto)]
     color: Colour,
+    /// Add each failing rule’s rationale and references, from the global `--verbose`
+    #[arg(skip)]
+    verbose: bool,
 }
 
 /// How `lint` prints its report.
@@ -161,7 +164,7 @@ fn main() -> ExitCode {
     };
     match cli.command {
         Command::Facts { root, image_config, save, json } => ExitCode::from(facts(&config, root.as_deref(), image_config, save.as_deref(), json, cli.quiet)),
-        Command::Lint { input, tags, standard, fail_on, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard }, fail_on, &look, output.as_deref(), cli.quiet)),
+        Command::Lint { input, tags, standard, fail_on, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
         Command::Plugin(PluginCommand::List { json }) => ExitCode::from(plugin_list(&config, json, cli.quiet)),
     }
 }
@@ -328,7 +331,7 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
         let terminal = output.is_none_or(|p| p == Path::new("-")) && std::io::stdout().is_terminal();
         let text = match look.format {
             Format::Human if look.plain => report::lint_plain(&document, &checks, &compliance, quiet),
-            Format::Human => report::lint_human(&document, &checks, &compliance, quiet, report::colour(look.color, |n| std::env::var(n).ok(), terminal)),
+            Format::Human => report::lint_human(&document, &checks, &compliance, quiet, look.verbose, report::colour(look.color, |n| std::env::var(n).ok(), terminal)),
             Format::Json => report::lint_json(&document, &checks, &compliance),
             Format::Sarif => report::lint_sarif(&document, &checks, &compliance),
             Format::Textfile => report::lint_textfile(&document, &checks, &compliance),

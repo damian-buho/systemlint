@@ -128,7 +128,7 @@ fn without_a_catalog_compliant_only_means_no_tagged_rule_failed() {
     let (checks, report) = run("fixture-b", &facts("root"), None);
     assert!(report.note.as_deref().unwrap().contains("compliant only means no rule tagged fixture-b:* failed"));
     assert!(report.coverage.is_none());
-    let text = lint_human(&facts("root"), &checks, &[report], false, false);
+    let text = lint_human(&facts("root"), &checks, &[report], false, false, false);
     assert!(text.contains("Note: there is no catalog of fixture-b"), "{text}");
 }
 
@@ -155,11 +155,11 @@ fn a_failure_beats_an_uncovered_control() {
 fn the_human_report_closes_with_a_standard_section_before_the_rating() {
     let document = http_source();
     let (checks, report) = run("fixture-a", &document, Some(&catalog("fixture-a")));
-    let text = lint_human(&document, &checks, std::slice::from_ref(&report), false, false);
+    let text = lint_human(&document, &checks, std::slice::from_ref(&report), false, false, false);
     let section = "Standard: non-compliant [fixture-a] Fixture Benchmark A\n- 1.1  compliant      Run a supported release\n- 3.1  non-compliant  Fetch packages over TLS\n       apt/https /etc/apt/sources.list.d/old.sources: /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”\n- 4.2  manual         Review the backup policy\n- 9.9  indeterminate  A control no rule covers yet\n       no rule covers it\nCoverage: 2 of 4 controls\n\nRating";
     assert!(text.contains(section), "{text}");
     assert!(text.find("Warning (5.0): [apt/https]").unwrap() < text.find("Standard:").unwrap(), "{text}");
-    assert!(lint_human(&document, &checks, &[report], false, true).contains("Standard: \x1b[31mnon-compliant\x1b[0m"));
+    assert!(lint_human(&document, &checks, &[report], false, false, true).contains("Standard: \x1b[31mnon-compliant\x1b[0m"));
 }
 
 #[test]
