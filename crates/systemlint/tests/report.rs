@@ -194,7 +194,7 @@ fn shipped(ids: &[&str]) -> Vec<systemlint::judge::Rule> {
 
 fn sources() -> (Value, Vec<Check>) {
     let source = |duplicates: &[&str], stale: &[&str]| json!({"enabled": true, "duplicates": duplicates, "stale-suites": stale});
-    let document = json!({"apt": {"sources": {"/a.list:1": source(&["/b.sources:1"], &["noble"]), "/b.sources:1": source(&["/a.list:1"], &[]), "/c.sources:1": source(&[], &["xenial"])}}});
+    let document = json!({"os": {"release": {"ID": "ubuntu"}}, "apt": {"sources": {"/a.list:1": source(&["/b.sources:1"], &["noble"]), "/b.sources:1": source(&["/a.list:1"], &[]), "/c.sources:1": source(&[], &["xenial"])}}});
     let checks = lint(&document, &shipped(&["apt/duplicate", "apt/stale-suite"]), &[], "2026-11-11");
     (document, checks)
 }

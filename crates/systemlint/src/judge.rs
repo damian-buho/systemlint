@@ -278,10 +278,22 @@ pub fn schema(schema: &Map<String, Value>) -> Result<Validator, String> {
     jsonschema::options().with_keyword("x-version", x_version).build(&Value::Object(schema.clone())).map_err(|e| e.to_string())
 }
 
-/// A `when` entry: a constant to equal, or a schema object to satisfy.
+/// A `when` entry: a constant to equal, or a schema object to satisfy and the property names it reads.
 enum Test {
     Equal(Value),
-    Schema(Validator),
+    Schema(Validator, Vec<String>),
+}
+
+/// Adds the property names `schema` reads to `out`, its `anyOf`, `oneOf`, `allOf` and `not` branches included, first seen first.
+fn named(schema: &Value, out: &mut Vec<String>) {
+    for key in schema["properties"].as_object().into_iter().flat_map(|p| p.keys()) {
+        if !out.contains(key) {
+            out.push(key.clone());
+        }
+    }
+    for branch in ["anyOf", "oneOf", "allOf"].iter().filter_map(|k| schema[*k].as_array()).flatten().chain(schema.get("not")) {
+        named(branch, out);
+    }
 }
 
 struct Guard {
@@ -317,7 +329,11 @@ fn guards(when: Option<&When>, most: usize, over: &str) -> Result<Vec<Vec<Guard>
                 return Err(format!("when {path} has more * than {over}, so it binds no subject"));
             }
             let test = match &expected {
-                Value::Object(map) => Test::Schema(schema(map).map_err(|e| format!("when {path}: {e}"))?),
+                Value::Object(map) => {
+                    let mut names = Vec::new();
+                    named(&expected, &mut names);
+                    Test::Schema(schema(map).map_err(|e| format!("when {path}: {e}"))?, names)
+                }
                 other => Test::Equal(other.clone()),
             };
             guards.push(Guard { path: parsed, test });
@@ -371,10 +387,16 @@ fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String]) -> Tri {
             };
             let holds = match &g.test {
                 Test::Equal(expected) => actual == expected,
-                Test::Schema(validator) => validator.is_valid(actual),
+                Test::Schema(validator, _) => validator.is_valid(actual),
             };
             if !holds {
-                result = Tri::False(format!("when {} is {}", keys.join("."), describe(Some(actual))));
+                let path = keys.join(".");
+                let shown = match (&g.test, actual) {
+                    (Test::Schema(_, names), Value::Object(map)) if !names.is_empty() => names.iter().map(|n| format!("{path}.{n} is {}", describe(map.get(n)))).collect::<Vec<_>>().join(" and "),
+                    _ => format!("{path} is {}", describe(Some(actual))),
+                };
+                log::debug!("when {path} fails: {shown}");
+                result = Tri::False(format!("when {shown}"));
                 break;
             }
         }

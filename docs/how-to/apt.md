@@ -62,6 +62,10 @@ once its `Valid-Until` passes.
 
 ## Rules
 
+The ruleset applies where `os-release` names Debian or Ubuntu in `ID` or as a
+word of `ID_LIKE`, so Linux Mint and Kali are judged too; on any other host each
+rule answers `not-applicable`.
+
 | Rule | Severity | Fails when an enabled source |
 | --- | --- | --- |
 | `apt/stale-suite` | error | names a suite of another Ubuntu or Debian release than the host’s; the fix names the host’s suite |

@@ -9,7 +9,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use serde_json::{Map, Value, json};
 use systemlint::collect::{HashKey, Options, inputs, lookup, rfc3339};
 use systemlint::collector::Collector;
-use systemlint::judge::{Check, compile, lint};
+use systemlint::judge::{Check, Outcome, compile, lint};
 use systemlint::rules::Library;
 use systemlint::source::Root;
 use systemlint_protocol::{Describe, PROTOCOL, Reply, Request};
@@ -46,14 +46,45 @@ fn document(root: &str) -> Value {
     Value::Object(facts)
 }
 
-fn failures(document: &Value) -> Vec<Check> {
+fn checks(document: &Value) -> Vec<Check> {
     let ruleset = systemlint::yaml::from_str(&std::fs::read_to_string(repository().join("rulesets/apt.yaml")).unwrap()).unwrap();
     let library = Library::new(BTreeMap::from([("apt".to_owned(), ruleset)])).unwrap();
     let rules: Vec<_> = library.select(&["apt".to_owned()]).unwrap().into_iter().map(|(id, spec)| compile(&id, spec).unwrap()).collect();
     assert_eq!(rules.len(), 10);
-    let checks = lint(document, &rules, &[], "2026-11-11");
-    assert!(checks.iter().all(|c| c.outcome != systemlint::judge::Outcome::Unknown), "{checks:#?}");
+    lint(document, &rules, &[], "2026-11-11")
+}
+
+fn failures(document: &Value) -> Vec<Check> {
+    let checks = checks(document);
+    assert!(checks.iter().all(|c| c.outcome != Outcome::Unknown), "{checks:#?}");
     checks.into_iter().filter(Check::is_failing).collect()
+}
+
+#[test]
+fn the_apt_rules_apply_to_debian_ubuntu_and_their_derivatives_alone() {
+    let mut document = document("apt-misconfigured");
+    let judged = failures(&document).len();
+    for (release, applies) in [
+        (json!({"ID": "debian"}), true),
+        (json!({"ID": "linuxmint", "ID_LIKE": "ubuntu debian"}), true),
+        (json!({"ID": "pop", "ID_LIKE": "ubuntu"}), true),
+        (json!({"ID": "kali", "ID_LIKE": "debian"}), true),
+        (json!({"ID": "fedora"}), false),
+        (json!({"ID": "rocky", "ID_LIKE": "rhel centos fedora"}), false),
+        (json!({"ID": "x", "ID_LIKE": "notdebian ubuntus"}), false),
+        (json!({"ID": "debian-like"}), false),
+    ] {
+        document["os"]["release"] = release.clone();
+        let checks = checks(&document);
+        let outcomes: Vec<Outcome> = checks.iter().map(|c| c.outcome).collect();
+        match applies {
+            true => assert_eq!(checks.iter().filter(|c| c.is_failing()).count(), judged, "{release}: {outcomes:?}"),
+            false => assert!(checks.len() == 10 && outcomes.iter().all(|o| *o == Outcome::NotApplicable), "{release}: {outcomes:?}"),
+        }
+    }
+    document["os"]["release"] = json!({"ANSI_COLOR": "0;38;2;60;110;180", "ID": "rocky", "ID_LIKE": "rhel centos fedora", "NAME": "Rocky Linux"});
+    let reason = checks(&document)[0].reason.clone();
+    assert_eq!(reason.as_deref(), Some("ruleset apt: when os.release.ID is “rocky” and os.release.ID_LIKE is “rhel centos fedora”"), "the reason names only the keys the guard reads");
 }
 
 #[test]

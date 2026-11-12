@@ -3,6 +3,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: apt sources that drift from the host release, lose their signature checks or confuse apt
+when:
+  os.release:
+    anyOf:
+      - {required: [ID], properties: {ID: {enum: [debian, ubuntu]}}}
+      - {required: [ID_LIKE], properties: {ID_LIKE: {pattern: "(^| )(debian|ubuntu)( |$)"}}}
 rules:
   apt/stale-suite:
     title: Source fetches an older release’s suite
