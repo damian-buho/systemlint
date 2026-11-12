@@ -195,7 +195,10 @@ or level, score, rule, subject, message, fix, the message without the subject
 it opens with, a rule not run on one `not-run` line per reason whatever its
 subjects, and the counts after `rating` and the grade; under `--standard`, a `standard`
 line (verdict, standard, coverage `N of M`, name) and a `control` line per
-control (verdict, standard, ID, reasons joined by `; `, title) follow. Colour marks only the level word
+control (verdict, standard, ID, reasons joined by semicolons, title) follow. Subject, `Why:` and `Fix:` lines, and the last two fields of every
+line but `standard`, end with a full stop unless they already end a sentence, and
+the last field opens with a capital, so a screen reader reading the whole report
+pauses between them. Colour marks only the level word
 and rule IDs, so the words still carry the meaning; `--color auto`, the
 default, turns it off under `NO_COLOR`, `SYSTEMLINT_NO_COLOR`, `TERM=dumb` or
 when stdout is not a terminal, and `FORCE_COLOR` turns it on.

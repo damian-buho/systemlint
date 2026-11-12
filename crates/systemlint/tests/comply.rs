@@ -188,7 +188,7 @@ fn the_plain_report_carries_each_standard_before_the_rating() {
     let document = http_source();
     let (checks, report) = run("fixture-a", &document, Some(&catalog("fixture-a")));
     let text = lint_plain(&document, &checks, std::slice::from_ref(&report), false);
-    let rows = "standard\tnon-compliant\tfixture-a\t\t2 of 4\tFixture Benchmark A\ncontrol\tcompliant\tfixture-a\t1.1\t\tRun a supported release\ncontrol\tnon-compliant\tfixture-a\t3.1\tapt/https /etc/apt/sources.list.d/old.sources: /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”\tFetch packages over TLS\ncontrol\tmanual\tfixture-a\t4.2\t\tReview the backup policy\ncontrol\tindeterminate\tfixture-a\t9.9\tno rule covers it\tA control no rule covers yet\nrating\t";
+    let rows = "standard\tnon-compliant\tfixture-a\t\t2 of 4\tFixture Benchmark A\ncontrol\tcompliant\tfixture-a\t1.1\t\tRun a supported release.\ncontrol\tnon-compliant\tfixture-a\t3.1\tapt/https /etc/apt/sources.list.d/old.sources: /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”.\tFetch packages over TLS.\ncontrol\tmanual\tfixture-a\t4.2\t\tReview the backup policy.\ncontrol\tindeterminate\tfixture-a\t9.9\tno rule covers it.\tA control no rule covers yet.\nrating\t";
     assert!(text.contains(rows), "{text}");
     assert!(text.find("\tapt/https\t").unwrap() < text.find("standard\t").unwrap(), "{text}");
     assert!(!lint_plain(&document, &checks, &[], false).contains("standard\t"));
@@ -284,7 +284,7 @@ fn machine_formats_count_and_name_the_new_outcomes() {
     let kinds: Vec<(&str, &str, bool)> = sarif["runs"][0]["results"].as_array().unwrap().iter().map(|r| (r["ruleId"].as_str().unwrap(), r["kind"].as_str().unwrap(), r.get("locations").is_some())).collect();
     assert_eq!(kinds, [("deb/only", "notApplicable", true), ("review/backups", "review", false)]);
     let plain = lint_plain(&document, &checks, &[], true);
-    assert_eq!(plain, "not-applicable\t\tdeb/only\t\truleset debian: when os.release.ID is “ubuntu”\t\nmanual\t\treview/backups\t\tReview the backup policy\t\n");
+    assert_eq!(plain, "not-applicable\t\tdeb/only\t\truleset debian: when os.release.ID is “ubuntu”.\t\nmanual\t\treview/backups\t\tReview the backup policy.\t\n");
     let textfile = lint_textfile(&document, &checks, &[report]);
     for line in ["systemlint_checks{outcome=\"not-applicable\"} 1", "systemlint_checks{outcome=\"manual\"} 1", "systemlint_rule_checks{rule=\"review/backups\",outcome=\"manual\"} 1", "systemlint_compliance{standard=\"fixture-c\",verdict=\"not-applicable\"} 0"] {
         assert!(textfile.contains(line), "{line} in {textfile}");

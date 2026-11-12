@@ -173,6 +173,14 @@ fn detail(check: &Check) -> Option<String> {
     }
 }
 
+/// `text` ended as a sentence: a full stop added unless it is empty or already ends with sentence punctuation.
+fn sentence(text: &str) -> String {
+    match text.chars().last() {
+        None | Some('.' | '!' | '?' | '…' | '。' | '！' | '？' | '؟' | '।') => text.to_owned(),
+        Some(_) => format!("{text}."),
+    }
+}
+
 /// One `- ` line: the subject, then what it adds, either alone when the other is missing.
 fn location(subject: &str, detail: Option<&str>) -> String {
     match (subject.is_empty(), detail) {
@@ -195,7 +203,7 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     let label = format!("{} ({:.1})", paint(on, code, word), worst.score.unwrap_or_default());
     let _ = writeln!(out, "{}", header(&label, worst, on));
     if let Some(why) = &worst.rationale {
-        let _ = writeln!(out, "Why: {why}");
+        let _ = writeln!(out, "Why: {}", sentence(why));
     }
     let problems = clusters(group);
     let shared = problems.iter().all(|p| p[0].fix == problems[0][0].fix);
@@ -207,14 +215,14 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
             if let Some(w) = &check.waiver {
                 let _ = write!(line, " (waiver expired on {}: {})", w.until, w.reason);
             }
-            let _ = writeln!(out, "{line}");
+            let _ = writeln!(out, "{}", sentence(&line));
         }
         if let Some(fix) = problem[0].fix.as_deref().filter(|_| !shared) {
-            let _ = writeln!(out, "  Fix: {fix}");
+            let _ = writeln!(out, "  Fix: {}", sentence(fix));
         }
     }
     if let Some(fix) = problems[0][0].fix.as_deref().filter(|_| shared) {
-        let _ = writeln!(out, "Fix: {fix}");
+        let _ = writeln!(out, "Fix: {}", sentence(fix));
     }
     for reference in worst.references.iter().filter(|_| verbose) {
         let _ = writeln!(out, "See: {} <{}>", reference.title, reference.url);
@@ -358,20 +366,20 @@ pub fn lint_human(document: &Value, checks: &[Check], compliance: &[Report], qui
     }
     for group in by_rule(checks.iter().filter(|c| c.outcome == Outcome::Unknown && skip_reason(document, c).is_none())).values() {
         let _ = writeln!(out, "{}", header("Unknown", group[0], on));
-        group.iter().for_each(|c| { let _ = writeln!(out, "{}", location(&c.subject_label(), c.reason.as_deref())); });
+        group.iter().for_each(|c| { let _ = writeln!(out, "{}", sentence(&location(&c.subject_label(), c.reason.as_deref()))); });
         out.push('\n');
     }
     for check in checks.iter().filter(|c| c.outcome == Outcome::Manual) {
         let _ = writeln!(out, "{}", header("Manual", check, on));
         if let Some(why) = &check.rationale {
-            let _ = writeln!(out, "Why: {why}");
+            let _ = writeln!(out, "Why: {}", sentence(why));
         }
         out.push('\n');
     }
     for group in by_rule(checks.iter().filter(|c| c.outcome == Outcome::Fail && !c.is_failing())).values() {
         let _ = writeln!(out, "{}", header("Waived", group[0], on));
         for (check, w) in group.iter().filter_map(|c| Some((c, c.waiver.as_ref()?))) {
-            let _ = writeln!(out, "{}", location(&check.subject_label(), Some(&format!("{} (until {})", w.reason, w.until))));
+            let _ = writeln!(out, "{}", sentence(&location(&check.subject_label(), Some(&format!("{} (until {})", w.reason, w.until)))));
         }
         out.push('\n');
     }
@@ -398,10 +406,20 @@ fn unsubjected(check: &Check) -> &str {
     message.strip_prefix(&check.subject_label()).and_then(|m| m.strip_prefix(' ')).filter(|_| !check.subject.is_empty()).unwrap_or(message)
 }
 
+/// One plain row: the last two cells ended as sentences, the last one capitalised, except on a `standard` row, whose cells are a count and a name.
+fn plain_row(cells: [&str; 6]) -> String {
+    let spoken = |i: usize, c: &str| match (i, c.chars().next()) {
+        (4, _) => sentence(c),
+        (5, Some(first)) => sentence(&(first.to_uppercase().collect::<String>() + &c[first.len_utf8()..])),
+        _ => c.to_owned(),
+    };
+    cells.iter().enumerate().map(|(i, c)| field(&if cells[0] == "standard" { (*c).to_owned() } else { spoken(i, c) })).collect::<Vec<_>>().join("\t")
+}
+
 /// One finding per tab-separated line, in the human order and undecorated, a rule not run once per reason: outcome or level, score, rule, subject, message, fix; then each standard and its controls.
 pub fn lint_plain(document: &Value, checks: &[Check], compliance: &[Report], quiet: bool) -> String {
     let mut out = String::new();
-    let mut row = |cells: [&str; 6]| { let _ = writeln!(out, "{}", cells.map(field).join("\t")); };
+    let mut row = |cells: [&str; 6]| { let _ = writeln!(out, "{}", plain_row(cells)); };
     let not_run: BTreeSet<(&str, &str)> = checks.iter().filter_map(|c| Some((c.rule.as_str(), skip_reason(document, c)?))).collect();
     log::debug!("{} rule and reason pairs not run", not_run.len());
     for (rule, reason) in not_run {
