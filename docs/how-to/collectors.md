@@ -129,7 +129,9 @@ gets it as `now`, and a later `lint` judges ages by it.
 
 `systemlint facts --save PATH` writes the document atomically with mode 0600,
 as JSON when the name ends in `.json`, else YAML; `--save -` prints it as
-without `--save`. `systemlint lint PATH`, or
+without `--save`. A save then prints one stderr line naming the file, the
+collectors run and failed, and the `lint` command that reads it; `-q` drops
+it. `systemlint lint PATH`, or
 `lint -` for stdin, judges a saved document with no access to the subject.
 
 ## Where collectors come from

@@ -106,3 +106,30 @@ fn a_save_in_a_missing_directory_exits_7() {
     let (code, stderr) = run(&dir, "", &["--quiet", "facts", "--root", &root.display().to_string(), "--save", &save]);
     assert_eq!(code, 7, "{stderr}");
 }
+
+#[test]
+fn a_save_says_what_it_wrote_and_how_to_lint_it_unless_quiet() {
+    let dir = base("saved");
+    let root = dir.join("root");
+    std::fs::create_dir(&root).unwrap();
+    let save = dir.join("facts.yaml").display().to_string();
+    let (code, stderr) = run(&dir, "", &["facts", "--root", &root.display().to_string(), "--save", &save]);
+    assert_eq!(code, 0, "{stderr}");
+    assert!(stderr.contains(&format!("Saved facts from 0 collectors (0 errors) to {save}. Lint them with: systemlint lint {save}")), "{stderr}");
+    let (_, quiet) = run(&dir, "", &["--quiet", "facts", "--root", &root.display().to_string(), "--save", &save]);
+    assert!(!quiet.contains("Saved"), "{quiet}");
+}
+
+#[test]
+fn an_output_counts_its_findings_one_in_the_singular() {
+    let dir = base("wrote");
+    let path = dir.join("facts.yaml");
+    std::fs::write(&path, format!("meta: {{schema: {}}}\nx: 1\n", systemlint::collect::SCHEMA)).unwrap();
+    let report = dir.join("report.sarif").display().to_string();
+    let config = "lint:\n  rulesets:\n    t: {rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n";
+    let (code, stderr) = run(&dir, config, &["lint", "--format", "sarif", "--output", &report, &path.display().to_string()]);
+    assert_eq!(code, 1, "{stderr}");
+    assert!(stderr.contains(&format!("Wrote 1 finding to {report}.")), "{stderr}");
+    let (_, quiet) = run(&dir, config, &["--quiet", "lint", "--output", &report, &path.display().to_string()]);
+    assert!(!quiet.contains("Wrote"), "{quiet}");
+}

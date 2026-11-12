@@ -222,7 +222,8 @@ fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, sa
         Ok(gathered) => gathered,
         Err(code) => return code,
     };
-    let written = match save.filter(|p| *p != Path::new("-")) {
+    let saved = save.filter(|p| *p != Path::new("-"));
+    let written = match saved {
         Some(path) => document::save(&document, path),
         None => document::render(&document, json).and_then(|text| document::write(Path::new("-"), &text, 0)),
     };
@@ -231,6 +232,10 @@ fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, sa
         return EXIT_OUTPUT;
     }
     let failed = document["collectors"].as_object().map_or(0, |o| o.values().filter(|c| c["status"] == "error").count());
+    if let Some(path) = saved.filter(|_| !quiet) {
+        let ran = document["collectors"].as_object().map_or(0, serde_json::Map::len);
+        eprintln!("Saved facts from {} ({}) to {}. Lint them with: systemlint lint {}", plural(ran, "collector"), plural(failed, "error"), path.display(), path.display());
+    }
     log::debug!("facts done: {failed} collectors failed, trusted {trusted}");
     if failed > 0 {
         EXIT_FAIL
@@ -272,6 +277,11 @@ fn compiled(library: &Library, selection: &Selection, config: &Config) -> Result
         eprintln!("{error}");
         EXIT_CONFIG
     })
+}
+
+/// `1 collector`, `0 errors`: the count, then the noun, plural unless the count is one.
+fn plural(count: usize, noun: &str) -> String {
+    if count == 1 { format!("1 {noun}") } else { format!("{count} {noun}s") }
 }
 
 fn today() -> String {
@@ -331,6 +341,9 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
             eprintln!("{error}");
             EXIT_OUTPUT
         })?;
+        if let Some(path) = output.filter(|p| !quiet && *p != Path::new("-")) {
+            eprintln!("Wrote {} to {}.", plural(checks.iter().filter(|c| c.is_failing()).count(), "finding"), path.display());
+        }
         let failed = if compliance.is_empty() {
             u8::from(fail_on.reached(&checks)) * EXIT_FAIL
         } else {
