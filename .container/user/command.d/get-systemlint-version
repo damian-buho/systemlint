@@ -5,4 +5,4 @@
 # SPDX-License-Identifier: MIT
 
   set -e
-  systemlint --version 2>&1 | grep --only-matching --perl-regexp --max-count 1 '\d+\.\d+\.\d+'
+  systemlint --version 2>&1 | awk '{print $NF}' || echo "unknown"
