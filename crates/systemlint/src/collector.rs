@@ -29,6 +29,8 @@ pub struct Collector {
     pub live: bool,
     #[serde(default)]
     pub privileged: bool,
+    #[serde(skip)]
+    pub inline: bool,
 }
 
 /// The `read:` sources.

@@ -19,7 +19,8 @@ systemlint lint --root /mnt/image --tags files
 ## Collectors
 
 Each collector passes its `read.stat` globs to the `stat` op of
-`systemlint-formats`, which keys every stat by its path.
+`systemlint-formats`, which keys every stat by its path and adds
+`exists: true`.
 
 | Collector | Stats | Facts at |
 | --- | --- | --- |

@@ -152,6 +152,15 @@ fn hash_adds_digests_to_regular_files_alone() {
 }
 
 #[test]
+fn an_absent_path_reaches_the_plugin_from_an_inline_collector_alone() {
+    let mut c = collector("id: dump\nread:\n  stat: [/etc/absent, /usr/lib/os-release]\nparse: {plugin: dump, op: parse}\ninto: dump\n");
+    let absent = |c: &Collector| systemlint::collect::inputs(c, &options(false)).unwrap().iter().filter_map(|i| match i { systemlint_protocol::Input::File(f) if f.absent => Some(f.path.clone()), _ => None }).collect::<Vec<_>>();
+    assert!(absent(&c).is_empty(), "a shipped collector skips an absent path");
+    c.inline = true;
+    assert_eq!(absent(&c), ["/etc/absent"]);
+}
+
+#[test]
 fn exec_is_skipped_under_root_and_runs_live() {
     let c = collector("id: exec\nread:\n  exec: [/bin/sh, -c, 'echo out; echo err >&2; exit 3']\nparse: {plugin: base, op: release}\ninto: exec\n");
     let skipped = collect(std::slice::from_ref(&c), &plugins(), &options(false));

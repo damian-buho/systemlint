@@ -71,13 +71,18 @@ pub fn kv(inputs: &[Input]) -> Reply {
     reply
 }
 
-/// Every input’s stat keyed by its path; an input the core sent without one gets a diagnostic.
+/// Every input’s stat keyed by its path with `exists`, an absent one as `exists: false`; an input without a stat gets a diagnostic.
 pub fn stat(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
     for input in inputs {
         match input {
             Input::File(FileInput { path, stat: Some(stat), .. }) => {
-                reply.facts.insert(path.clone(), serde_json::to_value(stat).unwrap_or_default());
+                let mut fact = serde_json::to_value(stat).unwrap_or_default();
+                fact["exists"] = Value::Bool(true);
+                reply.facts.insert(path.clone(), fact);
+            }
+            Input::File(FileInput { path, absent: true, .. }) => {
+                reply.facts.insert(path.clone(), serde_json::json!({"exists": false}));
             }
             Input::File(FileInput { path, .. }) => reply.diagnostics.push(Diagnostic { path: path.clone(), line: None, message: "no stat; list it under read.stat".to_owned() }),
             Input::Exec(exec) => reply.diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: "a command has no stat".to_owned() }),
@@ -305,7 +310,7 @@ mod tests {
     use systemlint_protocol::{ExecInput, FileKind, Stat};
 
     fn file(path: &str, content: &str) -> Input {
-        Input::File(FileInput { path: path.to_owned(), content: Some(content.to_owned()), content_base64: None, stat: None })
+        Input::File(FileInput { path: path.to_owned(), content: Some(content.to_owned()), content_base64: None, stat: None, absent: false })
     }
 
     #[test]
@@ -343,7 +348,7 @@ mod tests {
 
     #[test]
     fn kv_skips_binary_input_with_a_diagnostic() {
-        let input = Input::File(FileInput { path: "/bin".into(), content: None, content_base64: Some("AA==".into()), stat: None });
+        let input = Input::File(FileInput { path: "/bin".into(), content: None, content_base64: Some("AA==".into()), stat: None, absent: false });
         let reply = kv(&[input]);
         assert!(reply.facts.is_empty());
         assert_eq!(reply.diagnostics[0].line, None);
@@ -364,12 +369,15 @@ mod tests {
     #[test]
     fn stat_keys_each_stat_by_path_and_names_inputs_without_one() {
         let stat = Stat { kind: FileKind::File, mode: "0666".into(), uid: 0, gid: 0, size: 3, world_writable: true, group_writable: true, setuid: false, setgid: false, linked_to: None, sha256: None, sha512: None };
-        let with = Input::File(FileInput { path: "/etc/sudoers.d/x".into(), content: None, content_base64: None, stat: Some(stat) });
+        let with = Input::File(FileInput { path: "/etc/sudoers.d/x".into(), content: None, content_base64: None, stat: Some(stat), absent: false });
         let exec = Input::Exec(ExecInput { argv: vec!["/bin/true".into()], stdout: String::new(), stderr: String::new(), exit: 0 });
-        let reply = super::stat(&[with, file("/etc/a", "x"), exec]);
+        let absent = Input::File(FileInput { path: "/etc/gone".into(), content: None, content_base64: None, stat: None, absent: true });
+        let reply = super::stat(&[with, file("/etc/a", "x"), exec, absent]);
         assert_eq!(reply.facts["/etc/sudoers.d/x"]["mode"], "0666");
         assert_eq!(reply.facts["/etc/sudoers.d/x"]["world-writable"], true);
-        assert_eq!(reply.facts.len(), 1);
+        assert_eq!(reply.facts["/etc/sudoers.d/x"]["exists"], true);
+        assert_eq!(reply.facts["/etc/gone"], serde_json::json!({"exists": false}));
+        assert_eq!(reply.facts.len(), 2);
         assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/a", "/bin/true"]);
     }
 

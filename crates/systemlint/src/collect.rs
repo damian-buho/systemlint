@@ -307,7 +307,7 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
 pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<Vec<Input>, String> {
     let root = &options.root;
     let mut files: BTreeMap<String, FileInput> = BTreeMap::new();
-    let blank = |path: &str| FileInput { path: path.to_owned(), content: None, content_base64: None, stat: None };
+    let blank = |path: &str| FileInput { path: path.to_owned(), content: None, content_base64: None, stat: None, absent: false };
     let globbed = |patterns: &[String]| -> Result<Vec<String>, String> { patterns.iter().try_fold(Vec::new(), |mut all, p| { all.extend(root.glob(p)?); Ok(all) }) };
     let reads: BTreeSet<String> = globbed(&collector.read.files)?.into_iter().chain(named.files.iter().cloned()).collect();
     for path in reads {
@@ -336,6 +336,10 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
                     }
                 }
                 files.entry(path.clone()).or_insert_with(|| blank(&path)).stat = Some(stat);
+            }
+            Err(e) if gone(&e) && collector.inline => {
+                log::debug!("collector {}: {path} is absent, passed as absent", collector.id);
+                files.entry(path.clone()).or_insert_with(|| blank(&path)).absent = true;
             }
             Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
             Err(e) => return Err(format!("can’t stat {path}: {e}")),

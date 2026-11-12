@@ -186,14 +186,15 @@ impl Config {
 
     /// `tree` as a configuration, refused with `path` named when a value is out of range.
     fn check(path: &Path, tree: Value) -> Result<Self, String> {
-        let config: Self = serde_json::from_value(tree).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?;
+        let mut config: Self = serde_json::from_value(tree).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?;
         if config.collect.hash_key.as_deref().is_some_and(|k| k.chars().count() < 16) {
             return Err(format!("{}: collect.hash-key needs 16 characters or more, or a hash of a short value is guessed", path.display()));
         }
         if config.collect.timeout == Some(0) {
             return Err(format!("{}: collect.timeout needs 1 second or more, or every plugin call fails", path.display()));
         }
-        for collector in &config.collect.collectors {
+        for collector in &mut config.collect.collectors {
+            collector.inline = true;
             collector.validate().map_err(|e| format!("{}: collect.collectors {}: {e}", path.display(), collector.id))?;
             if collector.read.exec.is_some() {
                 return Err(format!("{}: collect.collectors {}: an inline collector can’t exec; put it in a collect.directories file", path.display(), collector.id));

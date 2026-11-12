@@ -175,7 +175,10 @@ collect:
 An inline collector never runs `exec`, since `.systemlint.yaml` comes with
 whatever directory systemlint runs in; one that needs a command goes in a file
 under `collect.directories`. It runs after the collectors from directories,
-and one whose `id` or `into` clashes with theirs is refused.
+and one whose `id` or `into` clashes with theirs is refused. A `stat` path it
+names that is absent becomes `{exists: false}` from the `stat` op, so a rule
+can require absence; under `files.*` that path leaves the shipped `files`
+rules `unknown`, so give such a collector its own `into`.
 
 ## Derived facts
 

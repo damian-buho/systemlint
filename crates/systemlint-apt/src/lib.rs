@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn installed_keys_by_name_and_by_arch_when_multiarch() {
         let status = "Package: libc6\nStatus: install ok installed\nArchitecture: amd64\nVersion: 2.42-0ubuntu3\n\nPackage: libc6\nStatus: install ok installed\nArchitecture: i386\nVersion: 2.42-0ubuntu3\n\nPackage: openssh-server\nStatus: deinstall ok config-files\nArchitecture: amd64\nVersion: 1:10.0p1-5ubuntu5\nDescription: x\n continued\n\nStatus: install ok installed\n";
-        let reply = installed(&[Input::File(FileInput { path: "/var/lib/dpkg/status".into(), content: Some(status.into()), content_base64: None, stat: None })]);
+        let reply = installed(&[Input::File(FileInput { path: "/var/lib/dpkg/status".into(), content: Some(status.into()), content_base64: None, stat: None, absent: false })]);
         assert_eq!(reply.facts.keys().collect::<Vec<_>>(), ["libc6:amd64", "libc6:i386", "openssh-server"]);
         assert_eq!(reply.facts["openssh-server"], json!({"architecture": "amd64", "status": "config-files", "version": "1:10.0p1-5ubuntu5"}));
         assert_eq!(reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(), [Some(18)]);

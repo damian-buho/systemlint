@@ -110,6 +110,8 @@ pub struct FileInput {
     pub content_base64: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stat: Option<Stat>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub absent: bool,
 }
 
 /// A command run by the core.

@@ -131,7 +131,7 @@ mod tests {
     use systemlint_protocol::{ExecInput, FileInput};
 
     fn file(path: &str, text: &str) -> Input {
-        Input::File(FileInput { path: path.into(), content: Some(text.into()), content_base64: None, stat: None })
+        Input::File(FileInput { path: path.into(), content: Some(text.into()), content_base64: None, stat: None, absent: false })
     }
 
     fn exec(exit: i32, stdout: &str, stderr: &str) -> Input {
@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn a_bad_include_fails_the_op_and_binary_files_are_reported() {
         assert!(server(&[file(MAIN, "Include /srv/ssh.conf\n")], &BTreeMap::new()).unwrap_err().contains("/srv/ssh.conf"));
-        let binary = Input::File(FileInput { path: "/etc/ssh/sshd_config.d/x.conf".into(), content: None, content_base64: Some("AA==".into()), stat: None });
+        let binary = Input::File(FileInput { path: "/etc/ssh/sshd_config.d/x.conf".into(), content: None, content_base64: Some("AA==".into()), stat: None, absent: false });
         let (_, diagnostics) = collected(&[file(MAIN, "Include /etc/ssh/sshd_config.d/*.conf\n"), binary]);
         assert_eq!(diagnostics[0].message, "not UTF-8 text, skipped");
     }

@@ -345,7 +345,7 @@ mod tests {
     use systemlint_protocol::{ExecInput, FileInput};
 
     fn file(path: &str, content: &str) -> Input {
-        Input::File(FileInput { path: path.to_owned(), content: Some(content.to_owned()), content_base64: None, stat: None })
+        Input::File(FileInput { path: path.to_owned(), content: Some(content.to_owned()), content_base64: None, stat: None, absent: false })
     }
 
     fn exec(stdout: &str, exit: i32) -> Input {
