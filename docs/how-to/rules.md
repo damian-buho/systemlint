@@ -17,25 +17,28 @@ A rule holds one fact to a JSON Schema (draft 2020-12):
 
 ```yaml
 apt/https:
+  title: Source fetches over plain HTTP
   fact: apt.sources.*.uri
   when: {apt.sources.*.enabled: true}
   expect: {pattern: "^https://"}
   severity: warning
+  score: 6.0
   message: "{subject} fetches over {got}"
-  fix: switch {subject} to https://
+  fix: switch the source to https://
   docs: https://wiki.debian.org/SourcesList
   tags: [apt, cis-ubuntu-26.04:1.2.1.2]
 ```
 
 | Key | Meaning |
 | --- | --- |
+| `title` | a short name for the problem, the heading of the rule’s block in the human report |
 | `fact` | the fact path; a `*` segment binds one subject per key or array index |
 | `expect` | the JSON Schema the fact must satisfy, `x-version` included |
 | `when` | a guard: a map is AND, a list of maps is OR; each entry is a constant to equal or a schema to satisfy |
 | `severity` | `error`, `warning`, `info`, `hint` or `off`; `warning` when absent |
 | `score` | a number from 0.0 to 9.9, or a curve of `[value, score]` points read against the fact’s number |
 | `message` | the finding’s sentence, with `{got}`, `{field}`, `{fact}` and `{subject}` filled in |
-| `fix` | how to fix it, with the same placeholders |
+| `fix` | how to fix it, with the same placeholders; the human report lists the subjects above it, so a fix that leaves `{subject}` out reads once for all of them |
 | `docs` | a link |
 | `tags` | slugs; a tag with `:` names a control of a standard |
 
@@ -87,6 +90,17 @@ Scores and levels share spiderlint’s bands: hint 0.0–0.9 (base 0.5), info
 its band sets the level; a curve computes the score from the fact’s number and
 may cross bands; a level alone gives its base score. A level written over a
 score in a ruleset entry pins the score inside that band.
+
+### Rating
+
+A run is graded as spiderlint grades a crawl, on the same constants
+(`src/report/rating.ts` there, `report::rate` here): S with no failure;
+otherwise the share of judged checks kept, each failure costing
+`(score / 5.0)²`, against the floors A 0.9, B 0.7, C 0.6, D 0.4, E 0.2, else F;
+any error caps the grade at B. Judged checks are passes and failures; waived
+failures, unknowns and skips stay out, and a run with none gets no grade. The
+grade closes the human report and is `rating` in JSON, the run’s
+`properties.rating` in SARIF and `systemlint_rating` in the textfile.
 
 ## Rulesets
 
@@ -142,9 +156,23 @@ expiry is the only judgement that reads the clock at lint time.
 
 ## Lint output and exit codes
 
-`--format human` prints one line per failure and per unknown, one `not run` line
-per reason a collector was skipped (no root, no `--image-config`, live-only under
-`--root`) naming its collectors and rules, then the counts;
+`--format human` prints one block per rule, an empty line after each: a
+`Not run` block per reason a collector was skipped (no root, no
+`--image-config`, live-only under `--root`) with its rules wrapped under it, then
+`Unknown` and `Waived` blocks, then the failures, lowest score first, so the
+worst sits just above the rating and counts
+(`Rating B · 5 errors, 9 warnings, 0 info · 577 pass, 24 not run, 21 skip`).
+A failure block opens with the level, the highest score of the rule, its ID and
+`title`, lists each subject on its own dash line with the value it failed on, and
+ends with one `Fix:` line, or a fix under each subject when they differ.
+Failures that name each other, the two sides of `apt/duplicate`, list as one
+problem. `--plain` prints one tab-separated line per finding instead: outcome
+or level, score, rule, subject, message, fix. Colour marks only the level word
+and rule IDs, so the words still carry the meaning; `--color auto`, the
+default, turns it off under `NO_COLOR`, `SYSTEMLINT_NO_COLOR`, `TERM=dumb` or
+when stdout is not a terminal, and `FORCE_COLOR` turns it on. On a terminal the
+report goes through `$PAGER`, else `less` with `LESS=FIRX`; `PAGER=cat` turns
+that off;
 `--format json` prints the document’s `meta`, every check, passes included, and
 the counts; `--format sarif` and `--format textfile` are described in
 [Outputs](outputs.md). `--output PATH` writes the report atomically instead of

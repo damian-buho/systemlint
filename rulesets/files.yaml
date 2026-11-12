@@ -5,42 +5,52 @@
 description: files that grant root, hold password hashes or host keys, or sit in the PATH, kept to root alone
 rules:
   files/world-writable:
+    title: File writable by every user
     fact: files.*.*.world-writable
     expect: {const: false}
     severity: error
+    score: 9.5
     message: "{subject} is writable by every user, who can then act as root through it"
-    fix: chmod o-w the file in {subject}
+    fix: chmod o-w the file
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     tags: [files]
   files/group-writable:
+    title: File writable by its group
     fact: files.*.*.group-writable
     expect: {const: false}
     severity: warning
+    score: 6.0
     message: "{subject} is writable by its group, whose every member can then act as root through it"
-    fix: chmod g-w the file in {subject}, or check that only administrators are in its group
+    fix: chmod g-w the file, or check that only administrators are in its group
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     tags: [files]
   files/owner:
+    title: File not owned by root
     fact: files.*.*.uid
     expect: {const: 0}
     severity: error
+    score: 8.0
     message: "{subject} is owned by uid {got}, not root, so that user can change it"
-    fix: chown root the file in {subject}
+    fix: chown root the file
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     tags: [files]
   files/shadow-mode:
+    title: Password hashes readable too widely
     fact: files.shadow.*.mode
     expect: {pattern: "^0[0246][04]0$"}
     severity: error
+    score: 8.5
     message: "{subject} has mode {got}; password hashes need 0640 or stricter, readable by root and the shadow group alone"
-    fix: chmod 0640 {subject}
+    fix: chmod 0640 the file
     docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
     tags: [files]
   files/ssh-host-key-mode:
+    title: SSH host key readable too widely
     fact: files.ssh-host-keys.*.mode
     expect: {pattern: "^0[0246][04]0$"}
     severity: error
+    score: 8.5
     message: "{subject} has mode {got}; a private host key needs 0600, or 0640 for an ssh_keys group, or any user can impersonate this host"
-    fix: chmod 0600 {subject}
+    fix: chmod 0600 the key
     docs: https://man.openbsd.org/sshd#FILES
     tags: [files, ssh]

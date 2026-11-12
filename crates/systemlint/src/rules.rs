@@ -47,6 +47,8 @@ pub enum When {
 #[serde(deny_unknown_fields)]
 pub struct Spec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fact: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expect: Option<Map<String, Value>>,
@@ -132,6 +134,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
     let mut tags = base.tags;
     tags.extend(over.tags.into_iter().filter(|t| !tags.contains(t)).collect::<Vec<_>>());
     Spec {
+        title: over.title.or(base.title),
         fact: over.fact.or(base.fact),
         expect,
         when: over.when.or(base.when),

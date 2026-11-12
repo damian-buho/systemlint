@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::collections::BTreeMap;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use serde_json::{Value, json};
-use systemlint::judge::{Check, Waiver, compile, lint};
-use systemlint::report::{lint_human, lint_sarif, lint_textfile};
+use systemlint::judge::{Check, Outcome, Waived, Waiver, compile, level_of, lint};
+use systemlint::report::{Colour, Rating, colour, lint_human, lint_json, lint_plain, lint_sarif, lint_textfile, rate, weight};
+use systemlint::rules::Library;
 
 fn facts(name: &str) -> Value {
     systemlint::document::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../fixtures/lint/facts/{name}.yaml"))).unwrap()
@@ -131,10 +133,122 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     document["collectors"]["env-image"] = json!({"status": "error", "reason": "can’t read it", "into": "env.image"});
     let rules = ["a", "b"].map(|id| compile(&format!("env/{id}"), systemlint::yaml::from_str("fact: env.*.*.vars\nexpect: {type: object}\n").unwrap()).unwrap());
     let checks = lint(&document, &rules, &[], "2026-11-11");
-    let text = lint_human(&document, &checks, false);
-    assert!(text.contains("not run (env-defaults, env-processes: needs root, and this run is unprivileged): env/a, env/b\n"), "{text}");
-    assert_eq!(text.matches("not run (").count(), 1, "{text}");
-    assert!(text.contains("unknown env/a image: ") && !text.contains("unknown env/a processes"), "an error stays its own line: {text}");
-    assert!(text.ends_with(", 2 unknown, 4 not run, 0 skip\n"), "{text}");
+    let text = lint_human(&document, &checks, false, false);
+    assert!(text.contains("Not run (env-defaults, env-processes): needs root, and this run is unprivileged\n  env/a, env/b\n\n"), "{text}");
+    assert_eq!(text.matches("Not run (").count(), 1, "{text}");
+    assert!(text.contains("Unknown: [env/a]\n- image: ") && !text.contains("- processes"), "an error stays its own line: {text}");
+    assert!(text.ends_with(" · 2 pass, 2 unknown, 4 not run\n"), "{text}");
     assert!(lint_textfile(&document, &checks).contains("outcome=\"unknown\""), "machine formats keep the unknown");
+}
+
+fn judged(outcome: Outcome, score: f64) -> Check {
+    Check { rule: "r".into(), title: None, outcome, subject: vec![], fact: "f".into(), severity: Some(level_of(score)), score: Some(score), message: None, text: None, variables: BTreeMap::new(), value: None, reason: None, collector: None, waiver: None, tags: vec![], fix: None, docs: None }
+}
+
+fn grade(failures: &[f64], passes: usize) -> Option<char> {
+    let checks: Vec<Check> = failures.iter().map(|s| judged(Outcome::Fail, *s)).chain((0..passes).map(|_| judged(Outcome::Pass, 0.0))).collect();
+    rate(&checks).map(|r| r.grade)
+}
+
+#[test]
+fn rating_meets_every_floor_at_its_edge() {
+    for (failed, expected) in [(1, 'A'), (2, 'B'), (3, 'B'), (4, 'C'), (5, 'D'), (6, 'D'), (7, 'E'), (8, 'E'), (9, 'F')] {
+        assert_eq!(grade(&vec![5.0; failed], 10 - failed), Some(expected), "{failed} warnings of 10");
+    }
+    assert_eq!(grade(&[5.1], 9), Some('B'), "a cost just over 1 drops below the A floor");
+    assert_eq!(grade(&[6.6], 99), Some('B'), "an error caps the grade at B");
+    assert_eq!(grade(&[6.5], 99), Some('A'), "a warning does not");
+    assert_eq!(grade(&[], 3), Some('S'));
+    assert_eq!(grade(&[9.9; 3], 0), Some('F'), "a cost above the total floors at zero");
+    assert_eq!((weight(5.0), weight(10.0)), (1.0, 4.0));
+}
+
+#[test]
+fn rating_leaves_out_waivers_unknowns_and_skips() {
+    let mut waived = judged(Outcome::Fail, 9.0);
+    waived.waiver = Some(Waived { reason: "r".into(), until: "2026-12-31".into(), active: true });
+    assert_eq!(rate(&[waived.clone(), judged(Outcome::Unknown, 0.0), judged(Outcome::Skip, 0.0)]), None, "nothing judged gives no grade");
+    assert_eq!(rate(&[waived, judged(Outcome::Pass, 0.0)]), Some(Rating { grade: 'S', score: 1.0 }));
+}
+
+#[test]
+fn colour_follows_the_flag_then_the_environment_then_the_terminal() {
+    let env = |pairs: &'static [(&'static str, &'static str)]| move |name: &str| pairs.iter().find(|(k, _)| *k == name).map(|(_, v)| (*v).to_owned());
+    assert!(colour(Colour::Always, env(&[("NO_COLOR", "1")]), false));
+    assert!(!colour(Colour::Never, env(&[("FORCE_COLOR", "1")]), true));
+    assert!(colour(Colour::Auto, env(&[]), true) && !colour(Colour::Auto, env(&[]), false));
+    assert!(!colour(Colour::Auto, env(&[("NO_COLOR", "1")]), true));
+    assert!(!colour(Colour::Auto, env(&[("SYSTEMLINT_NO_COLOR", "1")]), true));
+    assert!(colour(Colour::Auto, env(&[("NO_COLOR", "")]), true), "an empty NO_COLOR is unset");
+    assert!(!colour(Colour::Auto, env(&[("NO_COLOR", "1"), ("FORCE_COLOR", "1")]), true), "NO_COLOR wins");
+    assert!(colour(Colour::Auto, env(&[("FORCE_COLOR", "1")]), false));
+    assert!(!colour(Colour::Auto, env(&[("FORCE_COLOR", "0")]), true));
+    assert!(!colour(Colour::Auto, env(&[("TERM", "dumb")]), true));
+}
+
+fn shipped(ids: &[&str]) -> Vec<systemlint::judge::Rule> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets/apt.yaml");
+    let library = Library::new(BTreeMap::from([("apt".to_owned(), systemlint::yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap())])).unwrap();
+    library.select(&ids.iter().map(|i| (*i).to_owned()).collect::<Vec<_>>()).unwrap().into_iter().map(|(id, spec)| compile(&id, spec).unwrap()).collect()
+}
+
+fn sources() -> (Value, Vec<Check>) {
+    let source = |duplicates: &[&str], stale: &[&str]| json!({"enabled": true, "duplicates": duplicates, "stale-suites": stale});
+    let document = json!({"apt": {"sources": {"/a.list:1": source(&["/b.sources:1"], &["noble"]), "/b.sources:1": source(&["/a.list:1"], &[]), "/c.sources:1": source(&[], &["xenial"])}}});
+    let checks = lint(&document, &shipped(&["apt/duplicate", "apt/stale-suite"]), &[], "2026-11-11");
+    (document, checks)
+}
+
+#[test]
+fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_last() {
+    let (document, checks) = sources();
+    let text = lint_human(&document, &checks, false, false);
+    let expected = "Warning (4.5): [apt/duplicate] Repository listed in two places\n- /a.list:1\n- /b.sources:1\nFix: remove one of the entries, then run sudo apt update\n\n\
+        Error (7.5): [apt/stale-suite] Source fetches an older release’s suite\n- /a.list:1: “noble”\n- /c.sources:1: “xenial”\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite\n\n\
+        Rating F · 2 errors, 2 warnings, 0 info · 2 pass\n";
+    assert_eq!(text, expected);
+    let painted = lint_human(&document, &checks, true, true);
+    assert!(painted.contains("\x1b[31mError\x1b[0m (7.5): \x1b[1m[apt/stale-suite]\x1b[0m") && painted.contains("\x1b[33mWarning\x1b[0m"), "{painted}");
+    assert!(!painted.contains("Rating"), "quiet drops the summary");
+}
+
+#[test]
+fn human_puts_a_fix_under_each_location_when_the_fixes_differ() {
+    let rule = compile("x/drop", systemlint::yaml::from_str("title: Dropped value\nfact: v.*\nexpect: {const: 0}\nmessage: '{subject} holds {got}'\nfix: drop {got}\n").unwrap()).unwrap();
+    let document = json!({"v": {"a": 1, "b": 2}});
+    let text = lint_human(&document, &lint(&document, &[rule], &[], "2026-11-11"), true, false);
+    assert_eq!(text, "Warning (5.0): [x/drop] Dropped value\n- a: 1\n  Fix: drop 1\n- b: 2\n  Fix: drop 2\n\n");
+}
+
+#[test]
+fn human_wraps_a_long_not_run_list_within_80_columns() {
+    let mut document = facts("root");
+    document["collectors"]["env-processes"] = json!({"status": "skipped", "reason": "needs root", "into": "env.processes"});
+    let rules: Vec<_> = (0..12).map(|i| compile(&format!("env/rule-{i:02}"), systemlint::yaml::from_str("fact: env.*.*.vars\nexpect: {type: object}\n").unwrap()).unwrap()).collect();
+    let text = lint_human(&document, &lint(&document, &rules, &[], "2026-11-11"), true, false);
+    assert!(text.lines().all(|l| l.chars().count() <= 80), "{text}");
+    assert!(text.starts_with("Not run (env-processes): needs root\n  env/rule-00, ") && text.contains(",\n  env/rule-") && text.contains("env/rule-11\n\n"), "{text}");
+}
+
+#[test]
+fn plain_prints_one_tab_separated_line_per_finding() {
+    let (document, checks) = sources();
+    let text = lint_plain(&document, &checks, false);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 5, "{text}");
+    assert_eq!(lines[0], "warning\t4.5\tapt/duplicate\t/a.list:1\t/a.list:1 lists the same repository as “/b.sources:1”\tremove one of the entries, then run sudo apt update");
+    assert!(lines[2].starts_with("error\t7.5\tapt/stale-suite\t/a.list:1\t"), "{text}");
+    assert_eq!(lines[4], "rating\tF\t\t\tRating F · 2 errors, 2 warnings, 0 info · 2 pass\t");
+    assert!(lines.iter().all(|l| l.split('\t').count() == 6 && !l.contains('\x1b')), "{text}");
+}
+
+#[test]
+fn machine_formats_carry_the_rating() {
+    let document = facts("root");
+    let checks = run(HTTPS, &document, &[]);
+    let report: Value = serde_json::from_str(&lint_json(&document, &checks)).unwrap();
+    assert_eq!(report["rating"], json!({"grade": "D", "score": 0.5}));
+    assert_eq!(sarif(&document, &checks)["runs"][0]["properties"]["rating"]["grade"], "D");
+    assert!(lint_textfile(&document, &checks).lines().any(|l| l == "systemlint_rating{grade=\"D\"} 0.5"));
+    assert!(!lint_textfile(&document, &[]).contains("systemlint_rating{"), "no grade, no sample");
 }

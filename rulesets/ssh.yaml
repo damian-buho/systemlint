@@ -5,138 +5,172 @@
 description: OpenSSH server settings that weaken authentication, forwarding or cryptography, after dev-sec ssh-baseline
 rules:
   ssh/root-login:
+    title: Root may log in with a password
     fact: sshd.contexts.*.permitrootlogin
     expect: {enum: [no, prohibit-password, forced-commands-only]}
     severity: error
+    score: 8.5
     message: "{subject} sets PermitRootLogin {got}, so it lets root log in with a password"
-    fix: set PermitRootLogin prohibit-password, or no, in {subject}
+    fix: set PermitRootLogin prohibit-password, or no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-06]
   ssh/password-authentication:
+    title: Passwords accepted over the network
     fact: sshd.contexts.*.passwordauthentication
     expect: {const: no}
     severity: warning
+    score: 6.0
     message: "{subject} sets PasswordAuthentication {got}, so it accepts passwords, which can be guessed over the network"
-    fix: set PasswordAuthentication no in {subject} once every user has a key
+    fix: set PasswordAuthentication no once every user has a key
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-27]
   ssh/empty-passwords:
+    title: Empty passwords accepted
     fact: sshd.contexts.*.permitemptypasswords
     expect: {const: no}
     severity: error
+    score: 9.5
     message: "{subject} sets PermitEmptyPasswords {got}, so it lets accounts with an empty password log in"
-    fix: set PermitEmptyPasswords no in {subject}
+    fix: set PermitEmptyPasswords no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-28]
   ssh/keyboard-interactive:
+    title: Keyboard-interactive logins accepted
     fact: sshd.contexts.*.kbdinteractiveauthentication
     expect: {const: no}
     severity: warning
+    score: 5.0
     message: "{subject} sets KbdInteractiveAuthentication {got}, so it accepts keyboard-interactive logins, which through PAM ask for the password"
-    fix: set KbdInteractiveAuthentication no in {subject} unless a second factor needs it
+    fix: set KbdInteractiveAuthentication no unless a second factor needs it
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-29]
   ssh/hostbased:
+    title: Host-based authentication on
     fact: sshd.contexts.*.hostbasedauthentication
     expect: {const: no}
     severity: warning
+    score: 6.0
     message: "{subject} sets HostbasedAuthentication {got}, so it trusts the client host’s word for who the user is"
-    fix: set HostbasedAuthentication no in {subject}
+    fix: set HostbasedAuthentication no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-25]
   ssh/ignore-rhosts:
+    title: Users’ .rhosts files read
     fact: sshd.contexts.*.ignorerhosts
     expect: {const: yes}
     severity: warning
+    score: 6.0
     message: "{subject} sets IgnoreRhosts {got}, so it reads users’ .rhosts and .shosts files"
-    fix: set IgnoreRhosts yes in {subject}
+    fix: set IgnoreRhosts yes
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-23]
   ssh/strict-modes:
+    title: Writable key files accepted
     fact: sshd.global.*.strictmodes
     expect: {const: yes}
     severity: warning
+    score: 5.5
     message: "{subject} sets StrictModes {got}, so it accepts key files that other users can write"
-    fix: set StrictModes yes in {subject}
+    fix: set StrictModes yes
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-11]
   ssh/user-environment:
+    title: Users may set their session environment
     fact: sshd.global.*.permituserenvironment
     expect: {const: no}
     severity: warning
+    score: 6.5
     message: "{subject} sets PermitUserEnvironment {got}, so it lets users set variables such as LD_PRELOAD for their session"
-    fix: set PermitUserEnvironment no in {subject}
+    fix: set PermitUserEnvironment no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-17]
   ssh/x11-forwarding:
+    title: X11 forwarding on
     fact: sshd.contexts.*.x11forwarding
     expect: {const: no}
     severity: warning
+    score: 4.0
     message: "{subject} sets X11Forwarding {got}, so it forwards X11, which hands the server a way into the client’s display"
-    fix: set X11Forwarding no in {subject}
+    fix: set X11Forwarding no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-42]
   ssh/gateway-ports:
+    title: Forwarded ports listen on every address
     fact: sshd.contexts.*.gatewayports
     expect: {const: no}
     severity: warning
+    score: 4.5
     message: "{subject} sets GatewayPorts {got}, so it lets forwarded ports listen on every address, not only on loopback"
-    fix: set GatewayPorts no in {subject}
+    fix: set GatewayPorts no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-41]
   ssh/tunnel:
+    title: Tunnel device forwarding on
     fact: sshd.contexts.*.permittunnel
     expect: {const: no}
     severity: warning
+    score: 5.0
     message: "{subject} sets PermitTunnel {got}, so it allows tun device forwarding, a full network link into the host"
-    fix: set PermitTunnel no in {subject}
+    fix: set PermitTunnel no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-38]
   ssh/ciphers:
+    title: Weak cipher offered
     fact: sshd.global.*.ciphers
     expect: {items: {not: {pattern: "-cbc$|^3des|arcfour|blowfish|cast128|^rijndael"}}}
     severity: error
+    score: 7.5
     message: "{subject} offers a weak cipher: {got}"
-    fix: remove {got} from Ciphers in {subject}
+    fix: remove {got} from Ciphers
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-01]
   ssh/macs:
+    title: Weak MAC offered
     fact: sshd.global.*.macs
     expect: {items: {not: {pattern: "md5|sha1|-96|^umac-64"}}}
     severity: warning
+    score: 5.5
     message: "{subject} offers a weak MAC: {got}"
-    fix: remove {got} from MACs in {subject}, for example with MACs -hmac-sha1*,umac-64*
+    fix: remove {got} from MACs, for example with MACs -hmac-sha1*,umac-64*
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-03]
   ssh/kex:
+    title: Weak key exchange offered
     fact: sshd.global.*.kexalgorithms
     expect: {items: {not: {pattern: "sha1|^diffie-hellman-group1-"}}}
     severity: error
+    score: 7.5
     message: "{subject} offers a weak key exchange: {got}"
-    fix: remove {got} from KexAlgorithms in {subject}
+    fix: remove {got} from KexAlgorithms
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-02]
   ssh/max-auth-tries:
+    title: Many authentication attempts allowed
     fact: sshd.contexts.*.maxauthtries
     expect: {maximum: 4}
     severity: info
+    score: 2.0
     message: "{subject} sets MaxAuthTries {got}, so it allows many authentication attempts per connection"
-    fix: set MaxAuthTries 4 or lower in {subject}
+    fix: set MaxAuthTries 4 or lower
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-19]
   ssh/login-grace-time:
+    title: Unauthenticated connections kept open long
     fact: sshd.global.*.logingracetime
     expect: {minimum: 1, maximum: 60}
     severity: info
+    score: 1.5
     message: "{subject} sets LoginGraceTime {got}, so it keeps unauthenticated connections open for long, 0 meaning forever"
-    fix: set LoginGraceTime between 1 and 60 seconds in {subject}
+    fix: set LoginGraceTime between 1 and 60 seconds
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-18]
   ssh/log-level:
+    title: Login keys not logged
     fact: sshd.contexts.*.loglevel
     expect: {const: verbose}
     severity: info
+    score: 2.5
     message: "{subject} sets LogLevel {got}, so it does not log which key each user logged in with"
-    fix: set LogLevel VERBOSE in {subject}
+    fix: set LogLevel VERBOSE
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-13]

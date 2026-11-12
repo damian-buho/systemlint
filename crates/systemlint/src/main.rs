@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
+use std::process::{Command as Process, ExitCode, Stdio};
 use std::time::SystemTime;
 
 use clap::{Parser, Subcommand};
@@ -13,7 +14,7 @@ use systemlint::collect::{self, Options};
 use systemlint::config::{self, Config};
 use systemlint::discovery::{self, Trust};
 use systemlint::judge::{self, Rule};
-use systemlint::report::{self, FailOn};
+use systemlint::report::{self, Colour, FailOn};
 use systemlint::rules::Library;
 use systemlint::source::Root;
 use systemlint::{collector, comply, document, rules, runner};
@@ -78,9 +79,8 @@ enum Command {
         /// Exit 1 on a failure at error, warning, info, a score from 0.1 to 9.9, or never [default: lint.fail-on, else error]
         #[arg(long, value_name = "LEVEL")]
         fail_on: Option<FailOn>,
-        /// Output format: human, json, sarif (SARIF 2.1.0) or textfile (node-exporter metrics)
-        #[arg(long, value_enum, default_value_t = Format::Human)]
-        format: Format,
+        #[command(flatten)]
+        look: Look,
         /// Write the report to PATH atomically, mode 0644, instead of stdout, - for stdout
         #[arg(long, value_name = "PATH")]
         output: Option<PathBuf>,
@@ -127,6 +127,20 @@ struct Input {
     image_config: Option<PathBuf>,
 }
 
+/// How `lint` lays out its report.
+#[derive(clap::Args)]
+struct Look {
+    /// Output format: human, json, sarif (SARIF 2.1.0) or textfile (node-exporter metrics)
+    #[arg(long, value_enum, default_value_t = Format::Human)]
+    format: Format,
+    /// One finding per tab-separated line, undecorated, for grep and screen readers
+    #[arg(long, conflicts_with = "format")]
+    plain: bool,
+    /// Colour the human report: auto, always or never; auto is off under NO_COLOR, SYSTEMLINT_NO_COLOR, TERM=dumb or off a terminal
+    #[arg(long, value_enum, value_name = "WHEN", default_value_t = Colour::Auto)]
+    color: Colour,
+}
+
 /// How `lint` prints its report.
 #[derive(Clone, Copy, clap::ValueEnum)]
 enum Format {
@@ -166,7 +180,7 @@ fn main() -> ExitCode {
     };
     match cli.command {
         Command::Facts { root, image_config, save, json } => ExitCode::from(facts(&config, root.as_deref(), image_config, save.as_deref(), json, cli.quiet)),
-        Command::Lint { input, tags, fail_on, format, output } => ExitCode::from(lint(&config, &input, &tags, fail_on, format, output.as_deref(), cli.quiet)),
+        Command::Lint { input, tags, fail_on, look, output } => ExitCode::from(lint(&config, &input, &tags, fail_on, &look, output.as_deref(), cli.quiet)),
         Command::Comply { standard, input, format } => ExitCode::from(comply(&config, &standard, &input, format, cli.quiet)),
         Command::Plugin(PluginCommand::List { json }) => ExitCode::from(plugin_list(&config, json, cli.quiet)),
     }
@@ -270,7 +284,26 @@ fn today() -> String {
     collect::rfc3339(SystemTime::now())[..10].to_owned()
 }
 
-fn lint(config: &Config, input: &Input, tags: &[String], fail_on: Option<FailOn>, format: Format, output: Option<&Path>, quiet: bool) -> u8 {
+/// Shows `text` through `$PAGER`, else `less` with `LESS=FIRX` unless `LESS` is set; prints it when no pager runs.
+fn page(text: &str) {
+    let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_owned());
+    let less = std::env::var("LESS").unwrap_or_else(|_| "FIRX".to_owned());
+    let child = (!pager.is_empty()).then(|| Process::new("sh").arg("-c").arg(&pager).env("LESS", less).stdin(Stdio::piped()).spawn());
+    let Some(Ok(mut child)) = child else {
+        log::debug!("no pager from PAGER {pager:?}, printing");
+        return print!("{text}");
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(text.as_bytes());
+    }
+    let status = child.wait();
+    log::debug!("pager {pager:?} ended {status:?}");
+    if status.ok().and_then(|s| s.code()) == Some(127) {
+        print!("{text}");
+    }
+}
+
+fn lint(config: &Config, input: &Input, tags: &[String], fail_on: Option<FailOn>, look: &Look, output: Option<&Path>, quiet: bool) -> u8 {
     let run = || -> Result<u8, u8> {
         let library = library(config)?;
         let selectors = if !tags.is_empty() { tags.to_vec() } else if !config.lint.tags.is_empty() { config.lint.tags.clone() } else { vec!["*".to_owned()] };
@@ -282,8 +315,10 @@ fn lint(config: &Config, input: &Input, tags: &[String], fail_on: Option<FailOn>
             eprintln!("No rules selected. Searched: {}", rules::directories(&exe(), &config.lint.directories).iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
         }
         let checks = judge::lint(&document, &rules, &config.lint.waivers, &today());
-        let text = match format {
-            Format::Human => report::lint_human(&document, &checks, quiet),
+        let terminal = output.is_none_or(|p| p == Path::new("-")) && std::io::stdout().is_terminal();
+        let text = match look.format {
+            Format::Human if look.plain => report::lint_plain(&document, &checks, quiet),
+            Format::Human => report::lint_human(&document, &checks, quiet, report::colour(look.color, |n| std::env::var(n).ok(), terminal)),
             Format::Json => report::lint_json(&document, &checks),
             Format::Sarif => report::lint_sarif(&document, &checks),
             Format::Textfile => report::lint_textfile(&document, &checks),
@@ -293,6 +328,7 @@ fn lint(config: &Config, input: &Input, tags: &[String], fail_on: Option<FailOn>
                 eprintln!("{error}");
                 EXIT_CONFIG
             })?,
+            None if matches!(look.format, Format::Human) && !look.plain && terminal && std::io::stdin().is_terminal() => page(&text),
             None => print!("{text}"),
         }
         Ok(if fail_on.reached(&checks) { EXIT_FAIL } else if trusted { 0 } else { EXIT_PLUGIN })

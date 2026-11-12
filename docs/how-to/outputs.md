@@ -39,6 +39,8 @@ systemlint lint --root rootfs --format sarif --output systemlint.sarif
   that could not read `/etc/shadow` says so beside its results.
 - `partialFingerprints.systemlintSubject/v1` is the rule and subject, so an
   alert follows the same source across runs.
+- The run’s `properties.rating` holds the [rating](rules.md#rating): `grade`
+  and the `score` it rests on, or `null` when nothing was judged.
 
 ## Prometheus textfile
 
@@ -57,6 +59,7 @@ systemlint --quiet lint --format textfile --fail-on never \
 | `systemlint_checks` | `outcome`: pass, fail, waived, unknown, skip | checks in the run |
 | `systemlint_rule_checks` | `rule`, `outcome` | checks of that rule; absent when zero |
 | `systemlint_failures` | `severity`: error, warning, info, hint | failing checks, waived ones apart |
+| `systemlint_rating` | `grade`: S, A, B, C, D, E or F | the share of judged checks kept after failure costs; absent when nothing was judged |
 | `systemlint_collector_status` | `collector`, `status`: `ok`, `error`, `skipped` | 1 for the status it ended in, else 0 |
 | `systemlint_privileged` | — | 1 when the facts were collected as root |
 

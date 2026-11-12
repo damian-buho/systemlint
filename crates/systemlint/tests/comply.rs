@@ -107,7 +107,7 @@ fn fail_on_counts_unwaived_failures_at_its_level_or_score() {
     assert!("5".parse::<FailOn>().unwrap().reached(&checks) && !"5.1".parse::<FailOn>().unwrap().reached(&checks));
     assert!(!FailOn::Never.reached(&checks));
     assert!("0".parse::<FailOn>().is_err() && "10".parse::<FailOn>().is_err() && "0.1".parse::<FailOn>().is_ok() && "9.9".parse::<FailOn>().is_ok());
-    let text = lint_human(&document, &checks, false);
-    assert!(text.contains("warning apt/https /etc/apt/sources.list.d/old.sources: /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”"), "{text}");
-    assert!(text.ends_with("3 checks: 2 pass, 1 fail, 0 waived, 0 unknown, 0 not run, 0 skip\n"), "{text}");
+    let text = lint_human(&document, &checks, false, false);
+    assert!(text.contains("Warning (5.0): [apt/https]\n- /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”\nFix: switch /etc/apt/sources.list.d/old.sources to https://\n"), "{text}");
+    assert!(text.ends_with("\nRating C · 0 errors, 1 warning, 0 info · 2 pass\n"), "{text}");
 }

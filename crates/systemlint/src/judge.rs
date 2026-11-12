@@ -48,6 +48,8 @@ pub struct Waived {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Check {
     pub rule: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
     pub outcome: Outcome,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub subject: Vec<String>,
@@ -371,7 +373,8 @@ pub fn level_of(score: f64) -> Severity {
     BANDS.iter().find(|(_, min, _, _)| tenths >= *min).map_or(Severity::Hint, |b| b.0)
 }
 
-fn band(level: Severity) -> (f64, f64, f64) {
+/// A level’s band: lowest score, highest score, base.
+pub fn band(level: Severity) -> (f64, f64, f64) {
     BANDS.iter().find(|b| b.0 == level).map_or((3.3, 6.5, 5.0), |b| (b.1, b.2, b.3))
 }
 
@@ -436,6 +439,7 @@ fn fill(template: &str, variables: &BTreeMap<String, String>) -> String {
 fn base(rule: &Rule, outcome: Outcome, bound: &[String]) -> Check {
     Check {
         rule: rule.id.clone(),
+        title: rule.spec.title.clone(),
         outcome,
         subject: bound.to_vec(),
         fact: concrete(&rule.fact, bound).join("."),
