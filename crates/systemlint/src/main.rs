@@ -14,7 +14,7 @@ use systemlint::collect::{self, Options};
 use systemlint::config::{self, Config};
 use systemlint::discovery::{self, Trust};
 use systemlint::judge::{self, Rule};
-use systemlint::report::{self, Colour, FailOn};
+use systemlint::report::{self, Colour, FailOn, Format};
 use systemlint::rules::Library;
 use systemlint::source::Root;
 use systemlint::{collector, comply, crash, document, progress, rules, runner, trail};
@@ -50,7 +50,7 @@ const SUMMARY: &str = "Collects operating system facts and lints them with decla
 #[command(before_help = "Examples:\n  systemlint lint\n  systemlint facts --root /mnt/image -o image.facts.yaml\n  systemlint lint image.facts.yaml\n  systemlint lint --standard dev-sec-ssh-baseline\n  systemlint plugin list")]
 #[command(after_help = "Docs: https://kiota.ch/damian-buho/systemlint\nIssues: https://kiota.ch/damian-buho/systemlint/issues")]
 struct Cli {
-    /// Configuration file [default: /etc/systemlint/config.yaml when it exists]
+    /// Configuration file over SYSTEMLINT_CONFIG, ./.systemlint.yaml, ~/.config/systemlint/config.yaml and /etc/systemlint/config.yaml, merged key by key
     #[arg(long, global = true, value_name = "PATH")]
     config: Option<PathBuf>,
     /// Explain each step on stderr
@@ -138,27 +138,18 @@ struct Input {
 /// How `lint` lays out its report.
 #[derive(clap::Args)]
 struct Look {
-    /// Output format: human, json, sarif (SARIF 2.1.0) or textfile (node-exporter metrics)
-    #[arg(long, value_enum, default_value_t = Format::Human)]
-    format: Format,
+    /// Output format: human, json, sarif (SARIF 2.1.0) or textfile (node-exporter metrics) [default: lint.format, else human]
+    #[arg(long, value_enum)]
+    format: Option<Format>,
     /// One finding per tab-separated line, undecorated, for grep and screen readers
     #[arg(long, conflicts_with = "format")]
     plain: bool,
-    /// Colour the human report: auto, always or never; auto is off under NO_COLOR, SYSTEMLINT_NO_COLOR, TERM=dumb or off a terminal
-    #[arg(long, value_enum, value_name = "WHEN", default_value_t = Colour::Auto)]
-    color: Colour,
+    /// Colour the human report: auto, always or never; auto is off under NO_COLOR, SYSTEMLINT_NO_COLOR, TERM=dumb or off a terminal [default: lint.color, else auto]
+    #[arg(long, value_enum, value_name = "WHEN")]
+    color: Option<Colour>,
     /// Add each failing rule’s rationale and references, from the global `--verbose`
     #[arg(skip)]
     verbose: bool,
-}
-
-/// How `lint` prints its report.
-#[derive(Clone, Copy, clap::ValueEnum)]
-enum Format {
-    Human,
-    Json,
-    Sarif,
-    Textfile,
 }
 
 /// How `facts` encodes its document.
@@ -396,9 +387,12 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
         let checks = judge::lint(&document, &rules, &config.lint.waivers, &today());
         let compliance: Vec<comply::Report> = selection.standards.iter().zip(&catalogs).map(|(standard, catalog)| comply::comply(standard, &rules, &checks, catalog.as_ref())).collect();
         let terminal = output.is_none_or(|p| p == Path::new("-")) && std::io::stdout().is_terminal();
-        let text = match look.format {
+        let format = if look.plain { Format::Human } else { look.format.or(config.lint.format).unwrap_or(Format::Human) };
+        let color = look.color.or(config.lint.color).unwrap_or(Colour::Auto);
+        log::debug!("report as {format:?}, plain {}, colour {color:?}", look.plain);
+        let text = match format {
             Format::Human if look.plain => report::lint_plain(&document, &checks, &compliance, quiet),
-            Format::Human => report::lint_human(&document, &checks, &compliance, quiet, look.verbose, report::colour(look.color, |n| std::env::var(n).ok(), terminal)),
+            Format::Human => report::lint_human(&document, &checks, &compliance, quiet, look.verbose, report::colour(color, |n| std::env::var(n).ok(), terminal)),
             Format::Json => report::lint_json(&document, &checks, &compliance),
             Format::Sarif => report::lint_sarif(&document, &checks, &compliance),
             Format::Textfile => report::lint_textfile(&document, &checks, &compliance),
@@ -422,15 +416,8 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
 }
 
 fn load_config(explicit: Option<&Path>) -> Result<Config, String> {
-    if let Some(path) = explicit {
-        return Config::load(path);
-    }
-    let system = Path::new(config::SYSTEM);
-    if system.exists() {
-        return Config::load(system);
-    }
-    log::debug!("no --config and no {}, using defaults", system.display());
-    Ok(Config::default())
+    let cwd = std::env::current_dir().unwrap_or_default();
+    Config::layered(&config::layers(explicit, |n| std::env::var(n).ok(), &cwd))
 }
 
 fn plugin_list(config: &Config, json: bool, quiet: bool) -> u8 {

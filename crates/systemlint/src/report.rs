@@ -106,8 +106,9 @@ pub fn colour(choice: Colour, var: impl Fn(&str) -> Option<String>, terminal: bo
     decided
 }
 
-/// The `--color` choice.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+/// The `--color` choice, also `lint.color`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Colour {
     Auto,
     Always,
@@ -677,4 +678,14 @@ pub fn lint_textfile(document: &Value, checks: &[Check], compliance: &[Report]) 
     out.push_str("# HELP systemlint_privileged Whether the facts were collected as root.\n# TYPE systemlint_privileged gauge\n");
     let _ = writeln!(out, "systemlint_privileged {}", u8::from(document["meta"]["privileged"] == true));
     out
+}
+
+/// How `lint` prints its report, the `--format` choice, also `lint.format`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Format {
+    Human,
+    Json,
+    Sarif,
+    Textfile,
 }

@@ -13,11 +13,20 @@ fn base(name: &str) -> PathBuf {
     dir
 }
 
+/// The core in an empty working and user config directory, with no SYSTEMLINT_CONFIG.
+fn core() -> Command {
+    let home = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-home");
+    std::fs::create_dir_all(&home).unwrap();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_systemlint"));
+    command.env("XDG_CONFIG_HOME", &home).env_remove("SYSTEMLINT_CONFIG").current_dir(&home);
+    command
+}
+
 /// Runs the core with an empty config and the C locale, returning the exit code and stderr.
 fn run(dir: &Path, config: &str, args: &[&str]) -> (i32, String) {
     let path = dir.join("config.yaml");
     std::fs::write(&path, config).unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&path).args(args).env("LC_ALL", "C").output().unwrap();
+    let out = core().arg("--config").arg(&path).args(args).env("LC_ALL", "C").output().unwrap();
     (out.status.code().unwrap(), String::from_utf8_lossy(&out.stderr).into_owned())
 }
 
@@ -37,10 +46,10 @@ fn a_usage_error_exits_2() {
 fn a_missing_config_exits_5_with_the_fix() {
     let dir = base("config");
     let missing = dir.join("absent.yaml");
-    let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&missing).args(["plugin", "list"]).output().unwrap();
+    let out = core().arg("--config").arg(&missing).args(["plugin", "list"]).output().unwrap();
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert_eq!(out.status.code(), Some(5), "{stderr}");
-    assert!(stderr.contains("drop --config to use the defaults"), "{stderr}");
+    assert!(stderr.contains("Pass an existing file to --config or SYSTEMLINT_CONFIG, or drop it to use the defaults."), "{stderr}");
 }
 
 #[test]
@@ -160,7 +169,7 @@ fn a_closed_stdout_ends_the_run_on_sigpipe_with_no_message() {
     std::fs::write(&path, "").unwrap();
     let (reader, writer) = std::io::pipe().unwrap();
     drop(reader);
-    let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&path).args(["plugin", "list", "--format", "json"]).stdout(writer).stderr(std::process::Stdio::piped()).output().unwrap();
+    let out = core().arg("--config").arg(&path).args(["plugin", "list", "--format", "json"]).stdout(writer).stderr(std::process::Stdio::piped()).output().unwrap();
     assert_eq!(out.status.signal(), Some(libc::SIGPIPE), "{:?}", out.status);
     assert!(out.stderr.is_empty(), "{}", String::from_utf8_lossy(&out.stderr));
 }
@@ -177,7 +186,7 @@ fn no_arguments_print_a_short_summary_and_exit_2() {
 #[test]
 fn every_help_opens_with_its_description_then_examples_and_ends_with_a_docs_link() {
     for args in [&[][..], &["facts"], &["lint"], &["plugin"], &["plugin", "list"]] {
-        let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).args(args).arg("--help").output().unwrap();
+        let out = core().args(args).arg("--help").output().unwrap();
         let help = String::from_utf8(out.stdout).unwrap();
         let (examples, usage) = (help.find("\nExamples:\n").unwrap_or(usize::MAX), help.find("Usage:").unwrap_or(0));
         assert!(examples < usage, "{args:?}: examples before usage\n{help}");
@@ -190,7 +199,7 @@ fn ctrl_c_says_so_and_exits_130() {
     let dir = base("interrupt");
     let path = dir.join("config.yaml");
     std::fs::write(&path, "").unwrap();
-    let child = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&path).args(["lint", "-"]).stdin(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
+    let child = core().arg("--config").arg(&path).args(["lint", "-"]).stdin(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
     let caught = || std::fs::read_to_string(format!("/proc/{}/status", child.id())).ok().and_then(|s| s.lines().find_map(|l| l.strip_prefix("SigCgt:\t").map(|m| u64::from_str_radix(m.trim(), 16).unwrap_or(0))));
     let mut polls = 0;
     while caught().is_none_or(|mask| mask & (1 << (libc::SIGINT - 1)) == 0) {
@@ -202,4 +211,22 @@ fn ctrl_c_says_so_and_exits_130() {
     let out = child.wait_with_output().unwrap();
     assert_eq!(out.status.code(), Some(130), "{:?}", out.status);
     assert_eq!(String::from_utf8_lossy(&out.stderr), "Interrupted, stopping plugins…\n");
+}
+
+#[test]
+fn a_missing_systemlint_config_exits_5_naming_it() {
+    let dir = base("env-config");
+    let missing = dir.join("absent.yaml");
+    let out = core().env("SYSTEMLINT_CONFIG", &missing).env("LC_ALL", "C").args(["plugin", "list"]).output().unwrap();
+    assert_eq!(out.status.code(), Some(5));
+    assert!(String::from_utf8_lossy(&out.stderr).contains(&missing.display().to_string()), "{}", String::from_utf8_lossy(&out.stderr));
+}
+
+#[test]
+fn an_invalid_project_config_in_the_working_directory_exits_5_naming_it() {
+    let dir = base("project-config");
+    std::fs::write(dir.join(".systemlint.yaml"), "lint:\n  format: html\n").unwrap();
+    let out = core().current_dir(&dir).env("LC_ALL", "C").args(["plugin", "list"]).output().unwrap();
+    assert_eq!(out.status.code(), Some(5));
+    assert!(String::from_utf8_lossy(&out.stderr).contains(".systemlint.yaml is not a valid configuration"), "{}", String::from_utf8_lossy(&out.stderr));
 }

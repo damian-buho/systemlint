@@ -2,19 +2,37 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The YAML configuration file.
+//! The YAML configuration files, layered system, user, project, environment and flag.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::judge::{Waiver, valid_day};
-use crate::report::FailOn;
+use crate::report::{Colour, FailOn, Format};
 use crate::rules::Ruleset;
 
-/// The system-wide configuration, read when `--config` is not given and the file exists.
+/// The system-wide configuration, the lowest layer, read when it exists.
 pub const SYSTEM: &str = "/etc/systemlint/config.yaml";
+
+/// The project configuration in the working directory, read when it exists.
+pub const PROJECT: &str = ".systemlint.yaml";
+
+/// The variable naming a configuration file above the project one.
+pub const ENV: &str = "SYSTEMLINT_CONFIG";
+
+/// The configuration files to read, lowest first, each with whether it must exist.
+pub fn layers(explicit: Option<&Path>, var: impl Fn(&str) -> Option<String>, cwd: &Path) -> Vec<(PathBuf, bool)> {
+    let user = var("XDG_CONFIG_HOME").map(PathBuf::from).filter(|p| p.is_absolute()).or_else(|| var("HOME").map(|home| Path::new(&home).join(".config")));
+    let mut out = vec![(PathBuf::from(SYSTEM), false)];
+    out.extend(user.map(|dir| (dir.join("systemlint/config.yaml"), false)));
+    out.push((cwd.join(PROJECT), false));
+    out.extend(var(ENV).filter(|p| !p.is_empty()).map(|p| (PathBuf::from(p), true)));
+    out.extend(explicit.map(|p| (p.to_path_buf(), true)));
+    out
+}
 
 /// The whole configuration file.
 #[derive(Debug, Default, Deserialize)]
@@ -42,6 +60,10 @@ pub struct Lint {
     pub fail_on: Option<String>,
     #[serde(default)]
     pub waivers: Vec<Waiver>,
+    #[serde(default)]
+    pub format: Option<Format>,
+    #[serde(default)]
+    pub color: Option<Colour>,
 }
 
 /// The `collect:` section: where collectors live, and the key hashed values share across runs.
@@ -68,15 +90,47 @@ pub struct Plugins {
 impl Config {
     /// Reads `path`, resolving relative plugin and collector directories against the file’s own directory.
     pub fn load(path: &Path) -> Result<Self, String> {
-        let fixes = [(std::io::ErrorKind::NotFound, "Pass an existing file to --config, or drop --config to use the defaults."), (std::io::ErrorKind::PermissionDenied, "Run with sudo, or pass --config a file you can read.")];
+        Self::check(path, Self::read(path)?)
+    }
+
+    /// Reads every layer that exists, or must, lowest first, a higher one replacing a lower one key by key.
+    pub fn layered(layers: &[(PathBuf, bool)]) -> Result<Self, String> {
+        let mut merged = Value::Object(serde_json::Map::new());
+        let mut read = Vec::new();
+        for (path, required) in layers {
+            if !required && !path.exists() {
+                log::debug!("config {} is absent, skipped", path.display());
+                continue;
+            }
+            let config = Self::read(path)?;
+            Self::check(path, config.clone())?;
+            log::debug!("config {} read as layer {}", path.display(), read.len() + 1);
+            merge(&mut merged, config);
+            read.push(path.display().to_string());
+        }
+        let config = serde_json::from_value(merged).map_err(|e| format!("{} merge into an invalid configuration: {e}", read.join(", ")))?;
+        Self::check(Path::new(&read.join(", ")), config)
+    }
+
+    /// `path` as a JSON tree, its relative directories resolved against its own directory.
+    fn read(path: &Path) -> Result<Value, String> {
+        let fixes = [(std::io::ErrorKind::NotFound, "Pass an existing file to --config or SYSTEMLINT_CONFIG, or drop it to use the defaults."), (std::io::ErrorKind::PermissionDenied, "Run with sudo, or name a configuration file you can read.")];
         let text = std::fs::read_to_string(path).map_err(|e| crate::explain::io("read the configuration", path, &e, &fixes))?;
-        let mut config: Self = crate::yaml::from_str(&text).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?;
+        let mut tree: Value = crate::yaml::from_str::<Option<Value>>(&text).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?.unwrap_or_else(|| Value::Object(serde_json::Map::new()));
         let base = path.parent().unwrap_or(Path::new("."));
-        for dir in config.plugins.directories.iter_mut().chain(&mut config.collect.directories).chain(&mut config.lint.directories) {
-            if dir.is_relative() {
-                *dir = base.join(&*dir);
+        for pointer in ["/plugins/directories", "/collect/directories", "/lint/directories"] {
+            for dir in tree.pointer_mut(pointer).and_then(Value::as_array_mut).into_iter().flatten() {
+                if let Some(relative) = dir.as_str().filter(|d| Path::new(d).is_relative()) {
+                    *dir = Value::from(base.join(relative).display().to_string());
+                }
             }
         }
+        Ok(tree)
+    }
+
+    /// `tree` as a configuration, refused with `path` named when a value is out of range.
+    fn check(path: &Path, tree: Value) -> Result<Self, String> {
+        let config: Self = serde_json::from_value(tree).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?;
         if config.collect.hash_key.as_deref().is_some_and(|k| k.chars().count() < 16) {
             return Err(format!("{}: collect.hash-key needs 16 characters or more, or a hash of a short value is guessed", path.display()));
         }
@@ -94,3 +148,20 @@ impl Config {
     }
 }
 
+
+/// Merges `top` over `base`: maps key by key, any other value replaced whole.
+fn merge(base: &mut Value, top: Value) {
+    match (base, top) {
+        (Value::Object(base), Value::Object(top)) => {
+            for (key, value) in top {
+                match base.get_mut(&key) {
+                    Some(slot) => merge(slot, value),
+                    None => {
+                        base.insert(key, value);
+                    }
+                }
+            }
+        }
+        (slot, value) => *slot = value,
+    }
+}
