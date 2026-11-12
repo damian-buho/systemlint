@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::rules::{Facts, Member, Reference, Score, Severity, Spec, When, glob};
-use crate::version::compare_deb;
+use crate::version::Scheme;
 
 /// What one rule found on one subject.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -233,8 +233,9 @@ fn absent(document: &Value, keys: &[String]) -> (String, Option<String>) {
     }
 }
 
-/// `x-version: {scheme: deb, min, below}`: a version at or above `min` and below `below`.
+/// `x-version: {scheme, min, below}`: a version at or above `min` and below `below` in the scheme’s order.
 struct XVersion {
+    scheme: Scheme,
     min: Option<String>,
     below: Option<String>,
 }
@@ -242,8 +243,8 @@ struct XVersion {
 impl XVersion {
     fn holds(&self, instance: &Value) -> bool {
         let Some(version) = instance.as_str() else { return false };
-        let at_least = self.min.as_deref().is_none_or(|min| compare_deb(version, min).is_ok_and(|o| o != Ordering::Less));
-        let under = self.below.as_deref().is_none_or(|below| compare_deb(version, below).is_ok_and(|o| o == Ordering::Less));
+        let at_least = self.min.as_deref().is_none_or(|min| self.scheme.compare(version, min).is_ok_and(|o| o != Ordering::Less));
+        let under = self.below.as_deref().is_none_or(|below| self.scheme.compare(version, below).is_ok_and(|o| o == Ordering::Less));
         at_least && under
     }
 }
@@ -254,7 +255,7 @@ impl<'i> Keyword<'i> for XVersion {
             return Ok(());
         }
         let bounds = [self.min.as_ref().map(|m| format!("at least {m}")), self.below.as_ref().map(|b| format!("below {b}"))].into_iter().flatten().collect::<Vec<_>>().join(" and ");
-        Err(ValidationError::custom(format!("{instance} is not a Debian version {bounds}")))
+        Err(ValidationError::custom(format!("{instance} is not {} {bounds}", self.scheme.noun())))
     }
 
     fn is_valid(&self, instance: &'i Value) -> bool {
@@ -263,22 +264,22 @@ impl<'i> Keyword<'i> for XVersion {
 }
 
 fn x_version<'a>(_parent: &'a Map<String, Value>, value: &'a Value, _path: Location) -> Result<Box<dyn for<'i> Keyword<'i>>, ValidationError<'a>> {
+    let known = Scheme::ALL.map(Scheme::name).join(", ");
+    let scheme = match value.get("scheme").and_then(Value::as_str) {
+        Some(name) => Scheme::parse(name).ok_or_else(|| ValidationError::custom(format!("x-version scheme {name} is unknown; the known ones are {known}")))?,
+        None => return Err(ValidationError::custom(format!("x-version needs a scheme: {known}"))),
+    };
     let bound = |name: &str| -> Result<Option<String>, ValidationError<'a>> {
         match value.get(name) {
             None => Ok(None),
-            Some(Value::String(v)) => compare_deb(v, v).map(|_| Some(v.clone())).map_err(ValidationError::custom),
+            Some(Value::String(v)) => scheme.compare(v, v).map(|_| Some(v.clone())).map_err(ValidationError::custom),
             Some(other) => Err(ValidationError::custom(format!("x-version {name} {other} is not a string"))),
         }
     };
-    match value.get("scheme").and_then(Value::as_str) {
-        Some("deb") => {}
-        Some(other) => return Err(ValidationError::custom(format!("x-version scheme {other} is unknown; deb is the one known"))),
-        None => return Err(ValidationError::custom("x-version needs scheme: deb")),
-    }
     if let Some(extra) = value.as_object().and_then(|o| o.keys().find(|k| !["scheme", "min", "below"].contains(&k.as_str()))) {
         return Err(ValidationError::custom(format!("x-version has unknown key {extra}")));
     }
-    Ok(Box::new(XVersion { min: bound("min")?, below: bound("below")? }))
+    Ok(Box::new(XVersion { scheme, min: bound("min")?, below: bound("below")? }))
 }
 
 /// A validator for `schema`, with the `x-version` keyword.

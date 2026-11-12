@@ -8,7 +8,7 @@ use std::path::Path;
 use serde_json::{Value, json};
 use systemlint::judge::{Check, Outcome, Waiver, compile, describe, interpolate, level_of, lint, parse_path, pin, score};
 use systemlint::rules::{Score, Severity, Spec};
-use systemlint::version::compare_deb;
+use systemlint::version::{Scheme, compare_deb};
 
 fn facts(name: &str) -> Value {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../fixtures/lint/facts/{name}.yaml"));
@@ -107,7 +107,7 @@ fn x_version_orders_debian_versions() {
     let below = run("fact: packages.openssh-server.version\nexpect: {x-version: {scheme: deb, min: '1:9.6p1', below: '1:9.6p1-3ubuntu13.4'}}\n", &document);
     assert_eq!(below[0].outcome, Outcome::Fail);
     assert!(below[0].message.as_deref().unwrap().contains("below 1:9.6p1-3ubuntu13.4"), "{:?}", below[0].message);
-    assert!(compile("x", spec("fact: a\nexpect: {x-version: {scheme: semver}}\n")).err().unwrap().contains("scheme semver is unknown"));
+    assert!(compile("x", spec("fact: a\nexpect: {x-version: {scheme: npm}}\n")).err().unwrap().contains("scheme npm is unknown; the known ones are deb, semver, rpm, apk, pacman"));
     assert!(compile("x", spec("fact: a\nexpect: {x-version: {scheme: deb, min: 'abc'}}\n")).err().unwrap().contains("not a Debian version"));
 }
 
@@ -116,6 +116,63 @@ fn deb_ordering_matches_dpkg() {
     for (a, b, order) in [("1.0", "1.0", Ordering::Equal), ("1.0~rc1", "1.0", Ordering::Less), ("1.0", "1.0+b1", Ordering::Less), ("1:1.0", "2.0", Ordering::Greater), ("1.0-1", "1.0-1ubuntu1", Ordering::Less), ("1.10", "1.9", Ordering::Greater), ("1.0a", "1.0", Ordering::Greater), ("1.001", "1.1", Ordering::Equal), ("1:9.6p1-3ubuntu13.3", "1:9.6p1-3ubuntu13.10", Ordering::Less), ("0:1.0", "1.0", Ordering::Equal)] {
         assert_eq!(compare_deb(a, b), Ok(order), "{a} vs {b}");
     }
+}
+
+fn orders(scheme: Scheme, cases: &[(&str, &str, Ordering)]) {
+    for (a, b, order) in cases {
+        assert_eq!(scheme.compare(a, b), Ok(*order), "{} {a} vs {b}", scheme.name());
+        assert_eq!(scheme.compare(b, a), Ok(order.reverse()), "{} {b} vs {a}", scheme.name());
+    }
+}
+
+fn refuses(scheme: Scheme, versions: &[&str]) {
+    for version in versions {
+        assert!(scheme.compare(version, version).unwrap_err().contains(scheme.noun()), "{} accepted {version:?}", scheme.name());
+    }
+}
+
+#[test]
+fn semver_ordering_follows_the_spec_precedence() {
+    let chain = ["1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2", "1.0.0-beta.11", "1.0.0-rc.1", "1.0.0", "1.9.0", "1.10.0", "2.0.0"];
+    orders(Scheme::Semver, &chain.windows(2).map(|w| (w[0], w[1], Ordering::Less)).collect::<Vec<_>>());
+    orders(Scheme::Semver, &[("1.0.0+build.1", "1.0.0+build.2", Ordering::Equal), ("1.0.0-1", "1.0.0-a", Ordering::Less), ("99999999999999999999999.0.0", "2.0.0", Ordering::Greater)]);
+    refuses(Scheme::Semver, &["1.0", "1.0.0.0", "01.0.0", "1.0.0-01", "v1.0.0", "1.0.0-", "1.0.0+", "1.0.0-a..b", "1.0.0-a_b", ""]);
+}
+
+#[test]
+fn rpm_ordering_matches_rpmvercmp() {
+    use Ordering::{Equal, Greater, Less};
+    orders(Scheme::Rpm, &[("1.0", "1.0", Equal), ("2.0.1a", "2.0.1", Greater), ("5.5p10", "5.5p2", Greater), ("10xyz", "10.1xyz", Less), ("1b.fc17", "1.fc17", Less), ("2_0", "2.0", Equal), ("1.0~rc1", "1.0", Less), ("1.0~rc1~git123", "1.0~rc1", Less), ("1.0^", "1.0", Greater), ("1.0^git1", "1.01", Less), ("1.0^git1~pre", "1.0^git1", Less), ("1.0~rc1^git1", "1.0~rc1", Greater)]);
+    orders(Scheme::Rpm, &[("1:1.0", "2.0", Greater), ("0:1.0", "1.0", Equal), (":1.0", "1.0", Equal), ("1.0-1", "1.0-2", Less), ("1.0", "1.0-1", Less), ("1.0-1.el9", "1.0-1.el10", Less)]);
+    refuses(Scheme::Rpm, &["", "1.0 -1", "1.0\n"]);
+}
+
+#[test]
+fn pacman_ordering_matches_alpm_pkg_vercmp() {
+    use Ordering::{Equal, Greater, Less};
+    orders(Scheme::Pacman, &[("1.5.1", "1.5", Greater), ("1.5.b", "1.5", Greater), ("1.5a", "1.5", Less), ("1.5rc1", "1.5", Less), ("1..0", "1.0", Greater), ("1.0~rc1", "1.0", Greater), ("1.0+1", "1.0.1", Equal), ("1.001", "1.1", Equal)]);
+    orders(Scheme::Pacman, &[("1:1.0", "2.0", Greater), ("1.0-1", "1.0", Equal), ("1.0-1", "1.0-2", Less), ("1.0-10", "1.0-9", Greater)]);
+    refuses(Scheme::Pacman, &["", "1.0 1"]);
+}
+
+#[test]
+fn apk_ordering_matches_apk_tools() {
+    use Ordering::{Equal, Greater, Less};
+    let chain = ["1.0_alpha", "1.0_alpha2", "1.0_beta", "1.0_pre", "1.0_rc1", "1.0", "1.0-r1", "1.0_cvs", "1.0_svn", "1.0_git", "1.0_hg", "1.0_p1", "1.0a", "1.0.1"];
+    orders(Scheme::Apk, &chain.windows(2).map(|w| (w[0], w[1], Less)).collect::<Vec<_>>());
+    orders(Scheme::Apk, &[("1.01", "1.1", Less), ("01.0", "1.0", Equal), ("1.0~ab12", "1.0", Greater), ("1.0~ab12-r1", "1.0~ab12", Greater), ("1.10", "1.9", Greater)]);
+    refuses(Scheme::Apk, &["", "a1", "1.0-1", "1.0_foo", "1.0b2", "1.0~", "1.0~AB", "1.0-r", "1.0-r1-r2", "1.0_p1a"]);
+}
+
+#[test]
+fn x_version_compares_in_the_named_scheme() {
+    let document = json!({"meta": {}, "collectors": {}, "pkg": {"version": "3.0.15-r1"}});
+    assert_eq!(run("fact: pkg.version\nexpect: {x-version: {scheme: apk, min: '3.0.15_rc1', below: '3.0.15-r2'}}\n", &document)[0].outcome, Outcome::Pass);
+    let below = run("fact: pkg.version\nexpect: {x-version: {scheme: apk, min: '3.0.15-r2'}}\n", &document);
+    assert_eq!(below[0].outcome, Outcome::Fail);
+    assert!(below[0].message.as_deref().unwrap().contains("is not an Alpine version at least 3.0.15-r2"), "{:?}", below[0].message);
+    assert!(compile("x", spec("fact: a\nexpect: {x-version: {scheme: semver, min: '1.0'}}\n")).err().unwrap().contains("not a SemVer version"));
+    assert!(compile("x", spec("fact: a\nexpect: {x-version: {min: '1.0'}}\n")).err().unwrap().contains("needs a scheme: deb, semver, rpm, apk, pacman"));
 }
 
 #[test]

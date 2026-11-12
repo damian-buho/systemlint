@@ -124,7 +124,18 @@ expect: {x-version: {scheme: deb, min: "1:9.6p1-3ubuntu13.3", below: "1:10"}}
 ```
 
 The fact must be a string at or above `min` and below `below`, either optional,
-compared as dpkg does. `deb` is the one scheme so far.
+compared in the order `scheme` names:
+
+| Scheme | Order of | Edges |
+| --- | --- | --- |
+| `deb` | dpkg | epoch, `~` before the end |
+| `semver` | SemVer 2.0.0 precedence | prerelease before release, `+build` ignored, no `v` prefix |
+| `rpm` | rpm’s `rpmverCmp` | epoch, `~` before the end, `^` after it, a missing release first |
+| `apk` | apk-tools | `_alpha`…`_rc` before the release, `_cvs`…`_p` and `-rN` after it |
+| `pacman` | `alpm_pkg_vercmp` | epoch, a trailing letter run (`1.0rc`) before the release, a release compared only when both carry one |
+
+A `min` or `below` the scheme cannot read fails the ruleset load; a fact it
+cannot read fails the rule.
 
 ### Scores
 
@@ -341,7 +352,7 @@ facts need it:
 - `when` takes a list of maps as OR, and an absent fact answers `unknown`
   rather than skipping the rule;
 - a fact path may be a JSON Pointer, as file paths hold dots;
-- `x-version` adds Debian version ordering to the schema;
+- `x-version` adds deb, SemVer, rpm, apk and pacman version ordering to the schema;
 - rules carry `tags`, and selectors mix rulesets, IDs and tags, with `!` to
   remove, replacing `--exclude-rules` and the per-level override flags;
 - a waiver exempts a rule on a subject until a day;
