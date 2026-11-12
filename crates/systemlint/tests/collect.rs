@@ -21,6 +21,7 @@ const PLUGINS: &[(&str, &str, &str)] = &[
     ("mixed", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("absent", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("derive", r#"[{"op":"codename","needs":["os.release"]}]"#, r#"printf '%s\n' '{"facts":{"seen":true}}'"#),
+    ("ordered", r#"[{"op":"codename","needs":["os.release"]}]"#, r#"printf '%s\n' '{"facts":{"seen":true}}'"#),
     ("loop", r#"[{"op":"release","needs":["apt.codename"]}]"#, r#"printf '%s\n' '{"facts":{}}'"#),
     ("base", r#"[{"op":"release"}]"#, r#"printf '%s\n' '{"facts":{"VERSION_CODENAME":"resolute"}}'"#),
     ("broken", r#"[{"op":"parse"}]"#, "echo crashed >&2; exit 1"),
@@ -213,7 +214,7 @@ fn needs_order_the_run_and_carry_the_facts() {
 
 #[test]
 fn progress_counts_each_collector_in_run_order() {
-    let derive = collector("id: derive\nparse: {plugin: derive, op: codename}\ninto: apt.codename\n");
+    let derive = collector("id: derive\nparse: {plugin: ordered, op: codename}\ninto: apt.codename\n");
     let base = collector("id: base\nparse: {plugin: base, op: release}\ninto: os.release\n");
     let mut seen = Vec::new();
     collect_reporting(&[derive, base], &plugins(), &options(false), &mut |done, total, id| seen.push((done, total, id.to_owned())));
