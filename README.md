@@ -20,37 +20,10 @@ The core reads every file and runs every command; each plugin is a separate stat
 
 ## Features
 
-- Persistent APT cache across builds
-- Service process management with log routing (b19-exec)
-- Cached artifact downloads with integrity verification
-- Timed command execution with failure reporting (b19-run)
-- Run-once initialization (bootstrap.d)
-- Modular build hooks (build.d)
-- Compromised certificate authorities distrusted ahead of upstream
-- Automatic CPU count detection
-- Declarative dependency management (b19-deps)
-- Pluggable startup system (entrypoint.d)
-- Feature toggles for all subsystems
-- Built-in health monitoring (healthcheck.d)
-- Multilingual shell output (b19-i18n)
-- Image lineage tracking
-- Structured, level-filtered logging (b19-log)
-- Non-root container by default
-- Air-gapped / offline build and runtime support
-- Runtime overlay injection
-- Reproducible base image (pinned by digest)
-- Port validation
-- Unified lifecycle runner family
-- Docker secrets auto-loading
-- Interactive shell hooks
-- Graceful signal handling
-- Jinja2 configuration templates (minijinja-cli)
-- Built-in test framework (test.d)
-- Nothing hangs forever
-- Pre-installed utility tools
-- XDG Base Directory paths
+- Rules that know which hosts they are for
+- Findings a person, a pipeline and a screen reader can read
 
-See [Features](docs/FEATURES.md) for the full list.
+It also inherits the features of B19 / Ubuntu — see [Features](docs/FEATURES.md) for the full list.
 
 ## What this provides
 

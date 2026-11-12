@@ -16,6 +16,8 @@ Construye la imagen de contenedor en local:
 make container-build
 ```
 
+- [Referencia del Makefile](../how-to/MAKEFILE.md)
+
 Ejecuta `make` sin argumentos para el destino predeterminado; ejecuta `make help` para listar todos los destinos.
 
 Para el bucle de desarrollo local, `make dev-container` levanta el dev-container.

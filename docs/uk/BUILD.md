@@ -16,6 +16,8 @@ pf-cli-managed: yes
 make container-build
 ```
 
+- [Довідник із Makefile](../how-to/MAKEFILE.md)
+
 Виконайте `make` без аргументів для типової цілі; виконайте `make help`, щоб переглянути всі цілі.
 
 Для локального циклу розробки `make dev-container` піднімає dev-container.

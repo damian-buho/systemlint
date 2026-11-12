@@ -14,6 +14,8 @@ Build the container image locally:
 make container-build
 ```
 
+- [Makefile reference](how-to/MAKEFILE.md)
+
 Run `make` with no arguments for the default target; run `make help` to list every target.
 
 For the local dev loop, `make dev-container` brings up the dev-container.

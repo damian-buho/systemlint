@@ -22,37 +22,10 @@ El núcleo lee cada archivo y ejecuta cada orden; cada complemento es un binario
 
 ## Características
 
-- Caché APT persistente entre compilaciones
-- Gestión de procesos de servicio con enrutado de logs (b19-exec)
-- Descargas de artefactos con caché y verificación de integridad (b19-fetch)
-- Ejecución de comandos temporizada con informe de fallos (b19-run)
-- Inicialización de una sola vez (bootstrap.d)
-- Hooks de compilación modulares (build.d)
-- Autoridades de certificación comprometidas desconfiadas antes que upstream
-- Detección automática del número de CPUs (NUMPROCS)
-- Gestión declarativa de dependencias (b19-deps)
-- Sistema de arranque conectable (entrypoint.d)
-- Conmutadores de funcionalidades para todos los subsistemas
-- Monitorización de estado integrada (healthcheck.d)
-- Salida de shell multilingüe (b19-i18n)
-- Seguimiento del linaje de la imagen
-- Logging estructurado con filtro por nivel (b19-log)
-- Contenedor sin privilegios de root por defecto
-- Soporte de compilación y runtime aislados de internet (air-gapped/offline)
-- Inyección de overlays en runtime
-- Imagen base reproducible (fijada por digest)
-- Validación de puertos
-- Familia unificada de runners del ciclo de vida
-- Autocarga de secretos de Docker (secrets)
-- Hooks de shell interactivo (shell.d)
-- Gestión elegante de señales
-- Plantillas de configuración Jinja2 (minijinja-cli)
-- Framework de tests integrado (test.d)
-- Nada se cuelga para siempre
-- Herramientas de utilidad preinstaladas
-- Rutas XDG Base Directory
+- Reglas que saben para qué hosts son
+- Hallazgos que leen una persona, un pipeline y un lector de pantalla
 
-Consulta [Características](FEATURES.md) para ver la lista completa.
+También hereda las características de B19 / Ubuntu; consulta [Características](FEATURES.md) para ver la lista completa.
 
 ## Qué entrega este proyecto
 
