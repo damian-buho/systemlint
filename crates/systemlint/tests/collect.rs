@@ -29,6 +29,7 @@ const PLUGINS: &[(&str, &str, &str)] = &[
     ("image", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("proc", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("dirs", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("notdir", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
 ];
 
 fn plugins() -> Vec<Plugin> {
@@ -257,4 +258,12 @@ fn a_glob_matching_a_directory_skips_it() {
     assert_eq!(doc["collectors"]["dirs"]["status"], "ok", "{doc}");
     let paths: Vec<String> = request("dirs")["inputs"].as_array().unwrap().iter().map(|i| i["path"].as_str().unwrap().to_owned()).collect();
     assert_eq!(paths, ["/etc/os-release"]);
+}
+
+#[test]
+fn a_glob_through_a_file_is_absent_not_an_error() {
+    let c = collector("id: notdir\nread:\n  files: [/etc/*/environ]\n  stat: [/etc/*/environ]\nparse: {plugin: notdir, op: parse}\ninto: notdir\n");
+    let doc = collect(&[c], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["notdir"]["status"], "ok", "/etc/os-release/environ is absent, as /proc/bootconfig/environ is: {doc}");
+    assert_eq!(request("notdir")["inputs"], serde_json::json!([]));
 }
