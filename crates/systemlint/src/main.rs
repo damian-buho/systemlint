@@ -41,7 +41,7 @@ const EXIT_PLUGIN: u8 = 4;
 /// Collects operating system facts and lints them with declarative rules.
 #[derive(Parser)]
 #[command(name = "systemlint", version = VERSION, arg_required_else_help = true)]
-#[command(after_help = "Examples:\n  systemlint facts\n  systemlint facts --root /mnt/image --save image.facts.yaml\n  systemlint lint --root rootfs --image-config config.json --tags env\n  systemlint lint image.facts.yaml\n  systemlint lint --standard dev-sec-ssh-baseline\n  systemlint plugin list\n\nDocs: https://kiota.ch/damian-buho/systemlint\nIssues: https://kiota.ch/damian-buho/systemlint/issues")]
+#[command(after_help = "Examples:\n  systemlint facts\n  systemlint facts --root /mnt/image -o image.facts.yaml\n  systemlint lint --root rootfs --image-config config.json --tags env\n  systemlint lint image.facts.yaml\n  systemlint lint --standard dev-sec-ssh-baseline\n  systemlint plugin list\n\nDocs: https://kiota.ch/damian-buho/systemlint\nIssues: https://kiota.ch/damian-buho/systemlint/issues")]
 struct Cli {
     /// Configuration file [default: /etc/systemlint/config.yaml when it exists]
     #[arg(long, global = true, value_name = "PATH")]
@@ -59,7 +59,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Collect facts and print them as YAML
-    #[command(after_help = "Runs every collector from ../share/systemlint/collectors beside the binary and from collect.directories in the config.\nExit codes: 0 every collector ok or skipped, 1 a collector failed, 2 bad arguments, 4 a plugin or collector refused, 5 config, 6 --root can’t be opened, 7 --save can’t be written, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/collectors.md")]
+    #[command(after_help = "Runs every collector from ../share/systemlint/collectors beside the binary and from collect.directories in the config.\nExit codes: 0 every collector ok or skipped, 1 a collector failed, 2 bad arguments, 4 a plugin or collector refused, 5 config, 6 --root can’t be opened, 7 --output can’t be written, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/collectors.md")]
     Facts {
         /// Read this root filesystem instead of the live host; commands do not run
         #[arg(long, value_name = "DIR")]
@@ -67,12 +67,12 @@ enum Command {
         /// Also read this OCI image config or docker inspect JSON, for the image’s environment
         #[arg(long, value_name = "PATH")]
         image_config: Option<PathBuf>,
-        /// Write the document to PATH instead of stdout, - for stdout: JSON when it ends in .json, else YAML
-        #[arg(long, value_name = "PATH")]
-        save: Option<PathBuf>,
-        /// Print JSON instead of YAML
-        #[arg(long)]
-        json: bool,
+        /// Write the document to PATH atomically, mode 0600, instead of stdout, - for stdout
+        #[arg(short, long, value_name = "PATH")]
+        output: Option<PathBuf>,
+        /// Document format: yaml or json [default: json when --output ends in .json, else yaml]
+        #[arg(long, value_enum)]
+        format: Option<FactsFormat>,
     },
     /// Lint a saved facts document, or facts collected now
     #[command(after_help = "Exit codes: 0 clean, 1 failures at --fail-on, 2 bad arguments, 4 a plugin or collector refused, 5 config, rules or catalog, 6 unreadable facts or --root, 7 --output can’t be written, 70 no random hash key.\nWith --standard: 0 compliant, 1 non-compliant, 3 indeterminate, whatever --fail-on says.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md")]
@@ -91,7 +91,7 @@ enum Command {
         #[command(flatten)]
         look: Look,
         /// Write the report to PATH atomically, mode 0644, instead of stdout, - for stdout
-        #[arg(long, value_name = "PATH")]
+        #[arg(short, long, value_name = "PATH")]
         output: Option<PathBuf>,
     },
     /// Inspect the installed plugins
@@ -104,16 +104,16 @@ enum PluginCommand {
     /// List every trusted plugin and its ops
     #[command(after_help = "Searches ../lib/systemlint/plugins beside the systemlint binary, then the plugins.directories the config names.\nExit codes: 0 every plugin listed, 2 bad arguments, 4 a plugin refused or failed to describe itself, 5 config, 7 stdout can’t be written.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md")]
     List {
-        /// Print indented JSON
-        #[arg(long)]
-        json: bool,
+        /// Output format: human, or json (indented)
+        #[arg(long, value_enum, default_value_t = ListFormat::Human)]
+        format: ListFormat,
     },
 }
 
 /// Where the facts to judge come from.
 #[derive(clap::Args)]
 struct Input {
-    /// A facts document from `systemlint facts --save`, or - for stdin [default: collect now]
+    /// A facts document from `systemlint facts --output`, or - for stdin [default: collect now]
     #[arg(value_name = "FACTS", conflicts_with = "root")]
     facts: Option<PathBuf>,
     /// Collect from this root filesystem instead of the live host
@@ -150,7 +150,21 @@ enum Format {
     Textfile,
 }
 
-/// One row of `plugin list --json`.
+/// How `facts` encodes its document.
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum FactsFormat {
+    Yaml,
+    Json,
+}
+
+/// How `plugin list` prints its plugins.
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum ListFormat {
+    Human,
+    Json,
+}
+
+/// One row of `plugin list --format json`.
 #[derive(Serialize)]
 struct Listed {
     name: String,
@@ -175,9 +189,9 @@ fn main() -> ExitCode {
         }
     };
     match cli.command {
-        Command::Facts { root, image_config, save, json } => ExitCode::from(facts(&config, root.as_deref(), image_config, save.as_deref(), json, cli.quiet)),
+        Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format, cli.quiet)),
         Command::Lint { input, tags, standard, fail_on, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
-        Command::Plugin(PluginCommand::List { json }) => ExitCode::from(plugin_list(&config, json, cli.quiet)),
+        Command::Plugin(PluginCommand::List { format }) => ExitCode::from(plugin_list(&config, format == ListFormat::Json, cli.quiet)),
     }
 }
 
@@ -219,15 +233,16 @@ fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, q
     Ok((document, refusals.is_empty()))
 }
 
-fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, save: Option<&Path>, json: bool, quiet: bool) -> u8 {
+fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, output: Option<&Path>, format: Option<FactsFormat>, quiet: bool) -> u8 {
     let (document, trusted) = match gather(config, root, image_config, quiet) {
         Ok(gathered) => gathered,
         Err(code) => return code,
     };
-    let saved = save.filter(|p| *p != Path::new("-"));
-    let written = match saved {
-        Some(path) => document::save(&document, path),
-        None => document::render(&document, json).and_then(|text| document::write(Path::new("-"), &text, 0)),
+    let saved = output.filter(|p| *p != Path::new("-"));
+    log::debug!("facts to {:?} as {:?}", output, format.map(|f| f == FactsFormat::Json));
+    let written = match (saved, format) {
+        (Some(path), None) => document::save(&document, path),
+        (path, format) => document::render(&document, format == Some(FactsFormat::Json)).and_then(|text| document::write(path.unwrap_or(Path::new("-")), &text, 0o600)),
     };
     if let Err(error) = written {
         eprintln!("{error}");

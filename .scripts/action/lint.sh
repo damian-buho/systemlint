@@ -60,7 +60,7 @@ else
   echo "subject root ${ROOT}"
 fi
 
-docker run "${sandbox[@]}" --user 0 --cap-add DAC_READ_SEARCH "${subject[@]}" "${tool}" "${config[@]}" --quiet facts "${where[@]}" --json > "${facts}"
+docker run "${sandbox[@]}" --user 0 --cap-add DAC_READ_SEARCH "${subject[@]}" "${tool}" "${config[@]}" --quiet facts "${where[@]}" --format json > "${facts}"
 echo "facts ${facts}: $(wc --bytes < "${facts}") bytes"
 
 lint=("${config[@]}" lint -)

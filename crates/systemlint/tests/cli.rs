@@ -62,12 +62,12 @@ fn a_refused_ruleset_directory_exits_5_naming_chmod() {
 }
 
 #[test]
-fn a_missing_facts_document_exits_6_naming_facts_save() {
+fn a_missing_facts_document_exits_6_naming_facts_output() {
     let dir = base("input");
     let absent = dir.join("absent.yaml").display().to_string();
     let (code, stderr) = run(&dir, "", &["lint", &absent]);
     assert_eq!(code, 6, "{stderr}");
-    assert!(stderr.contains(&format!("Run systemlint facts --save {absent} first")), "{stderr}");
+    assert!(stderr.contains(&format!("Run systemlint facts --output {absent} first")), "{stderr}");
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn a_save_in_a_missing_directory_exits_7() {
     let root = dir.join("root");
     std::fs::create_dir(&root).unwrap();
     let save = dir.join("absent/facts.yaml").display().to_string();
-    let (code, stderr) = run(&dir, "", &["--quiet", "facts", "--root", &root.display().to_string(), "--save", &save]);
+    let (code, stderr) = run(&dir, "", &["--quiet", "facts", "--root", &root.display().to_string(), "--output", &save]);
     assert_eq!(code, 7, "{stderr}");
 }
 
@@ -113,11 +113,29 @@ fn a_save_says_what_it_wrote_and_how_to_lint_it_unless_quiet() {
     let root = dir.join("root");
     std::fs::create_dir(&root).unwrap();
     let save = dir.join("facts.yaml").display().to_string();
-    let (code, stderr) = run(&dir, "", &["facts", "--root", &root.display().to_string(), "--save", &save]);
+    let (code, stderr) = run(&dir, "", &["facts", "--root", &root.display().to_string(), "--output", &save]);
     assert_eq!(code, 0, "{stderr}");
     assert!(stderr.contains(&format!("Saved facts from 0 collectors (0 errors) to {save}. Lint them with: systemlint lint {save}")), "{stderr}");
-    let (_, quiet) = run(&dir, "", &["--quiet", "facts", "--root", &root.display().to_string(), "--save", &save]);
+    let (_, quiet) = run(&dir, "", &["--quiet", "facts", "--root", &root.display().to_string(), "--output", &save]);
     assert!(!quiet.contains("Saved"), "{quiet}");
+}
+
+#[test]
+fn facts_format_beats_the_output_extension() {
+    let dir = base("format");
+    let root = dir.join("root");
+    std::fs::create_dir(&root).unwrap();
+    let (json, yaml) = (dir.join("facts.json"), dir.join("facts.yaml"));
+    let written = |path: &std::path::Path, args: &[&str]| {
+        let mut all = vec!["--quiet", "facts", "--root", root.to_str().unwrap(), "-o", path.to_str().unwrap()];
+        all.extend_from_slice(args);
+        assert_eq!(run(&dir, "", &all).0, 0);
+        std::fs::read_to_string(path).unwrap()
+    };
+    assert!(written(&json, &[]).starts_with('{'), "a .json name writes JSON");
+    assert!(!written(&yaml, &[]).starts_with('{'), "any other name writes YAML");
+    assert!(!written(&json, &["--format", "yaml"]).starts_with('{'), "--format yaml beats .json");
+    assert!(written(&yaml, &["--format", "json"]).starts_with('{'), "--format json beats .yaml");
 }
 
 #[test]
@@ -142,7 +160,7 @@ fn a_closed_stdout_ends_the_run_on_sigpipe_with_no_message() {
     std::fs::write(&path, "").unwrap();
     let (reader, writer) = std::io::pipe().unwrap();
     drop(reader);
-    let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&path).args(["plugin", "list", "--json"]).stdout(writer).stderr(std::process::Stdio::piped()).output().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&path).args(["plugin", "list", "--format", "json"]).stdout(writer).stderr(std::process::Stdio::piped()).output().unwrap();
     assert_eq!(out.status.signal(), Some(libc::SIGPIPE), "{:?}", out.status);
     assert!(out.stderr.is_empty(), "{}", String::from_utf8_lossy(&out.stderr));
 }

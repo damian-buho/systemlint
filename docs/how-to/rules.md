@@ -232,7 +232,7 @@ default, turns it off under `NO_COLOR`, `SYSTEMLINT_NO_COLOR`, `TERM=dumb` or
 when stdout is not a terminal, and `FORCE_COLOR` turns it on.
 `--format json` prints the document’s `meta`, every check, passes included, and
 the counts; `--format sarif` and `--format textfile` are described in
-[Outputs](outputs.md). `--output PATH` writes the report atomically instead of
+[Outputs](outputs.md). `-o PATH` (`--output`) writes the report atomically instead of
 printing it, then one stderr line with its number of findings, which `-q` drops. `--fail-on` (`lint.fail-on`) takes `error`, the default, `warning`,
 `info`, a score from 0.1 to 9.9, or `never`; a hint never fails a run.
 
@@ -245,7 +245,7 @@ printing it, then one stderr line with its number of findings, which `-q` drops.
 | 4 | a plugin or collector file was refused | the same, when otherwise compliant | the same, when no collector ended `error` |
 | 5 | the config, a ruleset or a catalog is unreadable, invalid or refused | the same | the config is unreadable or invalid |
 | 6 | the facts document or `--root` can’t be read | the same | `--root` can’t be opened |
-| 7 | `--output` or stdout can’t be written | the same | `--save` or stdout can’t be written |
+| 7 | `--output` or stdout can’t be written | the same | `--output` or stdout can’t be written |
 | 70 | the system gave no random hash key | the same | the same |
 | 101 | a crash: one line names the report saved under `$XDG_STATE_HOME/systemlint/` (`~/.local/state/systemlint/`) and a pre-filled issue link | the same | the same |
 | 141 | stdout closed early (`systemlint facts \| head`): the run ends silently on `SIGPIPE`, which a shell reports as 141 | the same | the same |

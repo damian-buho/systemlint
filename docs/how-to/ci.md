@@ -71,7 +71,7 @@ The same, by hand:
 docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 \
   --mount type=image,source=app:ci,target=/subject \
   --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest \
-  facts --root /subject --json > facts.json
+  facts --root /subject --format json > facts.json
 docker run --rm --interactive --network none --read-only --user "$(id --user)" \
   --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest \
   lint - --format sarif < facts.json > systemlint.sarif

@@ -59,7 +59,7 @@ pub fn load(path: &Path) -> Result<Value, String> {
     let mut text = String::new();
     let read = if path == Path::new("-") { std::io::stdin().read_to_string(&mut text).map(drop) } else { std::fs::read_to_string(path).map(|t| text = t) };
     read.map_err(|e| {
-        let first = format!("Run systemlint facts --save {} first, or pass - to read stdin.", path.display());
+        let first = format!("Run systemlint facts --output {} first, or pass - to read stdin.", path.display());
         let owner = format!("A saved document is mode 0600: run sudo chown \"$(id -un)\" {}, or lint as the user who saved it.", path.display());
         crate::explain::io("read facts", path, &e, &[(ErrorKind::NotFound, &first), (ErrorKind::PermissionDenied, &owner), (ErrorKind::IsADirectory, "Name a facts file, or pass - to read stdin.")])
     })?;

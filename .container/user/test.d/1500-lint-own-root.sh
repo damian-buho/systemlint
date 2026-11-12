@@ -12,7 +12,7 @@ set -eo pipefail
 work="$(mktemp --directory)"
 trap 'rm --recursive --force -- "${work}"' EXIT
 
-systemlint --quiet facts --save "${work}/facts.json"
+systemlint --quiet facts --output "${work}/facts.json"
 systemlint --quiet lint "${work}/facts.json" --format sarif --fail-on never --output "${work}/systemlint.sarif"
 sarif="$(cat -- "${work}/systemlint.sarif")"
 b19-assert matches "SARIF" '"version": "2.1.0"' "${sarif}"
