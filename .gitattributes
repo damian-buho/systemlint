@@ -28,14 +28,15 @@
 # <<< shell-include
 
 # >>> shell-exclude
-*.cjs     -shell
-*.deps    -shell
-*.j2      -shell
-*.js      -shell
-*.md      -shell
-*.mjs     -shell
-*.py      -shell
-*.txt     -shell
-.gitkeep  -shell
+*.cjs        -shell
+*.deps       -shell
+*.j2         -shell
+*.js         -shell
+*.md         -shell
+*.mjs        -shell
+*.py         -shell
+*.txt        -shell
+.gitkeep     -shell
+fixtures/**  -shell
 # <<< shell-exclude
 

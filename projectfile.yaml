@@ -93,6 +93,10 @@ org:
           run: .scripts/build-binaries.sh
           description: Build every binary crate as a static musl binary for the OS/arch cell
           tags: [publish]
+    attributes:
+      shell:
+        exclude:
+          - fixtures/**
     ignores:
       textlint: &captures
         include:
