@@ -223,12 +223,12 @@ fn human_puts_a_fix_under_each_location_when_the_fixes_differ() {
 const EXPLAINED: &str = "title: Dropped value\nfact: v\nexpect: {const: 0}\nfix: drop it\nrationale: a value [here] leaks\nreferences: [{title: 'CIS 1.2', url: 'https://example.org/cis'}, {title: 'Man page', url: 'https://example.org/man'}]\n";
 
 #[test]
-fn rationale_and_references_reach_every_format_but_the_human_report_only_under_verbose() {
+fn rationale_and_references_reach_every_format_and_the_human_references_only_under_verbose() {
     let rule = compile("x/drop", systemlint::yaml::from_str(EXPLAINED).unwrap()).unwrap();
     let document = json!({"v": 1});
     let checks = lint(&document, &[rule], &[], "2026-11-11");
-    assert_eq!(lint_human(&document, &checks, &[], true, false, false), "Warning (5.0): [x/drop] Dropped value\n- v: 0 was expected\nFix: drop it\n\n");
-    assert_eq!(lint_human(&document, &checks, &[], true, true, false), "Warning (5.0): [x/drop] Dropped value\n- v: 0 was expected\nFix: drop it\nWhy: a value [here] leaks\nSee: CIS 1.2 <https://example.org/cis>\nSee: Man page <https://example.org/man>\n\n");
+    assert_eq!(lint_human(&document, &checks, &[], true, false, false), "Warning (5.0): [x/drop] Dropped value\nWhy: a value [here] leaks\n- v: 0 was expected\nFix: drop it\n\n");
+    assert_eq!(lint_human(&document, &checks, &[], true, true, false), "Warning (5.0): [x/drop] Dropped value\nWhy: a value [here] leaks\n- v: 0 was expected\nFix: drop it\nSee: CIS 1.2 <https://example.org/cis>\nSee: Man page <https://example.org/man>\n\n");
     let report: Value = serde_json::from_str(&lint_json(&document, &checks, &[])).unwrap();
     assert_eq!((&report["checks"][0]["rationale"], &report["checks"][0]["references"][1]["url"]), (&json!("a value [here] leaks"), &json!("https://example.org/man")));
     let rule = &sarif(&document, &checks)["runs"][0]["tool"]["driver"]["rules"][0];
@@ -247,6 +247,19 @@ fn human_wraps_a_long_not_run_list_within_80_columns() {
     let text = lint_human(&document, &lint(&document, &rules, &[], "2026-11-11"), &[], true, false, false);
     assert!(text.lines().all(|l| l.chars().count() <= 80), "{text}");
     assert!(text.starts_with("Not run (env-processes): needs root\n  env/rule-00, ") && text.contains(",\n  env/rule-") && text.contains("env/rule-11\n\n"), "{text}");
+}
+
+#[test]
+fn plain_prints_a_rule_not_run_once_whatever_its_subjects() {
+    let mut document = facts("root");
+    document["collectors"]["env-processes"] = json!({"status": "skipped", "reason": "needs root", "into": "env.processes"});
+    document["collectors"]["env-image"] = json!({"status": "skipped", "reason": "needs root", "into": "env.image"});
+    document["env"] = json!({"files": {"/etc/environment": {"vars": {}}}});
+    let rule = compile("env/any", systemlint::yaml::from_str("fact: env.*.*.vars\nexpect: {type: object}\n").unwrap()).unwrap();
+    let checks = lint(&document, &[rule], &[], "2026-11-11");
+    assert!(checks.iter().filter(|c| c.collector.is_some()).count() >= 2, "{checks:?}");
+    let text = lint_plain(&document, &checks, &[], true);
+    assert_eq!(text.lines().filter(|l| l.starts_with("not-run\t")).collect::<Vec<_>>(), ["not-run\t\tenv/any\t\tneeds root\t"], "{text}");
 }
 
 #[test]

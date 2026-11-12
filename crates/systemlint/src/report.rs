@@ -188,12 +188,15 @@ fn header(label: &str, check: &Check, on: bool) -> String {
     check.title.as_deref().map_or_else(|| format!("{label}: {id}"), |title| format!("{label}: {id} {title}"))
 }
 
-/// The failing checks of one rule as a block: level and highest score, a line per location, the fix once when every location shares it, then why and the references when `verbose`.
+/// The failing checks of one rule as a block: level and highest score, why, a line per location, the fix once when every location shares it, then the references when `verbose`.
 fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     let worst = group.iter().copied().max_by(|a, b| a.score.unwrap_or_default().total_cmp(&b.score.unwrap_or_default())).unwrap_or(group[0]);
     let (word, code) = level_word(worst.severity);
     let label = format!("{} ({:.1})", paint(on, code, word), worst.score.unwrap_or_default());
     let _ = writeln!(out, "{}", header(&label, worst, on));
+    if let Some(why) = &worst.rationale {
+        let _ = writeln!(out, "Why: {why}");
+    }
     let problems = clusters(group);
     let shared = problems.iter().all(|p| p[0].fix == problems[0][0].fix);
     for problem in &problems {
@@ -212,9 +215,6 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     }
     if let Some(fix) = problems[0][0].fix.as_deref().filter(|_| shared) {
         let _ = writeln!(out, "Fix: {fix}");
-    }
-    if let Some(why) = worst.rationale.as_deref().filter(|_| verbose) {
-        let _ = writeln!(out, "Why: {why}");
     }
     for reference in worst.references.iter().filter(|_| verbose) {
         let _ = writeln!(out, "See: {} <{}>", reference.title, reference.url);
@@ -322,7 +322,7 @@ fn standard_block(out: &mut String, report: &Report, on: bool) {
     out.push('\n');
 }
 
-/// One block per rule: not run reasons, unknowns, waivers, failures lowest score first (with why and references when `verbose`), each standard, then the rating and counts unless `quiet`.
+/// One block per rule: not run reasons, unknowns, waivers, failures lowest score first (with references when `verbose`), each standard, then the rating and counts unless `quiet`.
 pub fn lint_human(document: &Value, checks: &[Check], compliance: &[Report], quiet: bool, verbose: bool, on: bool) -> String {
     let mut out = String::new();
     let mut not_run: BTreeMap<&str, (BTreeSet<&str>, BTreeSet<&str>)> = BTreeMap::new();
@@ -368,12 +368,12 @@ fn field(text: &str) -> String {
     text.replace(['\t', '\n'], " ")
 }
 
-/// One finding per tab-separated line, in the human order and undecorated: outcome or level, score, rule, subject, message, fix; then each standard and its controls.
+/// One finding per tab-separated line, in the human order and undecorated, a rule not run once: outcome or level, score, rule, subject, message, fix; then each standard and its controls.
 pub fn lint_plain(document: &Value, checks: &[Check], compliance: &[Report], quiet: bool) -> String {
     let mut out = String::new();
     let mut row = |cells: [&str; 6]| { let _ = writeln!(out, "{}", cells.map(field).join("\t")); };
-    for check in checks.iter().filter(|c| skip_reason(document, c).is_some()) {
-        row(["not-run", "", &check.rule, &check.subject_text(), skip_reason(document, check).unwrap_or_default(), ""]);
+    for (rule, group) in by_rule(checks.iter().filter(|c| skip_reason(document, c).is_some())) {
+        row(["not-run", "", rule, "", skip_reason(document, group[0]).unwrap_or_default(), ""]);
     }
     for check in checks.iter().filter(|c| c.outcome == Outcome::Unknown && skip_reason(document, c).is_none()) {
         row(["unknown", "", &check.rule, &check.subject_text(), check.reason.as_deref().unwrap_or_default(), ""]);
