@@ -133,3 +133,16 @@ fn an_output_counts_its_findings_one_in_the_singular() {
     let (_, quiet) = run(&dir, config, &["--quiet", "lint", "--output", &report, &path.display().to_string()]);
     assert!(!quiet.contains("Wrote"), "{quiet}");
 }
+
+#[test]
+fn a_closed_stdout_ends_the_run_on_sigpipe_with_no_message() {
+    use std::os::unix::process::ExitStatusExt;
+    let dir = base("sigpipe");
+    let path = dir.join("config.yaml");
+    std::fs::write(&path, "").unwrap();
+    let (reader, writer) = std::io::pipe().unwrap();
+    drop(reader);
+    let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&path).args(["plugin", "list", "--json"]).stdout(writer).stderr(std::process::Stdio::piped()).output().unwrap();
+    assert_eq!(out.status.signal(), Some(libc::SIGPIPE), "{:?}", out.status);
+    assert!(out.stderr.is_empty(), "{}", String::from_utf8_lossy(&out.stderr));
+}

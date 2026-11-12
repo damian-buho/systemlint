@@ -161,6 +161,8 @@ struct Listed {
 }
 
 fn main() -> ExitCode {
+    // SAFETY: restores the default SIGPIPE action Rust’s runtime set to ignore, before any thread starts, so a closed pipe ends the run silently.
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
     crash::install();
     let cli = Cli::parse();
     let level = if cli.verbose { log::LevelFilter::Debug } else { log::LevelFilter::Off };

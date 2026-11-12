@@ -248,6 +248,7 @@ printing it, then one stderr line with its number of findings, which `-q` drops.
 | 7 | `--output` or stdout can’t be written | the same | `--save` or stdout can’t be written |
 | 70 | the system gave no random hash key | the same | the same |
 | 101 | a crash: one line names the report saved under `$XDG_STATE_HOME/systemlint/` (`~/.local/state/systemlint/`) and a pre-filled issue link | the same | the same |
+| 141 | stdout closed early (`systemlint facts \| head`): the run ends silently on `SIGPIPE`, which a shell reports as 141 | the same | the same |
 
 ## Compliance
 
