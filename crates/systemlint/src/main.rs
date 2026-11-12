@@ -17,7 +17,7 @@ use systemlint::judge::{self, Rule};
 use systemlint::report::{self, Colour, FailOn};
 use systemlint::rules::Library;
 use systemlint::source::Root;
-use systemlint::{collector, comply, crash, document, progress, rules, runner};
+use systemlint::{collector, comply, crash, document, progress, rules, runner, trail};
 use systemlint_protocol::{OpSpec, VERSION};
 
 /// Exit code when `lint` finds failures at `--fail-on` or a `--standard` is not complied with, or a `facts` collector failed.
@@ -209,8 +209,7 @@ fn main() -> ExitCode {
         eprint!("{SUMMARY}");
         return ExitCode::from(2);
     };
-    let level = if cli.verbose { log::LevelFilter::Debug } else { log::LevelFilter::Off };
-    env_logger::Builder::new().filter_level(level).init();
+    trail::install(cli.verbose);
     let config = match load_config(cli.config.as_deref()) {
         Ok(config) => config,
         Err(error) => {
@@ -254,7 +253,7 @@ fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, q
     let started = Instant::now();
     let status = !quiet && !log::log_enabled!(log::Level::Debug) && std::io::stderr().is_terminal();
     if status {
-        eprint!("Collecting {} from {}…", plural(collectors.len(), "collector"), options.root.path().display());
+        eprint!("Collecting from {}…", options.root.path().display());
     }
     let document = collect::collect_reporting(&collectors, &plugins, &options, &mut |done, total, id| {
         if status {
@@ -272,7 +271,7 @@ fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, q
     }
     if let Some(outcomes) = document["collectors"].as_object() {
         for (id, outcome) in outcomes.iter().filter(|(_, o)| o["status"] == "error") {
-            eprintln!("collector {id}: {}", outcome["reason"].as_str().unwrap_or_default());
+            eprintln!("{}", traced(&trail::collector(id), format!("collector {id}: {}", outcome["reason"].as_str().unwrap_or_default())));
         }
     }
     Ok((document, refusals.is_empty()))
@@ -339,6 +338,11 @@ fn compiled(library: &Library, selection: &Selection, config: &Config) -> Result
         eprintln!("{error}");
         EXIT_CONFIG
     })
+}
+
+/// The error `line`, then each debug record kept under `tag`, indented on its own line.
+fn traced(tag: &str, line: String) -> String {
+    trail::take(tag).iter().fold(line, |out, record| format!("{out}\n  {record}"))
 }
 
 /// `1 collector`, `0 errors`: the count, then the noun, plural unless the count is one.
@@ -435,9 +439,9 @@ fn plugin_list(config: &Config, json: bool, quiet: bool) -> u8 {
     let mut problems: Vec<String> = refusals.iter().map(|r| format!("refused {}: {}", r.path.display(), r.reason)).collect();
     let mut listed = Vec::new();
     for plugin in plugins {
-        match runner::describe(&plugin.name, &plugin.path, runner::DESCRIBE_TIMEOUT) {
+        match trail::scoped(&trail::plugin(&plugin.name), || runner::describe(&plugin.name, &plugin.path, runner::DESCRIBE_TIMEOUT)) {
             Ok(d) => listed.push(Listed { name: d.name, version: d.version, protocol: d.protocol, path: plugin.path, ops: d.ops }),
-            Err(error) => problems.push(format!("plugin {} at {}: {error}", plugin.name, plugin.path.display())),
+            Err(error) => problems.push(traced(&trail::plugin(&plugin.name), format!("plugin {} at {}: {error}", plugin.name, plugin.path.display()))),
         }
     }
     let mut text = String::new();

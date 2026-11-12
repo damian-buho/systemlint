@@ -18,6 +18,7 @@ use crate::collector::{Collector, overlaps};
 use crate::discovery::Plugin;
 use crate::runner::{self, OUTPUT_CAP};
 use crate::source::Root;
+use crate::trail;
 
 /// The facts document schema version written to `meta.schema`.
 pub const SCHEMA: u32 = 1;
@@ -114,7 +115,7 @@ pub fn collect_reporting(collectors: &[Collector], plugins: &[Plugin], options: 
             outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": format!("runs {} on a live host only, and --root {} was given", collector.read.exec.as_deref().unwrap_or_default()[0], options.root.path().display())}));
             continue;
         }
-        match plan(collector, plugins, &mut described) {
+        match trail::scoped(&trail::collector(&collector.id), || plan(collector, plugins, &mut described)) {
             Ok((plugin, needs)) => {
                 versions.insert(plugin.name.clone(), Value::from(described[&plugin.name].as_ref().map(|d| d.version.clone()).unwrap_or_default()));
                 planned.push((index, plugin, needs));
@@ -138,9 +139,11 @@ pub fn collect_reporting(collectors: &[Collector], plugins: &[Plugin], options: 
         let (index, plugin, needs) = planned.remove(position);
         let collector = &collectors[index];
         progress(total - planned.len() - 1, total, &collector.id);
-        let outcome = gather(collector, &needs, collectors, &facts, &outcomes)
-            .and_then(|given| run(collector, plugin, given, options, &now))
-            .and_then(|(value, diagnostics, redacted, hashed)| place(&mut facts, &collector.into, value).map(|()| (diagnostics, redacted, hashed)));
+        let outcome = trail::scoped(&trail::collector(&collector.id), || {
+            gather(collector, &needs, collectors, &facts, &outcomes)
+                .and_then(|given| run(collector, plugin, given, options, &now))
+                .and_then(|(value, diagnostics, redacted, hashed)| place(&mut facts, &collector.into, value).map(|()| (diagnostics, redacted, hashed)))
+        });
         let outcome = match outcome {
             Ok((diagnostics, redacted, hashed)) => {
                 log::debug!("collector {} ok into {}, {} diagnostics, {} redacted, {hashed} hashed", collector.id, collector.into, diagnostics.len(), redacted.len());

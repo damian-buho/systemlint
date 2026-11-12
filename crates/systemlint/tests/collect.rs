@@ -31,6 +31,8 @@ const PLUGINS: &[(&str, &str, &str)] = &[
     ("dirs", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("notdir", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("secret", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("traced", r#"[{"op":"parse"}]"#, "exit 3"),
+    ("untraced", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
 ];
 
 fn plugins() -> Vec<Plugin> {
@@ -285,6 +287,21 @@ fn a_glob_through_a_file_is_absent_not_an_error() {
     let doc = collect(&[c], &plugins(), &options(false));
     assert_eq!(doc["collectors"]["notdir"]["status"], "ok", "/etc/os-release/environ is absent, as /proc/bootconfig/environ is: {doc}");
     assert_eq!(request("notdir")["inputs"], serde_json::json!([]));
+}
+
+#[test]
+fn a_failed_collector_keeps_its_own_debug_records_and_no_other_collectors() {
+    systemlint::trail::install(false);
+    let failing = collector("id: traced\nread:\n  files: [/etc/os-release]\nparse: {plugin: traced, op: parse}\ninto: traced\n");
+    let passing = collector("id: untraced\nread:\n  files: [/etc/os-release]\nparse: {plugin: untraced, op: parse}\ninto: untraced\n");
+    let doc = collect(&[failing, passing], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["traced"]["status"], "error");
+    let kept = systemlint::trail::take("collector traced");
+    assert!(kept.iter().any(|l| l == "collector traced sends 1 inputs to traced parse"), "{kept:?}");
+    assert!(kept.iter().any(|l| l.ends_with("/traced exited 3 with 0 bytes on stdout")), "{kept:?}");
+    assert!(kept.iter().all(|l| !l.contains("untraced")), "{kept:?}");
+    assert!(systemlint::trail::take("collector traced").is_empty(), "taken once");
+    assert!(!systemlint::trail::take("collector untraced").is_empty());
 }
 
 #[test]

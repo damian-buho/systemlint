@@ -22,7 +22,7 @@ pub fn install() {
         let message = payload.downcast_ref::<&str>().map(|s| (*s).to_owned()).or_else(|| payload.downcast_ref::<String>().cloned()).unwrap_or_else(|| "unknown panic".to_owned());
         let location = info.location().map_or_else(String::new, ToString::to_string);
         let args: Vec<String> = std::env::args().collect();
-        let text = report(&message, &location, &args, &std::backtrace::Backtrace::force_capture().to_string());
+        let text = report(&message, &location, &args, &std::backtrace::Backtrace::force_capture().to_string()) + &crate::trail::dump();
         let saved = directory(|name| std::env::var(name).ok()).ok_or_else(|| io::Error::other("neither XDG_STATE_HOME nor HOME is set")).and_then(|dir| save(&dir, &text));
         match saved {
             Ok(path) => eprintln!("systemlint crashed: {message}. The report is in {}; please file it at {}", path.display(), issue_url(&message, &location)),

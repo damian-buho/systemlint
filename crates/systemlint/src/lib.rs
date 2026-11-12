@@ -18,5 +18,6 @@ pub mod report;
 pub mod rules;
 pub mod runner;
 pub mod source;
+pub mod trail;
 pub mod version;
 pub mod yaml;
