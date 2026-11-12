@@ -16,9 +16,10 @@ fn write(name: &str, text: &str) -> PathBuf {
 
 #[test]
 fn relative_directories_resolve_beside_the_file() {
-    let path = write("relative", "plugins:\n  directories: [plugins, /opt/systemlint/plugins]\n");
+    let path = write("relative", "plugins:\n  directories: [plugins, /opt/systemlint/plugins]\ncollect:\n  directories: [collectors]\n");
     let config = Config::load(&path).unwrap();
     assert_eq!(config.plugins.directories, [path.parent().unwrap().join("plugins"), PathBuf::from("/opt/systemlint/plugins")]);
+    assert_eq!(config.collect.directories, [path.parent().unwrap().join("collectors")]);
 }
 
 #[test]

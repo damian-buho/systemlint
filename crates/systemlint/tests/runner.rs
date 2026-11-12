@@ -28,8 +28,10 @@ fn script(name: &str) -> PathBuf {
         let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("runner");
         std::fs::create_dir_all(&dir).unwrap();
         for (name, body) in SCRIPTS {
-            std::fs::write(dir.join(name), format!("#!/bin/sh\n{body}\n")).unwrap();
-            std::fs::set_permissions(dir.join(name), std::fs::Permissions::from_mode(0o755)).unwrap();
+            let temporary = dir.join(format!("{name}.{}.tmp", std::process::id()));
+            std::fs::write(&temporary, format!("#!/bin/sh\n{body}\n")).unwrap();
+            std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o755)).unwrap();
+            std::fs::rename(&temporary, dir.join(name)).unwrap();
         }
         dir
     });
@@ -44,7 +46,7 @@ fn reads_a_valid_describe() {
 
 #[test]
 fn environment_is_empty_but_the_locale() {
-    let output = call(&script("env"), &[], DESCRIBE_TIMEOUT, OUTPUT_CAP).unwrap();
+    let output = call(&script("env"), &[], None, DESCRIBE_TIMEOUT, OUTPUT_CAP).unwrap();
     let env = String::from_utf8(output.stdout).unwrap();
     assert!(env.contains("LC_ALL=C"), "{env}");
     assert!(!env.contains("HOME="), "{env}");
@@ -67,12 +69,12 @@ fn refuses_garbage_and_failure() {
 #[test]
 fn output_cap_boundary() {
     let path = script("chatty");
-    assert_eq!(call(&path, &[], DESCRIBE_TIMEOUT, 10).unwrap().stdout.len(), 10);
-    assert!(call(&path, &[], DESCRIBE_TIMEOUT, 9).unwrap_err().contains("more than 9 bytes"));
+    assert_eq!(call(&path, &[], None, DESCRIBE_TIMEOUT, 10).unwrap().stdout.len(), 10);
+    assert!(call(&path, &[], None, DESCRIBE_TIMEOUT, 9).unwrap_err().contains("more than 9 bytes"));
 }
 
 #[test]
 fn timeout_kills_a_hung_plugin() {
-    let error = call(&script("hung"), &[], Duration::ZERO, OUTPUT_CAP).unwrap_err();
+    let error = call(&script("hung"), &[], None, Duration::ZERO, OUTPUT_CAP).unwrap_err();
     assert!(error.contains("within 0s"), "{error}");
 }

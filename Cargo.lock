@@ -473,6 +473,7 @@ dependencies = [
 name = "systemlint-formats"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "systemlint-protocol",
 ]
 

@@ -1,0 +1,101 @@
+// SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use std::io::ErrorKind;
+use std::os::unix::fs::{PermissionsExt, symlink};
+use std::path::{Path, PathBuf};
+
+use systemlint::source::{Root, wildcard};
+use systemlint_protocol::FileKind;
+
+fn fixture(name: &str) -> PathBuf {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("source").join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("etc/apt")).unwrap();
+    std::fs::write(dir.join("etc/passwd"), "inside\n").unwrap();
+    dir
+}
+
+#[test]
+fn symlinks_and_dotdot_stay_inside_the_root() {
+    let dir = fixture("escape");
+    symlink("/etc/passwd", dir.join("etc/absolute")).unwrap();
+    symlink("../../../../../../../../etc/passwd", dir.join("etc/relative")).unwrap();
+    symlink("/", dir.join("etc/apt/top")).unwrap();
+    let root = Root::open(&dir).unwrap();
+    for path in ["/etc/absolute", "/etc/relative", "/../../../etc/passwd", "/etc/apt/top/etc/passwd"] {
+        assert_eq!(root.read(path, 1024).unwrap(), b"inside\n", "{path}");
+    }
+}
+
+#[test]
+fn live_root_reads_the_host() {
+    let root = Root::open(Path::new("/")).unwrap();
+    assert_eq!(root.read("/proc/self/stat", 1 << 20).map(|b| !b.is_empty()).ok(), Some(true));
+}
+
+#[test]
+fn read_refuses_directories_absent_files_and_size_over_cap() {
+    let root = Root::open(&fixture("read")).unwrap();
+    assert!(root.read("/etc", 1024).unwrap_err().to_string().contains("not a regular file"));
+    assert_eq!(root.read("/etc/missing", 1024).unwrap_err().kind(), ErrorKind::NotFound);
+    assert_eq!(root.read("/etc/passwd", 7).unwrap().len(), 7);
+    assert!(root.read("/etc/passwd", 6).unwrap_err().to_string().contains("larger than 6 bytes"));
+}
+
+#[test]
+fn glob_matches_one_component_and_skips_dotfiles() {
+    let dir = fixture("glob");
+    for name in ["a.list", "b.list", "c.sources", ".hidden.list", "ab"] {
+        std::fs::write(dir.join("etc/apt").join(name), "").unwrap();
+    }
+    let root = Root::open(&dir).unwrap();
+    assert_eq!(root.glob("/etc/apt/*.list").unwrap(), ["/etc/apt/a.list", "/etc/apt/b.list"]);
+    assert_eq!(root.glob("/etc/apt/.*.list").unwrap(), ["/etc/apt/.hidden.list"]);
+    assert_eq!(root.glob("/e*/apt/a?").unwrap(), ["/etc/apt/ab"]);
+    assert_eq!(root.glob("/etc/missing/*").unwrap(), Vec::<String>::new());
+    assert_eq!(root.glob("/etc/passwd/*").unwrap(), Vec::<String>::new());
+    assert_eq!(root.glob("/etc/literal").unwrap(), ["/etc/literal"]);
+}
+
+#[test]
+fn wildcard_edges() {
+    assert!(wildcard("*", "x"));
+    assert!(wildcard("*", ""));
+    assert!(!wildcard("*", ".x"));
+    assert!(wildcard(".*", ".x"));
+    assert!(wildcard("a*b*c", "aXXbYc"));
+    assert!(!wildcard("a*b*c", "aXXbY"));
+    assert!(wildcard("?", "é"));
+    assert!(!wildcard("?", ""));
+    assert!(!wildcard("??", "x"));
+}
+
+#[test]
+fn stat_spells_out_the_mode_bits() {
+    let dir = fixture("stat");
+    let set = |name: &str, mode: u32| {
+        std::fs::write(dir.join(name), "").unwrap();
+        std::fs::set_permissions(dir.join(name), std::fs::Permissions::from_mode(mode)).unwrap();
+    };
+    set("world", 0o666);
+    set("group", 0o620);
+    set("suid", 0o4755);
+    set("sgid", 0o2755);
+    set("plain", 0o644);
+    symlink("/plain", dir.join("link")).unwrap();
+    let root = Root::open(&dir).unwrap();
+    let world = root.stat("/world").unwrap();
+    assert_eq!((world.kind, world.mode.as_str(), world.world_writable, world.group_writable), (FileKind::File, "0666", true, true));
+    let group = root.stat("/group").unwrap();
+    assert_eq!((group.world_writable, group.group_writable), (false, true));
+    assert_eq!((root.stat("/suid").unwrap().setuid, root.stat("/suid").unwrap().setgid), (true, false));
+    assert_eq!((root.stat("/sgid").unwrap().setuid, root.stat("/sgid").unwrap().setgid, root.stat("/sgid").unwrap().mode.as_str()), (false, true, "2755"));
+    let plain = root.stat("/plain").unwrap();
+    assert!(!plain.world_writable && !plain.group_writable && !plain.setuid && !plain.setgid);
+    let link = root.stat("/link").unwrap();
+    assert_eq!((link.kind, link.world_writable, link.group_writable), (FileKind::Symlink, false, false));
+    assert_eq!(root.stat("/etc").unwrap().kind, FileKind::Directory);
+    assert_eq!(root.stat("/missing").unwrap_err().kind(), ErrorKind::NotFound);
+}

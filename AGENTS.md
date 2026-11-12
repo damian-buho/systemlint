@@ -15,9 +15,12 @@ A linter for operating systems: a Rust core that collects host facts and judges 
 - Plugins are found only in `../lib/systemlint/plugins/` beside the core and in config-named directories, refused when they or any directory above are not owned by root or the user, or group/other-writable. A checkout under a 0775 directory is refused by design: install to a 0755 path to try it.
 - Version: `SYSTEMLINT_VERSION` stamped at compile time (`systemlint_protocol::VERSION`), else the workspace `Cargo.toml` version.
 - Release binaries: `.scripts/build-binaries.sh` builds every crate with a `src/main.rs` as static musl for `TARGET_OS`/`TARGET_ARCH` into `dist/<crate>-linux-<uname -m>`; the `build-binaries` tool runs it in `b19/rust:musl`. The host needs `rustup target add x86_64-unknown-linux-musl`; arm64 builds in CI only.
-- Image: `b19/rust` builder → `b19/ubuntu`; core in `/usr/local/bin`, plugins in `/usr/local/lib/systemlint/plugins`.
+- Collectors: shipped ones in `collectors/*.yaml`, installed to `../share/systemlint/collectors/` beside the core, plus config `collect.directories`; same trust walk as plugins. Every path read goes through `source::Root` (`openat2` `RESOLVE_IN_ROOT`), live mode being root `/`, so never read a subject file with `std::fs`.
+- Facts document: facts at the top level beside `meta` and `collectors`; a reply’s `facts` object lands AT `into`, `redact` entries are JSON Pointers into it. `collect()` takes the clock in `Options.now`.
+- Try a change end-to-end by installing `target/debug/systemlint` to `<dir>/bin`, plugins to `<dir>/lib/systemlint/plugins` and `collectors/` to `<dir>/share/systemlint/collectors` under a 0755 `<dir>`, then `<dir>/bin/systemlint facts --root fixtures/ubuntu-26.04`.
+- Image: `b19/rust` builder → `b19/ubuntu`; core in `/usr/local/bin`, plugins in `/usr/local/lib/systemlint/plugins`, collectors in `/usr/local/share/systemlint/collectors`.
 - License AGPL-3.0-only for the code; scaffolded packaging files keep MIT.
-- Integration tests that need files live in `crates/systemlint/tests/` (`CARGO_TARGET_TMPDIR`); fixture scripts are written once behind a `OnceLock` before any test forks, or a parallel exec hits `ETXTBSY`.
+- Integration tests that need files live in `crates/systemlint/tests/` (`CARGO_TARGET_TMPDIR`); fixture scripts are written once behind a `OnceLock` before any test forks, to a temporary name then renamed, since nextest runs each test as its own process and an in-place rewrite of a script another process execs fails with `ETXTBSY`.
 
 ## Documentation
 

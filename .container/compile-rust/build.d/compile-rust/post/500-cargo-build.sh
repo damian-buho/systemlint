@@ -21,3 +21,6 @@
     b19-run "SYSTEMLINT" "$(_p "Copy %s to %s" "${plugin}" "/export/usr/local/lib/systemlint/plugins/")" --      \
       cp --verbose "target/release/${plugin}" /export/usr/local/lib/systemlint/plugins/
   done
+
+  b19-run "SYSTEMLINT" "$(_p "Copy %s to %s" "collectors" "/export/usr/local/share/systemlint/collectors/")" --      \
+    install -D --mode 0644 --target-directory /export/usr/local/share/systemlint/collectors collectors/*.yaml

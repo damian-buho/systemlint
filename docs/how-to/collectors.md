@@ -24,31 +24,47 @@ into: apt.sources
 | `id` | a unique slug; its outcome is recorded as `collectors.<id>` |
 | `read.files` | absolute globs whose files are read and passed with their content |
 | `read.stat` | absolute globs whose files are passed with their `stat` and no content |
-| `read.exec` | an argv list run without a shell, live mode only |
+| `read.exec` | an argv list run without a shell, live mode only; the program is an absolute path |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
-| `into` | the dotted fact path the reply’s facts are placed under |
+| `into` | the dotted fact path the reply’s facts are placed at; never under `meta` or `collectors`, never overlapping another collector’s |
 
 `files`, `stat` and `exec` sit side by side under `read`; a collector uses
-the ones it needs.
+the ones it needs. A path in both `files` and `stat` reaches the plugin as one
+input carrying both.
+
+In a glob, `*` matches any run of characters and `?` one character, both within
+one path component and never a leading dot; `.*` matches dotfiles. A path with
+no wildcard is passed when it exists, and an absent one is not an error.
 
 ## Sources
 
 - `files`: each match is read whole and passed as text, or as base64 when it is
   not UTF-8.
 - `stat`: each match is passed with its type, octal mode, owner, group, size and
-  the `world-writable`, `group-writable`, `setuid` and `setgid` booleans.
+  the `world-writable`, `group-writable`, `setuid` and `setgid` booleans. A
+  final symlink is described itself, not followed; its booleans are all false,
+  since a symlink’s own mode means nothing on Linux.
 - `exec`: the argv runs directly, never through a shell, with an empty
   environment except `LC_ALL=C`, a timeout and an output cap. Its `stdout`,
   `stderr` and exit code are passed to the plugin.
 
-Every source is read-only. Under `--root <dir>` every path, symlinks included,
-resolves inside that directory, and `exec` collectors do not run: they are
-recorded as `skipped` with the reason, never as an error.
+Every source is read-only and capped at 16 MiB per file or stream; `exec`
+and the plugin call each time out after 30 seconds. Under `--root <dir>` every
+path, symlinks and `..` included, resolves inside that directory through
+`openat2` `RESOLVE_IN_ROOT` (Linux 5.6 or later), so an image’s symlink to
+`/etc/shadow` reads the image’s file, never the host’s. `exec` collectors do
+not run there: they are recorded as `skipped` with the reason, never as an
+error.
+
+A file that exists but cannot be read, such as `/etc/shadow` in an
+unprivileged run, fails the whole collector with that path in its reason,
+because partial facts would read as compliant.
 
 ## Outcomes
 
-Each collector records `collectors.<id>.status` in the facts document:
+Each collector records `collectors.<id>.status` in the facts document, with a
+`reason` when it is not `ok`:
 
 | Status | Meaning |
 | --- | --- |
@@ -56,14 +72,65 @@ Each collector records `collectors.<id>.status` in the facts document:
 | `error` | reading failed, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
 | `skipped` | the mode cannot run it, such as `exec` under `--root`; the reason is kept |
 
+An `ok` collector also records its `plugin` and `op`, the plugin’s
+`diagnostics`, and under `redacted` the JSON Pointers of the values the plugin
+marked secret, which are replaced by `[redacted]` in every output.
+
 A rule that reads a fact from a collector that did not finish `ok` answers
 `unknown`, naming that collector, rather than passing.
 
+## The facts document
+
+```console
+$ systemlint facts --root fixtures/ubuntu-26.04
+collectors:
+  os-release:
+    op: kv
+    plugin: formats
+    status: ok
+meta:
+  collected-at: "2026-11-11T12:00:00Z"
+  plugins:
+    formats: "0.1.0"
+  privileged: false
+  schema: 1
+  subject:
+    kind: root
+    path: /srv/systemlint/fixtures/ubuntu-26.04
+  systemlint: "0.1.0"
+os:
+  release:
+    ID: ubuntu
+    VERSION_CODENAME: resolute
+```
+
+Facts sit at the top level beside `meta` and `collectors`. `meta.subject` is
+`{kind: host, name}` on a live host and `{kind: root, path}` under `--root`;
+`privileged` says whether the run was root, so an unprivileged collection is
+never mistaken for a full one. `collected-at` is the one clock: every plugin
+gets it as `now`, and a later `lint` judges ages by it.
+
+`systemlint facts --save PATH` writes the document atomically with mode 0600,
+as JSON when the name ends in `.json`, else YAML. `systemlint lint PATH`, or
+`lint -` for stdin, judges a saved document with no access to the subject.
+
 ## Where collectors come from
 
-A collector runs code on the host, so the core loads collectors only from the
-directories its configuration names and from those shipped beside it, never
-from the subject being scanned and never over the network.
+A collector runs code on the host, so the core loads collectors only from
+`../share/systemlint/collectors/` beside the `systemlint` binary and from the
+directories the configuration names, never from the subject being scanned and
+never over the network:
+
+```yaml
+collect:
+  directories:
+    - /etc/systemlint/collectors
+```
+
+Each `*.yaml` file there is one collector, read in name order. The same trust
+rules as for plugins apply: a directory or file that a stranger owns or that
+group or others can write is refused, and so is a file whose `id` is taken or
+whose `into` overlaps an earlier collector’s.
 
 ## Derived facts
 

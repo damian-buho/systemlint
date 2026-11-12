@@ -64,9 +64,9 @@ impl Trust {
     }
 }
 
-/// The directories to search, in order: beside the core binary, then the configured ones.
-pub fn directories(exe: &Path, configured: &[PathBuf]) -> Vec<PathBuf> {
-    let beside = exe.parent().unwrap_or(Path::new("/")).join(BESIDE);
+/// The directories to search, in order: `beside` relative to the core binary’s directory, then the configured ones.
+pub fn directories(exe: &Path, beside: &str, configured: &[PathBuf]) -> Vec<PathBuf> {
+    let beside = exe.parent().unwrap_or(Path::new("/")).join(beside);
     std::iter::once(beside).chain(configured.iter().cloned()).collect()
 }
 

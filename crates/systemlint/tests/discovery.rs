@@ -5,7 +5,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use systemlint::discovery::{Plugin, Trust, directories, discover};
+use systemlint::discovery::{BESIDE, Plugin, Trust, directories, discover};
 
 fn base() -> PathBuf {
     let base = Path::new(env!("CARGO_TARGET_TMPDIR")).join("discovery");
@@ -33,7 +33,7 @@ fn mine() -> Trust {
 
 #[test]
 fn beside_is_lib_next_to_bin() {
-    let dirs = directories(Path::new("/usr/local/bin/systemlint"), &[PathBuf::from("/opt/plugins")]);
+    let dirs = directories(Path::new("/usr/local/bin/systemlint"), BESIDE, &[PathBuf::from("/opt/plugins")]);
     assert_eq!(dirs, [PathBuf::from("/usr/local/bin/../lib/systemlint/plugins"), PathBuf::from("/opt/plugins")]);
 }
 

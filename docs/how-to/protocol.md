@@ -110,7 +110,7 @@ Schema cannot test.
 
 ```json
 {
-  "facts": {"apt.sources": {"/etc/apt/sources.list.d/docker.sources": {"suites": ["questing"]}}},
+  "facts": {"/etc/apt/sources.list.d/docker.sources": {"suites": ["questing"]}},
   "diagnostics": [{"path": "/etc/apt/sources.list.d/docker.sources", "line": 3, "message": "unknown field Signed-by"}],
   "redact": []
 }
@@ -118,9 +118,9 @@ Schema cannot test.
 
 | Field | Meaning |
 | --- | --- |
-| `facts` | the facts found, by path, placed under the collector’s `into` |
+| `facts` | an object the core places at the collector’s `into`, so the reply above under `into: apt.sources` lands at `apt.sources` |
 | `diagnostics[]` | problems in one input: `path`, optional `line`, `message` |
-| `redact[]` | fact paths holding secrets, which `facts --save` masks |
+| `redact[]` | JSON Pointers into `facts` of values holding secrets, such as `/netrc/password`; the core replaces each with `[redacted]` |
 
 ## Exit codes
 
@@ -132,4 +132,6 @@ Schema cannot test.
 | 3 | a request the plugin cannot accept: invalid JSON, another protocol, an op it does not list |
 
 The core records a non-zero exit or a reply that is not valid JSON as
-`collectors.<id>.error`, so a failed probe never looks like a missing fact.
+`collectors.<id>.status: error` with the reason, so a failed probe never looks
+like a missing fact. A request reaches the plugin on stdin under the same
+empty environment, 16 MiB cap and a 30-second timeout.

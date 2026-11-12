@@ -17,6 +17,16 @@ pub const SYSTEM: &str = "/etc/systemlint/config.yaml";
 pub struct Config {
     #[serde(default)]
     pub plugins: Plugins,
+    #[serde(default)]
+    pub collect: Collect,
+}
+
+/// The `collect:` section.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Collect {
+    #[serde(default)]
+    pub directories: Vec<PathBuf>,
 }
 
 /// The `plugins:` section.
@@ -28,17 +38,17 @@ pub struct Plugins {
 }
 
 impl Config {
-    /// Reads `path`, resolving relative plugin directories against the file’s own directory.
+    /// Reads `path`, resolving relative plugin and collector directories against the file’s own directory.
     pub fn load(path: &Path) -> Result<Self, String> {
         let text = std::fs::read_to_string(path).map_err(|e| format!("can’t read {}: {e}", path.display()))?;
         let mut config: Self = serde_saphyr::from_str(&text).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?;
         let base = path.parent().unwrap_or(Path::new("."));
-        for dir in &mut config.plugins.directories {
+        for dir in config.plugins.directories.iter_mut().chain(&mut config.collect.directories) {
             if dir.is_relative() {
                 *dir = base.join(&*dir);
             }
         }
-        log::debug!("config {} names {} plugin directories", path.display(), config.plugins.directories.len());
+        log::debug!("config {} names {} plugin and {} collector directories", path.display(), config.plugins.directories.len(), config.collect.directories.len());
         Ok(config)
     }
 }
