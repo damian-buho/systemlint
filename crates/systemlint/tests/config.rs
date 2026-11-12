@@ -72,6 +72,15 @@ fn a_collect_timeout_needs_1_second() {
 }
 
 #[test]
+fn an_inline_collector_is_checked_and_can_not_exec() {
+    let inline = |read: &str| format!("collect:\n  collectors:\n    - id: nginx\n      read: {{{read}}}\n      parse: {{plugin: formats, op: stat}}\n      into: files.nginx\n");
+    let config = Config::load(&write("inline", &inline("stat: [/etc/nginx/nginx.conf], hash: [sha256]"))).unwrap();
+    assert_eq!(config.collect.collectors[0].read.stat, ["/etc/nginx/nginx.conf"]);
+    assert!(Config::load(&write("inline-exec", &inline("stat: [/etc/x], exec: [/bin/true]"))).unwrap_err().contains("collect.collectors nginx: an inline collector can’t exec"));
+    assert!(Config::load(&write("inline-relative", &inline("stat: [etc/x]"))).unwrap_err().contains("collect.collectors nginx: read glob etc/x is not absolute"));
+}
+
+#[test]
 fn a_hash_key_needs_16_characters() {
     assert!(Config::load(&write("key-15", "collect:\n  hash-key: fifteen-chars-x\n")).unwrap_err().contains("16 characters or more"));
     assert!(Config::load(&write("key-15-wide", "collect:\n  hash-key: ñññññññññññññññ\n")).is_err(), "characters, not bytes");

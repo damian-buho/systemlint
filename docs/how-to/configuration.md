@@ -58,6 +58,7 @@ collect:
   directories: [collectors]
   timeout: 30          # seconds per command or plugin call, 1 or more
   hash-key: ...        # 16 characters or more
+  collectors: []       # inline collectors, never exec; see collectors.md
   format: json         # the default facts --format, over the --output extension: yaml or json
 lint:
   directories: [rulesets]

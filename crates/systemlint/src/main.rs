@@ -235,7 +235,17 @@ fn exe() -> PathBuf {
 fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, quiet: bool) -> Result<(Value, bool), u8> {
     let (collectors, plugins, refusals) = trail::scoped(trail::DISCOVERY, || {
         let trust = Trust::invoking_user();
-        let (collectors, mut refusals) = collector::load(&collector::directories(&exe(), &config.collect.directories), &trust);
+        let (mut collectors, mut refusals) = collector::load(&collector::directories(&exe(), &config.collect.directories), &trust);
+        for inline in config.collect.collectors.iter().cloned() {
+            let id = inline.id.clone();
+            match collector::admit(&collectors, inline) {
+                Ok(c) => {
+                    log::debug!("collector {id} from the configuration into {}", c.into);
+                    collectors.push(c);
+                }
+                Err(reason) => refusals.push(discovery::Refusal { path: PathBuf::from("collect.collectors"), reason: format!("{id}: {reason}") }),
+            }
+        }
         let (plugins, plugin_refusals) = discovery::discover(&discovery::directories(&exe(), discovery::BESIDE, &config.plugins.directories), &trust);
         refusals.extend(plugin_refusals);
         (collectors, plugins, refusals)

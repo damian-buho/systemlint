@@ -177,6 +177,18 @@ fn a_save_says_what_it_wrote_and_how_to_lint_it_unless_quiet() {
 }
 
 #[test]
+fn an_inline_collector_runs_beside_the_shipped_ones() {
+    let dir = base("inline");
+    let root = dir.join("root");
+    std::fs::create_dir(&root).unwrap();
+    let save = dir.join("facts.json");
+    let config = "collect:\n  collectors:\n    - {id: nginx, read: {stat: [/etc/nginx.conf]}, parse: {plugin: formats, op: stat}, into: files.nginx}\n";
+    run(&dir, config, &["--quiet", "facts", "--root", root.to_str().unwrap(), "-o", save.to_str().unwrap()]);
+    let facts: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&save).unwrap()).unwrap();
+    assert_eq!(facts["collectors"]["nginx"]["into"], "files.nginx", "{facts}");
+}
+
+#[test]
 fn facts_format_beats_the_output_extension() {
     let dir = base("format");
     let root = dir.join("root");

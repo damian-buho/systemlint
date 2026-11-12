@@ -160,6 +160,23 @@ rules as for plugins apply: a directory or file that a stranger owns or that
 group or others can write is refused, and so is a file whose `id` is taken or
 whose `into` overlaps an earlier collector’s.
 
+A configuration may also list collectors inline under `collect.collectors`, in
+the same shape, to stat or read a file no shipped collector names:
+
+```yaml
+collect:
+  collectors:
+    - id: nginx
+      read: {stat: [/etc/nginx/nginx.conf], hash: [sha256]}
+      parse: {plugin: formats, op: stat}
+      into: files.nginx
+```
+
+An inline collector never runs `exec`, since `.systemlint.yaml` comes with
+whatever directory systemlint runs in; one that needs a command goes in a file
+under `collect.directories`. It runs after the collectors from directories,
+and one whose `id` or `into` clashes with theirs is refused.
+
 ## Derived facts
 
 A collector never computes a fact from other facts. A plugin op that needs

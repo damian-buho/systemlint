@@ -87,7 +87,8 @@ impl Collector {
         Ok(collector)
     }
 
-    fn validate(&self) -> Result<(), String> {
+    /// Checks the fields one collector can get wrong on its own.
+    pub fn validate(&self) -> Result<(), String> {
         if self.id.is_empty() || !self.id.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-') {
             return Err(format!("id {:?} is not a slug of lowercase letters, digits and -", self.id));
         }
@@ -129,6 +130,15 @@ pub fn overlaps(a: &str, b: &str) -> bool {
     long == short || long.strip_prefix(short).is_some_and(|rest| rest.starts_with('.'))
 }
 
+/// `collector` when its id and `into` are free among `collectors`.
+pub fn admit(collectors: &[Collector], collector: Collector) -> Result<Collector, String> {
+    match collectors.iter().find(|o| o.id == collector.id || overlaps(&o.into, &collector.into)) {
+        Some(o) if o.id == collector.id => Err(format!("id {} is already taken", collector.id)),
+        Some(o) => Err(format!("into {} overlaps {} of collector {}", collector.into, o.into, o.id)),
+        None => Ok(collector),
+    }
+}
+
 /// The directories to search, in order: beside the core binary, then the configured ones.
 pub fn directories(exe: &Path, configured: &[PathBuf]) -> Vec<PathBuf> {
     crate::discovery::directories(exe, BESIDE, configured)
@@ -139,12 +149,7 @@ pub fn load(dirs: &[PathBuf], trust: &Trust) -> (Vec<Collector>, Vec<Refusal>) {
     let (texts, mut refusals) = crate::discovery::yaml_files(dirs, trust);
     let mut collectors = Vec::<Collector>::new();
     for (path, text) in texts {
-        let collector = Collector::parse(&text).and_then(|c| match collectors.iter().find(|o| o.id == c.id || overlaps(&o.into, &c.into)) {
-            Some(o) if o.id == c.id => Err(format!("id {} is already taken", c.id)),
-            Some(o) => Err(format!("into {} overlaps {} of collector {}", c.into, o.into, o.id)),
-            None => Ok(c),
-        });
-        match collector {
+        match Collector::parse(&text).and_then(|c| admit(&collectors, c)) {
             Ok(c) => {
                 log::debug!("collector {} from {} into {}", c.id, path.display(), c.into);
                 collectors.push(c);

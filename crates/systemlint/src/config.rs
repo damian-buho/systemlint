@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::collector::Collector;
 use crate::judge::{Waiver, valid_day};
 use crate::report::{Colour, FailOn, Format};
 use crate::rules::Ruleset;
@@ -105,6 +106,8 @@ pub struct Collect {
     pub timeout: Option<u64>,
     #[serde(default)]
     pub format: Option<FactsFormat>,
+    #[serde(default)]
+    pub collectors: Vec<Collector>,
 }
 
 /// The `plugins:` section.
@@ -189,6 +192,12 @@ impl Config {
         }
         if config.collect.timeout == Some(0) {
             return Err(format!("{}: collect.timeout needs 1 second or more, or every plugin call fails", path.display()));
+        }
+        for collector in &config.collect.collectors {
+            collector.validate().map_err(|e| format!("{}: collect.collectors {}: {e}", path.display(), collector.id))?;
+            if collector.read.exec.is_some() {
+                return Err(format!("{}: collect.collectors {}: an inline collector can’t exec; put it in a collect.directories file", path.display(), collector.id));
+            }
         }
         if let Some(text) = &config.lint.fail_on {
             text.parse::<FailOn>().map_err(|e| format!("{}: lint.{e}", path.display()))?;
