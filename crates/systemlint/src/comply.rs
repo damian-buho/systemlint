@@ -11,9 +11,6 @@ use serde::{Deserialize, Serialize};
 use crate::discovery::{Refusal, Trust};
 use crate::judge::{Check, Outcome, Rule};
 
-/// The standards catalog directory relative to the core binary’s own directory.
-pub const BESIDE: &str = "../share/systemlint/standards";
-
 /// A standard’s catalog: its display name and every control.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -43,6 +40,17 @@ pub enum Verdict {
     NonCompliant,
     Indeterminate,
     Manual,
+}
+
+impl Verdict {
+    /// The exit code of `lint --standard` answering this: 0 compliant, 1 non-compliant, 3 indeterminate or manual.
+    pub fn code(self) -> u8 {
+        match self {
+            Self::Compliant => 0,
+            Self::NonCompliant => 1,
+            Self::Indeterminate | Self::Manual => 3,
+        }
+    }
 }
 
 /// One row of the per-control table.
@@ -77,21 +85,36 @@ pub struct Report {
     pub controls: Vec<ControlResult>,
 }
 
-/// The directories to search, in order: beside the core binary, then the configured ones.
-pub fn directories(exe: &Path, configured: &[PathBuf]) -> Vec<PathBuf> {
-    crate::discovery::directories(exe, BESIDE, configured)
+/// The directories to search for catalogs, in order: each rules directory, then its `standards` sibling.
+pub fn directories(rule_dirs: &[PathBuf]) -> Vec<PathBuf> {
+    rule_dirs.iter().flat_map(|d| [d.clone(), d.parent().unwrap_or(Path::new("/")).join("standards")]).collect()
 }
 
-/// The catalog `<standard>.yaml` from the first trusted directory holding one, if any.
+/// The catalog `<standard>.yaml` from the first trusted directory holding one that is no ruleset, if any.
 pub fn catalog(dirs: &[PathBuf], trust: &Trust, standard: &str) -> (Result<Option<Catalog>, String>, Vec<Refusal>) {
     let (texts, refusals) = crate::discovery::yaml_files(dirs, trust);
-    let Some((path, text)) = texts.into_iter().find(|(p, _)| p.file_stem().is_some_and(|s| s == standard)) else {
+    let ruleset = |text: &str| crate::yaml::from_str::<crate::rules::Ruleset>(text).is_ok();
+    let Some((path, text)) = texts.into_iter().find(|(p, t)| p.file_stem().is_some_and(|s| s == standard) && !ruleset(t)) else {
         log::debug!("no catalog for standard {standard}");
         return (Ok(None), refusals);
     };
     log::debug!("catalog of standard {standard} from {}", path.display());
     let parsed = crate::yaml::from_str::<Catalog>(&text).map(Some).map_err(|e| format!("{} is not a valid catalog: {e}", path.display()));
     (parsed, refusals)
+}
+
+/// The verdict over several standards: non-compliant beats indeterminate beats compliant.
+pub fn overall(reports: &[Report]) -> Verdict {
+    let any = |v: Verdict| reports.iter().any(|r| r.verdict == v);
+    let verdict = if any(Verdict::NonCompliant) {
+        Verdict::NonCompliant
+    } else if reports.is_empty() || any(Verdict::Indeterminate) || any(Verdict::Manual) {
+        Verdict::Indeterminate
+    } else {
+        Verdict::Compliant
+    };
+    log::debug!("{} standards answer {verdict:?}", reports.len());
+    verdict
 }
 
 /// The control IDs of `standard` a rule is tagged with.

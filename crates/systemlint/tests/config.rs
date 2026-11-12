@@ -41,13 +41,18 @@ fn missing_file_names_the_path() {
 }
 
 #[test]
-fn lint_and_comply_sections_resolve_directories_and_read_waivers() {
-    let path = write("lint", "lint:\n  directories: [rules]\n  tags: [fixture, '!experimental']\n  fail-on: warning\n  rulesets:\n    strict: {extends: [fixture], rules: {apt/https: error}}\n  waivers:\n    - {rule: apt/*, subject: /etc/apt/*, reason: mirror moves in December, until: 2026-12-31}\ncomply:\n  directories: [standards]\n");
+fn the_lint_section_resolves_directories_and_read_waivers() {
+    let path = write("lint", "lint:\n  directories: [rules]\n  tags: [fixture, '!experimental']\n  fail-on: warning\n  rulesets:\n    strict: {extends: [fixture], rules: {apt/https: error}}\n  waivers:\n    - {rule: apt/*, subject: /etc/apt/*, reason: mirror moves in December, until: 2026-12-31}\n");
     let config = Config::load(&path).unwrap();
     assert_eq!(config.lint.directories, [path.parent().unwrap().join("rules")]);
-    assert_eq!(config.comply.directories, [path.parent().unwrap().join("standards")]);
     assert_eq!((config.lint.tags.len(), config.lint.waivers[0].until.as_str()), (2, "2026-12-31"));
     assert!(config.lint.rulesets.contains_key("strict"));
+}
+
+#[test]
+fn a_comply_section_is_refused() {
+    let error = Config::load(&write("comply", "comply:\n  directories: [standards]\n")).unwrap_err();
+    assert!(error.contains("comply"), "{error}");
 }
 
 #[test]

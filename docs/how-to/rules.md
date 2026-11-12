@@ -6,10 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Rules, rulesets and compliance
 
-`systemlint lint` judges a facts document with declarative rules;
-`systemlint comply <standard>` groups the same judgement by the controls of one
-standard. Both read a saved document (`lint facts.yaml`, `lint -` for stdin) or
-collect one first (`lint`, `lint --root DIR`).
+`systemlint lint` judges a facts document with declarative rules, and with
+`--standard` groups that judgement by the controls of a standard too. It reads
+a saved document (`lint facts.yaml`, `lint -` for stdin) or collects one first
+(`lint`, `lint --root DIR`).
 
 ## A rule
 
@@ -179,7 +179,7 @@ the counts; `--format sarif` and `--format textfile` are described in
 printing it. `--fail-on` (`lint.fail-on`) takes `error`, the default, `warning`,
 `info`, a score from 0.1 to 9.9, or `never`; a hint never fails a run.
 
-| Code | `lint` | `comply` | `facts` |
+| Code | `lint` | `lint --standard` | `facts` |
 | --- | --- | --- | --- |
 | 0 | no failure at `--fail-on` | compliant | every collector ended `ok` or `skipped` |
 | 1 | a failure at `--fail-on` | non-compliant | a collector ended `error`, so the document is partial |
@@ -189,8 +189,11 @@ printing it. `--fail-on` (`lint.fail-on`) takes `error`, the default, `warning`,
 
 ## Compliance
 
-`systemlint comply <standard>` takes the rules tagged `<standard>:<control>`,
-filtered by `lint.tags` when set, and answers per control:
+`systemlint lint --standard <standard>` adds the rules tagged
+`<standard>:<control>` to the rules `--tags` or `lint.tags` select, or runs them
+alone when neither is set, and answers per control; `--standard` may be given
+several times. The verdict, not `--fail-on`, then decides the exit code, so a
+failing hint still fails its control:
 
 | Verdict | When |
 | --- | --- |
@@ -200,11 +203,20 @@ filtered by `lint.tags` when set, and answers per control:
 | `manual` | the catalog marks the control manual and no rule covers it |
 
 The standard is non-compliant when any control is, else indeterminate when any
-control is or none exists, else compliant.
+control is or none exists, else compliant; over several standards the worst
+answer wins. A standard no rule is tagged with selects nothing and is
+indeterminate.
 
-A catalog, `<standard>.yaml` in `../share/systemlint/standards/` beside the
-binary or in a `comply.directories` entry, lists every control, adds the
-display name, and gives coverage:
+The human report closes with a `Standard` section per standard, after the
+failures and before the rating: the verdict, a line per control with the reasons
+under it, then coverage. `--format json` adds a `compliance` object keyed by
+standard; SARIF and textfile carry it as described in [Outputs](outputs.md).
+
+A catalog, `<standard>.yaml` in a rules directory or in the `standards`
+directory beside it (`../share/systemlint/standards/` beside the binary, or a
+sibling of a `lint.directories` entry), lists every control, adds the display
+name, and gives coverage. Ruleset loading skips a catalog, and catalog lookup
+skips a ruleset:
 
 ```yaml
 name: CIS Ubuntu Linux 26.04 LTS Benchmark

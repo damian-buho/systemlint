@@ -92,8 +92,9 @@ A rule that reads a fact from a collector that did not finish `ok` answers
 `unknown`, naming that collector, rather than passing. The `human` report lists
 an `unknown` from a `skipped` collector on no line of its own: it prints one
 `not run` line per skip reason, naming the collectors and the rules, and counts
-those checks as `not run`; `json`, `sarif`, `textfile` and `comply` keep them
-`unknown`, so a run that skipped a collector is never `compliant`.
+those checks as `not run`; `json`, `sarif`, `textfile` and the `--standard`
+verdicts keep them `unknown`, so a run that skipped a collector is never
+`compliant`.
 
 ## The facts document
 

@@ -185,6 +185,7 @@ impl Library {
                     log::debug!("ruleset {name} from {} with {} rules", path.display(), ruleset.rules.len());
                     rulesets.insert(name, ruleset);
                 }
+                Err(_) if crate::yaml::from_str::<crate::comply::Catalog>(&text).is_ok() => log::debug!("{} is a standards catalog, not a ruleset", path.display()),
                 Err(e) => refusals.push(Refusal { path, reason: format!("not a valid ruleset: {e}") }),
             }
         }
@@ -270,6 +271,24 @@ impl Library {
             !off
         });
         Ok(picked)
+    }
+
+    /// The rules `base` picks plus every rule tagged `<standard>:*`; standards with nothing else to pick select nothing, never every rule.
+    pub fn select_for(&self, base: &[String], standards: &[String]) -> Result<BTreeMap<String, Spec>, String> {
+        let mut selectors = base.to_vec();
+        for standard in standards {
+            let prefix = format!("{standard}:");
+            if self.definitions.values().any(|spec| spec.tags.iter().any(|t| t.starts_with(&prefix))) {
+                selectors.push(format!("{standard}:*"));
+            } else {
+                log::debug!("no rule is tagged {prefix}*, so standard {standard} adds no rule");
+            }
+        }
+        if !standards.is_empty() && selectors.iter().all(|s| s.starts_with('!')) {
+            log::debug!("standards {standards:?} and selectors {base:?} pick no rule");
+            return Ok(BTreeMap::new());
+        }
+        self.select(&selectors)
     }
 }
 

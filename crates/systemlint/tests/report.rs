@@ -22,7 +22,7 @@ fn run(yaml: &str, document: &Value, waivers: &[Waiver]) -> Vec<Check> {
 }
 
 fn sarif(document: &Value, checks: &[Check]) -> Value {
-    serde_json::from_str(&lint_sarif(document, checks)).unwrap()
+    serde_json::from_str(&lint_sarif(document, checks, &[])).unwrap()
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn sarif_bases_a_host_at_slash_and_a_relative_root_on_no_uri() {
 fn textfile_counts_outcomes_rules_and_collectors() {
     let mut document = facts("unprivileged");
     document["collectors"]["odd\"id\\\n"] = json!({"status": "skipped"});
-    let text = lint_textfile(&document, &run(HTTPS, &document, &[]));
+    let text = lint_textfile(&document, &run(HTTPS, &document, &[]), &[]);
     for line in [
         "systemlint_checks{outcome=\"pass\"} 1",
         "systemlint_checks{outcome=\"fail\"} 0",
@@ -133,12 +133,12 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     document["collectors"]["env-image"] = json!({"status": "error", "reason": "can’t read it", "into": "env.image"});
     let rules = ["a", "b"].map(|id| compile(&format!("env/{id}"), systemlint::yaml::from_str("fact: env.*.*.vars\nexpect: {type: object}\n").unwrap()).unwrap());
     let checks = lint(&document, &rules, &[], "2026-11-11");
-    let text = lint_human(&document, &checks, false, false);
+    let text = lint_human(&document, &checks, &[], false, false);
     assert!(text.contains("Not run (env-defaults, env-processes): needs root, and this run is unprivileged\n  env/a, env/b\n\n"), "{text}");
     assert_eq!(text.matches("Not run (").count(), 1, "{text}");
     assert!(text.contains("Unknown: [env/a]\n- image: ") && !text.contains("- processes"), "an error stays its own line: {text}");
     assert!(text.ends_with(" · 2 pass, 2 unknown, 4 not run\n"), "{text}");
-    assert!(lint_textfile(&document, &checks).contains("outcome=\"unknown\""), "machine formats keep the unknown");
+    assert!(lint_textfile(&document, &checks, &[]).contains("outcome=\"unknown\""), "machine formats keep the unknown");
 }
 
 fn judged(outcome: Outcome, score: f64) -> Check {
@@ -202,12 +202,12 @@ fn sources() -> (Value, Vec<Check>) {
 #[test]
 fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_last() {
     let (document, checks) = sources();
-    let text = lint_human(&document, &checks, false, false);
+    let text = lint_human(&document, &checks, &[], false, false);
     let expected = "Warning (4.5): [apt/duplicate] Repository listed in two places\n- /a.list:1\n- /b.sources:1\nFix: remove one of the entries, then run sudo apt update\n\n\
         Error (7.5): [apt/stale-suite] Source fetches an older release’s suite\n- /a.list:1: “noble”\n- /c.sources:1: “xenial”\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite\n\n\
         Rating F · 2 errors, 2 warnings, 0 info · 2 pass\n";
     assert_eq!(text, expected);
-    let painted = lint_human(&document, &checks, true, true);
+    let painted = lint_human(&document, &checks, &[], true, true);
     assert!(painted.contains("\x1b[31mError\x1b[0m (7.5): \x1b[1m[apt/stale-suite]\x1b[0m") && painted.contains("\x1b[33mWarning\x1b[0m"), "{painted}");
     assert!(!painted.contains("Rating"), "quiet drops the summary");
 }
@@ -216,7 +216,7 @@ fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_last() {
 fn human_puts_a_fix_under_each_location_when_the_fixes_differ() {
     let rule = compile("x/drop", systemlint::yaml::from_str("title: Dropped value\nfact: v.*\nexpect: {const: 0}\nmessage: '{subject} holds {got}'\nfix: drop {got}\n").unwrap()).unwrap();
     let document = json!({"v": {"a": 1, "b": 2}});
-    let text = lint_human(&document, &lint(&document, &[rule], &[], "2026-11-11"), true, false);
+    let text = lint_human(&document, &lint(&document, &[rule], &[], "2026-11-11"), &[], true, false);
     assert_eq!(text, "Warning (5.0): [x/drop] Dropped value\n- a: 1\n  Fix: drop 1\n- b: 2\n  Fix: drop 2\n\n");
 }
 
@@ -225,7 +225,7 @@ fn human_wraps_a_long_not_run_list_within_80_columns() {
     let mut document = facts("root");
     document["collectors"]["env-processes"] = json!({"status": "skipped", "reason": "needs root", "into": "env.processes"});
     let rules: Vec<_> = (0..12).map(|i| compile(&format!("env/rule-{i:02}"), systemlint::yaml::from_str("fact: env.*.*.vars\nexpect: {type: object}\n").unwrap()).unwrap()).collect();
-    let text = lint_human(&document, &lint(&document, &rules, &[], "2026-11-11"), true, false);
+    let text = lint_human(&document, &lint(&document, &rules, &[], "2026-11-11"), &[], true, false);
     assert!(text.lines().all(|l| l.chars().count() <= 80), "{text}");
     assert!(text.starts_with("Not run (env-processes): needs root\n  env/rule-00, ") && text.contains(",\n  env/rule-") && text.contains("env/rule-11\n\n"), "{text}");
 }
@@ -246,9 +246,9 @@ fn plain_prints_one_tab_separated_line_per_finding() {
 fn machine_formats_carry_the_rating() {
     let document = facts("root");
     let checks = run(HTTPS, &document, &[]);
-    let report: Value = serde_json::from_str(&lint_json(&document, &checks)).unwrap();
+    let report: Value = serde_json::from_str(&lint_json(&document, &checks, &[])).unwrap();
     assert_eq!(report["rating"], json!({"grade": "D", "score": 0.5}));
     assert_eq!(sarif(&document, &checks)["runs"][0]["properties"]["rating"]["grade"], "D");
-    assert!(lint_textfile(&document, &checks).lines().any(|l| l == "systemlint_rating{grade=\"D\"} 0.5"));
-    assert!(!lint_textfile(&document, &[]).contains("systemlint_rating{"), "no grade, no sample");
+    assert!(lint_textfile(&document, &checks, &[]).lines().any(|l| l == "systemlint_rating{grade=\"D\"} 0.5"));
+    assert!(!lint_textfile(&document, &[], &[]).contains("systemlint_rating{"), "no grade, no sample");
 }

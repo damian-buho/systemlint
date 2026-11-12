@@ -94,7 +94,7 @@ block.
 The rules follow the controls of
 [dev-sec ssh-baseline](https://github.com/dev-sec/ssh-baseline) (Apache-2.0),
 whose IDs each rule carries as a `dev-sec-ssh-baseline:<id>` tag, so
-`systemlint comply dev-sec-ssh-baseline` answers per control. The wording and
+`systemlint lint --standard dev-sec-ssh-baseline` answers per control. The wording and
 thresholds are systemlint’s own.
 
 | Rule | Control | Severity | Fails when |

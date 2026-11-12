@@ -26,8 +26,6 @@ pub struct Config {
     pub collect: Collect,
     #[serde(default)]
     pub lint: Lint,
-    #[serde(default)]
-    pub comply: Comply,
 }
 
 /// The `lint:` section: where rulesets live, inline ones, the default selectors, the threshold and waivers.
@@ -44,14 +42,6 @@ pub struct Lint {
     pub fail_on: Option<String>,
     #[serde(default)]
     pub waivers: Vec<Waiver>,
-}
-
-/// The `comply:` section: where standards catalogs live.
-#[derive(Debug, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Comply {
-    #[serde(default)]
-    pub directories: Vec<PathBuf>,
 }
 
 /// The `collect:` section: where collectors live, and the key hashed values share across runs.
@@ -78,7 +68,7 @@ impl Config {
         let text = std::fs::read_to_string(path).map_err(|e| format!("can’t read {}: {e}", path.display()))?;
         let mut config: Self = crate::yaml::from_str(&text).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?;
         let base = path.parent().unwrap_or(Path::new("."));
-        for dir in config.plugins.directories.iter_mut().chain(&mut config.collect.directories).chain(&mut config.lint.directories).chain(&mut config.comply.directories) {
+        for dir in config.plugins.directories.iter_mut().chain(&mut config.collect.directories).chain(&mut config.lint.directories) {
             if dir.is_relative() {
                 *dir = base.join(&*dir);
             }
