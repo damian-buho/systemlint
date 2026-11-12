@@ -70,6 +70,22 @@ fn an_empty_collection_gives_no_checks() {
 }
 
 #[test]
+fn a_failed_collector_under_a_star_is_one_unknown_subject_beside_the_present_ones() {
+    let document = json!({
+        "files": {"shadow": {"/etc/shadow": {"uid": 0}}, "cron": {}},
+        "collectors": {
+            "files-shadow": {"status": "ok", "into": "files.shadow"},
+            "files-cron": {"status": "ok", "into": "files.cron"},
+            "files-sudoers": {"status": "error", "reason": "can’t list /etc/sudoers.d: Permission denied", "into": "files.sudoers"},
+        },
+    });
+    let checks = run("fact: files.*.*.uid\nexpect: {const: 0}\n", &document);
+    assert_eq!(outcomes(&checks), [("shadow, /etc/shadow".into(), Outcome::Pass), ("sudoers".into(), Outcome::Unknown)], "an empty group gives no check, a failed one never vanishes");
+    assert_eq!(checks[1].collector.as_deref(), Some("files-sudoers"));
+    assert!(checks[1].reason.as_deref().unwrap().contains("collector files-sudoers error: can’t list /etc/sudoers.d"), "{:?}", checks[1].reason);
+}
+
+#[test]
 fn when_is_kleene_logic_false_beats_unknown_in_and_true_beats_it_in_or() {
     let document = facts("root");
     let and = run("fact: os.release.VERSION_ID\nwhen: {os.release.ID: debian, os.release.MISSING: x}\nexpect: {const: '26.04'}\n", &document);

@@ -141,30 +141,57 @@ fn children(value: &Value) -> Option<Vec<String>> {
     }
 }
 
-/// Every binding of the path’s `*`s present in `document`, or `None` when the path is absent before its first `*`.
+/// Every binding of the path’s `*`s present in `document` or owed by a collector, or `None` when the path is absent before its first `*`.
 fn subjects(document: &Value, path: &[Segment]) -> Option<Vec<Vec<String>>> {
     let last = path.iter().rposition(|s| *s == Segment::Star);
     let prefix = last.map_or(&path[..0], |i| &path[..=i]);
     let mut found = Vec::new();
-    walk(document, prefix, Vec::new(), &mut found).then_some(found)
+    walk(document, document, prefix, &[], Vec::new(), &mut found).then_some(found)
 }
 
-fn walk(value: &Value, path: &[Segment], bound: Vec<String>, found: &mut Vec<Vec<String>>) -> bool {
-    match path.split_first() {
-        None => found.push(bound),
-        Some((Segment::Key(key), rest)) => match child(value, key) {
-            Some(next) => return walk(next, rest, bound, found),
-            None => return !bound.is_empty(),
-        },
-        Some((Segment::Star, rest)) => {
-            let Some(keys) = children(value) else { return !bound.is_empty() };
-            for key in keys {
-                let next = [bound.clone(), vec![key.clone()]].concat();
-                walk(child(value, &key).unwrap_or(&Value::Null), rest, next, found);
+fn walk(document: &Value, value: &Value, path: &[Segment], at: &[String], bound: Vec<String>, found: &mut Vec<Vec<String>>) -> bool {
+    let Some((segment, rest)) = path.split_first() else {
+        found.push(bound);
+        return true;
+    };
+    let keys = match segment {
+        Segment::Key(key) => child(value, key).map(|_| vec![key.clone()]),
+        Segment::Star => children(value).map(|mut keys| {
+            for owed in owed(document, at) {
+                if !keys.contains(&owed) {
+                    log::trace!("{} owes key {owed} under {}", owed_by(document, at, &owed), at.join("."));
+                    keys.push(owed);
+                }
             }
+            keys.sort();
+            keys
+        }),
+    };
+    let Some(keys) = keys else {
+        log::trace!("{} is absent under subject {bound:?}", at.join("."));
+        if bound.is_empty() {
+            return false;
         }
+        found.push(bound);
+        return true;
+    };
+    for key in keys {
+        let next = if *segment == Segment::Star { [bound.clone(), vec![key.clone()]].concat() } else { bound.clone() };
+        walk(document, child(value, &key).unwrap_or(&Value::Null), rest, &[at, std::slice::from_ref(&key)].concat(), next, found);
     }
     true
+}
+
+/// The keys collectors’ `into` places directly under `at`, present or not.
+fn owed<'a>(document: &'a Value, at: &'a [String]) -> impl Iterator<Item = String> + 'a {
+    document["collectors"].as_object().into_iter().flatten().filter_map(move |(_, outcome)| {
+        let into: Vec<&str> = outcome["into"].as_str().unwrap_or_default().split('.').collect();
+        (into.len() == at.len() + 1 && into.iter().zip(at).all(|(a, b)| a == b)).then(|| into[at.len()].to_owned())
+    })
+}
+
+fn owed_by(document: &Value, at: &[String], key: &str) -> String {
+    producer(document, &[at, &[key.to_owned()]].concat()).map_or_else(String::new, |(id, _)| format!("collector {id}"))
 }
 
 /// The collector whose `into` covers `keys`, with its outcome.

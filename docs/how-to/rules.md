@@ -64,8 +64,10 @@ Each rule answers one outcome per subject:
 `when` follows three-valued logic: one false entry makes a map false even when
 another is absent, and one true map makes a list true. A collection absent
 before the first `*` is one `unknown`; a present but empty one gives no check,
-since nothing in it can fail. An unprivileged run, an older collector or a
-failed probe therefore never reads as a pass.
+since nothing in it can fail. A `*` also binds every key a collector’s `into`
+places at that point, so a collector that failed under `files.*` is one
+`unknown` subject beside the present ones, never a gap. An unprivileged run, an
+older collector or a failed probe therefore never reads as a pass.
 
 ### Versions
 
