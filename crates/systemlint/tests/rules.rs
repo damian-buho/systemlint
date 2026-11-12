@@ -78,6 +78,8 @@ fn excludes_and_overrides_by_id_or_glob() {
     let lib = library(&[("t", "rules:\n  a/x: {fact: x, expect: {minLength: 3}}\n  a/y: {fact: y, expect: {minLength: 3}}\n  b/z: {fact: z, expect: {minLength: 3}}\n"), ("p", "extends: [t]\nrules:\n  a/x: info\n  a/y: error\n")]);
     assert_eq!(ids(&lib.select(&["t".into(), "!a/*".into()]).unwrap()), ["b/z"]);
     assert_eq!(ids(&lib.select(&["t".into(), "!a/x".into()]).unwrap()), ["a/y", "b/z"]);
+    assert_eq!(ids(&lib.select(&["!a/*".into()]).unwrap()), ["apt/https", "b/z", "os/supported", "shadow/private", "ssh/patched"], "only exclusions start from every rule");
+    assert_eq!(ids(&lib.select(&["a/*".into(), "!a/x".into()]).unwrap()), ["a/y"], "an include keeps the base to what it picks");
     let p = lib.select(&["p".into()]).unwrap();
     assert_eq!([p["a/x"].severity, p["a/y"].severity, p["b/z"].severity], [Some(Severity::Info), Some(Severity::Error), None]);
 }

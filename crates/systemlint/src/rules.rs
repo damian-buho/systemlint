@@ -234,10 +234,16 @@ impl Library {
         Ok(picked)
     }
 
-    /// The rules a selector list picks: a union in order, a ruleset’s overrides beating a plain ID or tag pick, `!` removing, `off` dropped.
+    /// The rules a selector list picks: a union in order (every rule when only `!` entries), a ruleset’s overrides beating a plain ID or tag pick, `!` removing, `off` dropped.
     pub fn select(&self, selectors: &[String]) -> Result<BTreeMap<String, Spec>, String> {
         let mut picked: BTreeMap<String, Spec> = BTreeMap::new();
-        for selector in selectors.iter().filter(|s| !s.starts_with('!')) {
+        let every = ["*".to_owned()];
+        let mut includes: Vec<&String> = selectors.iter().filter(|s| !s.starts_with('!')).collect();
+        if includes.is_empty() {
+            log::debug!("selectors {selectors:?} only exclude, starting from every rule");
+            includes.extend(&every);
+        }
+        for selector in includes {
             let found = self.resolve(selector)?;
             let is_ruleset = self.rulesets.contains_key(selector.as_str());
             for (id, spec) in found {

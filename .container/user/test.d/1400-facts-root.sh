@@ -21,4 +21,4 @@ b19-assert matches "FACTS" '"status": "ok"' "${facts}"
 
 systemlint facts --root "${work}/root" --save "${work}/facts.yaml"
 b19-assert equals "FACTS" "600" "$(stat --format %a "${work}/facts.yaml")"
-systemlint --quiet lint --tags apt - < "${work}/facts.yaml"
+systemlint --quiet lint --tags '!files' - < "${work}/facts.yaml"
