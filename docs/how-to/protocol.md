@@ -44,8 +44,11 @@ directories hold the same name, the first one wins.
 
 The core never searches `PATH`: a planted `systemlint-apt` there would run as
 root. Like sudo, it refuses a plugin, or any directory above it, symlinks
-resolved, that is not owned by root or the user running systemlint, or that
-group or others can write. A refusal names the directory and the fix:
+resolved, that is not owned by root, the user running systemlint or the owner
+of the running core, or that group or others can write. A plugin beside a core
+is therefore trusted exactly as much as that core: `sudo` on a core installed in
+your home directory loads its plugins, since root already runs a binary you own.
+A refusal names the directory and the fix:
 
 ```text
 refused /opt/systemlint/plugins: group or others can write /opt/systemlint/plugins (mode 0775); run chmod go-w /opt/systemlint/plugins

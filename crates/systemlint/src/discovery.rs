@@ -35,11 +35,14 @@ pub struct Trust {
 }
 
 impl Trust {
-    /// Root and the user running systemlint, as sudo trusts its own files.
+    /// Root, the user running systemlint and the owner of the running core, which a plugin beside it can never out-trust.
     pub fn invoking_user() -> Self {
         let uid = rustix::process::getuid().as_raw();
-        log::debug!("trusting owners uid 0 and uid {uid}");
-        Self { uids: vec![0, uid], top: PathBuf::from("/") }
+        let core = std::env::current_exe().and_then(std::fs::metadata).map_or(uid, |m| m.uid());
+        log::debug!("trusting owners uid 0, uid {uid} and the core’s owner uid {core}");
+        let mut uids = vec![0, uid, core];
+        uids.dedup();
+        Self { uids, top: PathBuf::from("/") }
     }
 
     /// Fails unless `path` and every directory above it up to `top`, symlinks resolved, has a trusted owner and no group or other write bit.
@@ -50,7 +53,7 @@ impl Trust {
             let meta = std::fs::symlink_metadata(ancestor).map_err(|e| refuse(format!("can’t stat {}: {e}", ancestor.display())))?;
             let mode = meta.permissions().mode() & 0o7777;
             if !self.uids.contains(&meta.uid()) {
-                return Err(refuse(format!("{} is owned by uid {}, not root or you; run chown root {}", ancestor.display(), meta.uid(), ancestor.display())));
+                return Err(refuse(format!("{} is owned by uid {}, not root, you or the core’s owner; run chown root {}", ancestor.display(), meta.uid(), ancestor.display())));
             }
             if mode & 0o022 != 0 {
                 return Err(refuse(format!("group or others can write {} (mode {mode:04o}); run chmod go-w {}", ancestor.display(), ancestor.display())));

@@ -105,12 +105,19 @@ fn production_walk_reaches_the_filesystem_root() {
 }
 
 #[test]
+fn production_trust_holds_the_running_core_owner() {
+    let owner = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata(std::env::current_exe().unwrap()).unwrap());
+    let uids = Trust::invoking_user().uids;
+    assert!(uids.contains(&0) && uids.contains(&owner), "{uids:?}");
+}
+
+#[test]
 fn stranger_owner_is_refused() {
     let dir = fixture("stranger");
     file(&dir.join("systemlint-apt"), 0o755);
     let (plugins, refusals) = discover(std::slice::from_ref(&dir), &Trust { uids: vec![u32::MAX - 1], top: base() });
     assert!(plugins.is_empty());
-    assert!(refusals[0].reason.contains("not root or you"), "{refusals:?}");
+    assert!(refusals[0].reason.contains("not root, you or the core’s owner"), "{refusals:?}");
 }
 
 #[test]
