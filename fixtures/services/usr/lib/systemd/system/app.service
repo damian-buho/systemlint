@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[Unit]
+Description=App
+
+[Service]
+EnvironmentFile=-/etc/default/app
+Environment=LANG=C.UTF-8
+ExecStart=/opt/app/bin/app

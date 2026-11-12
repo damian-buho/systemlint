@@ -25,6 +25,8 @@ into: apt.sources
 | `read.files` | absolute globs whose files are read and passed with their content |
 | `read.stat` | absolute globs whose files are passed with their `stat` and no content |
 | `read.exec` | an argv list run without a shell, live mode only; the program is an absolute path |
+| `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
+| `live` | `true` when the collector reads what only a running host has, such as `/proc`; skipped under `--root` |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
 | `into` | the dotted fact path the reply’s facts are placed at; never under `meta` or `collectors`, never overlapping another collector’s |
@@ -35,7 +37,9 @@ input carrying both.
 
 In a glob, `*` matches any run of characters and `?` one character, both within
 one path component and never a leading dot; `.*` matches dotfiles. A path with
-no wildcard is passed when it exists, and an absent one is not an error.
+no wildcard is passed when it exists, and an absent one is not an error. A
+`files` match that is not a regular file, such as a directory in
+`/etc/default/*` or a masked unit linked to `/dev/null`, is skipped.
 
 ## Sources
 
@@ -49,6 +53,10 @@ no wildcard is passed when it exists, and an absent one is not an error.
   environment except `LC_ALL=C`, a timeout and an output cap. Its `stdout`,
   `stderr` and exit code are passed to the plugin, which judges the exit; an
   absent program is passed as exit 127, as a shell reports it.
+- `image-config`: the OCI image config or `docker inspect` JSON the operator
+  names with `--image-config`, read from the host as given, since an image’s
+  `ENV` is not in its root filesystem. The path as given is the input’s
+  `path`, and `meta.subject.image-config` records it.
 
 Every source is read-only and capped at 16 MiB per file or stream; `exec`
 and the plugin call each time out after 30 seconds. Under `--root <dir>` every
@@ -72,11 +80,12 @@ document, with a `reason` when it is not `ok`:
 | --- | --- |
 | `ok` | the plugin replied and its facts are under `into` |
 | `error` | reading failed, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
-| `skipped` | the mode cannot run it, such as `exec` under `--root`; the reason is kept |
+| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, or `image-config` without `--image-config`; the reason is kept |
 
 An `ok` collector also records its `plugin` and `op`, the plugin’s
-`diagnostics`, and under `redacted` the JSON Pointers of the values the plugin
-marked secret, which are replaced by `[redacted]` in every output.
+`diagnostics`, under `redacted` the JSON Pointers of the values the plugin
+marked secret, which are replaced by `[redacted]` in every output, and under
+`hashed` how many values were replaced by their keyed hash.
 
 A rule that reads a fact from a collector that did not finish `ok` answers
 `unknown`, naming that collector, rather than passing.

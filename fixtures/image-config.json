@@ -1,0 +1,1 @@
+{"architecture": "amd64", "os": "linux", "config": {"Env": ["PATH=/usr/local/bin:/usr/bin:/bin", "NODE_TLS_REJECT_UNAUTHORIZED=0"]}}

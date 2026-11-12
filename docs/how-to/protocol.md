@@ -65,7 +65,7 @@ and from stderr and kills a plugin that has not answered `--describe` within
 
 ```console
 $ systemlint-formats --describe
-{"name":"formats","version":"0.1.0","protocol":1,"ops":[{"op":"ini"},{"op":"kv"},{"op":"lines"},{"op":"regex"},{"op":"stat"},{"op":"toml"}]}
+{"name":"formats","version":"0.1.0","protocol":1,"ops":[{"op":"ini"},{"op":"json"},{"op":"kv"},{"op":"lines"},{"op":"regex"},{"op":"stat"},{"op":"sysctl"},{"op":"toml"}]}
 ```
 
 | Field | Meaning |
@@ -112,7 +112,8 @@ Schema cannot test.
 {
   "facts": {"/etc/apt/sources.list.d/docker.sources": {"suites": ["questing"]}},
   "diagnostics": [{"path": "/etc/apt/sources.list.d/docker.sources", "line": 3, "message": "unknown field Signed-by"}],
-  "redact": []
+  "redact": [],
+  "hash": []
 }
 ```
 
@@ -121,6 +122,11 @@ Schema cannot test.
 | `facts` | an object the core places at the collector’s `into`, so the reply above under `into: apt.sources` lands at `apt.sources` |
 | `diagnostics[]` | problems in one input: `path`, optional `line`, `message` |
 | `redact[]` | JSON Pointers into `facts` of values holding secrets, such as `/netrc/password`; the core replaces each with `[redacted]` |
+| `hash[]` | JSON Pointers into `facts` of strings a rule compares but must not read, such as `/app.service/vars/API_TOKEN`; the core replaces each non-empty one with `hmac-sha256:` and a keyed hash, then applies `redact`; omitted when empty |
+
+The hash key never reaches a plugin: the core draws it at random per run, or
+takes `collect.hash-key` from the configuration, and records which in
+`meta.hash-key`.
 
 ## Exit codes
 

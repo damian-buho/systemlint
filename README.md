@@ -80,7 +80,9 @@ Clone the repository and run `make` — every build step, target and entry point
 
 - [apt sources](docs/how-to/apt.md)
 - [Collectors](docs/how-to/collectors.md)
+- [Environment variables](docs/how-to/env.md)
 - [File permissions](docs/how-to/files.md)
+- [Kernel parameters, Docker and systemd units](docs/how-to/services.md)
 - [OpenSSH server](docs/how-to/sshd.md)
 - [Plugin protocol v1](docs/how-to/protocol.md)
 - [Rules, rulesets and compliance](docs/how-to/rules.md)

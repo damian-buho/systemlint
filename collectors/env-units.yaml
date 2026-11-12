@@ -5,6 +5,6 @@
 id: env-units
 read:
   files: [/etc/systemd/system/*.service, /etc/systemd/system/*.service.d/*.conf, /run/systemd/system/*.service, /run/systemd/system/*.service.d/*.conf, /usr/local/lib/systemd/system/*.service, /usr/local/lib/systemd/system/*.service.d/*.conf, /usr/lib/systemd/system/*.service, /usr/lib/systemd/system/*.service.d/*.conf, /lib/systemd/system/*.service, /lib/systemd/system/*.service.d/*.conf]
-  exec: [/usr/bin/systemctl, show, --property=Id,Environment,EnvironmentFiles, '*.service']
+  exec: [/usr/bin/systemctl, show, '--property=Id,Environment,EnvironmentFiles', '*.service']
 parse: {plugin: env, op: units}
 into: env.units

@@ -4,6 +4,6 @@
 
 id: env-files
 read:
-  files: [/etc/environment, /etc/default/*, /etc/profile.d/*.sh, /etc/ld.so.preload]
+  files: [/etc/environment, /etc/profile.d/*.sh, /etc/ld.so.preload]
 parse: {plugin: env, op: files}
 into: env.files
