@@ -60,7 +60,7 @@ enum Command {
         /// Also read this OCI image config or docker inspect JSON, for the image’s environment
         #[arg(long, value_name = "PATH")]
         image_config: Option<PathBuf>,
-        /// Write the document to PATH instead of stdout: JSON when it ends in .json, else YAML
+        /// Write the document to PATH instead of stdout, - for stdout: JSON when it ends in .json, else YAML
         #[arg(long, value_name = "PATH")]
         save: Option<PathBuf>,
         /// Print JSON instead of YAML
@@ -81,7 +81,7 @@ enum Command {
         /// Output format: human, json, sarif (SARIF 2.1.0) or textfile (node-exporter metrics)
         #[arg(long, value_enum, default_value_t = Format::Human)]
         format: Format,
-        /// Write the report to PATH atomically, mode 0644, instead of stdout
+        /// Write the report to PATH atomically, mode 0644, instead of stdout, - for stdout
         #[arg(long, value_name = "PATH")]
         output: Option<PathBuf>,
     },
@@ -215,7 +215,7 @@ fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, sa
         Ok(gathered) => gathered,
         Err(code) => return code,
     };
-    let written = match save {
+    let written = match save.filter(|p| *p != Path::new("-")) {
         Some(path) => document::save(&document, path),
         None => document::render(&document, json).map(|text| print!("{text}")),
     };

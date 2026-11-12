@@ -127,7 +127,8 @@ never mistaken for a full one. `collected-at` is the one clock: every plugin
 gets it as `now`, and a later `lint` judges ages by it.
 
 `systemlint facts --save PATH` writes the document atomically with mode 0600,
-as JSON when the name ends in `.json`, else YAML. `systemlint lint PATH`, or
+as JSON when the name ends in `.json`, else YAML; `--save -` prints it as
+without `--save`. `systemlint lint PATH`, or
 `lint -` for stdin, judges a saved document with no access to the subject.
 
 ## Where collectors come from

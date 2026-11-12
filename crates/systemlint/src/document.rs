@@ -26,8 +26,13 @@ pub fn save(document: &Value, path: &Path) -> Result<(), String> {
     write(path, &text, 0o600)
 }
 
-/// Writes `text` to `path` with `mode` through a temporary sibling and a rename, so a reader never sees half of it.
+/// Writes `text` to stdout for `-`, else to `path` with `mode` through a temporary sibling and a rename, so a reader never sees half of it.
 pub fn write(path: &Path, text: &str, mode: u32) -> Result<(), String> {
+    if path == Path::new("-") {
+        log::debug!("writing {} bytes to stdout", text.len());
+        let mut out = std::io::stdout().lock();
+        return out.write_all(text.as_bytes()).and_then(|()| out.flush()).map_err(|e| format!("can’t write to stdout: {e}"));
+    }
     let name = path.file_name().ok_or_else(|| format!("{} names no file", path.display()))?.to_string_lossy();
     let temporary = path.with_file_name(format!(".{name}.{}.tmp", std::process::id()));
     let written = std::fs::OpenOptions::new()

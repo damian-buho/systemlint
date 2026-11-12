@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 `systemlint lint` prints a human report by default. Two more formats feed
 other tools, and `--output PATH` writes any format to a file through a
 temporary sibling and a rename, mode 0644 under the umask, so a reader never
-sees half a report.
+sees half a report. `--output -` prints to stdout.
 
 ## SARIF
 

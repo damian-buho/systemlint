@@ -109,6 +109,12 @@ fn write_replaces_a_file_atomically_with_its_mode() {
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "no temporary file is left");
 }
 
+#[test]
+fn write_to_a_dash_prints_and_creates_no_file() {
+    systemlint::document::write(Path::new("-"), "", 0o644).unwrap();
+    assert!(!Path::new("-").exists(), "- is stdout, never a file in the working directory");
+}
+
 fn umask() -> u32 {
     let mask = rustix::process::umask(rustix::fs::Mode::empty());
     rustix::process::umask(mask);
