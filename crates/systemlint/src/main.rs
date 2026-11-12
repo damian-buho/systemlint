@@ -109,10 +109,13 @@ enum Command {
         #[arg(short, long, value_name = "PATH")]
         output: Option<PathBuf>,
     },
-    /// Lint this host, then make the changes its failing rules declare as a remedy
-    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint fix --dry-run\n  sudo systemlint fix --tags files\n  sudo systemlint fix --force")]
-    #[command(after_help = "Only the live host: a remedy clears permission bits or gives a file to root, never more, and each file is read again right before its change.\nExit codes: 0 every change made or none needed, 1 a change failed or was declined, 2 bad arguments or a change needing --force, 4 a plugin or collector refused, 5 config, rules or fix.enabled: false, 6 the root can’t be opened, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md#remedies")]
+    /// Lint this host or a root filesystem, then make the changes its failing rules declare as a remedy
+    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint fix --dry-run\n  sudo systemlint fix --tags files\n  systemlint fix --root rootfs --force")]
+    #[command(after_help = "A remedy clears permission bits or gives a file to root, never more, and each file is read again right before its change.\nExit codes: 0 every change made or none needed, 1 a change failed or was declined, 2 bad arguments or a change needing --force, 4 a plugin or collector refused, 5 config, rules or fix.enabled: false, 6 the root can’t be opened, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md#remedies")]
     Fix {
+        /// Lint and change this root filesystem, such as an image being built, instead of the live host
+        #[arg(long, value_name = "DIR")]
+        root: Option<PathBuf>,
         /// Rules to fix, as for lint [default: lint.tags, else every rule]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
@@ -220,7 +223,7 @@ fn main() -> ExitCode {
     match command {
         Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format.or(config.collect.format), cli.quiet)),
         Command::Lint { input, tags, standard, fail_on, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
-        Command::Fix { tags, dry_run, force, no_input } => ExitCode::from(fix(&config, &Selection { tags, standards: vec![] }, Ask { dry_run, force, no_input }, cli.quiet)),
+        Command::Fix { root, tags, dry_run, force, no_input } => ExitCode::from(fix(&config, root.as_deref(), &Selection { tags, standards: vec![] }, Ask { dry_run, force, no_input }, cli.quiet)),
         Command::Plugin(PluginCommand::List { format }) => ExitCode::from(plugin_list(&config, format.or(config.plugins.format) == Some(ListFormat::Json), cli.quiet)),
     }
 }
@@ -444,7 +447,7 @@ fn confirmed(question: &str) -> bool {
     matches!(answer.trim().to_lowercase().as_str(), "y" | "yes")
 }
 
-fn fix(config: &Config, selection: &Selection, ask: Ask, quiet: bool) -> u8 {
+fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, quiet: bool) -> u8 {
     if config.fix.enabled == Some(false) {
         eprintln!("Fixing is off: fix.enabled is false in the configuration. Drop it, or set it to true, to let systemlint change files.");
         return EXIT_CONFIG;
@@ -452,7 +455,7 @@ fn fix(config: &Config, selection: &Selection, ask: Ask, quiet: bool) -> u8 {
     let run = || -> Result<u8, u8> {
         let library = library(config)?;
         let rules = if library.definitions.is_empty() { Vec::new() } else { compiled(&library, selection, config)? };
-        let (document, trusted) = gather(config, None, None, quiet)?;
+        let (document, trusted) = gather(config, root, None, quiet)?;
         let changes = systemlint::fix::plan(&judge::lint(&document, &rules, &config.lint.waivers, &today()), &rules);
         let done = if trusted { 0 } else { EXIT_PLUGIN };
         if changes.is_empty() {
@@ -461,7 +464,10 @@ fn fix(config: &Config, selection: &Selection, ask: Ask, quiet: bool) -> u8 {
             }
             return Ok(done);
         }
-        let plan: String = changes.iter().map(|c| c.remedy.command(&c.path) + "\n").collect();
+        let base = root.unwrap_or(Path::new("/"));
+        let shown = |change: &systemlint::fix::Change| base.join(change.path.trim_start_matches('/')).display().to_string();
+        log::debug!("fix plans {} changes under {}", changes.len(), base.display());
+        let plan: String = changes.iter().map(|c| c.remedy.command(&shown(c)) + "\n").collect();
         document::write(Path::new("-"), &plan, 0).map_err(|error| {
             eprintln!("{error}");
             EXIT_OUTPUT
@@ -479,15 +485,15 @@ fn fix(config: &Config, selection: &Selection, ask: Ask, quiet: bool) -> u8 {
                 return Err(EXIT_FAIL);
             }
         }
-        let root = trail::scoped(trail::INPUT, || Root::open(Path::new("/"))).map_err(fail(trail::INPUT, EXIT_INPUT))?;
+        let opened = trail::scoped(trail::INPUT, || Root::open(base)).map_err(fail(trail::INPUT, EXIT_INPUT))?;
         let mut failed = 0;
         for change in &changes {
-            match systemlint::fix::apply(&root, change) {
-                Ok(Some((before, after))) => println!("{}: {before} → {after}", change.path),
+            match systemlint::fix::apply(&opened, change) {
+                Ok(Some((before, after))) => println!("{}: {before} → {after}", shown(change)),
                 Ok(None) => log::debug!("{} already satisfies {}", change.path, change.rule),
                 Err(error) => {
                     failed += 1;
-                    eprintln!("{}", systemlint::explain::io("change", Path::new(&change.path), &error, &[(std::io::ErrorKind::PermissionDenied, "Run systemlint fix as root.")]));
+                    eprintln!("{}", systemlint::explain::io("change", Path::new(&shown(change)), &error, &[(std::io::ErrorKind::PermissionDenied, "Run systemlint fix as root.")]));
                 }
             }
         }

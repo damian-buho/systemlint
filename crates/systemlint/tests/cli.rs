@@ -136,9 +136,11 @@ fn a_document_of_another_schema_exits_6() {
 #[test]
 fn a_missing_root_exits_6() {
     let dir = base("root");
-    let (code, stderr) = run(&dir, "", &["--quiet", "facts", "--root", &dir.join("absent").display().to_string()]);
-    assert_eq!(code, 6, "{stderr}");
-    assert!(stderr.contains("it does not exist"), "{stderr}");
+    for command in ["facts", "fix"] {
+        let (code, stderr) = run(&dir, "", &["--quiet", command, "--root", &dir.join("absent").display().to_string()]);
+        assert_eq!(code, 6, "{command}: {stderr}");
+        assert!(stderr.contains("it does not exist"), "{command}: {stderr}");
+    }
 }
 
 #[test]

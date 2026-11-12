@@ -211,8 +211,9 @@ A remedy only takes access away, so a ruleset from an untrusted
 `.systemlint.yaml` can never hand a file to a user. An override that sets its
 own `fact` or `facts` drops the inherited remedy.
 
-`systemlint fix` lints the live host, prints each change as its command on
-stdout, and asks before making them when stdin is a terminal. `--dry-run`
+`systemlint fix` lints the live host, or with `--root DIR` a root filesystem
+such as an image being built, prints each change as its command on stdout,
+naming the path under that root, and asks before making them when stdin is a terminal. `--dry-run`
 stops after the list, `--force` skips the question, and `--no-input` fails
 naming `--force` instead of asking. Each file is opened again right before its
 change, refusing a symbolic link or a special file, and a line such as
