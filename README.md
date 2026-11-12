@@ -80,6 +80,7 @@ Clone the repository and run `make` — every build step, target and entry point
 
 - [apt sources](docs/how-to/apt.md)
 - [Collectors](docs/how-to/collectors.md)
+- [File permissions](docs/how-to/files.md)
 - [Plugin protocol v1](docs/how-to/protocol.md)
 - [Rules, rulesets and compliance](docs/how-to/rules.md)
 

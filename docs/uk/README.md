@@ -82,6 +82,7 @@ docker pull kiota.ch/damian-buho/systemlint:latest
 
 - [apt sources](../how-to/apt.md)
 - [Collectors](../how-to/collectors.md)
+- [File permissions](../how-to/files.md)
 - [Plugin protocol v1](../how-to/protocol.md)
 - [Rules, rulesets and compliance](../how-to/rules.md)
 

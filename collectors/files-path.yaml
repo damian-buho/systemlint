@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: files-path
+read:
+  stat: [/usr, /usr/local, /usr/local/sbin, /usr/local/bin, /usr/sbin, /usr/bin, /sbin, /bin, /usr/local/games, /usr/games, /snap/bin]
+parse: {plugin: formats, op: stat}
+into: files.path
