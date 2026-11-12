@@ -63,6 +63,7 @@ pub fn load(path: &Path) -> Result<Value, String> {
         let owner = format!("A saved document is mode 0600: run sudo chown \"$(id -un)\" {}, or lint as the user who saved it.", path.display());
         crate::explain::io("read facts", path, &e, &[(ErrorKind::NotFound, &first), (ErrorKind::PermissionDenied, &owner), (ErrorKind::IsADirectory, "Name a facts file, or pass - to read stdin.")])
     })?;
+    log::debug!("read {} bytes of facts from {}", text.len(), path.display());
     parse(&text).map_err(|e| format!("{} is not a facts document: {e}", path.display()))
 }
 

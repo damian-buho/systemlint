@@ -201,12 +201,9 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     };
     trail::install(cli.verbose);
-    let config = match load_config(cli.config.as_deref()) {
+    let config = match trail::scoped(trail::CONFIG, || load_config(cli.config.as_deref())).map_err(fail(trail::CONFIG, EXIT_CONFIG)) {
         Ok(config) => config,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::from(EXIT_CONFIG);
-        }
+        Err(code) => return ExitCode::from(code),
     };
     match command {
         Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format, cli.quiet)),
@@ -220,18 +217,16 @@ fn exe() -> PathBuf {
 }
 
 fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, quiet: bool) -> Result<(Value, bool), u8> {
-    let trust = Trust::invoking_user();
-    let (collectors, mut refusals) = collector::load(&collector::directories(&exe(), &config.collect.directories), &trust);
-    let (plugins, plugin_refusals) = discovery::discover(&discovery::directories(&exe(), discovery::BESIDE, &config.plugins.directories), &trust);
-    refusals.extend(plugin_refusals);
-    for refusal in &refusals {
-        eprintln!("refused {}: {}", refusal.path.display(), refusal.reason);
-    }
+    let (collectors, plugins, refusals) = trail::scoped(trail::DISCOVERY, || {
+        let trust = Trust::invoking_user();
+        let (collectors, mut refusals) = collector::load(&collector::directories(&exe(), &config.collect.directories), &trust);
+        let (plugins, plugin_refusals) = discovery::discover(&discovery::directories(&exe(), discovery::BESIDE, &config.plugins.directories), &trust);
+        refusals.extend(plugin_refusals);
+        (collectors, plugins, refusals)
+    });
+    print_refusals(trail::DISCOVERY, &refusals);
     let live = root.is_none();
-    let root = Root::open(root.unwrap_or(Path::new("/"))).map_err(|error| {
-        eprintln!("{error}");
-        EXIT_INPUT
-    })?;
+    let root = trail::scoped(trail::INPUT, || Root::open(root.unwrap_or(Path::new("/")))).map_err(fail(trail::INPUT, EXIT_INPUT))?;
     log::debug!("collecting {} collectors with {} plugins from {} (live {live})", collectors.len(), plugins.len(), root.path().display());
     let hash_key = match &config.collect.hash_key {
         Some(text) => collect::HashKey::configured(text),
@@ -300,40 +295,49 @@ fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, ou
 
 fn facts_for(config: &Config, input: &Input, quiet: bool) -> Result<(Value, bool), u8> {
     match &input.facts {
-        Some(path) => document::load(path).map(|d| (d, true)).map_err(|error| {
-            eprintln!("{error}");
-            EXIT_INPUT
-        }),
+        Some(path) => trail::scoped(trail::INPUT, || document::load(path)).map(|d| (d, true)).map_err(fail(trail::INPUT, EXIT_INPUT)),
         None => gather(config, input.root.as_deref(), input.image_config.clone(), quiet),
     }
 }
 
 fn library(config: &Config) -> Result<Library, u8> {
     let dirs = rules::directories(&exe(), &config.lint.directories);
-    let (library, refusals) = Library::load(&dirs, &Trust::invoking_user(), &config.lint.rulesets);
-    for refusal in &refusals {
-        eprintln!("refused {}: {}", refusal.path.display(), refusal.reason);
-    }
-    let library = library.map_err(|error| {
-        eprintln!("{error}");
-        EXIT_CONFIG
-    })?;
+    let (library, refusals) = trail::scoped(trail::CONFIG, || Library::load(&dirs, &Trust::invoking_user(), &config.lint.rulesets));
+    print_refusals(trail::CONFIG, &refusals);
+    let library = library.map_err(fail(trail::CONFIG, EXIT_CONFIG))?;
     log::debug!("{} rulesets define {} rules, searched {}", library.rulesets.len(), library.definitions.len(), dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
     if refusals.is_empty() { Ok(library) } else { Err(EXIT_CONFIG) }
 }
 
 fn compiled(library: &Library, selection: &Selection, config: &Config) -> Result<Vec<Rule>, u8> {
     let base = if selection.tags.is_empty() { &config.lint.tags } else { &selection.tags };
-    let selected = library.select_for(base, &selection.standards).and_then(|specs| specs.into_iter().map(|(id, spec)| judge::compile(&id, spec)).collect::<Result<Vec<_>, _>>());
-    selected.map_err(|error| {
-        eprintln!("{error}");
-        EXIT_CONFIG
-    })
+    let selected = trail::scoped(trail::CONFIG, || library.select_for(base, &selection.standards).and_then(|specs| specs.into_iter().map(|(id, spec)| judge::compile(&id, spec)).collect::<Result<Vec<_>, _>>()));
+    selected.map_err(fail(trail::CONFIG, EXIT_CONFIG))
 }
 
 /// The error `line`, then each debug record kept under `tag`, indented on its own line.
 fn traced(tag: &str, line: String) -> String {
     trail::take(tag).iter().fold(line, |out, record| format!("{out}\n  {record}"))
+}
+
+/// Prints an error with the debug records kept under `tag` beneath it, answering `code`.
+fn fail(tag: &'static str, code: u8) -> impl FnOnce(String) -> u8 {
+    move |error| {
+        eprintln!("{}", traced(tag, error));
+        code
+    }
+}
+
+/// Every refusal on its own line, then the debug records kept under `tag` once beneath them all; none when nothing was refused.
+fn refused(tag: &str, refusals: &[discovery::Refusal]) -> Option<String> {
+    (!refusals.is_empty()).then(|| traced(tag, refusals.iter().map(|r| format!("refused {}: {}", r.path.display(), r.reason)).collect::<Vec<_>>().join("\n")))
+}
+
+/// Prints [`refused`] when anything was.
+fn print_refusals(tag: &str, refusals: &[discovery::Refusal]) {
+    if let Some(text) = refused(tag, refusals) {
+        eprintln!("{text}");
+    }
 }
 
 /// `1 collector`, `0 errors`: the count, then the noun, plural unless the count is one.
@@ -356,14 +360,9 @@ fn catalogs(config: &Config, standards: &[String]) -> Result<Vec<Option<comply::
     let dirs = comply::directories(&rules::directories(&exe(), &config.lint.directories));
     let mut out = Vec::new();
     for standard in standards {
-        let (catalog, refusals) = comply::catalog(&dirs, &Trust::invoking_user(), standard);
-        for refusal in &refusals {
-            eprintln!("refused {}: {}", refusal.path.display(), refusal.reason);
-        }
-        let catalog = catalog.map_err(|error| {
-            eprintln!("{error}");
-            EXIT_CONFIG
-        })?;
+        let (catalog, refusals) = trail::scoped(trail::CONFIG, || comply::catalog(&dirs, &Trust::invoking_user(), standard));
+        print_refusals(trail::CONFIG, &refusals);
+        let catalog = catalog.map_err(fail(trail::CONFIG, EXIT_CONFIG))?;
         if !refusals.is_empty() {
             return Err(EXIT_CONFIG);
         }
@@ -422,8 +421,8 @@ fn load_config(explicit: Option<&Path>) -> Result<Config, String> {
 
 fn plugin_list(config: &Config, json: bool, quiet: bool) -> u8 {
     let dirs = discovery::directories(&exe(), discovery::BESIDE, &config.plugins.directories);
-    let (plugins, refusals) = discovery::discover(&dirs, &Trust::invoking_user());
-    let mut problems: Vec<String> = refusals.iter().map(|r| format!("refused {}: {}", r.path.display(), r.reason)).collect();
+    let (plugins, refusals) = trail::scoped(trail::DISCOVERY, || discovery::discover(&dirs, &Trust::invoking_user()));
+    let mut problems: Vec<String> = refused(trail::DISCOVERY, &refusals).into_iter().collect();
     let mut listed = Vec::new();
     for plugin in plugins {
         match trail::scoped(&trail::plugin(&plugin.name), || runner::describe(&plugin.name, &plugin.path, runner::DESCRIBE_TIMEOUT)) {

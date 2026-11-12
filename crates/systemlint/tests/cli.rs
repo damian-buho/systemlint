@@ -59,6 +59,23 @@ fn an_invalid_config_exits_5() {
 }
 
 #[test]
+fn an_invalid_config_prints_the_layers_read_before_it() {
+    let (code, stderr) = run(&base("invalid-traced"), "nonsense: 1\n", &["plugin", "list"]);
+    assert_eq!(code, 5, "{stderr}");
+    assert!(stderr.contains("is not a valid configuration") && stderr.contains("\n  config ") && stderr.contains("is absent, skipped"), "{stderr}");
+}
+
+#[test]
+fn a_document_of_another_schema_prints_the_bytes_read() {
+    let dir = base("schema-traced");
+    let path = dir.join("facts.yaml");
+    std::fs::write(&path, "meta: {schema: 0}\n").unwrap();
+    let (code, stderr) = run(&dir, "", &["lint", &path.display().to_string()]);
+    assert_eq!(code, 6, "{stderr}");
+    assert!(stderr.contains(&format!("\n  read 18 bytes of facts from {}", path.display())), "{stderr}");
+}
+
+#[test]
 fn a_refused_ruleset_directory_exits_5_naming_chmod() {
     let dir = base("refused");
     let rules = dir.join("rules");
@@ -68,6 +85,7 @@ fn a_refused_ruleset_directory_exits_5_naming_chmod() {
     let (code, stderr) = run(&dir, &format!("lint: {{directories: [{}]}}\n", rules.display()), &["lint", &facts]);
     assert_eq!(code, 5, "{stderr}");
     assert!(stderr.contains("chmod go-w"), "{stderr}");
+    assert!(stderr.contains("\n  trusting owners uid 0"), "{stderr}");
 }
 
 #[test]

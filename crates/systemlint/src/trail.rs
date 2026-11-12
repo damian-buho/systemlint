@@ -20,6 +20,15 @@ thread_local! {
     static SCOPE: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
+/// The scope of the configuration, rulesets and catalogs, whose errors exit 5.
+pub const CONFIG: &str = "config";
+
+/// The scope of the plugin and collector trust walk, whose refusals exit 4.
+pub const DISCOVERY: &str = "discovery";
+
+/// The scope of the root and the facts document read, whose errors exit 6.
+pub const INPUT: &str = "input";
+
 /// The scope of a collector, also how its error line starts.
 pub fn collector(id: &str) -> String {
     format!("collector {id}")
