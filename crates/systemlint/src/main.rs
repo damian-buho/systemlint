@@ -5,7 +5,7 @@
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use clap::{Parser, Subcommand};
 use serde::Serialize;
@@ -250,7 +250,7 @@ fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, q
             EXIT_INTERNAL
         })?,
     };
-    let options = Options { root, live, privileged: rustix::process::geteuid().is_root(), now: SystemTime::now(), timeout: collect::TIMEOUT, hash_key, image_config };
+    let options = Options { root, live, privileged: rustix::process::geteuid().is_root(), now: SystemTime::now(), timeout: config.collect.timeout.map_or(collect::TIMEOUT, Duration::from_secs), hash_key, image_config };
     let document = collect::collect(&collectors, &plugins, &options);
     if collectors.is_empty() && !quiet {
         eprintln!("No collectors found. Searched: {}", collector::directories(&exe(), &config.collect.directories).iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));

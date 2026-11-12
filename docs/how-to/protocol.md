@@ -143,4 +143,4 @@ takes `collect.hash-key` from the configuration, and records which in
 The core records a non-zero exit or a reply that is not valid JSON as
 `collectors.<id>.status: error` with the reason, so a failed probe never looks
 like a missing fact. A request reaches the plugin on stdin under the same
-empty environment, 16 MiB cap and a 30-second timeout.
+empty environment, 16 MiB cap and a 30-second timeout (`collect.timeout`).

@@ -64,6 +64,13 @@ fn a_waiver_without_a_day_or_reason_and_a_bad_fail_on_are_refused() {
 }
 
 #[test]
+fn a_collect_timeout_needs_1_second() {
+    assert!(Config::load(&write("timeout-0", "collect:\n  timeout: 0\n")).unwrap_err().contains("collect.timeout needs 1 second or more"));
+    assert_eq!(Config::load(&write("timeout-1", "collect:\n  timeout: 1\n")).unwrap().collect.timeout, Some(1));
+    assert!(Config::load(&write("timeout-negative", "collect:\n  timeout: -1\n")).is_err(), "a negative timeout is not a number of seconds");
+}
+
+#[test]
 fn a_hash_key_needs_16_characters() {
     assert!(Config::load(&write("key-15", "collect:\n  hash-key: fifteen-chars-x\n")).unwrap_err().contains("16 characters or more"));
     assert!(Config::load(&write("key-15-wide", "collect:\n  hash-key: ñññññññññññññññ\n")).is_err(), "characters, not bytes");

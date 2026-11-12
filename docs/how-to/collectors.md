@@ -60,7 +60,8 @@ no wildcard is passed when it exists, and an absent one is not an error. A
   `path`, and `meta.subject.image-config` records it.
 
 Every source is read-only and capped at 16 MiB per file or stream; `exec`
-and the plugin call each time out after 30 seconds. Under `--root <dir>` every
+and the plugin call each time out after 30 seconds, or `collect.timeout`
+seconds from the configuration. Under `--root <dir>` every
 path, symlinks and `..` included, resolves inside that directory through
 `openat2` `RESOLVE_IN_ROOT` (Linux 5.6 or later), so an image’s symlink to
 `/etc/shadow` reads the image’s file, never the host’s. `exec` never runs

@@ -52,6 +52,9 @@ pub struct Collect {
     pub directories: Vec<PathBuf>,
     #[serde(default, rename = "hash-key")]
     pub hash_key: Option<String>,
+    /// Seconds an `exec` or a plugin call may take, 1 or more [default: 30]
+    #[serde(default)]
+    pub timeout: Option<u64>,
 }
 
 /// The `plugins:` section.
@@ -76,6 +79,9 @@ impl Config {
         }
         if config.collect.hash_key.as_deref().is_some_and(|k| k.chars().count() < 16) {
             return Err(format!("{}: collect.hash-key needs 16 characters or more, or a hash of a short value is guessed", path.display()));
+        }
+        if config.collect.timeout == Some(0) {
+            return Err(format!("{}: collect.timeout needs 1 second or more, or every plugin call fails", path.display()));
         }
         if let Some(text) = &config.lint.fail_on {
             text.parse::<FailOn>().map_err(|e| format!("{}: lint.{e}", path.display()))?;
