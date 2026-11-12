@@ -371,7 +371,7 @@ fn plugin_list(config: &Config, json: bool, quiet: bool) -> u8 {
     }
     if listed.is_empty() && problems.is_empty() && !quiet {
         let searched: Vec<String> = dirs.iter().map(|d| d.display().to_string()).collect();
-        eprintln!("No plugins found. Searched: {}", searched.join(", "));
+        eprintln!("No plugins found. Searched: {}. A bare binary has none beside it: unpack the release archive, which puts plugins in lib/systemlint/plugins next to bin/systemlint, or name a directory in plugins.directories.", searched.join(", "));
     }
     for problem in &problems {
         eprintln!("{problem}");
