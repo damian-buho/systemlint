@@ -109,11 +109,11 @@ org:
       textlint:
         include:
           - fixtures/sshd/sshd-T.txt
-          - crates/systemlint-sshd/src/defaults.txt
+          - crates/systemlint-sshd/src/defaults/
       fd:
         include:
           - fixtures/sshd/sshd-T.txt
-          - crates/systemlint-sshd/src/defaults.txt
+          - crates/systemlint-sshd/src/defaults/
     readme:
       download: latest/download
       installation:

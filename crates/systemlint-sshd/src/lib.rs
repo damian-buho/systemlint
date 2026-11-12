@@ -13,27 +13,32 @@ pub mod config;
 
 use config::{MAIN, Raw};
 
-/// `sshd -T -f /dev/null`: the compiled defaults the files are read against.
-const DEFAULTS: &str = include_str!("defaults.txt");
+/// `sshd -T -f /dev/null` per upstream version, oldest first, with the package `.scripts/capture-sshd-defaults.sh` read it from.
+pub const DEFAULTS: [(&str, &str, &str); 4] = [
+    ("9.2p1", "openssh-server 1:9.2p1-2+deb12u10", include_str!("defaults/9.2p1.txt")),
+    ("9.6p1", "openssh-server 1:9.6p1-3ubuntu13.20", include_str!("defaults/9.6p1.txt")),
+    ("10.0p1", "openssh-server 1:10.0p1-7+deb13u4", include_str!("defaults/10.0p1.txt")),
+    ("10.2p1", "openssh-server 1:10.2p1-2ubuntu3.8", include_str!("defaults/10.2p1.txt")),
+];
 
-/// The package [`DEFAULTS`] was captured from.
-pub const DEFAULTS_FROM: &str = "openssh-server 1:10.2p1-2ubuntu3.8";
+/// The package whose sshd sets the defaults.
+const PACKAGE: &str = "openssh-server";
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
-    Describe::new("sshd", &[("config", &[])])
+    Describe::new("sshd", &[("config", &["apt.installed"])])
 }
 
 /// Runs one op.
 pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
-        "config" => server(&request.inputs).map_err(Into::into),
+        "config" => server(&request.inputs, &request.facts).map_err(Into::into),
         other => Err(format!("op {other} is not implemented").into()),
     }
 }
 
 /// `source`, `global` (keywords `Match` refuses) keyed by the main file, the `contexts` keyed by it and by each `Match` line, and `defaults` when read from the files.
-pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
+pub fn server(inputs: &[Input], facts: &BTreeMap<String, Value>) -> std::result::Result<Reply, String> {
     let mut reply = Reply::default();
     let mut files = BTreeMap::new();
     let (mut effective, mut failed) = (None, Vec::new());
@@ -52,7 +57,9 @@ pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
     }
     let fallback = if files.contains_key(MAIN) { "read from the files".to_owned() } else { format!("no {MAIN} either, so nothing was read") };
     reply.diagnostics.extend(failed.into_iter().map(|(path, message)| Diagnostic { path, line: None, message: format!("{message}; {fallback}") }));
-    let defaults = config::dump(DEFAULTS);
+    let installed = installed(facts);
+    let (_, from, table) = defaults_for(installed.as_deref());
+    let defaults = config::dump(table);
     let mut lines = Vec::new();
     config::expand(MAIN, &files, 0, &mut lines)?;
     let parsed = config::settle(&lines, &defaults);
@@ -78,9 +85,36 @@ pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
     reply.facts.insert("global".to_owned(), Value::Object(fixed));
     reply.facts.insert("contexts".to_owned(), Value::Object(contexts));
     if source == "files" {
-        reply.facts.insert("defaults".to_owned(), Value::from(DEFAULTS_FROM));
+        reply.facts.insert("defaults".to_owned(), Value::from(from));
+        if installed.is_none() {
+            reply.diagnostics.push(Diagnostic { path: "apt.installed".to_owned(), line: None, message: format!("no {PACKAGE} version installed, so the files are read against the newest defaults, {from}") });
+        }
     }
     Ok(reply)
+}
+
+// The installed `openssh-server` version, keyed by name or `name:arch`.
+fn installed(facts: &BTreeMap<String, Value>) -> Option<String> {
+    let packages = facts.get("apt.installed")?.as_object()?;
+    let version = packages.iter().find(|(name, _)| name.split(':').next() == Some(PACKAGE)).and_then(|(_, p)| p["version"].as_str());
+    version.map(str::to_owned)
+}
+
+/// `(major, minor, portable)` of a Debian version such as `1:9.2p1-2+deb12u10`, epoch and revision dropped.
+pub fn upstream(version: &str) -> Option<(u32, u32, u32)> {
+    let version = version.split_once(':').map_or(version, |(_, v)| v);
+    let version = version.rsplit_once('-').map_or(version, |(v, _)| v);
+    let (major, rest) = version.split_once('.')?;
+    let minor_end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
+    let portable = rest[minor_end..].strip_prefix('p').and_then(|p| p.split(|c: char| !c.is_ascii_digit()).next()).and_then(|p| p.parse().ok()).unwrap_or(0);
+    Some((major.parse().ok()?, rest[..minor_end].parse().ok()?, portable))
+}
+
+/// The newest table no newer than `installed`, the oldest when it predates them all, the newest when unknown.
+pub fn defaults_for(installed: Option<&str>) -> (&'static str, &'static str, &'static str) {
+    let newest = DEFAULTS[DEFAULTS.len() - 1];
+    let Some(wanted) = installed.and_then(upstream) else { return newest };
+    DEFAULTS.iter().rev().find(|(v, _, _)| upstream(v).is_some_and(|t| t <= wanted)).copied().unwrap_or(DEFAULTS[0])
 }
 
 // `base` with every keyword `over` sets replacing its value.
@@ -105,7 +139,11 @@ mod tests {
     }
 
     fn collected(inputs: &[Input]) -> (Value, Vec<Diagnostic>) {
-        let reply = server(inputs).unwrap();
+        collected_on(inputs, json!({PACKAGE: {"version": "1:10.2p1-2ubuntu3.8"}}))
+    }
+
+    fn collected_on(inputs: &[Input], installed: Value) -> (Value, Vec<Diagnostic>) {
+        let reply = server(inputs, &BTreeMap::from([("apt.installed".to_owned(), installed)])).unwrap();
         (Value::Object(reply.facts.into_iter().collect()), reply.diagnostics)
     }
 
@@ -113,7 +151,7 @@ mod tests {
     fn describe_lists_config() {
         let describe = describe();
         assert_eq!(describe.name, "sshd");
-        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["config"]);
+        assert_eq!(describe.ops.iter().map(|o| (o.op.as_str(), o.needs.clone())).collect::<Vec<_>>(), [("config", vec!["apt.installed".to_owned()])]);
         assert!(op(Request { protocol: 1, op: "nope".into(), root: "/".into(), now: None, inputs: vec![], facts: Default::default() }).is_err());
     }
 
@@ -121,7 +159,7 @@ mod tests {
     fn the_defaults_fill_what_the_files_leave_unset() {
         let (facts, diagnostics) = collected(&[file(MAIN, "PermitRootLogin no\n")]);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        assert_eq!((facts["source"].as_str(), facts["defaults"].as_str()), (Some("files"), Some(DEFAULTS_FROM)));
+        assert_eq!((facts["source"].as_str(), facts["defaults"].as_str()), (Some("files"), Some("openssh-server 1:10.2p1-2ubuntu3.8")));
         let global = &facts["contexts"][MAIN];
         assert_eq!(global["permitrootlogin"], "no");
         assert_eq!(global["passwordauthentication"], "yes");
@@ -168,8 +206,39 @@ mod tests {
     }
 
     #[test]
+    fn upstream_drops_epoch_and_revision() {
+        assert_eq!(upstream("1:9.2p1-2+deb12u10"), Some((9, 2, 1)));
+        assert_eq!(upstream("10.2p1-2ubuntu3.8"), Some((10, 2, 1)));
+        assert_eq!(upstream("1:10.0"), Some((10, 0, 0)));
+        assert_eq!(upstream("garbage"), None);
+    }
+
+    #[test]
+    fn defaults_follow_the_installed_version_at_every_edge() {
+        let picked = |v: Option<&str>| defaults_for(v).0;
+        assert_eq!(picked(Some("1:9.2p1-2+deb12u10")), "9.2p1", "an exact match");
+        assert_eq!(picked(Some("1:9.5p1-1")), "9.2p1", "between two tables, the older");
+        assert_eq!(picked(Some("1:10.0p2-1")), "10.0p1", "a later portable release of one version");
+        assert_eq!(picked(Some("1:9.1p1-1")), "9.2p1", "older than every table, the oldest");
+        assert_eq!(picked(Some("1:99.0p1-1")), "10.2p1", "newer than every table, the newest");
+        assert_eq!(picked(None), "10.2p1", "unknown, the newest");
+        assert!(DEFAULTS.windows(2).all(|w| upstream(w[0].0) < upstream(w[1].0)), "tables oldest first");
+    }
+
+    #[test]
+    fn an_older_server_reads_its_own_defaults_and_an_unknown_one_says_so() {
+        let (facts, diagnostics) = collected_on(&[file(MAIN, "Port 22\n")], json!({"openssh-server:amd64": {"version": "1:9.2p1-2+deb12u10"}}));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert_eq!(facts["defaults"], "openssh-server 1:9.2p1-2+deb12u10");
+        assert!(!facts["global"][MAIN]["kexalgorithms"].as_array().unwrap().iter().any(|k| k == "mlkem768x25519-sha256"), "9.2 offers no ML-KEM");
+        let (facts, diagnostics) = collected_on(&[file(MAIN, "Port 22\n")], json!({}));
+        assert_eq!(facts["defaults"], "openssh-server 1:10.2p1-2ubuntu3.8");
+        assert_eq!(diagnostics[0].message, "no openssh-server version installed, so the files are read against the newest defaults, openssh-server 1:10.2p1-2ubuntu3.8");
+    }
+
+    #[test]
     fn a_bad_include_fails_the_op_and_binary_files_are_reported() {
-        assert!(server(&[file(MAIN, "Include /srv/ssh.conf\n")]).unwrap_err().contains("/srv/ssh.conf"));
+        assert!(server(&[file(MAIN, "Include /srv/ssh.conf\n")], &BTreeMap::new()).unwrap_err().contains("/srv/ssh.conf"));
         let binary = Input::File(FileInput { path: "/etc/ssh/sshd_config.d/x.conf".into(), content: None, content_base64: Some("AA==".into()), stat: None });
         let (_, diagnostics) = collected(&[file(MAIN, "Include /etc/ssh/sshd_config.d/*.conf\n"), binary]);
         assert_eq!(diagnostics[0].message, "not UTF-8 text, skipped");

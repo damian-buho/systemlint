@@ -11,7 +11,7 @@
 .env
 .secrets/
 LICENSES/
-crates/systemlint-sshd/src/defaults.txt
+crates/systemlint-sshd/src/defaults/
 fixtures/sshd/sshd-T.txt
 # <<< user-patterns
 

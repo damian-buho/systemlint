@@ -34,10 +34,14 @@ reads the files the way sshd does:
 - The FIRST value of a keyword wins, unlike most formats. `Port`,
   `ListenAddress`, `HostKey`, `HostCertificate`, `Subsystem`, `AcceptEnv` and
   the `Allow`/`Deny` `Users`/`Groups` lists accumulate instead.
-- A keyword the files leave unset takes the compiled default, captured with
-  `sshd -T -f /dev/null` from openssh-server 1:10.2p1-2ubuntu3.8 (Ubuntu
-  26.04); `defaults` names that build. Another OpenSSH version may default
-  differently.
+- A keyword the files leave unset takes the compiled default of the installed
+  OpenSSH, read from `apt.installed`: `sshd -T -f /dev/null` captured from
+  openssh-server 9.2p1 (Debian 12), 9.6p1 (Ubuntu 24.04), 10.0p1 (Debian 13)
+  and 10.2p1 (Ubuntu 26.04). The newest table no newer than the installed
+  version wins, the oldest when it predates them all; with no
+  `openssh-server` installed, the newest, and a diagnostic says so.
+  `defaults` names the build. `.scripts/capture-sshd-defaults.sh IMAGE…`
+  captures a table in a container.
 - Values are shaped as `sshd -T` prints them: keywords and caseless values in
   lowercase, `without-password` as `prohibit-password`, times such as `1m30s`
   in seconds, a `+`, `-` or `^` algorithm list resolved against the default

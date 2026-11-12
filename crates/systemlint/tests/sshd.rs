@@ -31,7 +31,7 @@ fn document(effective: bool) -> Value {
         let stdout = std::fs::read_to_string(repository().join("fixtures/sshd/sshd-T.txt")).unwrap();
         given.push(Input::Exec(ExecInput { argv: collector.read.exec.clone().unwrap(), stdout, stderr: String::new(), exit: 0 }));
     }
-    let reply = systemlint_sshd::op(Request { protocol: PROTOCOL, op: collector.parse.op.clone(), root: "/".into(), now: None, inputs: given, facts: BTreeMap::new() }).unwrap();
+    let reply = systemlint_sshd::op(Request { protocol: PROTOCOL, op: collector.parse.op.clone(), root: "/".into(), now: None, inputs: given, facts: BTreeMap::from([("apt.installed".to_owned(), json!({"openssh-server": {"version": "1:10.2p1-2ubuntu3.8"}}))]) }).unwrap();
     assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
     json!({"sshd": Value::Object(reply.facts.into_iter().collect()), "collectors": {"sshd": {"status": "ok", "into": "sshd"}}})
 }
