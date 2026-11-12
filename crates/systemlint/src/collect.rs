@@ -264,7 +264,7 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
                         Err(e) => entry.content_base64 = Some(base64(e.as_bytes())),
                     }
                 }
-                Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::NotADirectory) => log::debug!("collector {}: {path} is absent", collector.id),
+                Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
                 Err(e) if e.kind() == io::ErrorKind::InvalidInput => log::debug!("collector {}: {path} is not a regular file, skipped", collector.id),
                 Err(e) => return Err(format!("can’t read {path}: {e}")),
             }
@@ -274,7 +274,7 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
         for path in root.glob(pattern)? {
             match root.stat(&path) {
                 Ok(stat) => files.entry(path.clone()).or_insert_with(|| blank(&path)).stat = Some(stat),
-                Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::NotADirectory) => log::debug!("collector {}: {path} is absent", collector.id),
+                Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
                 Err(e) => return Err(format!("can’t stat {path}: {e}")),
             }
         }
@@ -301,6 +301,11 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
         None => {}
     }
     Ok(inputs)
+}
+
+/// Whether `error` says the path is not there, a process that exited mid-read included.
+pub fn gone(error: &io::Error) -> bool {
+    matches!(error.kind(), io::ErrorKind::NotFound | io::ErrorKind::NotADirectory) || error.raw_os_error() == Some(libc::ESRCH)
 }
 
 /// The image config the operator named, a host file outside any root, as text under the output cap.

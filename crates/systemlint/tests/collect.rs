@@ -286,3 +286,11 @@ fn a_glob_through_a_file_is_absent_not_an_error() {
     assert_eq!(doc["collectors"]["notdir"]["status"], "ok", "/etc/os-release/environ is absent, as /proc/bootconfig/environ is: {doc}");
     assert_eq!(request("notdir")["inputs"], serde_json::json!([]));
 }
+
+#[test]
+fn a_process_that_exited_mid_read_is_absent_and_a_denied_read_is_not() {
+    use std::io::{Error, ErrorKind};
+    assert!(systemlint::collect::gone(&Error::from_raw_os_error(libc::ESRCH)));
+    assert!(systemlint::collect::gone(&Error::from(ErrorKind::NotFound)));
+    assert!(!systemlint::collect::gone(&Error::from_raw_os_error(libc::EACCES)));
+}
