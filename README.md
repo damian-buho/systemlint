@@ -107,6 +107,7 @@ Clone the repository and run `make` — every build step, target and entry point
 - [apt sources](docs/how-to/apt.md)
 - [Linting images in CI](docs/how-to/ci.md)
 - [Collectors](docs/how-to/collectors.md)
+- [Configuration: files, layers and precedence](docs/how-to/configuration.md)
 - [Environment variables](docs/how-to/env.md)
 - [File permissions](docs/how-to/files.md)
 - [Outputs: SARIF and Prometheus metrics](docs/how-to/outputs.md)

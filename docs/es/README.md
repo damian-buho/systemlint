@@ -109,6 +109,7 @@ Clona el repositorio y ejecuta `make`: cada paso de compilación, destino y punt
 - [apt sources](../how-to/apt.md)
 - [Linting images in CI](../how-to/ci.md)
 - [Collectors](../how-to/collectors.md)
+- [Configuration: files, layers and precedence](../how-to/configuration.md)
 - [Environment variables](../how-to/env.md)
 - [File permissions](../how-to/files.md)
 - [Outputs: SARIF and Prometheus metrics](../how-to/outputs.md)
