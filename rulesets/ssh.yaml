@@ -53,7 +53,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-23]
   ssh/strict-modes:
-    fact: sshd.contexts.*.strictmodes
+    fact: sshd.global.*.strictmodes
     expect: {const: yes}
     severity: warning
     message: "{subject} sets StrictModes {got}, so it accepts key files that other users can write"
@@ -61,7 +61,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-11]
   ssh/user-environment:
-    fact: sshd.contexts.*.permituserenvironment
+    fact: sshd.global.*.permituserenvironment
     expect: {const: no}
     severity: warning
     message: "{subject} sets PermitUserEnvironment {got}, so it lets users set variables such as LD_PRELOAD for their session"
@@ -93,7 +93,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-38]
   ssh/ciphers:
-    fact: sshd.contexts.*.ciphers
+    fact: sshd.global.*.ciphers
     expect: {items: {not: {pattern: "-cbc$|^3des|arcfour|blowfish|cast128|^rijndael"}}}
     severity: error
     message: "{subject} offers a weak cipher: {got}"
@@ -101,7 +101,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-01]
   ssh/macs:
-    fact: sshd.contexts.*.macs
+    fact: sshd.global.*.macs
     expect: {items: {not: {pattern: "md5|sha1|-96|^umac-64"}}}
     severity: warning
     message: "{subject} offers a weak MAC: {got}"
@@ -109,7 +109,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-03]
   ssh/kex:
-    fact: sshd.contexts.*.kexalgorithms
+    fact: sshd.global.*.kexalgorithms
     expect: {items: {not: {pattern: "sha1|^diffie-hellman-group1-"}}}
     severity: error
     message: "{subject} offers a weak key exchange: {got}"
@@ -125,7 +125,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-19]
   ssh/login-grace-time:
-    fact: sshd.contexts.*.logingracetime
+    fact: sshd.global.*.logingracetime
     expect: {minimum: 1, maximum: 60}
     severity: info
     message: "{subject} sets LoginGraceTime {got}, so it keeps unauthenticated connections open for long, 0 meaning forever"

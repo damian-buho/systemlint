@@ -53,11 +53,12 @@ fn files_and_sshd_t_give_the_same_global_config_but_listen_addresses() {
     let (mut files, mut effective) = (document(false), document(true));
     assert_eq!((files["sshd"]["source"].as_str(), effective["sshd"]["source"].as_str()), (Some("files"), Some("effective")));
     for document in [&mut files, &mut effective] {
-        document["sshd"]["contexts"][MAIN].as_object_mut().unwrap().remove("listenaddress");
+        document["sshd"]["global"][MAIN].as_object_mut().unwrap().remove("listenaddress");
     }
+    assert_eq!(files["sshd"]["global"], effective["sshd"]["global"]);
     assert_eq!(files["sshd"]["contexts"][MAIN], effective["sshd"]["contexts"][MAIN]);
-    let global = &files["sshd"]["contexts"][MAIN];
-    assert_eq!((global["permitrootlogin"].as_str(), global["logingracetime"].as_u64()), (Some("prohibit-password"), Some(90)));
+    let global = &files["sshd"]["global"][MAIN];
+    assert_eq!((files["sshd"]["contexts"][MAIN]["permitrootlogin"].as_str(), global["logingracetime"].as_u64()), (Some("prohibit-password"), Some(90)));
     assert_eq!(global["port"], json!([2222, 22]));
     assert_eq!(files["sshd"]["contexts"][MATCH]["match"], "User backup Address 192.0.2.0/24");
 }
@@ -72,11 +73,9 @@ fn every_ssh_rule_answers_alike_on_files_and_on_sshd_t() {
         failing,
         [
             ("ssh/ciphers", MAIN),
-            ("ssh/ciphers", MATCH),
             ("ssh/gateway-ports", MAIN),
             ("ssh/gateway-ports", MATCH),
             ("ssh/login-grace-time", MAIN),
-            ("ssh/login-grace-time", MATCH),
             ("ssh/password-authentication", MATCH),
             ("ssh/x11-forwarding", MAIN),
         ]
@@ -92,6 +91,6 @@ fn a_weak_cipher_is_named_in_the_message() {
 
 #[test]
 fn a_host_without_sshd_gives_no_check() {
-    let document = json!({"sshd": {"source": "none", "contexts": {}}, "collectors": {"sshd": {"status": "ok", "into": "sshd"}}});
+    let document = json!({"sshd": {"source": "none", "global": {}, "contexts": {}}, "collectors": {"sshd": {"status": "ok", "into": "sshd"}}});
     assert!(checks(&document).is_empty());
 }

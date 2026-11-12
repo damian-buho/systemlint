@@ -32,7 +32,7 @@ pub fn op(request: Request) -> Result<Reply> {
     }
 }
 
-/// `source`, the `contexts` keyed by the main file and by each `Match` line, and `defaults` when read from the files.
+/// `source`, `global` (keywords `Match` refuses) keyed by the main file, the `contexts` keyed by it and by each `Match` line, and `defaults` when read from the files.
 pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
     let mut reply = Reply::default();
     let mut files = BTreeMap::new();
@@ -60,17 +60,20 @@ pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
         (None, true) => "files",
         (None, false) => "none",
     };
-    let mut contexts = Map::new();
+    let (mut fixed, mut contexts) = (Map::new(), Map::new());
     if source != "none" {
         let global: Raw = effective.unwrap_or_else(|| overlay(&defaults, &parsed.global));
-        contexts.insert(MAIN.to_owned(), Value::Object(config::facts(&global)));
+        let (shared, rest): (Map<String, Value>, Map<String, Value>) = config::facts(&global).into_iter().partition(|(k, _)| config::MATCH.contains(&k.as_str()));
+        fixed.insert(MAIN.to_owned(), Value::Object(rest));
+        contexts.insert(MAIN.to_owned(), Value::Object(shared));
         for block in parsed.blocks {
-            let mut merged = config::facts(&overlay(&global, &block.raw));
+            let mut merged: Map<String, Value> = config::facts(&overlay(&global, &block.raw)).into_iter().filter(|(k, _)| config::MATCH.contains(&k.as_str())).collect();
             merged.insert("match".to_owned(), Value::from(block.criteria));
             contexts.insert(block.key, Value::Object(merged));
         }
     }
     reply.facts.insert("source".to_owned(), Value::from(source));
+    reply.facts.insert("global".to_owned(), Value::Object(fixed));
     reply.facts.insert("contexts".to_owned(), Value::Object(contexts));
     if source == "files" {
         reply.facts.insert("defaults".to_owned(), Value::from(DEFAULTS_FROM));
@@ -120,16 +123,18 @@ mod tests {
         let global = &facts["contexts"][MAIN];
         assert_eq!(global["permitrootlogin"], "no");
         assert_eq!(global["passwordauthentication"], "yes");
-        assert_eq!(global["logingracetime"], 120);
-        assert_eq!(global["port"], json!([22]));
+        assert_eq!(facts["global"][MAIN]["logingracetime"], 120);
+        assert_eq!(facts["global"][MAIN]["port"], json!([22]));
+        assert!(global.get("logingracetime").is_none(), "a keyword Match refuses lives only under global");
     }
 
     #[test]
     fn a_successful_sshd_t_wins_and_match_blocks_still_come_from_the_files() {
-        let (facts, diagnostics) = collected(&[file(MAIN, "PermitRootLogin yes\nMatch Group sftp\n  X11Forwarding yes\n"), exec(0, "permitrootlogin no\nx11forwarding no\n", "")]);
+        let (facts, diagnostics) = collected(&[file(MAIN, "PermitRootLogin yes\nMatch Group sftp\n  X11Forwarding yes\n"), exec(0, "permitrootlogin no\nx11forwarding no\nciphers aes128-ctr\n", "")]);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         assert_eq!(facts["source"], "effective");
         assert!(facts.get("defaults").is_none());
+        assert_eq!(facts["global"], json!({MAIN: {"ciphers": ["aes128-ctr"]}}));
         assert_eq!(facts["contexts"][MAIN], json!({"permitrootlogin": "no", "x11forwarding": "no"}));
         assert_eq!(facts["contexts"]["/etc/ssh/sshd_config:2"], json!({"match": "Group sftp", "permitrootlogin": "no", "x11forwarding": "yes"}));
     }
@@ -146,9 +151,17 @@ mod tests {
     #[test]
     fn no_server_gives_no_contexts() {
         let (facts, _) = collected(&[exec(127, "", "/usr/sbin/sshd: not found\n")]);
-        assert_eq!(facts, json!({"source": "none", "contexts": {}}));
+        assert_eq!(facts, json!({"source": "none", "global": {}, "contexts": {}}));
         let (facts, _) = collected(&[]);
         assert_eq!(facts["source"], "none");
+    }
+
+    #[test]
+    fn a_keyword_match_refuses_is_reported_and_left_out_of_the_block() {
+        let (facts, diagnostics) = collected(&[file(MAIN, "Match User backup\n  Ciphers aes128-cbc\n")]);
+        assert_eq!((diagnostics[0].line, diagnostics[0].message.as_str()), (Some(2), "ciphers is not allowed in a Match block, so sshd refuses to start"));
+        assert!(facts["contexts"]["/etc/ssh/sshd_config:1"].get("ciphers").is_none());
+        assert!(facts["global"][MAIN]["ciphers"].as_array().unwrap().iter().all(|c| c != "aes128-cbc"));
     }
 
     #[test]

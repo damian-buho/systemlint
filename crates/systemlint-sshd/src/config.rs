@@ -39,6 +39,18 @@ const CASELESS: &[&str] = &[
     "syslogfacility", "tcpkeepalive", "usedns", "usepam", "x11forwarding", "x11uselocalhost",
 ];
 
+/// Keywords a `Match` block accepts (OpenSSH 10.2p1 `servconf.c`, `SSHCFG_ALL`), by the name `sshd -T` prints.
+pub const MATCH: &[&str] = &[
+    "acceptenv", "allowagentforwarding", "allowgroups", "allowstreamlocalforwarding", "allowtcpforwarding", "allowusers", "authenticationmethods", "authorizedkeyscommand",
+    "authorizedkeyscommanduser", "authorizedkeysfile", "authorizedprincipalscommand", "authorizedprincipalscommanduser", "authorizedprincipalsfile", "banner", "casignaturealgorithms",
+    "channeltimeout", "chrootdirectory", "clientalivecountmax", "clientaliveinterval", "denygroups", "denyusers", "disableforwarding", "exposeauthinfo", "forcecommand", "gatewayports",
+    "gssapiauthentication", "hostbasedacceptedalgorithms", "hostbasedauthentication", "hostbasedusesnamefrompacketonly", "ignorerhosts", "ipqos", "kbdinteractiveauthentication",
+    "kerberosauthentication", "loglevel", "logverbose", "maxauthtries", "maxsessions", "pamservicename", "passwordauthentication", "permitemptypasswords", "permitlisten", "permitopen",
+    "permitrootlogin", "permittty", "permittunnel", "permituserrc", "pubkeyacceptedalgorithms", "pubkeyauthentication", "pubkeyauthoptions", "rdomain", "refuseconnection", "rekeylimit",
+    "requiredrsasize", "revokedkeys", "setenv", "streamlocalbindmask", "streamlocalbindunlink", "subsystem", "trustedusercakeys", "unusedconnectiontimeout", "x11displayoffset",
+    "x11forwarding", "x11uselocalhost",
+];
+
 /// Keywords holding a time, which `sshd -T` prints in seconds.
 const TIMES: &[&str] = &["logingracetime", "clientaliveinterval", "unusedconnectiontimeout"];
 
@@ -178,6 +190,10 @@ pub fn settle(lines: &[Line], defaults: &Raw) -> Parsed {
             parsed.problems.push((line.path.clone(), Some(line.number), format!("{} is not a keyword this sshd prints; deprecated or unknown", line.keyword)));
         }
         let raw = match parsed.blocks.last_mut() {
+            Some(_) if !MATCH.contains(&line.keyword.as_str()) => {
+                parsed.problems.push((line.path.clone(), Some(line.number), format!("{} is not allowed in a Match block, so sshd refuses to start", line.keyword)));
+                continue;
+            }
             Some(block) => &mut block.raw,
             None => &mut parsed.global,
         };

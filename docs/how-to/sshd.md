@@ -54,12 +54,14 @@ not.
 sshd:
   source: files
   defaults: openssh-server 1:10.2p1-2ubuntu3.8
-  contexts:
+  global:
     /etc/ssh/sshd_config:
-      permitrootlogin: prohibit-password
       logingracetime: 90
       port: [2222, 22]
       ciphers: [chacha20-poly1305@openssh.com, aes128-ctr]
+  contexts:
+    /etc/ssh/sshd_config:
+      permitrootlogin: prohibit-password
     /etc/ssh/sshd_config:19:
       match: User backup Address 192.0.2.0/24
       passwordauthentication: "yes"
@@ -69,13 +71,19 @@ sshd:
 neither sshd nor its config, which gives no context and so no check. A failed
 `sshd -T` is a diagnostic naming its exit code and first line of stderr.
 
-`contexts` holds the global configuration under the main file’s path, and
-each `Match` block under the path and line that opens it. `sshd -T` without a
-connection ignores `Match`, so a block always comes from the files, merged
-over whichever global configuration won: every key a connection matching it
-would get, with its criteria under `match`. A rule over `sshd.contexts.*`
-therefore judges the global settings and each block; a global finding repeats
-on a block that leaves the setting alone, since that connection gets it too.
+`global` holds, under the main file’s path, the keywords a `Match` block
+refuses (`Ciphers`, `LoginGraceTime`, `Port` …), which no connection can
+change. `contexts` holds the keywords `Match` accepts: the global ones under
+the main file’s path, and each `Match` block under the path and line that
+opens it. `sshd -T` without a connection ignores `Match`, so a block always
+comes from the files, merged over whichever global configuration won: every
+such key a connection matching it would get, with its criteria under `match`.
+A rule over `sshd.contexts.*` therefore judges the global settings and each
+block; a global finding repeats on a block that leaves the setting alone,
+since that connection gets it too, and the fix may go in either. A rule over
+`sshd.global.*` judges the main file alone. A keyword `Match` refuses inside a
+block is a diagnostic, since sshd will not start with it, and left out of the
+block.
 
 ## Rules
 
