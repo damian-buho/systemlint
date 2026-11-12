@@ -80,6 +80,7 @@ Clone the repository and run `make` — every build step, target and entry point
 
 - [Collectors](docs/how-to/collectors.md)
 - [Plugin protocol v1](docs/how-to/protocol.md)
+- [Rules, rulesets and compliance](docs/how-to/rules.md)
 
 ## Policies
 

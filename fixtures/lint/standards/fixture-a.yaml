@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Fixture Benchmark A
+controls:
+  - {id: "1.1", title: Run a supported release}
+  - {id: "3.1", title: Fetch packages over TLS}
+  - {id: "4.2", title: Review the backup policy, manual: true}
+  - {id: "9.9", title: A control no rule covers yet}

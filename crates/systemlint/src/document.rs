@@ -50,7 +50,7 @@ pub fn load(path: &Path) -> Result<Value, String> {
 
 /// Parses a facts document from YAML or JSON text, refusing another schema.
 pub fn parse(text: &str) -> Result<Value, String> {
-    let document: Value = serde_saphyr::from_str(text).map_err(|e| e.to_string())?;
+    let document: Value = crate::yaml::from_str(text).map_err(|e| e.to_string())?;
     match document.pointer("/meta/schema").and_then(Value::as_u64) {
         Some(schema) if schema == u64::from(SCHEMA) => Ok(document),
         Some(schema) => Err(format!("schema {schema}, this systemlint reads schema {SCHEMA}")),

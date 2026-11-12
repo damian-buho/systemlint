@@ -91,6 +91,11 @@ pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) 
         };
         outcomes.insert(collector.id.clone(), outcome);
     }
+    for collector in collectors {
+        if let Some(outcome) = outcomes.get_mut(&collector.id) {
+            outcome["into"] = Value::from(collector.into.clone());
+        }
+    }
     let subject = if options.live {
         json!({"kind": "host", "name": rustix::system::uname().nodename().to_string_lossy()})
     } else {

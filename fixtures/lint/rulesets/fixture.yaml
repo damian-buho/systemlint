@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Rules the engine tests judge fixture facts with
+rules:
+  os/supported:
+    fact: os.release.VERSION_ID
+    expect: {enum: ["24.04", "26.04"]}
+    severity: error
+    message: release {got} is not supported
+    tags: [os, fixture-a:1.1, fixture-b:B-7]
+  shadow/private:
+    fact: files./etc/shadow.world-readable
+    expect: {const: false}
+    severity: error
+    fix: chmod o-r /etc/shadow
+    tags: [files, fixture-b:B-9]
+  apt/https:
+    fact: apt.sources.*.uri
+    when: {apt.sources.*.enabled: true}
+    expect: {pattern: "^https://"}
+    severity: warning
+    message: "{subject} fetches over {got}"
+    fix: switch {subject} to https://
+    tags: [apt, fixture-a:3.1]
+  ssh/patched:
+    fact: packages.openssh-server.version
+    expect: {x-version: {scheme: deb, min: "1:9.6p1-3ubuntu13.3"}}
+    severity: error
+    tags: [ssh, experimental]

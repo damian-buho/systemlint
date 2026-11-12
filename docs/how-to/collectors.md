@@ -63,8 +63,8 @@ because partial facts would read as compliant.
 
 ## Outcomes
 
-Each collector records `collectors.<id>.status` in the facts document, with a
-`reason` when it is not `ok`:
+Each collector records `collectors.<id>.status` and its `into` in the facts
+document, with a `reason` when it is not `ok`:
 
 | Status | Meaning |
 | --- | --- |

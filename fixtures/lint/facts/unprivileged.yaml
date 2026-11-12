@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+meta:
+  schema: 1
+  systemlint: 0.0.0
+  plugins: {formats: 0.0.0, apt: 0.0.0}
+  collected-at: "2026-11-11T12:00:00Z"
+  subject: {kind: host, name: fixture}
+  privileged: false
+collectors:
+  os-release: {status: ok, plugin: formats, op: kv, into: os.release}
+  shadow: {status: error, reason: "can’t stat /etc/shadow: Permission denied (os error 13)", into: files}
+  apt-sources: {status: ok, plugin: apt, op: sources, into: apt.sources}
+  packages: {status: ok, plugin: apt, op: installed, into: packages}
+os:
+  release: {ID: ubuntu, VERSION_ID: "26.04"}
+apt:
+  sources:
+    /etc/apt/sources.list.d/ubuntu.sources: {uri: "https://archive.ubuntu.com/ubuntu", enabled: true}
+packages:
+  openssh-server: {version: "1:9.6p1-3ubuntu13.4"}

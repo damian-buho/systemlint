@@ -13,6 +13,7 @@ repository.workspace = true
 [dependencies]
 clap.workspace = true
 env_logger.workspace = true
+jsonschema.workspace = true
 log.workspace = true
 rustix.workspace = true
 serde.workspace = true

@@ -61,3 +61,9 @@ fn parse_refuses_another_schema_or_none() {
     assert_eq!(parse("os: {}").unwrap_err(), "no meta.schema");
     assert!(load(Path::new("/nonexistent/facts.yaml")).unwrap_err().contains("/nonexistent/facts.yaml"));
 }
+
+#[test]
+fn hand_written_yaml_keeps_yaml_1_1_booleans_as_strings() {
+    let document = parse("meta: {schema: 1}\napt: {enabled: no, legacy: off, short: y, real: true}\n").unwrap();
+    assert_eq!(document["apt"], json!({"enabled": "no", "legacy": "off", "short": "y", "real": true}));
+}

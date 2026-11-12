@@ -50,7 +50,7 @@ pub struct Parse {
 impl Collector {
     /// Parses and validates one collector from YAML text.
     pub fn parse(text: &str) -> Result<Self, String> {
-        let collector: Self = serde_saphyr::from_str(text).map_err(|e| format!("not a valid collector: {e}"))?;
+        let collector: Self = crate::yaml::from_str(text).map_err(|e| format!("not a valid collector: {e}"))?;
         collector.validate()?;
         Ok(collector)
     }
@@ -91,47 +91,20 @@ pub fn directories(exe: &Path, configured: &[PathBuf]) -> Vec<PathBuf> {
 
 /// Every trusted collector in `dirs`, refusing an invalid file, a repeated id or an `into` overlapping an earlier one.
 pub fn load(dirs: &[PathBuf], trust: &Trust) -> (Vec<Collector>, Vec<Refusal>) {
-    let (mut collectors, mut refusals) = (Vec::<Collector>::new(), Vec::new());
-    for dir in dirs {
-        if !dir.exists() {
-            log::debug!("collector directory {} does not exist, skipped", dir.display());
-            continue;
-        }
-        let dir = match trust.check(dir) {
-            Ok(real) => real,
-            Err(refusal) => {
-                refusals.push(refusal);
-                continue;
+    let (texts, mut refusals) = crate::discovery::yaml_files(dirs, trust);
+    let mut collectors = Vec::<Collector>::new();
+    for (path, text) in texts {
+        let collector = Collector::parse(&text).and_then(|c| match collectors.iter().find(|o| o.id == c.id || overlaps(&o.into, &c.into)) {
+            Some(o) if o.id == c.id => Err(format!("id {} is already taken", c.id)),
+            Some(o) => Err(format!("into {} overlaps {} of collector {}", c.into, o.into, o.id)),
+            None => Ok(c),
+        });
+        match collector {
+            Ok(c) => {
+                log::debug!("collector {} from {} into {}", c.id, path.display(), c.into);
+                collectors.push(c);
             }
-        };
-        let mut files: Vec<PathBuf> = match std::fs::read_dir(&dir) {
-            Ok(read) => read.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|x| x == "yaml")).collect(),
-            Err(error) => {
-                refusals.push(Refusal { path: dir.clone(), reason: format!("can’t list it: {error}") });
-                continue;
-            }
-        };
-        files.sort();
-        log::debug!("collector directory {} holds {} yaml files", dir.display(), files.len());
-        for path in files {
-            let refuse = |reason: String| Refusal { path: path.clone(), reason };
-            let collector = trust
-                .check(&path)
-                .map_err(|r| r.reason)
-                .and_then(|real| std::fs::read_to_string(real).map_err(|e| format!("can’t read it: {e}")))
-                .and_then(|text| Collector::parse(&text))
-                .and_then(|c| match collectors.iter().find(|o| o.id == c.id || overlaps(&o.into, &c.into)) {
-                    Some(o) if o.id == c.id => Err(format!("id {} is already taken", c.id)),
-                    Some(o) => Err(format!("into {} overlaps {} of collector {}", c.into, o.into, o.id)),
-                    None => Ok(c),
-                });
-            match collector {
-                Ok(c) => {
-                    log::debug!("collector {} from {} into {}", c.id, path.display(), c.into);
-                    collectors.push(c);
-                }
-                Err(reason) => refusals.push(refuse(reason)),
-            }
+            Err(reason) => refusals.push(Refusal { path, reason }),
         }
     }
     (collectors, refusals)

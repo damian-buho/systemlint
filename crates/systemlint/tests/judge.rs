@@ -1,0 +1,169 @@
+// SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use std::cmp::Ordering;
+use std::path::Path;
+
+use serde_json::{Value, json};
+use systemlint::judge::{Check, Outcome, Waiver, compile, describe, interpolate, level_of, lint, parse_path, pin, score};
+use systemlint::rules::{Score, Severity, Spec};
+use systemlint::version::compare_deb;
+
+fn facts(name: &str) -> Value {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../fixtures/lint/facts/{name}.yaml"));
+    systemlint::document::load(&path).unwrap()
+}
+
+fn spec(yaml: &str) -> Spec {
+    systemlint::yaml::from_str(yaml).unwrap()
+}
+
+fn run(yaml: &str, document: &Value) -> Vec<Check> {
+    lint(document, &[compile("test/rule", spec(yaml)).unwrap()], &[], "2026-11-11")
+}
+
+fn outcomes(checks: &[Check]) -> Vec<(String, Outcome)> {
+    checks.iter().map(|c| (c.subject_text(), c.outcome)).collect()
+}
+
+#[test]
+fn a_star_binds_one_subject_across_when_and_fact() {
+    let checks = run("fact: apt.sources.*.uri\nwhen: {apt.sources.*.enabled: true}\nexpect: {pattern: '^https://'}\n", &facts("root"));
+    let found = outcomes(&checks);
+    assert_eq!(found, [("/etc/apt/sources.list.d/old.sources".into(), Outcome::Skip), ("/etc/apt/sources.list.d/ubuntu.sources".into(), Outcome::Pass)], "the disabled http source is skipped, not judged");
+    assert!(checks[0].reason.as_deref().unwrap().contains("enabled is false"), "{:?}", checks[0].reason);
+}
+
+#[test]
+fn a_fail_names_its_subject_in_message_and_fix() {
+    let mut document = facts("root");
+    document["apt"]["sources"]["/etc/apt/sources.list.d/old.sources"]["enabled"] = json!(true);
+    let checks = run("fact: apt.sources.*.uri\nwhen: {apt.sources.*.enabled: true}\nexpect: {pattern: '^https://'}\nmessage: '{subject} fetches over {got}'\nfix: switch {subject} to https://\nseverity: warning\n", &document);
+    let fail = checks.iter().find(|c| c.outcome == Outcome::Fail).unwrap();
+    assert_eq!(fail.message.as_deref(), Some("/etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”"));
+    assert_eq!(fail.fix.as_deref(), Some("switch /etc/apt/sources.list.d/old.sources to https://"));
+    assert_eq!(fail.text.as_deref(), Some("{subject} fetches over {got}"), "the template stays for translation");
+    assert_eq!((fail.severity, fail.score), (Some(Severity::Warning), Some(5.0)));
+}
+
+#[test]
+fn an_absent_fact_is_unknown_and_names_the_collector() {
+    let unprivileged = facts("unprivileged");
+    let checks = run("fact: files./etc/shadow.world-readable\nexpect: {const: false}\n", &unprivileged);
+    assert_eq!(checks[0].outcome, Outcome::Unknown);
+    assert_eq!(checks[0].collector.as_deref(), Some("shadow"));
+    assert!(checks[0].reason.as_deref().unwrap().contains("collector shadow error: can’t stat /etc/shadow"), "{:?}", checks[0].reason);
+    let missing = run("fact: os.release.VERSION_CODENAME\nexpect: {const: resolute}\n", &unprivileged);
+    assert!(missing[0].reason.as_deref().unwrap().contains("absent from what collector os-release produced"), "{:?}", missing[0].reason);
+    let orphan = run("fact: sysctl.kernel.kptr_restrict\nexpect: {const: 2}\n", &unprivileged);
+    assert!(orphan[0].reason.as_deref().unwrap().contains("no collector produces it"), "{:?}", orphan[0].reason);
+    let collection = run("fact: units.*.active\nexpect: {const: true}\n", &unprivileged);
+    assert_eq!(outcomes(&collection), [(String::new(), Outcome::Unknown)], "an absent collection is one unknown, never zero checks");
+}
+
+#[test]
+fn an_empty_collection_gives_no_checks() {
+    let mut document = facts("root");
+    document["apt"]["sources"] = json!({});
+    assert!(run("fact: apt.sources.*.uri\nexpect: {pattern: '^https://'}\n", &document).is_empty());
+}
+
+#[test]
+fn when_is_kleene_logic_false_beats_unknown_in_and_true_beats_it_in_or() {
+    let document = facts("root");
+    let and = run("fact: os.release.VERSION_ID\nwhen: {os.release.ID: debian, os.release.MISSING: x}\nexpect: {const: '26.04'}\n", &document);
+    assert_eq!(and[0].outcome, Outcome::Skip);
+    let and_unknown = run("fact: os.release.VERSION_ID\nwhen: {os.release.ID: ubuntu, os.release.MISSING: x}\nexpect: {const: '26.04'}\n", &document);
+    assert_eq!(and_unknown[0].outcome, Outcome::Unknown);
+    let or = run("fact: os.release.VERSION_ID\nwhen: [{os.release.MISSING: x}, {os.release.ID: ubuntu}]\nexpect: {const: '26.04'}\n", &document);
+    assert_eq!(or[0].outcome, Outcome::Pass);
+    let or_unknown = run("fact: os.release.VERSION_ID\nwhen: [{os.release.MISSING: x}, {os.release.ID: debian}]\nexpect: {const: '26.04'}\n", &document);
+    assert_eq!(or_unknown[0].outcome, Outcome::Unknown);
+    let schema = run("fact: os.release.VERSION_ID\nwhen: {os.release.ID: {enum: [ubuntu, debian]}}\nexpect: {const: '24.04'}\n", &document);
+    assert_eq!(schema[0].outcome, Outcome::Fail);
+}
+
+#[test]
+fn x_version_orders_debian_versions() {
+    let document = facts("root");
+    assert_eq!(run("fact: packages.openssh-server.version\nexpect: {x-version: {scheme: deb, min: '1:9.6p1-3ubuntu13.3'}}\n", &document)[0].outcome, Outcome::Pass);
+    let below = run("fact: packages.openssh-server.version\nexpect: {x-version: {scheme: deb, min: '1:9.6p1', below: '1:9.6p1-3ubuntu13.4'}}\n", &document);
+    assert_eq!(below[0].outcome, Outcome::Fail);
+    assert!(below[0].message.as_deref().unwrap().contains("below 1:9.6p1-3ubuntu13.4"), "{:?}", below[0].message);
+    assert!(compile("x", spec("fact: a\nexpect: {x-version: {scheme: semver}}\n")).err().unwrap().contains("scheme semver is unknown"));
+    assert!(compile("x", spec("fact: a\nexpect: {x-version: {scheme: deb, min: 'abc'}}\n")).err().unwrap().contains("not a Debian version"));
+}
+
+#[test]
+fn deb_ordering_matches_dpkg() {
+    for (a, b, order) in [("1.0", "1.0", Ordering::Equal), ("1.0~rc1", "1.0", Ordering::Less), ("1.0", "1.0+b1", Ordering::Less), ("1:1.0", "2.0", Ordering::Greater), ("1.0-1", "1.0-1ubuntu1", Ordering::Less), ("1.10", "1.9", Ordering::Greater), ("1.0a", "1.0", Ordering::Greater), ("1.001", "1.1", Ordering::Equal), ("1:9.6p1-3ubuntu13.3", "1:9.6p1-3ubuntu13.10", Ordering::Less), ("0:1.0", "1.0", Ordering::Equal)] {
+        assert_eq!(compare_deb(a, b), Ok(order), "{a} vs {b}");
+    }
+}
+
+#[test]
+fn paths_are_dotted_or_json_pointers() {
+    let document = json!({"meta": {}, "collectors": {}, "files": {"/etc/ssh/sshd_config.d/a.conf": {"mode": "0644"}}});
+    let pointer = run("fact: /files/~1etc~1ssh~1sshd_config.d~1a.conf/mode\nexpect: {const: '0600'}\n", &document);
+    assert_eq!(pointer[0].outcome, Outcome::Fail);
+    assert!(parse_path("a..b").is_err() && parse_path("").is_err());
+    assert!(compile("x", spec("fact: a.b\nwhen: {a.*.c: 1}\nexpect: {}\n")).err().unwrap().contains("more * than fact"));
+}
+
+#[test]
+fn score_bands_follow_spiderlint_at_every_edge() {
+    for (value, level) in [(0.0, Severity::Hint), (0.9, Severity::Hint), (1.0, Severity::Info), (3.2, Severity::Info), (3.3, Severity::Warning), (6.5, Severity::Warning), (6.6, Severity::Error), (9.9, Severity::Error), (12.0, Severity::Error)] {
+        assert_eq!(level_of(value), level, "{value}");
+    }
+    assert_eq!(pin(Severity::Warning, 9.0), 6.5);
+    assert_eq!(pin(Severity::Error, 1.0), 6.6);
+    let curve = [(0.0, 9.0), (30.0, 3.0)];
+    assert_eq!([interpolate(&curve, -5.0), interpolate(&curve, 15.0), interpolate(&curve, 99.0)], [9.0, 6.0, 3.0]);
+}
+
+#[test]
+fn a_curve_crosses_levels_unless_a_level_pins_it() {
+    let base = Spec { score: Some(Score::Curve(vec![(0.0, 9.0), (30.0, 3.0)])), severity: Some(Severity::Warning), ..Spec::default() };
+    assert_eq!(score(&base, Some(&json!(3))), 8.4, "a definition’s curve crosses into error");
+    assert_eq!(score(&Spec { pinned: true, ..base.clone() }, Some(&json!(3))), 6.5, "an override’s level pins it");
+    assert_eq!(score(&Spec { score: Some(Score::Fixed(7.4)), severity: None, ..Spec::default() }, None), 7.4);
+    assert_eq!(score(&Spec::default(), None), 5.0, "no level is a warning");
+}
+
+#[test]
+fn a_constant_message_keeps_the_value_out_and_got_quotes_it() {
+    let document = facts("root");
+    let constant = run("fact: os.release.VERSION_ID\nexpect: {const: '24.04'}\nmessage: release is old\n", &document);
+    assert_eq!(constant[0].message.as_deref(), Some("release is old"));
+    assert_eq!(constant[0].value, Some(json!("26.04")));
+    let got = run("fact: os.release.VERSION_ID\nexpect: {const: '24.04'}\nmessage: got {got}\n", &document);
+    assert_eq!(got[0].message.as_deref(), Some("got “26.04”"));
+    let plain = run("fact: os.release.VERSION_ID\nexpect: {const: '24.04'}\n", &document);
+    assert!(plain[0].message.as_deref().unwrap().starts_with("os.release.VERSION_ID: "), "{:?}", plain[0].message);
+}
+
+#[test]
+fn describe_elides_long_strings_and_lists_words() {
+    let long = "a".repeat(150) + &"b".repeat(150);
+    let shown = describe(Some(&json!(long)));
+    assert_eq!(shown.chars().count(), 202);
+    assert!(shown.starts_with("“aaa") && shown.ends_with("bbb”") && shown.contains('…'));
+    assert_eq!(describe(Some(&json!(["a", 2]))), "“a”, 2");
+    assert_eq!(describe(Some(&json!([]))), "none");
+    assert_eq!(describe(None), "none");
+    assert_eq!(describe(Some(&json!([{}, {}]))), "2 items");
+}
+
+#[test]
+fn a_waiver_holds_through_its_day_then_expires_into_a_finding() {
+    let document = facts("root");
+    let rule = compile("os/old", spec("fact: os.release.VERSION_ID\nexpect: {const: '24.04'}\nseverity: error\n")).unwrap();
+    let waiver = Waiver { rule: "os/*".into(), subject: None, reason: "upgrade booked".into(), until: "2026-11-30".into() };
+    let held = lint(&document, std::slice::from_ref(&rule), std::slice::from_ref(&waiver), "2026-11-30");
+    assert!(held[0].waiver.as_ref().unwrap().active && !held[0].is_failing());
+    let expired = lint(&document, std::slice::from_ref(&rule), std::slice::from_ref(&waiver), "2026-12-01");
+    assert!(!expired[0].waiver.as_ref().unwrap().active && expired[0].is_failing());
+    let other = Waiver { subject: Some("/etc/*".into()), ..waiver };
+    assert!(lint(&document, &[rule], &[other], "2026-11-01")[0].waiver.is_none(), "a subject glob misses a rule with no subject");
+}

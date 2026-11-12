@@ -39,3 +39,21 @@ fn missing_file_names_the_path() {
     let error = Config::load(Path::new("/nonexistent/systemlint.yaml")).unwrap_err();
     assert!(error.contains("/nonexistent/systemlint.yaml"), "{error}");
 }
+
+#[test]
+fn lint_and_comply_sections_resolve_directories_and_read_waivers() {
+    let path = write("lint", "lint:\n  directories: [rules]\n  tags: [fixture, '!experimental']\n  fail-on: warning\n  rulesets:\n    strict: {extends: [fixture], rules: {apt/https: error}}\n  waivers:\n    - {rule: apt/*, subject: /etc/apt/*, reason: mirror moves in December, until: 2026-12-31}\ncomply:\n  directories: [standards]\n");
+    let config = Config::load(&path).unwrap();
+    assert_eq!(config.lint.directories, [path.parent().unwrap().join("rules")]);
+    assert_eq!(config.comply.directories, [path.parent().unwrap().join("standards")]);
+    assert_eq!((config.lint.tags.len(), config.lint.waivers[0].until.as_str()), (2, "2026-12-31"));
+    assert!(config.lint.rulesets.contains_key("strict"));
+}
+
+#[test]
+fn a_waiver_without_a_day_or_reason_and_a_bad_fail_on_are_refused() {
+    for (name, text) in [("no-day", "lint:\n  waivers: [{rule: a, reason: r, until: soon}]\n"), ("no-reason", "lint:\n  waivers: [{rule: a, reason: ' ', until: 2026-12-31}]\n")] {
+        assert!(Config::load(&write(name, text)).unwrap_err().contains("needs a reason and an until day"), "{name}");
+    }
+    assert!(Config::load(&write("fail-on", "lint:\n  fail-on: loud\n")).unwrap_err().contains("lint.fail-on \"loud\""));
+}

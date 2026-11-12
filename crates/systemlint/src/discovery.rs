@@ -129,3 +129,37 @@ fn is_executable(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
 }
 
+
+/// The text of every trusted `*.yaml` file in `dirs`, in directory then name order, plus every refusal.
+pub fn yaml_files(dirs: &[PathBuf], trust: &Trust) -> (Vec<(PathBuf, String)>, Vec<Refusal>) {
+    let (mut texts, mut refusals) = (Vec::new(), Vec::new());
+    for dir in dirs {
+        if !dir.exists() {
+            log::debug!("directory {} does not exist, skipped", dir.display());
+            continue;
+        }
+        let dir = match trust.check(dir) {
+            Ok(real) => real,
+            Err(refusal) => {
+                refusals.push(refusal);
+                continue;
+            }
+        };
+        let mut files: Vec<PathBuf> = match std::fs::read_dir(&dir) {
+            Ok(read) => read.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|x| x == "yaml")).collect(),
+            Err(error) => {
+                refusals.push(Refusal { path: dir.clone(), reason: format!("can’t list it: {error}") });
+                continue;
+            }
+        };
+        files.sort();
+        log::debug!("directory {} holds {} yaml files", dir.display(), files.len());
+        for path in files {
+            match trust.check(&path).map_err(|r| r.reason).and_then(|real| std::fs::read_to_string(real).map_err(|e| format!("can’t read it: {e}"))) {
+                Ok(text) => texts.push((path, text)),
+                Err(reason) => refusals.push(Refusal { path, reason }),
+            }
+        }
+    }
+    (texts, refusals)
+}
