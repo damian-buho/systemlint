@@ -26,6 +26,8 @@ identity:
 
       Ядро читає кожен файл і виконує кожну команду; кожен плагін — окремий статичний бінарний файл, який лише перетворює ці байти на факти. Написаний на Rust.
   visibility: private
+  version: 0.1.0
+  released: "2026-11-12"
 kind: SoftwareSourceCode
 keywords:
   - linter
@@ -98,11 +100,14 @@ org:
         exclude:
           - fixtures/**
     ignores:
-      textlint: &captures
+      textlint:
         include:
           - fixtures/sshd/sshd-T.txt
           - crates/systemlint-sshd/src/defaults.txt
-      fd: *captures
+      fd:
+        include:
+          - fixtures/sshd/sshd-T.txt
+          - crates/systemlint-sshd/src/defaults.txt
     readme:
       download: latest/download
       installation:
