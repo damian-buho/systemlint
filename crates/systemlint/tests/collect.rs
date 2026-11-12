@@ -40,7 +40,7 @@ fn plugins() -> Vec<Plugin> {
         for (name, ops, answer) in PLUGINS {
             let describe = format!(r#"{{"name":"{name}","version":"9.{}","protocol":1,"ops":{ops}}}"#, name.len());
             let request = dir.join(format!("{name}.request.json"));
-            let body = format!("#!/bin/sh\nif [ \"$1\" = --describe ]; then printf '%s\\n' '{describe}'; exit 0; fi\ncat > '{}'\n{answer}\n", request.display());
+            let body = format!("#!/bin/sh\nif [ \"$1\" = --describe ]; then printf '%s\\n' '{describe}'; exit 0; fi\ncat > '{0}.'$$\nmv '{0}.'$$ '{0}'\n{answer}\n", request.display());
             let temporary = dir.join(format!("{name}.{}.tmp", std::process::id()));
             std::fs::write(&temporary, body).unwrap();
             std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o755)).unwrap();
