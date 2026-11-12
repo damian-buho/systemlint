@@ -36,7 +36,7 @@ pub fn op(request: Request) -> Result<Reply> {
 pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
     let mut reply = Reply::default();
     let mut files = BTreeMap::new();
-    let mut effective = None;
+    let (mut effective, mut failed) = (None, Vec::new());
     for input in inputs {
         match input {
             Input::File(file) => match &file.content {
@@ -46,10 +46,12 @@ pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
             Input::Exec(exec) if exec.exit == 0 && !exec.stdout.trim().is_empty() => effective = Some(config::dump(&exec.stdout)),
             Input::Exec(exec) => {
                 let reason = exec.stderr.lines().find(|l| !l.trim().is_empty()).unwrap_or("no output");
-                reply.diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: format!("exited {}: {reason}; read from the files", exec.exit) });
+                failed.push((exec.argv.join(" "), format!("exited {}: {reason}", exec.exit)));
             }
         }
     }
+    let fallback = if files.contains_key(MAIN) { "read from the files".to_owned() } else { format!("no {MAIN} either, so nothing was read") };
+    reply.diagnostics.extend(failed.into_iter().map(|(path, message)| Diagnostic { path, line: None, message: format!("{message}; {fallback}") }));
     let defaults = config::dump(DEFAULTS);
     let mut lines = Vec::new();
     config::expand(MAIN, &files, 0, &mut lines)?;
@@ -150,8 +152,9 @@ mod tests {
 
     #[test]
     fn no_server_gives_no_contexts() {
-        let (facts, _) = collected(&[exec(127, "", "/usr/sbin/sshd: not found\n")]);
+        let (facts, diagnostics) = collected(&[exec(127, "", "/usr/sbin/sshd: not found\n")]);
         assert_eq!(facts, json!({"source": "none", "global": {}, "contexts": {}}));
+        assert_eq!(diagnostics[0].message, "exited 127: /usr/sbin/sshd: not found; no /etc/ssh/sshd_config either, so nothing was read");
         let (facts, _) = collected(&[]);
         assert_eq!(facts["source"], "none");
     }
