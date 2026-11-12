@@ -156,7 +156,7 @@ fn the_human_report_closes_with_a_standard_section_before_the_rating() {
     let document = http_source();
     let (checks, report) = run("fixture-a", &document, Some(&catalog("fixture-a")));
     let text = lint_human(&document, &checks, std::slice::from_ref(&report), false, false, false);
-    let section = "Standard: non-compliant [fixture-a] Fixture Benchmark A\n- 1.1  compliant      Run a supported release\n- 3.1  non-compliant  Fetch packages over TLS\n       apt/https /etc/apt/sources.list.d/old.sources: /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”\n- 4.2  manual         Review the backup policy\n- 9.9  indeterminate  A control no rule covers yet\n       no rule covers it\nCoverage: 2 of 4 controls\n\nRating";
+    let section = "Standard: non-compliant [fixture-a] Fixture Benchmark A\n- 1.1  compliant      Run a supported release\n- 3.1  non-compliant  Fetch packages over TLS\n       apt/https /etc/apt/sources.list.d/old.sources: /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”\n- 4.2  manual         Review the backup policy\n- 9.9  indeterminate  A control no rule covers yet\n       no rule covers it\nCoverage: 2 of 4 controls\nNote: 1 control needs a manual check\n\nRating";
     assert!(text.contains(section), "{text}");
     assert!(text.find("Warning (5.0): [apt/https]").unwrap() < text.find("Standard:").unwrap(), "{text}");
     assert!(lint_human(&document, &checks, &[report], false, false, true).contains("Standard: \x1b[31mnon-compliant\x1b[0m"));
@@ -253,6 +253,7 @@ fn a_control_nothing_judged_is_not_applicable_and_a_manual_rule_answers_manual()
     assert_eq!(verdicts(&report), [("1", Verdict::NotApplicable), ("2", Verdict::NotApplicable), ("3", Verdict::Manual)]);
     assert_eq!((report.controls[0].reasons.as_slice(), report.controls[1].reasons.as_slice()), (&["no rule binds a subject".to_owned()][..], &["ruleset debian: when os.release.ID is “ubuntu”".to_owned()][..]));
     assert_eq!((report.verdict, report.coverage.as_ref().unwrap().covered), (Verdict::Compliant, 1), "coverage never counts a control nothing judged");
+    assert_eq!(report.note.as_deref(), Some("1 control needs a manual check"), "a compliant answer still names the gap");
     let text = lint_human(&facts("root"), &checks, std::slice::from_ref(&report), false, false, false);
     assert!(text.contains("- 1  not-applicable\n"), "the verdict column widens to fit: {text}");
     assert!(text.contains("- 3  manual\n"), "{text}");
@@ -288,4 +289,25 @@ fn machine_formats_count_and_name_the_new_outcomes() {
     for line in ["systemlint_checks{outcome=\"not-applicable\"} 1", "systemlint_checks{outcome=\"manual\"} 1", "systemlint_rule_checks{rule=\"review/backups\",outcome=\"manual\"} 1", "systemlint_compliance{standard=\"fixture-c\",verdict=\"not-applicable\"} 0"] {
         assert!(textfile.contains(line), "{line} in {textfile}");
     }
+}
+
+const SKIPPED: &str = "rules:\n  deb/skip: {fact: os.release.ID, when: {os.release.ID: debian}, expect: {}, tags: ['fixture-d:1', 'fixture-d:2']}\n  os/any: {fact: os.release.ID, expect: {}, tags: ['fixture-d:2']}\n";
+
+#[test]
+fn a_control_its_rules_skip_on_every_subject_is_not_applicable_and_one_pass_makes_it_compliant() {
+    let rules = rules(&[], &["fixture-d"], &[("skipped", SKIPPED)]);
+    let checks = lint(&facts("root"), &rules, &[], "2026-11-11");
+    let catalog: Catalog = systemlint::yaml::from_str("controls:\n  - {id: '1'}\n  - {id: '2'}\n").unwrap();
+    let report = comply("fixture-d", &rules, &checks, Some(&catalog));
+    assert_eq!(verdicts(&report), [("1", Verdict::NotApplicable), ("2", Verdict::Compliant)]);
+    assert_eq!(report.controls[0].reasons, ["deb/skip: when os.release.ID is “ubuntu”"]);
+    assert_eq!((report.verdict, report.coverage.as_ref().unwrap().covered, report.note.as_deref()), (Verdict::Compliant, 1, None), "no manual control, no note");
+}
+
+#[test]
+fn the_manual_note_counts_every_manual_control_and_joins_the_catalog_note() {
+    let catalog: Catalog = systemlint::yaml::from_str("controls:\n  - {id: '1', manual: true}\n  - {id: '2', manual: true}\n").unwrap();
+    assert_eq!(comply("fixture-x", &[], &[], Some(&catalog)).note.as_deref(), Some("2 controls need a manual check"));
+    let (_, report) = applicability(None);
+    assert_eq!(report.note.as_deref(), Some("there is no catalog of fixture-c, so compliant only means no rule tagged fixture-c:* failed; 1 control needs a manual check"));
 }

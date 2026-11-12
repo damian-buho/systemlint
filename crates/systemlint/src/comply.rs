@@ -132,7 +132,7 @@ fn judge(id: &str, title: Option<String>, rules: &[&Rule], checks: &[Check]) -> 
     let failing: Vec<String> = mine.iter().filter(|c| c.is_failing()).map(|c| format!("{} {}: {}", c.rule, c.subject_label(), c.message.as_deref().unwrap_or_default())).collect();
     let unknown: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::Unknown).map(|c| format!("{}: {}", c.rule, c.reason.as_deref().unwrap_or_default())).collect();
     let manual: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::Manual).map(|c| c.title.as_ref().map_or_else(|| c.rule.clone(), |t| format!("{}: {t}", c.rule))).collect();
-    let mut inapplicable: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::NotApplicable).filter_map(|c| c.reason.clone()).collect();
+    let mut inapplicable: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::NotApplicable).filter_map(|c| c.reason.clone()).chain(mine.iter().filter(|c| c.outcome == Outcome::Skip).map(|c| format!("{}: {}", c.rule, c.reason.as_deref().unwrap_or_default()))).collect();
     inapplicable.sort();
     inapplicable.dedup();
     let (verdict, reasons) = if !failing.is_empty() {
@@ -141,7 +141,7 @@ fn judge(id: &str, title: Option<String>, rules: &[&Rule], checks: &[Check]) -> 
         (Verdict::Indeterminate, unknown)
     } else if !manual.is_empty() {
         (Verdict::Manual, manual)
-    } else if mine.iter().all(|c| c.outcome == Outcome::NotApplicable) {
+    } else if mine.iter().all(|c| matches!(c.outcome, Outcome::NotApplicable | Outcome::Skip)) {
         (Verdict::NotApplicable, if inapplicable.is_empty() { vec!["no rule binds a subject".to_owned()] } else { inapplicable })
     } else {
         (Verdict::Compliant, vec![])
@@ -184,11 +184,15 @@ pub fn comply(standard: &str, rules: &[Rule], checks: &[Check], catalog: Option<
     } else {
         Verdict::Compliant
     };
-    let note = match catalog {
+    let manual = controls.iter().filter(|c| c.verdict == Verdict::Manual).count();
+    log::debug!("{manual} controls of {standard} need a manual check");
+    let by_hand = (manual > 0).then(|| if manual == 1 { "1 control needs a manual check".to_owned() } else { format!("{manual} controls need a manual check") });
+    let scope = match catalog {
         None if controls.is_empty() => Some(format!("no rule is tagged {standard}:*, and there is no catalog of {standard}")),
         None => Some(format!("there is no catalog of {standard}, so compliant only means no rule tagged {standard}:* failed")),
         Some(_) => None,
     };
+    let note = [scope, by_hand].into_iter().flatten().reduce(|a, b| format!("{a}; {b}"));
     let coverage = catalog.map(|c| Coverage { covered: controls[..c.controls.len()].iter().filter(|k| !k.rules.is_empty() && k.verdict != Verdict::NotApplicable).count(), total: c.controls.len() });
     let name = catalog.and_then(|c| c.name.clone()).unwrap_or_else(|| standard.to_owned());
     log::debug!("standard {standard}: {verdict:?} over {} controls", controls.len());

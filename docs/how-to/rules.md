@@ -226,19 +226,20 @@ failing hint still fails its control:
 | `non-compliant` | a rule of the control fails, unwaived |
 | `indeterminate` | none fails, but one is `unknown`, or no rule covers the control |
 | `manual` | none fails or is `unknown`, and a `manual` rule covers it, or the catalog marks it manual and no rule covers it |
-| `not-applicable` | its rules gave no check, or only `not-applicable` ones |
-| `compliant` | every other check passes or is skipped |
+| `not-applicable` | its rules gave no check, or only `not-applicable` and `skip` ones, each reason listed |
+| `compliant` | every check passes, is waived or is skipped, and one at least is not skipped |
 
 The standard is non-compliant when any control is, else indeterminate when any
 control is or none exists, else not applicable when every control is, else
-compliant; over several standards the worst answer wins, and the run is not
+compliant, a `manual` control included: the standard’s note then says how
+many controls need a manual check; over several standards the worst answer wins, and the run is not
 applicable only when every standard is. Coverage counts the catalog controls a
 rule covers and that are not `not-applicable`. A standard no rule is tagged with selects nothing and is
 indeterminate.
 
 The human report closes with a `Standard` section per standard, after the
 failures and before the rating: the verdict, a line per control with the reasons
-under it, then coverage. `--format json` adds a `compliance` object keyed by
+under it, then coverage and the note. `--format json` adds a `compliance` object keyed by
 standard; SARIF and textfile carry it as described in [Outputs](outputs.md).
 
 A catalog, `<standard>.yaml` in a rules directory or in the `standards`
