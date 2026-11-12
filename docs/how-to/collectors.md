@@ -30,6 +30,7 @@ into: apt.sources
 | `read.stat-from` | the same, naming files to pass with their `stat` |
 | `read.hash` | `sha256`, `sha512` or both: adds the file’s lowercase hex digest to the `stat` of each regular file; needs `stat` or `stat-from` |
 | `live` | `true` when the collector reads what only a running host has, such as `/proc`; skipped under `--root` |
+| `secret` | `true` to replace every string the op returns with its keyed hash, as for values a plugin marks, so a command’s output compares without being stored |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
@@ -182,6 +183,17 @@ rules `unknown`, so give such a collector its own `into`. To judge a file’s
 contents, read it under `files` with `op: lines`, which keys each file’s list of
 lines by its path, so a rule asserts `contains: {pattern: …}`; contents enter
 the facts document only through a collector the operator writes.
+
+To judge any command, a collector file under `collect.directories` runs it
+with `read.exec` and `op: exec`, which returns its `exit-status`, `stdout`,
+`stderr` and `stdout-lines`:
+
+```yaml
+id: nginx-test
+read: {exec: [/usr/sbin/nginx, -t]}
+parse: {plugin: formats, op: exec}
+into: commands.nginx-test
+```
 
 ## Derived facts
 

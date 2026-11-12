@@ -26,6 +26,7 @@ const PLUGINS: &[(&str, &str, &str)] = &[
     ("broken", r#"[{"op":"parse"}]"#, "echo crashed >&2; exit 1"),
     ("garbage", r#"[{"op":"parse"}]"#, "echo not json"),
     ("hasher", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"env":{"TOKEN":"s3cret","EMPTY":"","N":1,"BOTH":"x"}},"hash":["/env/TOKEN","/env/EMPTY","/env/N","/env/BOTH","/absent"],"redact":["/env/BOTH"]}'"#),
+    ("spiller", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"exit-status":0,"stdout":"pw","stdout-lines":["pw",""],"a/b":{"c~d":"x"}},"hash":["/stdout"]}'"#),
     ("image", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("proc", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("dirs", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
@@ -287,6 +288,19 @@ fn hash_replaces_marked_strings_before_redaction_and_keeps_empty_ones() {
     assert_eq!(doc["collectors"]["hasher"]["hashed"], 2);
     assert_eq!(doc["meta"]["hash-key"]["source"], "configured");
     assert_eq!(doc["meta"]["hash-key"]["id"], HashKey::configured("a fixture hash key").id());
+}
+
+#[test]
+fn a_secret_collector_hashes_every_string_once() {
+    let c = collector("id: spiller
+parse: {plugin: spiller, op: parse}
+into: s
+secret: true
+");
+    let doc = collect(&[c], &plugins(), &options(false));
+    let key = HashKey::configured("a fixture hash key");
+    assert_eq!(doc["s"], serde_json::json!({"exit-status": 0, "stdout": key.hash("pw"), "stdout-lines": [key.hash("pw"), ""], "a/b": {"c~d": key.hash("x")}}));
+    assert_eq!(doc["collectors"]["spiller"]["hashed"], 3, "the plugin’s own mark on stdout is not hashed twice");
 }
 
 #[test]

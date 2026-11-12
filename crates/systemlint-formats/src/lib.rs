@@ -17,12 +17,13 @@ pub type Sections = BTreeMap<String, BTreeMap<String, Vec<String>>>;
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
-    Describe::new("formats", &[("ini", &[]), ("json", &[]), ("kv", &[]), ("lines", &[]), ("regex", &[]), ("stat", &[]), ("sysctl", &[]), ("toml", &[])])
+    Describe::new("formats", &[("exec", &[]), ("ini", &[]), ("json", &[]), ("kv", &[]), ("lines", &[]), ("regex", &[]), ("stat", &[]), ("sysctl", &[]), ("toml", &[])])
 }
 
 /// Runs one op.
 pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
+        "exec" => Ok(exec(&request.inputs)),
         "ini" => Ok(ini(&request.inputs)),
         "json" => Ok(json(&request.inputs)),
         "kv" => Ok(kv(&request.inputs)),
@@ -87,6 +88,24 @@ pub fn stat(inputs: &[Input]) -> Reply {
             }
             Input::File(FileInput { path, .. }) => reply.diagnostics.push(Diagnostic { path: path.clone(), line: None, message: "no stat; list it under read.stat".to_owned() }),
             Input::Exec(exec) => reply.diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: "a command has no stat".to_owned() }),
+        }
+    }
+    reply
+}
+
+/// The first command’s `exit-status`, `stdout`, `stderr` and `stdout-lines`; a file gets a diagnostic.
+pub fn exec(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        match input {
+            Input::Exec(run) if reply.facts.is_empty() => {
+                reply.facts.insert("exit-status".to_owned(), Value::from(run.exit));
+                reply.facts.insert("stdout".to_owned(), Value::from(run.stdout.as_str()));
+                reply.facts.insert("stderr".to_owned(), Value::from(run.stderr.as_str()));
+                reply.facts.insert("stdout-lines".to_owned(), Value::from(run.stdout.lines().collect::<Vec<_>>()));
+            }
+            Input::Exec(run) => reply.diagnostics.push(Diagnostic { path: run.argv.join(" "), line: None, message: "a second command, skipped".to_owned() }),
+            Input::File(file) => reply.diagnostics.push(Diagnostic { path: file.path.clone(), line: None, message: "a file is not a command, skipped".to_owned() }),
         }
     }
     reply
@@ -327,7 +346,7 @@ mod tests {
     fn describe_lists_the_generic_parsers() {
         let describe = describe();
         assert_eq!(describe.name, "formats");
-        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["ini", "json", "kv", "lines", "regex", "stat", "sysctl", "toml"]);
+        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["exec", "ini", "json", "kv", "lines", "regex", "stat", "sysctl", "toml"]);
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
     }
 
@@ -374,6 +393,14 @@ mod tests {
         assert!(unquote("\"").is_err());
         assert!(unquote("'").is_err());
         assert!(unquote(r#""a"b""#).is_err());
+    }
+
+    #[test]
+    fn exec_returns_the_first_command_and_names_the_rest() {
+        let run = |argv: &str, exit| Input::Exec(ExecInput { argv: vec![argv.into()], stdout: "a\nb\n".into(), stderr: "warn".into(), exit });
+        let reply = super::exec(&[run("/bin/first", 3), file("/etc/a", "x"), run("/bin/second", 0)]);
+        assert_eq!(Value::Object(reply.facts.into_iter().collect()), serde_json::json!({"exit-status": 3, "stdout": "a\nb\n", "stderr": "warn", "stdout-lines": ["a", "b"]}));
+        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/a", "/bin/second"]);
     }
 
     #[test]

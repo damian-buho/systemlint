@@ -267,7 +267,14 @@ fn run(collector: &Collector, plugin: &Plugin, facts: BTreeMap<String, Value>, n
     let output = runner::call(&plugin.path, &[], Some(body), options.timeout, OUTPUT_CAP).map_err(|e| format!("plugin {}: {e}", plugin.name))?;
     let reply: Reply = serde_json::from_slice(&output.stdout).map_err(|e| format!("plugin {} replied with invalid protocol JSON: {e}", plugin.name))?;
     let mut value = Value::Object(reply.facts.into_iter().collect());
-    let hashed = hash(&mut value, &reply.hash, &options.hash_key, &collector.id);
+    let mut marked = reply.hash;
+    if collector.secret {
+        strings_at(&value, String::new(), &mut marked);
+        marked.sort();
+        marked.dedup();
+        log::debug!("collector {} is secret, {} strings to hash", collector.id, marked.len());
+    }
+    let hashed = hash(&mut value, &marked, &options.hash_key, &collector.id);
     let mut redacted = Vec::new();
     for pointer in reply.redact {
         match value.pointer_mut(&pointer) {
@@ -279,6 +286,17 @@ fn run(collector: &Collector, plugin: &Plugin, facts: BTreeMap<String, Value>, n
         }
     }
     Ok((value, reply.diagnostics, redacted, hashed))
+}
+
+/// The JSON Pointer of every string under `value`, appended to `out`.
+fn strings_at(value: &Value, pointer: String, out: &mut Vec<String>) {
+    let escape = |key: &str| key.replace('~', "~0").replace('/', "~1");
+    match value {
+        Value::String(_) => out.push(pointer),
+        Value::Object(map) => map.iter().for_each(|(k, v)| strings_at(v, format!("{pointer}/{}", escape(k)), out)),
+        Value::Array(items) => items.iter().enumerate().for_each(|(i, v)| strings_at(v, format!("{pointer}/{i}"), out)),
+        _ => {}
+    }
 }
 
 /// Replaces each non-empty string the `pointers` name with its keyed hash, returning how many were hashed.
