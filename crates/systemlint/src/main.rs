@@ -78,9 +78,12 @@ enum Command {
         /// Exit 1 on a failure at error, warning, info, a score from 0.1 to 9.9, or never [default: lint.fail-on, else error]
         #[arg(long, value_name = "LEVEL")]
         fail_on: Option<FailOn>,
-        /// Output format
+        /// Output format: human, json, sarif (SARIF 2.1.0) or textfile (node-exporter metrics)
         #[arg(long, value_enum, default_value_t = Format::Human)]
         format: Format,
+        /// Write the report to PATH atomically, mode 0644, instead of stdout
+        #[arg(long, value_name = "PATH")]
+        output: Option<PathBuf>,
     },
     /// Answer whether the facts comply with a standard, from the rules tagged <standard>:<control>
     #[command(after_help = "Exit codes: 0 compliant, 1 non-compliant, 2 bad arguments, config or rules, 3 indeterminate, 4 a plugin was refused.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md")]
@@ -91,8 +94,8 @@ enum Command {
         #[command(flatten)]
         input: Input,
         /// Output format
-        #[arg(long, value_enum, default_value_t = Format::Human)]
-        format: Format,
+        #[arg(long, value_enum, default_value_t = AnswerFormat::Human)]
+        format: AnswerFormat,
     },
     /// Inspect the installed plugins
     #[command(subcommand)]
@@ -124,9 +127,18 @@ struct Input {
     image_config: Option<PathBuf>,
 }
 
-/// How `lint` and `comply` print their answer.
+/// How `lint` prints its report.
 #[derive(Clone, Copy, clap::ValueEnum)]
 enum Format {
+    Human,
+    Json,
+    Sarif,
+    Textfile,
+}
+
+/// How `comply` prints its answer.
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum AnswerFormat {
     Human,
     Json,
 }
@@ -154,7 +166,7 @@ fn main() -> ExitCode {
     };
     match cli.command {
         Command::Facts { root, image_config, save, json } => ExitCode::from(facts(&config, root.as_deref(), image_config, save.as_deref(), json, cli.quiet)),
-        Command::Lint { input, tags, fail_on, format } => ExitCode::from(lint(&config, &input, &tags, fail_on, format, cli.quiet)),
+        Command::Lint { input, tags, fail_on, format, output } => ExitCode::from(lint(&config, &input, &tags, fail_on, format, output.as_deref(), cli.quiet)),
         Command::Comply { standard, input, format } => ExitCode::from(comply(&config, &standard, &input, format, cli.quiet)),
         Command::Plugin(PluginCommand::List { json }) => ExitCode::from(plugin_list(&config, json, cli.quiet)),
     }
@@ -250,7 +262,7 @@ fn today() -> String {
     collect::rfc3339(SystemTime::now())[..10].to_owned()
 }
 
-fn lint(config: &Config, input: &Input, tags: &[String], fail_on: Option<FailOn>, format: Format, quiet: bool) -> u8 {
+fn lint(config: &Config, input: &Input, tags: &[String], fail_on: Option<FailOn>, format: Format, output: Option<&Path>, quiet: bool) -> u8 {
     let run = || -> Result<u8, u8> {
         let library = library(config)?;
         let selectors = if !tags.is_empty() { tags.to_vec() } else if !config.lint.tags.is_empty() { config.lint.tags.clone() } else { vec!["*".to_owned()] };
@@ -262,16 +274,25 @@ fn lint(config: &Config, input: &Input, tags: &[String], fail_on: Option<FailOn>
             eprintln!("No rules selected. Searched: {}", rules::directories(&exe(), &config.lint.directories).iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
         }
         let checks = judge::lint(&document, &rules, &config.lint.waivers, &today());
-        match format {
-            Format::Human => print!("{}", report::lint_human(&checks, quiet)),
-            Format::Json => print!("{}", report::lint_json(&document, &checks)),
+        let text = match format {
+            Format::Human => report::lint_human(&checks, quiet),
+            Format::Json => report::lint_json(&document, &checks),
+            Format::Sarif => report::lint_sarif(&document, &checks),
+            Format::Textfile => report::lint_textfile(&document, &checks),
+        };
+        match output {
+            Some(path) => document::write(path, &text, 0o644).map_err(|error| {
+                eprintln!("{error}");
+                EXIT_CONFIG
+            })?,
+            None => print!("{text}"),
         }
         Ok(if fail_on.reached(&checks) { EXIT_FAIL } else if trusted { 0 } else { EXIT_PLUGIN })
     };
     run().unwrap_or_else(|code| code)
 }
 
-fn comply(config: &Config, standard: &str, input: &Input, format: Format, quiet: bool) -> u8 {
+fn comply(config: &Config, standard: &str, input: &Input, format: AnswerFormat, quiet: bool) -> u8 {
     let run = || -> Result<u8, u8> {
         let library = library(config)?;
         let prefix = format!("{standard}:");
@@ -298,8 +319,8 @@ fn comply(config: &Config, standard: &str, input: &Input, format: Format, quiet:
         let checks = judge::lint(&document, &rules, &config.lint.waivers, &today());
         let answer = comply::comply(standard, &rules, &checks, catalog.as_ref());
         match format {
-            Format::Human => print!("{}", report::comply_human(&answer)),
-            Format::Json => print!("{}", report::comply_json(&answer)),
+            AnswerFormat::Human => print!("{}", report::comply_human(&answer)),
+            AnswerFormat::Json => print!("{}", report::comply_json(&answer)),
         }
         Ok(match answer.verdict {
             comply::Verdict::NonCompliant => EXIT_FAIL,

@@ -144,7 +144,9 @@ expiry is the only judgement that reads the clock at lint time.
 
 `--format human` prints one line per failure and per unknown, then the counts;
 `--format json` prints the document’s `meta`, every check, passes included, and
-the counts. `--fail-on` (`lint.fail-on`) takes `error`, the default, `warning`,
+the counts; `--format sarif` and `--format textfile` are described in
+[Outputs](outputs.md). `--output PATH` writes the report atomically instead of
+printing it. `--fail-on` (`lint.fail-on`) takes `error`, the default, `warning`,
 `info`, a score from 0.1 to 9.9, or `never`; a hint never fails a run.
 
 | Code | `lint` | `comply` |

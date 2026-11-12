@@ -23,12 +23,17 @@ pub fn render(document: &Value, json: bool) -> Result<String, String> {
 /// Writes `document` to `path` atomically with mode 0600, as JSON when the name ends in `.json`, else YAML.
 pub fn save(document: &Value, path: &Path) -> Result<(), String> {
     let text = render(document, path.extension().is_some_and(|x| x == "json"))?;
+    write(path, &text, 0o600)
+}
+
+/// Writes `text` to `path` with `mode` through a temporary sibling and a rename, so a reader never sees half of it.
+pub fn write(path: &Path, text: &str, mode: u32) -> Result<(), String> {
     let name = path.file_name().ok_or_else(|| format!("{} names no file", path.display()))?.to_string_lossy();
     let temporary = path.with_file_name(format!(".{name}.{}.tmp", std::process::id()));
     let written = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .mode(0o600)
+        .mode(mode)
         .open(&temporary)
         .and_then(|mut file| file.write_all(text.as_bytes()).and_then(|()| file.sync_all()))
         .and_then(|()| std::fs::rename(&temporary, path));
@@ -36,7 +41,7 @@ pub fn save(document: &Value, path: &Path) -> Result<(), String> {
         let _ = std::fs::remove_file(&temporary);
         return Err(format!("can’t save {}: {error}", path.display()));
     }
-    log::debug!("saved {} bytes of facts to {}", text.len(), path.display());
+    log::debug!("saved {} bytes to {} with mode {mode:o}", text.len(), path.display());
     Ok(())
 }
 
