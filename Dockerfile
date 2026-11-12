@@ -1,0 +1,99 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
+ARG B19_RUST_GNU_BASE_IMAGE=registry.invalid/b19/rust:gnu
+ARG B19_UBUNTU_BASE_IMAGE=registry.invalid/b19/ubuntu:resolute
+ARG B19_UBUNTU_SERIES=resolute
+
+FROM ${B19_RUST_GNU_BASE_IMAGE} AS damian-buho-systemlint-builder
+
+ARG B19_COMPILE_CACHE
+ARG B19_COLOR
+ARG B19_FETCH_DOCKER_CACHE
+ARG B19_FETCH_LOCAL_CACHE
+ARG B19_OFFGRID_MODE
+ARG B19_VERBOSITY
+ARG CCACHE_REMOTE_STORAGE
+ARG LANG=""
+ARG M6E_AI=N
+ARG M6E_APT_CACHE_HOST=""
+ARG M6E_APT_CACHE_PORT=""
+ARG M6E_BUILD_DEBUG=""
+ARG M6E_NAMESPACE
+ARG M6E_NEAR_CACHE_HOST=""
+ARG M6E_NEAR_CACHE_PORT=""
+ARG M6E_NEAR_CACHE_SCHEME=""
+ARG M6E_PROJECT
+ARG SCCACHE_REDIS_ENDPOINT
+ARG TARGETARCH
+ARG M6E_CARGO_REGISTRY_URL
+ARG M6E_VERSION
+
+COPY --chown=${B19_UID}:${B19_GID} .container/compile-rust/ /
+COPY --chown=${B19_UID}:${B19_GID} --parents crates Cargo.*           ${B19_HOME}/
+
+USER 0
+
+WORKDIR ${B19_HOME}
+
+RUN --mount=type=bind,from=fetch,source=.,target=/fetch                                             \
+    --mount=type=cache,target=${B19_DOWNLOAD_PATH},sharing=shared,uid=${B19_UID},gid=${B19_GID}     \
+    --mount=type=cache,target=${CARGO_HOME},sharing=locked                                          \
+    --mount=type=cache,target=${B19_COMPILE_CACHE_PATH},sharing=shared                              \
+    --mount=type=cache,id=apt-cache-${B19_UBUNTU_SERIES}-${TARGETARCH},target=/var/cache/apt,sharing=shared       \
+    --mount=type=cache,id=apt-lists-${B19_UBUNTU_SERIES}-${TARGETARCH},target=/var/lib/apt,sharing=shared         \
+    --mount=type=tmpfs,target=${B19_TEMP_PATH}                                                      \
+    build-stage compile-rust
+
+# hadolint ignore=DL3066 # B19_UID comes from the root
+USER ${B19_UID}
+
+FROM ${B19_UBUNTU_BASE_IMAGE} AS damian-buho-systemlint
+
+ARG B19_COLOR
+ARG B19_FETCH_DOCKER_CACHE
+ARG B19_FETCH_LOCAL_CACHE
+ARG B19_OFFGRID_MODE
+ARG B19_VERBOSITY
+ARG LANG=""
+ARG M6E_AI=N
+ARG M6E_APT_CACHE_HOST=""
+ARG M6E_APT_CACHE_PORT=""
+ARG M6E_BUILD_DEBUG=""
+ARG M6E_NAMESPACE
+ARG M6E_NEAR_CACHE_HOST=""
+ARG M6E_NEAR_CACHE_PORT=""
+ARG M6E_NEAR_CACHE_SCHEME=""
+ARG M6E_PROJECT
+ARG TARGETARCH
+ARG M6E_CARGO_REGISTRY_URL
+
+COPY --chown=${B19_UID}:${B19_GID} .container/base/ /
+COPY --from=damian-buho-systemlint-builder /export /
+
+USER 0
+
+WORKDIR ${B19_HOME}
+
+RUN --mount=type=bind,from=fetch,source=.,target=/fetch                                             \
+    --mount=type=cache,target=${B19_DOWNLOAD_PATH},sharing=shared,uid=${B19_UID},gid=${B19_GID}     \
+    --mount=type=cache,id=apt-cache-${B19_UBUNTU_SERIES}-${TARGETARCH},target=/var/cache/apt,sharing=shared       \
+    --mount=type=cache,id=apt-lists-${B19_UBUNTU_SERIES}-${TARGETARCH},target=/var/lib/apt,sharing=shared         \
+    --mount=type=tmpfs,target=${B19_TEMP_PATH}                                                      \
+    build-stage base
+
+# hadolint ignore=DL3066 # B19_UID comes from the root
+USER ${B19_UID}
+
+COPY --chown=${B19_UID}:${B19_GID} .container/user/ /
+
+ARG M6E_VERSION
+RUN --mount=type=bind,from=fetch,source=.,target=/fetch                                             \
+    --mount=type=cache,target=${B19_DOWNLOAD_PATH},sharing=shared,uid=${B19_UID},gid=${B19_GID}     \
+    --mount=type=tmpfs,target=${B19_TEMP_PATH}                                                      \
+    build-stage user
+
+# ENTRYPOINT ["entrypoint.d"] is inherited
+# HEALTHCHECK CMD ["healthcheck.d"] is inherited
+# CMD ["sleep", "infinity"]

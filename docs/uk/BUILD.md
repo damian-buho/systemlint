@@ -1,0 +1,30 @@
+<!--
+SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+SPDX-License-Identifier: AGPL-3.0-only
+pf-cli-managed: yes
+-->
+
+<!-- textlint-disable terminology,common-misspellings -->
+
+[English](../BUILD.md) · [Español](../es/BUILD.md)
+
+# Збирання
+
+Зберіть образ контейнера локально:
+
+```sh
+make container-build
+```
+
+Виконайте `make` без аргументів для типової цілі; виконайте `make help`, щоб переглянути всі цілі.
+
+Для локального циклу розробки `make dev-container` піднімає dev-container.
+
+Точки входу конвеєра:
+
+- `make analyzed` — Запускає важкий аналіз (мутаційне тестування, бенчмарки)
+- `make audited` — Повторно сканує закріплені залежності й опубліковані артефакти на нові вразливості
+- `make check-outdated` — Звітує про кожну закріплену залежність, що відстає від upstream
+- `make release-is-ready` — Запускає псевдо-CI локально — збирає, тестує й сканує без публікації
+
+<!-- textlint-enable -->

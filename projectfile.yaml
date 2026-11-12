@@ -1,0 +1,110 @@
+---
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+$schema: https://projectfile.org/schema/v1.json
+identity:
+  created: "2026-11-11"
+  name: systemlint
+  namespace: me.dbuho
+  summary:
+    en: Linter for operating systems, from apt sources to file permissions
+    es: Linter para sistemas operativos, desde las fuentes de apt hasta los permisos de archivos
+    uk: Лінтер для операційних систем — від джерел apt до прав доступу до файлів
+  title: Systemlint
+  description:
+    en: |-
+      Systemlint collects facts about a host, a root filesystem or a container image, then judges them with declarative rules. Collecting and judging are separate steps, so one saved facts document serves any number of policies.
+
+      The core reads every file and runs every command; each plugin is a separate static binary that only turns those bytes into facts. Written in Rust.
+    es: |-
+      Systemlint recopila datos sobre un equipo, un sistema de archivos raíz o una imagen de contenedor y los evalúa con reglas declarativas. Recopilar y evaluar son pasos separados, así que un mismo documento de datos guardado sirve para cualquier número de políticas.
+
+      El núcleo lee cada archivo y ejecuta cada orden; cada complemento es un binario estático aparte que solo convierte esos bytes en datos. Escrito en Rust.
+    uk: |-
+      Systemlint збирає факти про хост, кореневу файлову систему чи образ контейнера, а потім оцінює їх декларативними правилами. Збирання й оцінювання — окремі кроки, тож один збережений документ фактів слугує будь-якій кількості політик.
+
+      Ядро читає кожен файл і виконує кожну команду; кожен плагін — окремий статичний бінарний файл, який лише перетворює ці байти на факти. Написаний на Rust.
+  visibility: private
+kind: SoftwareSourceCode
+keywords:
+  - linter
+  - compliance
+  - hardening
+  - apt
+  - sshd
+  - file-permissions
+  - rust
+license:
+  covers: project
+  spdx: AGPL-3.0-only
+links:
+  - label:
+      en: Repository on kiota.ch
+      es: Repositorio en kiota.ch
+      uk: Репозиторій на kiota.ch
+    preferred: true
+    priority: 10
+    type: source-code
+    url: https://kiota.ch/damian-buho/systemlint
+org:
+  projectfile:
+    images:
+      RUST_TOOL_IMAGE:
+        libc: musl
+    architecture:
+      - amd64
+      - arm64
+    operating-system:
+      - linux
+    ci:
+      env:
+        TARGET_ARCH: amd64
+        TARGET_OS: linux
+      nodes:
+        binaries-are-built:
+          needs:
+            build-binaries: true
+          matrix:
+            axes:
+              TARGET_ARCH:
+                - amd64
+                - arm64
+              TARGET_OS:
+                - linux
+      tools:
+        build-binaries:
+          artifact: dist
+          env:
+            - TARGET_OS
+            - TARGET_ARCH
+            - GITHUB_REF_NAME
+          guard: Cargo.toml
+          image: RUST_TOOL_IMAGE
+          m6e:
+            prefer-local: true
+          run: .scripts/build-binaries.sh
+          description: Build every binary crate as a static musl binary for the OS/arch cell
+          tags: [publish]
+    conventions:
+      fragments:
+        parents:
+          - url: ssh://git@kiota.ch/b19/ubuntu.git
+    status: maintained
+  systemlint: {}
+repositories:
+  - branch: main
+    role: origin
+    type: git
+    url: ssh://git@kiota.ch/damian-buho/systemlint.git
+includes:
+  - .makefile/b19/ci.yaml
+  - .makefile/b19/images/rust.yaml
+  - .makefile/b19/images/ubuntu.yaml
+  - .makefile/b19/traits/image/attested.yaml
+  - .makefile/b19/traits/image/signed.yaml
+  - .makefile/library/languages/rust.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/personal-image.yaml
+technologies:
+  - rust

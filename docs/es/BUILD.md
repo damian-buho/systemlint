@@ -1,0 +1,30 @@
+<!--
+SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+SPDX-License-Identifier: AGPL-3.0-only
+pf-cli-managed: yes
+-->
+
+<!-- textlint-disable terminology,common-misspellings -->
+
+[English](../BUILD.md) · [Українська](../uk/BUILD.md)
+
+# Compilación
+
+Construye la imagen de contenedor en local:
+
+```sh
+make container-build
+```
+
+Ejecuta `make` sin argumentos para el destino predeterminado; ejecuta `make help` para listar todos los destinos.
+
+Para el bucle de desarrollo local, `make dev-container` levanta el dev-container.
+
+Puntos de entrada de la canalización:
+
+- `make analyzed` — Ejecuta el análisis pesado (pruebas de mutación, benchmarks)
+- `make audited` — Vuelve a escanear las dependencias fijadas y los artefactos publicados en busca de vulnerabilidades nuevas
+- `make check-outdated` — Informa de cada dependencia fijada que va por detrás de su versión upstream
+- `make release-is-ready` — Ejecuta localmente el pipeline pseudo-CI — compila, prueba y escanea, sin publicar
+
+<!-- textlint-enable -->
