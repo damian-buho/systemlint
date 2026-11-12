@@ -86,6 +86,12 @@ org:
           run: .scripts/build-binaries.sh
           description: Build every binary crate as a static musl binary for the OS/arch cell
           tags: [publish]
+    ignores:
+      textlint: &captures
+        include:
+          - fixtures/sshd/sshd-T.txt
+          - crates/systemlint-sshd/src/defaults.txt
+      fd: *captures
     conventions:
       fragments:
         parents:

@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+Include /etc/ssh/sshd_config.d/*.conf
+
+Port 2222
+Port 22
+PermitRootLogin yes
+LoginGraceTime 2m
+MaxAuthTries 3
+KbdInteractiveAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+Match User backup Address 192.0.2.0/24
+	PasswordAuthentication yes
+	PermitRootLogin forced-commands-only
+	X11Forwarding no

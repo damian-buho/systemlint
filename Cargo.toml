@@ -24,6 +24,7 @@ serde_json = "=1.0.154"
 systemlint-apt = { path = "crates/systemlint-apt" }
 systemlint-formats = { path = "crates/systemlint-formats" }
 systemlint-protocol = { path = "crates/systemlint-protocol" }
+systemlint-sshd = { path = "crates/systemlint-sshd" }
 wait-timeout = "=0.2.1"
 
 [profile.release]

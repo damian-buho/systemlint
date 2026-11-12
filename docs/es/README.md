@@ -83,6 +83,7 @@ Clona el repositorio y ejecuta `make`: cada paso de compilación, destino y punt
 - [apt sources](../how-to/apt.md)
 - [Collectors](../how-to/collectors.md)
 - [File permissions](../how-to/files.md)
+- [OpenSSH server](../how-to/sshd.md)
 - [Plugin protocol v1](../how-to/protocol.md)
 - [Rules, rulesets and compliance](../how-to/rules.md)
 

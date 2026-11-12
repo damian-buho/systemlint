@@ -25,3 +25,4 @@ wait-timeout.workspace = true
 [dev-dependencies]
 systemlint-apt.workspace = true
 systemlint-formats.workspace = true
+systemlint-sshd.workspace = true

@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: sshd
+read:
+  files: [/etc/ssh/sshd_config, /etc/ssh/sshd_config.d/*]
+  exec: [/usr/sbin/sshd, -T]
+parse: {plugin: sshd, op: config}
+into: sshd
