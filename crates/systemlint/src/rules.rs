@@ -88,8 +88,26 @@ pub struct Spec {
     pub references: Vec<Reference>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub manual: bool,
     #[serde(skip)]
     pub pinned: bool,
+    /// The `when` of every ruleset that defines or brings the rule, by ruleset name.
+    #[serde(skip)]
+    pub applies: Vec<(String, When)>,
+}
+
+impl Spec {
+    /// Whether this entry defines a rule: it names a fact, or is a manual procedure.
+    pub fn defines(&self) -> bool {
+        self.fact.is_some() || self.manual
+    }
+
+    fn applies_in(&mut self, name: &str, when: Option<&When>) {
+        if let Some(when) = when.filter(|_| !self.applies.iter().any(|(n, _)| n == name)) {
+            self.applies.push((name.to_owned(), when.clone()));
+        }
+    }
 }
 
 /// One ruleset: its parents, then its own rule entries by ID.
@@ -100,6 +118,8 @@ pub struct Ruleset {
     pub description: Option<String>,
     #[serde(default)]
     pub extends: Vec<String>,
+    #[serde(default)]
+    pub when: Option<When>,
     #[serde(default)]
     pub rules: Map<String, Value>,
 }
@@ -157,6 +177,8 @@ fn merge(base: Spec, over: Spec) -> Spec {
     tags.extend(over.tags.into_iter().filter(|t| !tags.contains(t)).collect::<Vec<_>>());
     let mut references = base.references;
     references.extend(over.references.into_iter().filter(|r| !references.contains(r)).collect::<Vec<_>>());
+    let mut applies = base.applies;
+    applies.extend(over.applies.into_iter().filter(|(n, _)| !applies.iter().any(|(m, _)| m == n)).collect::<Vec<_>>());
     Spec {
         title: over.title.or(base.title),
         fact: over.fact.or(base.fact),
@@ -171,7 +193,9 @@ fn merge(base: Spec, over: Spec) -> Spec {
         rationale: over.rationale.or(base.rationale),
         references,
         tags,
+        manual: over.manual || base.manual,
         pinned: over.pinned || (!score_set && base.pinned),
+        applies,
     }
 }
 
@@ -182,16 +206,20 @@ impl Library {
         let mut owner: BTreeMap<String, String> = BTreeMap::new();
         for (name, ruleset) in &rulesets {
             for (id, raw) in &ruleset.rules {
-                let spec = entry(raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
-                if spec.fact.is_none() {
+                let mut spec = entry(raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
+                if !spec.defines() {
                     continue;
                 }
                 if let Some(first) = owner.get(id) {
                     return Err(format!("ruleset {name}: rule {id} is already defined in ruleset {first}"));
                 }
-                if spec.expect.is_none() {
+                if spec.manual && (spec.fact.is_some() || spec.expect.is_some()) {
+                    return Err(format!("ruleset {name}: rule {id} is manual, so it takes no fact or expect"));
+                }
+                if !spec.manual && spec.expect.is_none() {
                     return Err(format!("ruleset {name}: rule {id} has fact but no expect"));
                 }
+                spec.applies_in(name, ruleset.when.as_ref());
                 log::debug!("rule {id} defined in ruleset {name}");
                 owner.insert(id.clone(), name.clone());
                 definitions.insert(id.clone(), spec);
@@ -244,13 +272,16 @@ impl Library {
         seen.pop();
         for (id, raw) in &ruleset.rules {
             let spec = entry(raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
-            let base = merged.remove(id).or_else(|| if spec.fact.is_some() { None } else { self.definitions.get(id).cloned() });
+            let base = merged.remove(id).or_else(|| if spec.defines() { None } else { self.definitions.get(id).cloned() });
             let spec = match base {
                 Some(base) => merge(base, spec),
-                None if spec.fact.is_some() => spec,
+                None if spec.defines() => spec,
                 None => return Err(format!("ruleset {name}: rule {id} overrides a rule no ruleset defines")),
             };
             merged.insert(id.clone(), spec);
+        }
+        for spec in merged.values_mut() {
+            spec.applies_in(name, ruleset.when.as_ref());
         }
         log::debug!("ruleset {name} resolved to {} rules", merged.len());
         Ok(merged)

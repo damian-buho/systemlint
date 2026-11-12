@@ -47,6 +47,7 @@ apt/https:
 | `rationale` | why the rule matters, a `Why:` line under the title of its human block, and in JSON and SARIF `help` |
 | `references` | a list of `{title, url}` sources; an override adds to the list instead of replacing it |
 | `tags` | slugs; a tag with `:` names a control of a standard |
+| `manual` | `true` for a procedure a person follows: no `fact` or `expect`, the steps in `rationale` |
 
 A fact path is dotted (`os.release.VERSION_ID`), or a JSON Pointer when it
 starts with `/`, for keys holding dots (`/files/~1etc~1ssh~1sshd_config.d~1a.conf/mode`).
@@ -69,6 +70,12 @@ Each rule answers one outcome per subject:
 | `fail` | it does not; the check carries a severity, a score and the message |
 | `skip` | the `when` guard is false |
 | `unknown` | a fact in `when` or `fact` is absent; the reason names the collector that should have produced it and how it finished |
+| `not-applicable` | the `when` of a ruleset that defines or brings the rule is false; one check per rule, without a subject |
+| `manual` | the rule is `manual`; one check, which a person reviews |
+
+A ruleset’s `when` is checked first, so a rule outside its target host answers
+`not-applicable` and is never judged or rated; `skip` stays for a subject its own
+`when` leaves out. A `manual` rule ignores its own `when`.
 
 `when` follows three-valued logic: one false entry makes a map false even when
 another is absent, and one true map makes a list true. A collection absent
@@ -104,7 +111,7 @@ A run is graded as spiderlint grades a crawl, on the same constants
 otherwise the share of judged checks kept, each failure costing
 `(score / 5.0)²`, against the floors A 0.9, B 0.7, C 0.6, D 0.4, E 0.2, else F;
 any error caps the grade at B. Judged checks are passes and failures; waived
-failures, unknowns and skips stay out, and a run with none gets no grade. The
+failures, unknowns, skips, `not-applicable` and `manual` checks stay out, and a run with none gets no grade. The
 grade closes the human report and is `rating` in JSON, the run’s
 `properties.rating` in SARIF and `systemlint_rating` in the textfile.
 
@@ -119,6 +126,7 @@ used twice is refused.
 ```yaml
 description: Stricter than the shipped rules
 extends: [recommended]
+when: {os.release.ID: {const: ubuntu}}
 rules:
   apt/https: error
   os/supported: {expect: {enum: ["26.04"]}}
@@ -131,6 +139,11 @@ other entry overrides the rule by ID, defined in a parent or anywhere else: a
 level, a score, or a partial rule whose keys win and whose `expect` merges
 keyword by keyword, dropping the inherited `message`, which may state the old
 bounds. `extends` takes rulesets, rule IDs and tag globs, flattened depth first.
+
+`when` takes the form a rule’s does, without `*`, since a ruleset has no
+subject. It guards every rule the ruleset defines, however it is selected, and
+every rule it brings through `extends` or overrides; a rule answers
+`not-applicable` when any such `when` is false, `unknown` when one is absent.
 
 ## Selecting rules
 
@@ -165,7 +178,8 @@ expiry is the only judgement that reads the clock at lint time.
 `--format human` prints one block per rule, an empty line after each: a
 `Not run` block per reason a collector was skipped (no root, no
 `--image-config`, live-only under `--root`) with its rules wrapped under it, then
-`Unknown` and `Waived` blocks, then the failures, lowest score first, so the
+a `Not applicable` block per ruleset reason with its rules wrapped under it,
+`Unknown`, `Manual` (with the `Why:` procedure) and `Waived` blocks, then the failures, lowest score first, so the
 worst sits just above the rating and counts
 (`Rating B · 5 errors, 9 warnings, 0 info · 577 pass, 24 not run, 21 skip`).
 A failure block opens with the level, the highest score of the rule, its ID and
@@ -191,10 +205,10 @@ printing it. `--fail-on` (`lint.fail-on`) takes `error`, the default, `warning`,
 
 | Code | `lint` | `lint --standard` | `facts` |
 | --- | --- | --- | --- |
-| 0 | no failure at `--fail-on` | compliant | every collector ended `ok` or `skipped` |
+| 0 | no failure at `--fail-on` | compliant or not applicable | every collector ended `ok` or `skipped` |
 | 1 | a failure at `--fail-on` | non-compliant | a collector ended `error`, so the document is partial |
 | 2 | bad arguments, config, facts document, or a ruleset or catalog file invalid or refused | the same | bad arguments or config, or the document could not be written |
-| 3 | — | indeterminate | — |
+| 3 | — | indeterminate, or a manual control decides | — |
 | 4 | a plugin or collector file was refused | the same, when otherwise compliant | the same, when no collector ended `error` |
 
 ## Compliance
@@ -209,12 +223,15 @@ failing hint still fails its control:
 | --- | --- |
 | `non-compliant` | a rule of the control fails, unwaived |
 | `indeterminate` | none fails, but one is `unknown`, or no rule covers the control |
-| `compliant` | every check passes or is skipped |
-| `manual` | the catalog marks the control manual and no rule covers it |
+| `manual` | none fails or is `unknown`, and a `manual` rule covers it, or the catalog marks it manual and no rule covers it |
+| `not-applicable` | its rules gave no check, or only `not-applicable` ones |
+| `compliant` | every other check passes or is skipped |
 
 The standard is non-compliant when any control is, else indeterminate when any
-control is or none exists, else compliant; over several standards the worst
-answer wins. A standard no rule is tagged with selects nothing and is
+control is or none exists, else not applicable when every control is, else
+compliant; over several standards the worst answer wins, and the run is not
+applicable only when every standard is. Coverage counts the catalog controls a
+rule covers and that are not `not-applicable`. A standard no rule is tagged with selects nothing and is
 indeterminate.
 
 The human report closes with a `Standard` section per standard, after the

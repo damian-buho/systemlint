@@ -193,3 +193,35 @@ fn suggest_fills_the_fact_bound_to_the_same_subject_or_its_fallback() {
     let error = compile("test/rule", spec("fact: s.*.old\nexpect: {maxItems: 0}\nsuggest: {fact: s.*.*.new, otherwise: x}\n")).err().unwrap();
     assert!(error.contains("suggest has 2 * where fact s.*.old has 1"), "{error}");
 }
+
+fn in_ruleset(yaml: &str, document: &Value) -> Result<Vec<Check>, String> {
+    let library = systemlint::rules::Library::new(std::collections::BTreeMap::from([("deb".to_owned(), systemlint::yaml::from_str(yaml).unwrap())]))?;
+    let rules = library.select(&["deb".to_owned()])?.into_iter().map(|(id, spec)| compile(&id, spec)).collect::<Result<Vec<_>, _>>()?;
+    Ok(lint(document, &rules, &[], "2026-11-11"))
+}
+
+#[test]
+fn a_ruleset_that_does_not_apply_answers_one_not_applicable_check_per_rule() {
+    let rule = "rules:\n  apt/https: {fact: apt.sources.*.uri, expect: {pattern: '^https://'}}\n";
+    let checks = in_ruleset(&format!("when: {{os.release.ID: debian}}\n{rule}"), &facts("root")).unwrap();
+    assert_eq!(outcomes(&checks), [(String::new(), Outcome::NotApplicable)], "two sources, one answer");
+    assert_eq!(checks[0].reason.as_deref(), Some("ruleset deb: when os.release.ID is “ubuntu”"));
+    assert_eq!(serde_json::to_value(checks[0].outcome).unwrap(), "not-applicable");
+    let applies = in_ruleset(&format!("when: {{os.release.ID: {{const: ubuntu}}}}\n{rule}"), &facts("root")).unwrap();
+    assert_eq!(applies.len(), 2, "a ruleset that applies judges every subject: {applies:?}");
+    let absent = in_ruleset(&format!("when: {{os.release.MISSING: x}}\n{rule}"), &facts("root")).unwrap();
+    assert_eq!(outcomes(&absent), [(String::new(), Outcome::Unknown)], "an absent applicability fact is unknown, never not applicable");
+    assert!(absent[0].reason.as_deref().unwrap().starts_with("ruleset deb: when os.release.MISSING is absent"), "{:?}", absent[0].reason);
+    let star = in_ruleset(&format!("when: {{apt.sources.*.enabled: true}}\n{rule}"), &facts("root")).unwrap_err();
+    assert!(star.contains("ruleset deb: when apt.sources.*.enabled has more * than a ruleset"), "{star}");
+}
+
+#[test]
+fn a_manual_rule_answers_manual_once_unless_its_ruleset_does_not_apply() {
+    let rule = "rules:\n  review/backups: {manual: true, title: Review the backup policy, rationale: read /etc/backup.policy}\n";
+    let checks = in_ruleset(rule, &facts("root")).unwrap();
+    assert_eq!(outcomes(&checks), [(String::new(), Outcome::Manual)]);
+    assert_eq!((checks[0].fact.as_str(), checks[0].rationale.as_deref(), checks[0].score), ("", Some("read /etc/backup.policy"), None));
+    let elsewhere = in_ruleset(&format!("when: {{os.release.ID: debian}}\n{rule}"), &facts("root")).unwrap();
+    assert_eq!(outcomes(&elsewhere), [(String::new(), Outcome::NotApplicable)]);
+}

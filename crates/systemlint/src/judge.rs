@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Judges a facts document: subjects bound by `*`, the `when` guard, `expect`, the four outcomes, scores and waivers.
+//! Judges a facts document: ruleset applicability, subjects bound by `*`, the `when` guard, `expect`, the outcomes, scores and waivers.
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -17,12 +17,14 @@ use crate::version::compare_deb;
 
 /// What one rule found on one subject.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum Outcome {
     Pass,
     Fail,
     Skip,
     Unknown,
+    NotApplicable,
+    Manual,
 }
 
 /// A configured exception to one rule, on every subject or the ones its glob matches, until a day.
@@ -288,13 +290,46 @@ pub struct Rule {
     pub spec: Spec,
     fact: Vec<Segment>,
     suggest: Option<(Vec<Segment>, String)>,
+    applies: Vec<(String, Vec<Vec<Guard>>)>,
     when: Vec<Vec<Guard>>,
-    expect: Validator,
+    expect: Option<Validator>,
 }
 
-/// Compiles one selected rule, refusing a bad path, schema or `when`.
+/// The branches of a `when`, each path holding at most `most` `*`s.
+fn guards(when: Option<&When>, most: usize, over: &str) -> Result<Vec<Vec<Guard>>, String> {
+    let branches = match when {
+        None => vec![],
+        Some(When::All(map)) => vec![map.clone()],
+        Some(When::Any(list)) if list.is_empty() => return Err("when is an empty list".to_owned()),
+        Some(When::Any(list)) => list.clone(),
+    };
+    let mut when = Vec::new();
+    for branch in branches {
+        let mut guards = Vec::new();
+        for (path, expected) in branch {
+            let parsed = parse_path(&path)?;
+            if stars(&parsed) > most {
+                return Err(format!("when {path} has more * than {over}, so it binds no subject"));
+            }
+            let test = match &expected {
+                Value::Object(map) => Test::Schema(schema(map).map_err(|e| format!("when {path}: {e}"))?),
+                other => Test::Equal(other.clone()),
+            };
+            guards.push(Guard { path: parsed, test });
+        }
+        when.push(guards);
+    }
+    Ok(when)
+}
+
+/// Compiles one selected rule, refusing a bad path, schema or `when`, its rulesets’ included.
 pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
     let fail = |e: String| format!("rule {id}: {e}");
+    let applies = spec.applies.iter().map(|(name, when)| guards(Some(when), 0, "a ruleset, which has no subject").map(|g| (name.clone(), g)).map_err(|e| fail(format!("ruleset {name}: {e}")))).collect::<Result<Vec<_>, _>>()?;
+    if spec.manual {
+        log::debug!("rule {id} is manual");
+        return Ok(Rule { id: id.to_owned(), spec, fact: vec![], suggest: None, applies, when: vec![], expect: None });
+    }
     let fact_text = spec.fact.as_deref().ok_or_else(|| fail("has no fact".to_owned()))?;
     let fact = parse_path(fact_text).map_err(fail)?;
     let suggest = spec.suggest.as_ref().map(|s| parse_path(&s.fact).map(|p| (p, s.otherwise.clone()))).transpose().map_err(fail)?;
@@ -302,29 +337,8 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         return Err(fail(format!("suggest has {} * where fact {fact_text} has {}, so it binds no subject", stars(path), stars(&fact))));
     }
     let expect = schema(spec.expect.as_ref().ok_or_else(|| fail("has no expect".to_owned()))?).map_err(|e| fail(format!("expect {e}")))?;
-    let branches = match &spec.when {
-        None => vec![],
-        Some(When::All(map)) => vec![map.clone()],
-        Some(When::Any(list)) if list.is_empty() => return Err(fail("when is an empty list".to_owned())),
-        Some(When::Any(list)) => list.clone(),
-    };
-    let mut when = Vec::new();
-    for branch in branches {
-        let mut guards = Vec::new();
-        for (path, expected) in branch {
-            let parsed = parse_path(&path).map_err(fail)?;
-            if stars(&parsed) > stars(&fact) {
-                return Err(fail(format!("when {path} has more * than fact {fact_text}, so it binds no subject")));
-            }
-            let test = match &expected {
-                Value::Object(map) => Test::Schema(schema(map).map_err(|e| fail(format!("when {path}: {e}")))?),
-                other => Test::Equal(other.clone()),
-            };
-            guards.push(Guard { path: parsed, test });
-        }
-        when.push(guards);
-    }
-    Ok(Rule { id: id.to_owned(), spec, fact, suggest, when, expect })
+    let when = guards(spec.when.as_ref(), stars(&fact), &format!("fact {fact_text}")).map_err(fail)?;
+    Ok(Rule { id: id.to_owned(), spec, fact, suggest, applies, when, expect: Some(expect) })
 }
 
 enum Tri {
@@ -333,13 +347,13 @@ enum Tri {
     Unknown(String, Option<String>),
 }
 
-fn guard(rule: &Rule, document: &Value, bound: &[String]) -> Tri {
-    if rule.when.is_empty() {
+fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String]) -> Tri {
+    if when.is_empty() {
         return Tri::True;
     }
     let mut unknown = None;
     let mut first_false = None;
-    for branch in &rule.when {
+    for branch in when {
         let mut result = Tri::True;
         for g in branch {
             let keys = concrete(&g.path, bound);
@@ -469,8 +483,8 @@ fn base(rule: &Rule, outcome: Outcome, bound: &[String]) -> Check {
     }
 }
 
-fn check(rule: &Rule, document: &Value, bound: &[String]) -> Check {
-    match guard(rule, document, bound) {
+fn check(rule: &Rule, expect: &Validator, document: &Value, bound: &[String]) -> Check {
+    match guard(&rule.when, document, bound) {
         Tri::False(reason) => return Check { reason: Some(reason), ..base(rule, Outcome::Skip, bound) },
         Tri::Unknown(reason, collector) => return Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, bound) },
         Tri::True => {}
@@ -480,7 +494,7 @@ fn check(rule: &Rule, document: &Value, bound: &[String]) -> Check {
         let (reason, collector) = absent(document, &keys);
         return Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, bound) };
     };
-    let Err(error) = rule.expect.validate(value) else {
+    let Err(error) = expect.validate(value) else {
         return base(rule, Outcome::Pass, bound);
     };
     let pointer = error.instance_path().as_str().to_owned();
@@ -512,8 +526,24 @@ fn check(rule: &Rule, document: &Value, bound: &[String]) -> Check {
     }
 }
 
-/// Every check of `rule` on `document`, one per subject; none when its subjects exist and are empty.
+/// Every check of `rule` on `document`: one not-applicable, unknown or manual check, else one per subject, none when its subjects exist and are empty.
 pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
+    for (name, when) in &rule.applies {
+        match guard(when, document, &[]) {
+            Tri::True => {}
+            Tri::False(reason) => {
+                log::debug!("rule {} is not applicable: ruleset {name} {reason}", rule.id);
+                return vec![Check { reason: Some(format!("ruleset {name}: {reason}")), ..base(rule, Outcome::NotApplicable, &[]) }];
+            }
+            Tri::Unknown(reason, collector) => {
+                log::debug!("rule {} applicability is unknown: ruleset {name} {reason}", rule.id);
+                return vec![Check { reason: Some(format!("ruleset {name}: {reason}")), collector, ..base(rule, Outcome::Unknown, &[]) }];
+            }
+        }
+    }
+    let Some(expect) = &rule.expect else {
+        return vec![base(rule, Outcome::Manual, &[])];
+    };
     let Some(bindings) = subjects(document, &rule.fact) else {
         let last = rule.fact.iter().position(|s| *s == Segment::Star).unwrap_or(rule.fact.len());
         let keys = concrete(&rule.fact[..last], &[]);
@@ -522,7 +552,7 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
         return vec![Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, &[]) }];
     };
     log::debug!("rule {} judges {} subjects", rule.id, bindings.len());
-    bindings.iter().map(|bound| check(rule, document, bound)).collect()
+    bindings.iter().map(|bound| check(rule, expect, document, bound)).collect()
 }
 
 /// Every check of every rule, with the first matching waiver attached to each failure, active through its `until` day.

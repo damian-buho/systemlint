@@ -54,7 +54,7 @@ impl FailOn {
 pub fn summary(checks: &[Check]) -> Value {
     let count = |o: Outcome| checks.iter().filter(|c| c.outcome == o).count();
     let waived = checks.iter().filter(|c| c.outcome == Outcome::Fail && !c.is_failing()).count();
-    json!({"checks": checks.len(), "pass": count(Outcome::Pass), "fail": count(Outcome::Fail) - waived, "waived": waived, "unknown": count(Outcome::Unknown), "skip": count(Outcome::Skip)})
+    json!({"checks": checks.len(), "pass": count(Outcome::Pass), "fail": count(Outcome::Fail) - waived, "waived": waived, "unknown": count(Outcome::Unknown), "skip": count(Outcome::Skip), "not-applicable": count(Outcome::NotApplicable), "manual": count(Outcome::Manual)})
 }
 
 /// The lowest share passed, in tenths, each grade still reaches, best first; F takes the rest.
@@ -281,7 +281,8 @@ fn summary_line(document: &Value, checks: &[Check], on: bool) -> String {
     let s = summary(checks);
     let not_run = checks.iter().filter(|c| skip_reason(document, c).is_some()).count();
     let unknown = s["unknown"].as_u64().unwrap_or_default() as usize - not_run;
-    let rest: Vec<String> = [("pass", s["pass"].as_u64().unwrap_or_default() as usize), ("waived", s["waived"].as_u64().unwrap_or_default() as usize), ("unknown", unknown), ("not run", not_run), ("skip", s["skip"].as_u64().unwrap_or_default() as usize)]
+    let n = |key: &str| s[key].as_u64().unwrap_or_default() as usize;
+    let rest: Vec<String> = [("pass", n("pass")), ("waived", n("waived")), ("unknown", unknown), ("not run", not_run), ("skip", n("skip")), ("not applicable", n("not-applicable")), ("manual", n("manual"))]
         .into_iter()
         .filter(|(name, n)| *n > 0 || *name == "pass")
         .map(|(name, n)| format!("{n} {name}"))
@@ -294,7 +295,7 @@ fn verdict_word(verdict: Verdict) -> (String, &'static str) {
     let code = match verdict {
         Verdict::NonCompliant => "31",
         Verdict::Indeterminate => "33",
-        Verdict::Compliant | Verdict::Manual => "2",
+        Verdict::Compliant | Verdict::Manual | Verdict::NotApplicable => "2",
     };
     (name(verdict), code)
 }
@@ -305,9 +306,10 @@ fn standard_block(out: &mut String, report: &Report, on: bool) {
     let title = if report.name == report.standard { String::new() } else { format!(" {}", report.name) };
     let _ = writeln!(out, "Standard: {} {}{title}", paint(on, code, &word), paint(on, "1", &format!("[{}]", report.standard)));
     let width = report.controls.iter().map(|c| c.id.chars().count()).max().unwrap_or(0);
+    let column = report.controls.iter().map(|c| name(c.verdict).len()).max().unwrap_or(0);
     for control in &report.controls {
         let (word, code) = verdict_word(control.verdict);
-        let row = format!("- {:width$}  {}{:pad$}  {}", control.id, paint(on, code, &word), "", control.title.as_deref().unwrap_or_default(), pad = 13 - word.len());
+        let row = format!("- {:width$}  {}{:pad$}  {}", control.id, paint(on, code, &word), "", control.title.as_deref().unwrap_or_default(), pad = column - word.len());
         let _ = writeln!(out, "{}", row.trim_end());
         for reason in &control.reasons {
             let _ = writeln!(out, "  {:width$}  {reason}", "");
@@ -322,7 +324,16 @@ fn standard_block(out: &mut String, report: &Report, on: bool) {
     out.push('\n');
 }
 
-/// One block per rule: not run reasons, unknowns, waivers, failures lowest score first (with references when `verbose`), each standard, then the rating and counts unless `quiet`.
+/// The rules of `checks` grouped by their reason, each reason once.
+fn by_reason<'a>(checks: impl Iterator<Item = &'a Check>) -> BTreeMap<&'a str, BTreeSet<&'a str>> {
+    let mut groups: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for check in checks {
+        groups.entry(check.reason.as_deref().unwrap_or_default()).or_default().insert(&check.rule);
+    }
+    groups
+}
+
+/// One block per rule: not run reasons, not applicable reasons, unknowns, manual rules, waivers, failures lowest score first (with references when `verbose`), each standard, then the rating and counts unless `quiet`.
 pub fn lint_human(document: &Value, checks: &[Check], compliance: &[Report], quiet: bool, verbose: bool, on: bool) -> String {
     let mut out = String::new();
     let mut not_run: BTreeMap<&str, (BTreeSet<&str>, BTreeSet<&str>)> = BTreeMap::new();
@@ -339,9 +350,22 @@ pub fn lint_human(document: &Value, checks: &[Check], compliance: &[Report], qui
         out.push_str(&wrap(&rules.iter().map(|r| (*r).to_owned()).collect::<Vec<_>>(), on));
         out.push('\n');
     }
+    for (reason, rules) in by_reason(checks.iter().filter(|c| c.outcome == Outcome::NotApplicable)) {
+        log::debug!("{} rules not applicable: {reason}", rules.len());
+        let _ = writeln!(out, "Not applicable: {reason}");
+        out.push_str(&wrap(&rules.iter().map(|r| (*r).to_owned()).collect::<Vec<_>>(), on));
+        out.push('\n');
+    }
     for group in by_rule(checks.iter().filter(|c| c.outcome == Outcome::Unknown && skip_reason(document, c).is_none())).values() {
         let _ = writeln!(out, "{}", header("Unknown", group[0], on));
         group.iter().for_each(|c| { let _ = writeln!(out, "{}", location(&c.subject_text(), c.reason.as_deref())); });
+        out.push('\n');
+    }
+    for check in checks.iter().filter(|c| c.outcome == Outcome::Manual) {
+        let _ = writeln!(out, "{}", header("Manual", check, on));
+        if let Some(why) = &check.rationale {
+            let _ = writeln!(out, "Why: {why}");
+        }
         out.push('\n');
     }
     for group in by_rule(checks.iter().filter(|c| c.outcome == Outcome::Fail && !c.is_failing())).values() {
@@ -375,8 +399,14 @@ pub fn lint_plain(document: &Value, checks: &[Check], compliance: &[Report], qui
     for (rule, group) in by_rule(checks.iter().filter(|c| skip_reason(document, c).is_some())) {
         row(["not-run", "", rule, "", skip_reason(document, group[0]).unwrap_or_default(), ""]);
     }
+    for check in checks.iter().filter(|c| c.outcome == Outcome::NotApplicable) {
+        row(["not-applicable", "", &check.rule, "", check.reason.as_deref().unwrap_or_default(), ""]);
+    }
     for check in checks.iter().filter(|c| c.outcome == Outcome::Unknown && skip_reason(document, c).is_none()) {
         row(["unknown", "", &check.rule, &check.subject_text(), check.reason.as_deref().unwrap_or_default(), ""]);
+    }
+    for check in checks.iter().filter(|c| c.outcome == Outcome::Manual) {
+        row(["manual", "", &check.rule, "", check.title.as_deref().unwrap_or_default(), check.rationale.as_deref().unwrap_or_default()]);
     }
     for check in checks.iter().filter(|c| c.outcome == Outcome::Fail && !c.is_failing()) {
         let until = check.waiver.as_ref().map(|w| format!("waived until {}: {}", w.until, w.reason)).unwrap_or_default();
@@ -451,14 +481,18 @@ fn locations(check: &Check) -> Value {
     json!([{"physicalLocation": physical, "logicalLocations": logical}])
 }
 
-/// The SARIF result of a failure or an unknown; none for pass and skip.
+/// The SARIF result of a failure, an unknown, a rule not applicable or one to review by hand; none for pass and skip.
 fn result(check: &Check) -> Option<Value> {
     let mut out = match check.outcome {
         Outcome::Fail => json!({"ruleId": check.rule, "kind": "fail", "level": level(check.severity), "message": {"text": check.message.as_deref().unwrap_or(&check.rule)}}),
         Outcome::Unknown => json!({"ruleId": check.rule, "kind": "open", "level": "none", "message": {"text": check.reason.as_deref().unwrap_or("unknown")}}),
+        Outcome::NotApplicable => json!({"ruleId": check.rule, "kind": "notApplicable", "level": "none", "message": {"text": check.reason.as_deref().unwrap_or("not applicable")}}),
+        Outcome::Manual => json!({"ruleId": check.rule, "kind": "review", "level": "none", "message": {"text": check.title.as_deref().unwrap_or(&check.rule)}}),
         Outcome::Pass | Outcome::Skip => return None,
     };
-    out["locations"] = locations(check);
+    if !check.fact.is_empty() {
+        out["locations"] = locations(check);
+    }
     out["partialFingerprints"] = json!({"systemlintSubject/v1": format!("{}|{}", check.rule, check.subject_text())});
     if let Some(waiver) = check.waiver.as_ref().filter(|w| w.active && check.outcome == Outcome::Fail) {
         out["suppressions"] = json!([{"kind": "external", "status": "accepted", "justification": format!("{} (until {})", waiver.reason, waiver.until)}]);
@@ -567,7 +601,7 @@ pub fn lint_textfile(document: &Value, checks: &[Check], compliance: &[Report]) 
     let mut out = String::new();
     let s = summary(checks);
     out.push_str("# HELP systemlint_checks Checks of the last lint run by outcome.\n# TYPE systemlint_checks gauge\n");
-    for outcome in ["pass", "fail", "waived", "unknown", "skip"] {
+    for outcome in ["pass", "fail", "waived", "unknown", "skip", "not-applicable", "manual"] {
         let _ = writeln!(out, "systemlint_checks{{outcome=\"{outcome}\"}} {}", s[outcome]);
     }
     let mut per_rule = std::collections::BTreeMap::new();
@@ -588,13 +622,13 @@ pub fn lint_textfile(document: &Value, checks: &[Check], compliance: &[Report]) 
         let _ = writeln!(out, "systemlint_rating{{grade=\"{}\"}} {}", rating.grade, rating.score);
     }
     if !compliance.is_empty() {
-        let verdicts = [Verdict::Compliant, Verdict::NonCompliant, Verdict::Indeterminate, Verdict::Manual];
+        let verdicts = [Verdict::Compliant, Verdict::NonCompliant, Verdict::Indeterminate, Verdict::NotApplicable, Verdict::Manual];
         out.push_str("# HELP systemlint_controls Controls of each standard by verdict.\n# TYPE systemlint_controls gauge\n");
         for (report, verdict) in compliance.iter().flat_map(|r| verdicts.map(|v| (r, v))) {
             let _ = writeln!(out, "systemlint_controls{{standard=\"{}\",verdict=\"{}\"}} {}", label(&report.standard), name(verdict), report.controls.iter().filter(|c| c.verdict == verdict).count());
         }
         out.push_str("# HELP systemlint_compliance Whether each standard answered this verdict.\n# TYPE systemlint_compliance gauge\n");
-        for (report, verdict) in compliance.iter().flat_map(|r| verdicts[..3].iter().map(move |v| (r, *v))) {
+        for (report, verdict) in compliance.iter().flat_map(|r| verdicts[..4].iter().map(move |v| (r, *v))) {
             let _ = writeln!(out, "systemlint_compliance{{standard=\"{}\",verdict=\"{}\"}} {}", label(&report.standard), name(verdict), u8::from(report.verdict == verdict));
         }
     }

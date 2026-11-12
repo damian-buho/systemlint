@@ -120,3 +120,23 @@ fn load_reads_trusted_files_by_stem_and_refuses_a_clash_with_the_config() {
     let inline = BTreeMap::from([("fixture".to_owned(), Ruleset::default())]);
     assert!(Library::load(&[dir], &trust, &inline).0.unwrap_err().contains("in the config is also a file"));
 }
+
+#[test]
+fn a_ruleset_when_guards_the_rules_it_defines_and_every_ruleset_that_brings_them() {
+    let library = library(&[("debian", "when: {os.release.ID: debian}\nrules:\n  deb/one: {fact: a, expect: {}}\n"), ("strict", "extends: [debian]\nwhen: {os.release.VERSION_ID: '13'}\nrules:\n  deb/one: error\n")]);
+    let names = |selectors: &[&str]| library.select(&selectors.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>()).unwrap()["deb/one"].applies.iter().map(|(n, _)| n.clone()).collect::<Vec<_>>();
+    assert_eq!(names(&["strict"]), ["debian", "strict"], "an extending ruleset adds its own when to the parent’s");
+    assert_eq!(names(&["deb/one"]), ["debian"], "a pick by ID keeps the defining ruleset’s when");
+    assert!(library.select(&["os/supported".to_owned()]).unwrap()["os/supported"].applies.is_empty(), "a ruleset without when guards nothing");
+}
+
+#[test]
+fn a_manual_rule_is_defined_without_fact_and_refuses_one() {
+    let library = library(&[("review", "rules:\n  review/backups: {manual: true, title: Review the backup policy, rationale: read the policy}\n"), ("stricter", "rules:\n  review/backups: error\n")]);
+    let spec = &library.select(&["stricter".to_owned()]).unwrap()["review/backups"];
+    assert!(spec.manual && spec.severity == Some(Severity::Error), "an override keeps the rule manual: {spec:?}");
+    for (yaml, why) in [("rules:\n  m: {manual: true, fact: a}\n", "fact"), ("rules:\n  m: {manual: true, expect: {}}\n", "expect")] {
+        let error = Library::new(BTreeMap::from([("bad".to_owned(), systemlint::yaml::from_str(yaml).unwrap())])).unwrap_err();
+        assert!(error.contains("is manual, so it takes no fact or expect"), "{why}: {error}");
+    }
+}

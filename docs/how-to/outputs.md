@@ -25,6 +25,8 @@ systemlint lint --root rootfs --format sarif --output systemlint.sarif
 | `fail` | `kind: fail`, `level` from the severity: `error`, `warning`, `note` for info and hint |
 | `fail` with an active waiver | the same, plus a `suppressions` entry with the reason and `until` |
 | `unknown` | `kind: open`, `level: none`, the reason as message |
+| `not-applicable` | `kind: notApplicable`, `level: none`, the reason as message |
+| `manual` | `kind: review`, `level: none`, the title as message, no location |
 | `pass`, `skip` | no result |
 
 - Location: the last subject key that is an absolute path becomes a file
@@ -61,12 +63,12 @@ systemlint --quiet lint --format textfile --fail-on never \
 
 | Metric | Labels | Value |
 | --- | --- | --- |
-| `systemlint_checks` | `outcome`: pass, fail, waived, unknown, skip | checks in the run |
+| `systemlint_checks` | `outcome`: pass, fail, waived, unknown, skip, not-applicable, manual | checks in the run |
 | `systemlint_rule_checks` | `rule`, `outcome` | checks of that rule; absent when zero |
 | `systemlint_failures` | `severity`: error, warning, info, hint | failing checks, waived ones apart |
 | `systemlint_rating` | `grade`: S, A, B, C, D, E or F | the share of judged checks kept after failure costs; absent when nothing was judged |
-| `systemlint_controls` | `standard`, `verdict`: compliant, non-compliant, indeterminate, manual | controls of that standard; with `--standard` only |
-| `systemlint_compliance` | `standard`, `verdict`: compliant, non-compliant, indeterminate | 1 for the standard’s verdict, else 0; with `--standard` only |
+| `systemlint_controls` | `standard`, `verdict`: compliant, non-compliant, indeterminate, not-applicable, manual | controls of that standard; with `--standard` only |
+| `systemlint_compliance` | `standard`, `verdict`: compliant, non-compliant, indeterminate, not-applicable | 1 for the standard’s verdict, else 0; with `--standard` only |
 | `systemlint_collector_status` | `collector`, `status`: `ok`, `error`, `skipped` | 1 for the status it ended in, else 0 |
 | `systemlint_privileged` | — | 1 when the facts were collected as root |
 

@@ -233,3 +233,59 @@ fn a_catalog_beside_rulesets_is_no_ruleset_and_a_ruleset_is_no_catalog() {
     assert_eq!(comply::catalog(&comply::directories(&rules), &trust(&base), "fixture-a").0.unwrap().unwrap().name.as_deref(), Some("Fixture Benchmark A"));
     assert!(comply::catalog(&comply::directories(&rules), &trust(&base), "fixture").0.unwrap().is_none());
 }
+
+const APPLICABILITY: &str = "rules:\n  none/bound: {fact: apt.sources.*.uri, expect: {}, tags: ['fixture-c:1']}\n  review/backups: {manual: true, title: Review the backup policy, tags: ['fixture-c:3']}\n";
+
+fn applicability(catalog: Option<&Catalog>) -> (Vec<Check>, Report) {
+    let extra = [("applicability", APPLICABILITY), ("debian", "when: {os.release.ID: debian}\nrules:\n  deb/only: {fact: os.release.ID, expect: {}, tags: ['fixture-c:2']}\n")];
+    let rules = rules(&[], &["fixture-c"], &extra);
+    let mut document = facts("root");
+    document["apt"]["sources"] = json!({});
+    let checks = lint(&document, &rules, &[], "2026-11-11");
+    let report = comply("fixture-c", &rules, &checks, catalog);
+    (checks, report)
+}
+
+#[test]
+fn a_control_nothing_judged_is_not_applicable_and_a_manual_rule_answers_manual() {
+    let catalog: Catalog = systemlint::yaml::from_str("controls:\n  - {id: '1'}\n  - {id: '2'}\n  - {id: '3'}\n").unwrap();
+    let (checks, report) = applicability(Some(&catalog));
+    assert_eq!(verdicts(&report), [("1", Verdict::NotApplicable), ("2", Verdict::NotApplicable), ("3", Verdict::Manual)]);
+    assert_eq!((report.controls[0].reasons.as_slice(), report.controls[1].reasons.as_slice()), (&["no rule binds a subject".to_owned()][..], &["ruleset debian: when os.release.ID is “ubuntu”".to_owned()][..]));
+    assert_eq!((report.verdict, report.coverage.as_ref().unwrap().covered), (Verdict::Compliant, 1), "coverage never counts a control nothing judged");
+    let text = lint_human(&facts("root"), &checks, std::slice::from_ref(&report), false, false, false);
+    assert!(text.contains("- 1  not-applicable\n"), "the verdict column widens to fit: {text}");
+    assert!(text.contains("- 3  manual\n"), "{text}");
+    assert!(text.contains("Not applicable: ruleset debian: when os.release.ID is “ubuntu”\n  deb/only\n"), "{text}");
+    assert!(text.contains("Manual: [review/backups] Review the backup policy\n"), "{text}");
+    assert!(text.contains("· 0 pass, 1 not applicable, 1 manual\n"), "{text}");
+}
+
+#[test]
+fn a_standard_every_control_of_which_is_not_applicable_is_not_applicable() {
+    let rules = rules(&[], &["fixture-c"], &[("debian", "when: {os.release.ID: debian}\nrules:\n  deb/only: {fact: os.release.ID, expect: {}, tags: ['fixture-c:2']}\n")]);
+    let checks = lint(&facts("root"), &rules, &[], "2026-11-11");
+    let inapplicable = comply("fixture-c", &rules, &checks, None);
+    assert_eq!(inapplicable.verdict, Verdict::NotApplicable);
+    let compliant = answer("fixture-b", &facts("root"), None);
+    assert_eq!(overall(std::slice::from_ref(&inapplicable)), Verdict::NotApplicable);
+    assert_eq!(overall(&[inapplicable, compliant]), Verdict::Compliant, "one judged standard outweighs one that does not apply");
+    assert_eq!((Verdict::NotApplicable.code(), serde_json::to_value(Verdict::NotApplicable).unwrap()), (0, json!("not-applicable")));
+}
+
+#[test]
+fn machine_formats_count_and_name_the_new_outcomes() {
+    let (checks, report) = applicability(None);
+    let document = facts("root");
+    let json: Value = serde_json::from_str(&lint_json(&document, &checks, &[])).unwrap();
+    assert_eq!((json["summary"]["not-applicable"].as_u64(), json["summary"]["manual"].as_u64(), json["rating"].clone()), (Some(1), Some(1), Value::Null), "neither outcome is judged, so nothing rates");
+    let sarif: Value = serde_json::from_str(&lint_sarif(&document, &checks, &[])).unwrap();
+    let kinds: Vec<(&str, &str, bool)> = sarif["runs"][0]["results"].as_array().unwrap().iter().map(|r| (r["ruleId"].as_str().unwrap(), r["kind"].as_str().unwrap(), r.get("locations").is_some())).collect();
+    assert_eq!(kinds, [("deb/only", "notApplicable", true), ("review/backups", "review", false)]);
+    let plain = lint_plain(&document, &checks, &[], true);
+    assert_eq!(plain, "not-applicable\t\tdeb/only\t\truleset debian: when os.release.ID is “ubuntu”\t\nmanual\t\treview/backups\t\tReview the backup policy\t\n");
+    let textfile = lint_textfile(&document, &checks, &[report]);
+    for line in ["systemlint_checks{outcome=\"not-applicable\"} 1", "systemlint_checks{outcome=\"manual\"} 1", "systemlint_rule_checks{rule=\"review/backups\",outcome=\"manual\"} 1", "systemlint_compliance{standard=\"fixture-c\",verdict=\"not-applicable\"} 0"] {
+        assert!(textfile.contains(line), "{line} in {textfile}");
+    }
+}

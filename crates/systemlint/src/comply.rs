@@ -40,13 +40,14 @@ pub enum Verdict {
     NonCompliant,
     Indeterminate,
     Manual,
+    NotApplicable,
 }
 
 impl Verdict {
-    /// The exit code of `lint --standard` answering this: 0 compliant, 1 non-compliant, 3 indeterminate or manual.
+    /// The exit code of `lint --standard` answering this: 0 compliant or not applicable, 1 non-compliant, 3 indeterminate or manual.
     pub fn code(self) -> u8 {
         match self {
-            Self::Compliant => 0,
+            Self::Compliant | Self::NotApplicable => 0,
             Self::NonCompliant => 1,
             Self::Indeterminate | Self::Manual => 3,
         }
@@ -103,13 +104,15 @@ pub fn catalog(dirs: &[PathBuf], trust: &Trust, standard: &str) -> (Result<Optio
     (parsed, refusals)
 }
 
-/// The verdict over several standards: non-compliant beats indeterminate beats compliant.
+/// The verdict over several standards: non-compliant beats indeterminate beats compliant, not applicable only when every standard is.
 pub fn overall(reports: &[Report]) -> Verdict {
     let any = |v: Verdict| reports.iter().any(|r| r.verdict == v);
     let verdict = if any(Verdict::NonCompliant) {
         Verdict::NonCompliant
     } else if reports.is_empty() || any(Verdict::Indeterminate) || any(Verdict::Manual) {
         Verdict::Indeterminate
+    } else if reports.iter().all(|r| r.verdict == Verdict::NotApplicable) {
+        Verdict::NotApplicable
     } else {
         Verdict::Compliant
     };
@@ -128,10 +131,18 @@ fn judge(id: &str, title: Option<String>, rules: &[&Rule], checks: &[Check]) -> 
     let mine: Vec<&Check> = checks.iter().filter(|c| ids.contains(&c.rule)).collect();
     let failing: Vec<String> = mine.iter().filter(|c| c.is_failing()).map(|c| format!("{} {}: {}", c.rule, c.subject_text(), c.message.as_deref().unwrap_or_default())).collect();
     let unknown: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::Unknown).map(|c| format!("{}: {}", c.rule, c.reason.as_deref().unwrap_or_default())).collect();
+    let manual: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::Manual).map(|c| c.title.as_ref().map_or_else(|| c.rule.clone(), |t| format!("{}: {t}", c.rule))).collect();
+    let mut inapplicable: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::NotApplicable).filter_map(|c| c.reason.clone()).collect();
+    inapplicable.sort();
+    inapplicable.dedup();
     let (verdict, reasons) = if !failing.is_empty() {
         (Verdict::NonCompliant, failing)
     } else if !unknown.is_empty() {
         (Verdict::Indeterminate, unknown)
+    } else if !manual.is_empty() {
+        (Verdict::Manual, manual)
+    } else if mine.iter().all(|c| c.outcome == Outcome::NotApplicable) {
+        (Verdict::NotApplicable, if inapplicable.is_empty() { vec!["no rule binds a subject".to_owned()] } else { inapplicable })
     } else {
         (Verdict::Compliant, vec![])
     };
@@ -168,6 +179,8 @@ pub fn comply(standard: &str, rules: &[Rule], checks: &[Check], catalog: Option<
         Verdict::NonCompliant
     } else if controls.is_empty() || controls.iter().any(|c| c.verdict == Verdict::Indeterminate) {
         Verdict::Indeterminate
+    } else if controls.iter().all(|c| c.verdict == Verdict::NotApplicable) {
+        Verdict::NotApplicable
     } else {
         Verdict::Compliant
     };
@@ -176,7 +189,7 @@ pub fn comply(standard: &str, rules: &[Rule], checks: &[Check], catalog: Option<
         None => Some(format!("there is no catalog of {standard}, so compliant only means no rule tagged {standard}:* failed")),
         Some(_) => None,
     };
-    let coverage = catalog.map(|c| Coverage { covered: c.controls.iter().filter(|k| !covering(&k.id).is_empty()).count(), total: c.controls.len() });
+    let coverage = catalog.map(|c| Coverage { covered: controls[..c.controls.len()].iter().filter(|k| !k.rules.is_empty() && k.verdict != Verdict::NotApplicable).count(), total: c.controls.len() });
     let name = catalog.and_then(|c| c.name.clone()).unwrap_or_else(|| standard.to_owned());
     log::debug!("standard {standard}: {verdict:?} over {} controls", controls.len());
     Report { standard: standard.to_owned(), name, verdict, note, coverage, controls }
