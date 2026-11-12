@@ -26,6 +26,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "ini" => Ok(ini(&request.inputs)),
         "json" => Ok(json(&request.inputs)),
         "kv" => Ok(kv(&request.inputs)),
+        "lines" => Ok(lines(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
         "sysctl" => Ok(sysctl(&request.inputs)),
         other => Err(format!("op {other} is not implemented yet").into()),
@@ -87,6 +88,15 @@ pub fn stat(inputs: &[Input]) -> Reply {
             Input::File(FileInput { path, .. }) => reply.diagnostics.push(Diagnostic { path: path.clone(), line: None, message: "no stat; list it under read.stat".to_owned() }),
             Input::Exec(exec) => reply.diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: "a command has no stat".to_owned() }),
         }
+    }
+    reply
+}
+
+/// Every text input as its list of lines, keyed by its path.
+pub fn lines(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    for (path, text) in inputs.iter().filter_map(|i| text(i, &mut reply.diagnostics)) {
+        reply.facts.insert(path.to_owned(), Value::from(text.lines().collect::<Vec<_>>()));
     }
     reply
 }
@@ -364,6 +374,15 @@ mod tests {
         assert!(unquote("\"").is_err());
         assert!(unquote("'").is_err());
         assert!(unquote(r#""a"b""#).is_err());
+    }
+
+    #[test]
+    fn lines_keys_each_file_by_path_and_skips_a_command() {
+        let exec = Input::Exec(ExecInput { argv: vec!["/bin/true".into()], stdout: "x".into(), stderr: String::new(), exit: 0 });
+        let reply = super::lines(&[file("/etc/a", "one\r\n\ntwo"), file("/etc/empty", ""), exec]);
+        assert_eq!(reply.facts["/etc/a"], serde_json::json!(["one", "", "two"]));
+        assert_eq!(reply.facts["/etc/empty"], serde_json::json!([]));
+        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/bin/true"]);
     }
 
     #[test]

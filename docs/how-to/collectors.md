@@ -178,7 +178,10 @@ under `collect.directories`. It runs after the collectors from directories,
 and one whose `id` or `into` clashes with theirs is refused. A `stat` path it
 names that is absent becomes `{exists: false}` from the `stat` op, so a rule
 can require absence; under `files.*` that path leaves the shipped `files`
-rules `unknown`, so give such a collector its own `into`.
+rules `unknown`, so give such a collector its own `into`. To judge a file’s
+contents, read it under `files` with `op: lines`, which keys each file’s list of
+lines by its path, so a rule asserts `contains: {pattern: …}`; contents enter
+the facts document only through a collector the operator writes.
 
 ## Derived facts
 
