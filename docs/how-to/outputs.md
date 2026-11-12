@@ -36,7 +36,7 @@ systemlint lint --root rootfs --format sarif --output systemlint.sarif
   directory for `--root` when it is absolute.
 - Rules: each rule judged gets a descriptor with its `title` as
   `shortDescription`, its `tags`, `docs` (else its first reference) as
-  `helpUri`, its rationale and references as `help` text and markdown, and its score as `security-severity`, which GitHub shows as
+  `helpUri`, its rationale and references as `help` text and Markdown, and its score as `security-severity`, which GitHub shows as
   critical, high, medium or low.
 - A collector that failed is a tool notification at level `error`, so a run
   that could not read `/etc/shadow` says so beside its results.
