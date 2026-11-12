@@ -52,6 +52,10 @@ org:
     images:
       RUST_TOOL_IMAGE:
         libc: musl
+    artifacts:
+      cargo-binary:
+        command: systemlint
+        path: dist/systemlint
     architecture:
       - amd64
       - arm64
@@ -73,6 +77,9 @@ org:
               TARGET_OS:
                 - linux
       tools:
+        gh-release:
+          set-env:
+            RELEASE_PATH: ${org.projectfile.artifacts{kind=binary}.path}
         build-binaries:
           artifact: dist
           env:
@@ -93,6 +100,26 @@ org:
           - crates/systemlint-sshd/src/defaults.txt
       fd: *captures
     readme:
+      download: latest/download
+      installation:
+        - name: release-archive
+          priority: 5
+          title:
+            en: Prebuilt archive
+            es: Archivo precompilado
+            uk: Готовий архів
+          prefix:
+            en: "Download the archive for your architecture and unpack it into `/usr/local`:"
+            es: "Descarga el archivo para tu arquitectura y descomprímelo en `/usr/local`:"
+            uk: "Завантажте архів для своєї архітектури й розпакуйте його в `/usr/local`:"
+          syntax: sh
+          commands:
+            - curl --fail --location ${org.projectfile.forge.remotes.github.url}/releases/${org.projectfile.readme.download}/systemlint-linux-$(uname -m).tar.gz | sudo tar --extract --gzip --directory /usr/local
+            - systemlint --version
+          postfix:
+            en: "The archive holds the core, its plugins, collectors and rulesets under `bin/`, `lib/systemlint/` and `share/systemlint/`."
+            es: "El archivo contiene el núcleo, sus complementos, recolectores y conjuntos de reglas en `bin/`, `lib/systemlint/` y `share/systemlint/`."
+            uk: "Архів містить ядро, його плагіни, збирачі та набори правил у `bin/`, `lib/systemlint/` і `share/systemlint/`."
       usage:
         - name: host
           priority: 20
@@ -130,6 +157,8 @@ includes:
   - .makefile/b19/traits/image/attested.yaml
   - .makefile/b19/traits/image/signed.yaml
   - .makefile/library/languages/rust.yaml
+  - .makefile/library/traits/binary.yaml
+  - .makefile/core/traits/release.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/personal-image.yaml
 technologies:

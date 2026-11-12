@@ -54,7 +54,7 @@ See [Features](docs/FEATURES.md) for the full list.
 
 ## What this provides
 
-- **Executable** `target/release/systemlint`
+- **Executable** `systemlint` — command `systemlint`
 - **Container image** `kiota.ch/damian-buho/systemlint:latest`
 
 ## Supported platforms
@@ -64,6 +64,8 @@ See [Features](docs/FEATURES.md) for the full list.
 
 ## Installation
 
+### Container image
+
 Pull the published container image:
 
 ```sh
@@ -71,6 +73,16 @@ docker pull kiota.ch/damian-buho/systemlint:latest
 ```
 
 Stable releases also publish `X.Y.Z`, `X.Y` and `X` tags — pull the precision you want to pin.
+
+### Prebuilt archive
+
+Download the archive for your architecture and unpack it into `/usr/local`:
+
+```sh
+systemlint --version
+```
+
+The archive holds the core, its plugins, collectors and rulesets under `bin/`, `lib/systemlint/` and `share/systemlint/`.
 
 ## Usage
 

@@ -56,7 +56,7 @@ Consulta [Características](FEATURES.md) para ver la lista completa.
 
 ## Qué entrega este proyecto
 
-- **Ejecutable** `target/release/systemlint`
+- **Ejecutable** `systemlint` — comando `systemlint`
 - **Imagen de contenedor** `kiota.ch/damian-buho/systemlint:latest`
 
 ## Plataformas admitidas
@@ -66,6 +66,8 @@ Consulta [Características](FEATURES.md) para ver la lista completa.
 
 ## Instalación
 
+### Imagen de contenedor
+
 Descarga la imagen de contenedor publicada:
 
 ```sh
@@ -73,6 +75,16 @@ docker pull kiota.ch/damian-buho/systemlint:latest
 ```
 
 Las versiones estables también publican las etiquetas `X.Y.Z`, `X.Y` y `X`: descarga el nivel de precisión que quieras fijar.
+
+### Archivo precompilado
+
+Descarga el archivo para tu arquitectura y descomprímelo en `/usr/local`:
+
+```sh
+systemlint --version
+```
+
+El archivo contiene el núcleo, sus complementos, recolectores y conjuntos de reglas en `bin/`, `lib/systemlint/` y `share/systemlint/`.
 
 ## Uso
 
