@@ -96,6 +96,8 @@ fn stat_spells_out_the_mode_bits() {
     assert!(!plain.world_writable && !plain.group_writable && !plain.setuid && !plain.setgid);
     let link = root.stat("/link").unwrap();
     assert_eq!((link.kind, link.world_writable, link.group_writable), (FileKind::Symlink, false, false));
+    assert_eq!(link.linked_to.as_deref(), Some("/plain"));
+    assert_eq!(plain.linked_to, None);
     assert_eq!(root.stat("/etc").unwrap().kind, FileKind::Directory);
     assert_eq!(root.stat("/missing").unwrap_err().kind(), ErrorKind::NotFound);
 }

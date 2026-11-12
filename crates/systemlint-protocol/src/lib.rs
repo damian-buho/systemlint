@@ -135,6 +135,8 @@ pub struct Stat {
     pub group_writable: bool,
     pub setuid: bool,
     pub setgid: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linked_to: Option<String>,
 }
 
 /// The file type in a [`Stat`].
@@ -335,7 +337,7 @@ mod tests {
 
     #[test]
     fn stat_uses_kebab_case() {
-        let stat = Stat { kind: FileKind::File, mode: "0644".into(), uid: 0, gid: 0, size: 3, world_writable: false, group_writable: false, setuid: false, setgid: false };
+        let stat = Stat { kind: FileKind::File, mode: "0644".into(), uid: 0, gid: 0, size: 3, world_writable: false, group_writable: false, setuid: false, setgid: false, linked_to: None };
         let json = serde_json::to_string(&stat).unwrap();
         assert!(json.contains(r#""world-writable":false"#) && json.contains(r#""kind":"file""#), "{json}");
     }

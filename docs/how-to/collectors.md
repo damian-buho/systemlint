@@ -50,8 +50,9 @@ no wildcard is passed when it exists, and an absent one is not an error. A
   not UTF-8.
 - `stat`: each match is passed with its type, octal mode, owner, group, size and
   the `world-writable`, `group-writable`, `setuid` and `setgid` booleans. A
-  final symlink is described itself, not followed; its booleans are all false,
-  since a symlink’s own mode means nothing on Linux.
+  final symlink is described itself, not followed, with its target as
+  `linked-to`; its booleans are all false, since a symlink’s own mode means
+  nothing on Linux.
 - `exec`: the argv runs directly, never through a shell, with an empty
   environment except `LC_ALL=C`, a timeout and an output cap. Its `stdout`,
   `stderr` and exit code are passed to the plugin, which judges the exit; an

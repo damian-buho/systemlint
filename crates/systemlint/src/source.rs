@@ -116,8 +116,14 @@ impl Root {
 
     /// The metadata of `path` itself, a final symlink not followed.
     pub fn stat(&self, path: &str) -> io::Result<Stat> {
-        let meta = File::from(self.open_at(path, OFlags::PATH | OFlags::NOFOLLOW)?).metadata()?;
-        Ok(stat_of(&meta))
+        let fd = self.open_at(path, OFlags::PATH | OFlags::NOFOLLOW)?;
+        let mut stat = stat_of(&File::from(fd.try_clone()?).metadata()?);
+        if stat.kind == FileKind::Symlink {
+            let target = rustix::fs::readlinkat(&fd, "", Vec::new())?;
+            stat.linked_to = Some(target.to_string_lossy().into_owned());
+            log::trace!("stat {path}: links to {:?}", stat.linked_to);
+        }
+        Ok(stat)
     }
 }
 
@@ -141,6 +147,7 @@ pub fn stat_of(meta: &std::fs::Metadata) -> Stat {
         group_writable: bits & 0o020 != 0,
         setuid: bits & 0o4000 != 0,
         setgid: bits & 0o2000 != 0,
+        linked_to: None,
     }
 }
 

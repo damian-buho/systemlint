@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn stat_keys_each_stat_by_path_and_names_inputs_without_one() {
-        let stat = Stat { kind: FileKind::File, mode: "0666".into(), uid: 0, gid: 0, size: 3, world_writable: true, group_writable: true, setuid: false, setgid: false };
+        let stat = Stat { kind: FileKind::File, mode: "0666".into(), uid: 0, gid: 0, size: 3, world_writable: true, group_writable: true, setuid: false, setgid: false, linked_to: None };
         let with = Input::File(FileInput { path: "/etc/sudoers.d/x".into(), content: None, content_base64: None, stat: Some(stat) });
         let exec = Input::Exec(ExecInput { argv: vec!["/bin/true".into()], stdout: String::new(), stderr: String::new(), exit: 0 });
         let reply = super::stat(&[with, file("/etc/a", "x"), exec]);

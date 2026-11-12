@@ -34,8 +34,8 @@ Each collector passes its `read.stat` globs to the `stat` op of
 A stat holds `kind` (`file`, `directory`, `symlink`, `other`), `mode` as four
 octal digits, `uid`, `gid`, `size`, and the `world-writable`,
 `group-writable`, `setuid` and `setgid` booleans. A symlink is described
-itself, not followed, and its booleans are all false; its target is judged
-where a collector lists it.
+itself, not followed, with its target as written in `linked-to`, and its
+booleans are all false; its target is judged where a collector lists it.
 
 The groups are separate collectors so that one unreadable directory, such as a
 0750 `/etc/sudoers.d` in an unprivileged run, fails its own group alone. Rules
