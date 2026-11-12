@@ -4,6 +4,7 @@
 
 id: env-processes
 live: true
+privileged: true
 read:
   files: [/proc/*/environ, /proc/*/cgroup, /proc/*/stat]
 parse: {plugin: env, op: processes}

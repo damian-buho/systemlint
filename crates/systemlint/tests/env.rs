@@ -30,7 +30,7 @@ fn document() -> Value {
     let (mut groups, mut outcomes) = (Map::new(), Map::new());
     for id in COLLECTORS {
         let c = Collector::parse(&std::fs::read_to_string(repository().join(format!("collectors/{id}.yaml"))).unwrap()).unwrap();
-        let options = Options { root: Root::open(&repository().join("fixtures/services")).unwrap(), live: c.live, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: key.clone(), image_config: Some(image_config()) };
+        let options = Options { privileged: true, root: Root::open(&repository().join("fixtures/services")).unwrap(), live: c.live, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: key.clone(), image_config: Some(image_config()) };
         let request = Request { protocol: PROTOCOL, op: c.parse.op.clone(), root: "/".to_owned(), now: None, inputs: inputs(&c, &options).unwrap(), facts: BTreeMap::new() };
         let reply = systemlint_env::op(request).unwrap();
         assert!(reply.diagnostics.is_empty(), "{id}: {:?}", reply.diagnostics);

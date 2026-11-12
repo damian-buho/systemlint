@@ -197,7 +197,7 @@ fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, q
             EXIT_CONFIG
         })?,
     };
-    let options = Options { root, live, now: SystemTime::now(), timeout: collect::TIMEOUT, hash_key, image_config };
+    let options = Options { root, live, privileged: rustix::process::geteuid().is_root(), now: SystemTime::now(), timeout: collect::TIMEOUT, hash_key, image_config };
     let document = collect::collect(&collectors, &plugins, &options);
     if collectors.is_empty() && !quiet {
         eprintln!("No collectors found. Searched: {}", collector::directories(&exe(), &config.collect.directories).iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
@@ -275,7 +275,7 @@ fn lint(config: &Config, input: &Input, tags: &[String], fail_on: Option<FailOn>
         }
         let checks = judge::lint(&document, &rules, &config.lint.waivers, &today());
         let text = match format {
-            Format::Human => report::lint_human(&checks, quiet),
+            Format::Human => report::lint_human(&document, &checks, quiet),
             Format::Json => report::lint_json(&document, &checks),
             Format::Sarif => report::lint_sarif(&document, &checks),
             Format::Textfile => report::lint_textfile(&document, &checks),

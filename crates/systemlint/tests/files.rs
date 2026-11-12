@@ -58,7 +58,7 @@ fn root() -> PathBuf {
 
 // Each files collector read through the core and parsed by the formats library in-process.
 fn document() -> Value {
-    let options = Options { root: Root::open(&root()).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None };
+    let options = Options { privileged: true, root: Root::open(&root()).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None };
     let (mut groups, mut outcomes) = (Map::new(), Map::new());
     for id in COLLECTORS {
         let c = Collector::parse(&fs::read_to_string(repository().join(format!("collectors/{id}.yaml"))).unwrap()).unwrap();

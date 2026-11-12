@@ -4,6 +4,7 @@
 
 //! Lint and compliance output, human or JSON, and the `--fail-on` threshold.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::str::FromStr;
 
@@ -60,10 +61,23 @@ fn about(check: &Check) -> String {
     if check.subject.is_empty() { check.rule.clone() } else { format!("{} {}", check.rule, check.subject_text()) }
 }
 
-/// One line per failure and unknown, then the counts unless `quiet`.
-pub fn lint_human(checks: &[Check], quiet: bool) -> String {
+/// The skip reason of the collector an `unknown` check waited on, when that collector was skipped.
+fn skip_reason<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
+    let outcome = &document["collectors"][check.collector.as_deref()?];
+    outcome["reason"].as_str().filter(|_| check.outcome == Outcome::Unknown && outcome["status"] == "skipped")
+}
+
+/// One line per failure and unknown, one `not run` line per collector skip reason, then the counts unless `quiet`.
+pub fn lint_human(document: &Value, checks: &[Check], quiet: bool) -> String {
     let mut out = String::new();
+    let mut not_run: BTreeMap<&str, (BTreeSet<&str>, BTreeSet<&str>)> = BTreeMap::new();
     for check in checks {
+        if let (Some(reason), Some(collector)) = (skip_reason(document, check), check.collector.as_deref()) {
+            let (collectors, rules) = not_run.entry(reason).or_default();
+            collectors.insert(collector);
+            rules.insert(&check.rule);
+            continue;
+        }
         match (check.outcome, &check.waiver) {
             (Outcome::Fail, Some(w)) if w.active => {
                 let _ = writeln!(out, "waived {}: {} ({}, until {})", about(check), check.message.as_deref().unwrap_or_default(), w.reason, w.until);
@@ -84,9 +98,15 @@ pub fn lint_human(checks: &[Check], quiet: bool) -> String {
             _ => {}
         }
     }
+    for (reason, (collectors, rules)) in &not_run {
+        log::debug!("{} rules not run: collectors {collectors:?} {reason}", rules.len());
+        let _ = writeln!(out, "not run ({}: {reason}): {}", collectors.iter().copied().collect::<Vec<_>>().join(", "), rules.iter().copied().collect::<Vec<_>>().join(", "));
+    }
     if !quiet {
         let s = summary(checks);
-        let _ = writeln!(out, "{} checks: {} pass, {} fail, {} waived, {} unknown, {} skip", s["checks"], s["pass"], s["fail"], s["waived"], s["unknown"], s["skip"]);
+        let skipped = checks.iter().filter(|c| skip_reason(document, c).is_some()).count();
+        let unknown = s["unknown"].as_u64().unwrap_or_default() - skipped as u64;
+        let _ = writeln!(out, "{} checks: {} pass, {} fail, {} waived, {unknown} unknown, {skipped} not run, {} skip", s["checks"], s["pass"], s["fail"], s["waived"], s["skip"]);
     }
     out
 }

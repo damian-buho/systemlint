@@ -36,6 +36,7 @@ pub const HASHED: &str = "hmac-sha256:";
 pub struct Options {
     pub root: Root,
     pub live: bool,
+    pub privileged: bool,
     pub now: SystemTime,
     pub timeout: Duration,
     pub hash_key: HashKey,
@@ -92,9 +93,10 @@ pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) 
     let mut described: HashMap<String, Result<Describe, String>> = HashMap::new();
     let mut planned = Vec::new();
     for (index, collector) in collectors.iter().enumerate() {
-        let skip = match (collector.live && !options.live, collector.read.image_config && options.image_config.is_none()) {
-            (true, _) => Some(format!("reads the live host only, and --root {} was given", options.root.path().display())),
-            (_, true) => Some("reads an image config, and no --image-config was given".to_owned()),
+        let skip = match (collector.live && !options.live, collector.read.image_config && options.image_config.is_none(), collector.privileged && !options.privileged) {
+            (true, _, _) => Some(format!("reads the live host only, and --root {} was given", options.root.path().display())),
+            (_, true, _) => Some("reads an image config, and no --image-config was given".to_owned()),
+            (_, _, true) => Some("needs root, and this run is unprivileged".to_owned()),
             _ => None,
         };
         if let Some(reason) = skip {
@@ -168,7 +170,7 @@ pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) 
         subject["image-config"] = json!(path);
     }
     let hash_key = json!({"source": if options.hash_key.configured { "configured" } else { "random" }, "id": options.hash_key.id()});
-    let meta = json!({"schema": SCHEMA, "systemlint": VERSION, "plugins": versions, "collected-at": now, "subject": subject, "privileged": rustix::process::geteuid().is_root(), "hash-key": hash_key});
+    let meta = json!({"schema": SCHEMA, "systemlint": VERSION, "plugins": versions, "collected-at": now, "subject": subject, "privileged": options.privileged, "hash-key": hash_key});
     facts.insert("meta".to_owned(), meta);
     facts.insert("collectors".to_owned(), Value::Object(outcomes));
     Value::Object(facts)

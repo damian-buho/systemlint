@@ -7,7 +7,7 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 use systemlint::judge::{Check, Waiver, compile, lint};
-use systemlint::report::{lint_sarif, lint_textfile};
+use systemlint::report::{lint_human, lint_sarif, lint_textfile};
 
 fn facts(name: &str) -> Value {
     systemlint::document::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../fixtures/lint/facts/{name}.yaml"))).unwrap()
@@ -113,4 +113,22 @@ fn umask() -> u32 {
     let mask = rustix::process::umask(rustix::fs::Mode::empty());
     rustix::process::umask(mask);
     mask.bits()
+}
+
+#[test]
+fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
+    let mut document = facts("root");
+    document["env"] = json!({"files": {"/etc/environment": {"vars": {}}}});
+    let root = json!({"status": "skipped", "reason": "needs root, and this run is unprivileged", "into": "env.processes"});
+    document["collectors"]["env-processes"] = root.clone();
+    document["collectors"]["env-defaults"] = json!({"status": "skipped", "reason": root["reason"], "into": "env.defaults"});
+    document["collectors"]["env-image"] = json!({"status": "error", "reason": "can’t read it", "into": "env.image"});
+    let rules = ["a", "b"].map(|id| compile(&format!("env/{id}"), systemlint::yaml::from_str("fact: env.*.*.vars\nexpect: {type: object}\n").unwrap()).unwrap());
+    let checks = lint(&document, &rules, &[], "2026-11-11");
+    let text = lint_human(&document, &checks, false);
+    assert!(text.contains("not run (env-defaults, env-processes: needs root, and this run is unprivileged): env/a, env/b\n"), "{text}");
+    assert_eq!(text.matches("not run (").count(), 1, "{text}");
+    assert!(text.contains("unknown env/a image: ") && !text.contains("unknown env/a processes"), "an error stays its own line: {text}");
+    assert!(text.ends_with(", 2 unknown, 4 not run, 0 skip\n"), "{text}");
+    assert!(lint_textfile(&document, &checks).contains("outcome=\"unknown\""), "machine formats keep the unknown");
 }

@@ -27,6 +27,7 @@ into: apt.sources
 | `read.exec` | an argv list run without a shell, live mode only; the program is an absolute path |
 | `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
 | `live` | `true` when the collector reads what only a running host has, such as `/proc`; skipped under `--root` |
+| `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
 | `into` | the dotted fact path the reply’s facts are placed at; never under `meta` or `collectors`, never overlapping another collector’s |
@@ -80,7 +81,7 @@ document, with a `reason` when it is not `ok`:
 | --- | --- |
 | `ok` | the plugin replied and its facts are under `into` |
 | `error` | reading failed, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
-| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, or `image-config` without `--image-config`; the reason is kept |
+| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, or `privileged` in an unprivileged run; the reason is kept |
 
 An `ok` collector also records its `plugin` and `op`, the plugin’s
 `diagnostics`, under `redacted` the JSON Pointers of the values the plugin
@@ -88,7 +89,11 @@ marked secret, which are replaced by `[redacted]` in every output, and under
 `hashed` how many values were replaced by their keyed hash.
 
 A rule that reads a fact from a collector that did not finish `ok` answers
-`unknown`, naming that collector, rather than passing.
+`unknown`, naming that collector, rather than passing. The `human` report lists
+an `unknown` from a `skipped` collector on no line of its own: it prints one
+`not run` line per skip reason, naming the collectors and the rules, and counts
+those checks as `not run`; `json`, `sarif`, `textfile` and `comply` keep them
+`unknown`, so a run that skipped a collector is never `compliant`.
 
 ## The facts document
 

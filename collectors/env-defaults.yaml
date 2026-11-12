@@ -7,3 +7,4 @@ read:
   files: [/etc/default/*]
 parse: {plugin: env, op: files}
 into: env.defaults
+privileged: true

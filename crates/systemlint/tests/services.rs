@@ -19,7 +19,7 @@ fn repository() -> PathBuf {
 // One shipped collector read from the fixture root under --root and parsed by the formats library in-process.
 fn facts(id: &str) -> Value {
     let c = Collector::parse(&std::fs::read_to_string(repository().join(format!("collectors/{id}.yaml"))).unwrap()).unwrap();
-    let options = Options { root: Root::open(&repository().join("fixtures/services")).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None };
+    let options = Options { privileged: true, root: Root::open(&repository().join("fixtures/services")).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None };
     let given = inputs(&c, &options).unwrap();
     assert!(given.iter().all(|i| matches!(i, Input::File(_))), "exec never runs under --root");
     let reply = systemlint_formats::op(Request { protocol: PROTOCOL, op: c.parse.op.clone(), root: "/".to_owned(), now: None, inputs: given, facts: BTreeMap::new() }).unwrap();

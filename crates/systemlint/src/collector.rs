@@ -27,6 +27,8 @@ pub struct Collector {
     pub into: String,
     #[serde(default)]
     pub live: bool,
+    #[serde(default)]
+    pub privileged: bool,
 }
 
 /// The `read:` sources.

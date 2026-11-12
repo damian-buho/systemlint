@@ -62,7 +62,7 @@ fn fixture() -> PathBuf {
 
 fn options(live: bool) -> Options {
     let root = if live { Path::new("/").to_path_buf() } else { fixture() };
-    Options { root: Root::open(&root).unwrap(), live, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None }
+    Options { privileged: true, root: Root::open(&root).unwrap(), live, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None }
 }
 
 fn collector(yaml: &str) -> Collector {
@@ -232,6 +232,15 @@ fn a_live_collector_is_skipped_under_root() {
     assert_eq!(doc["collectors"]["proc"]["status"], "skipped");
     assert!(doc["collectors"]["proc"]["reason"].as_str().unwrap().contains("live host only, and --root"), "{doc}");
     assert_eq!(collect(&[c], &plugins(), &options(true))["collectors"]["proc"]["status"], "ok");
+}
+
+#[test]
+fn a_privileged_collector_is_skipped_in_an_unprivileged_run() {
+    let c = collector("id: secret\nprivileged: true\nread:\n  files: [/etc/os-release]\nparse: {plugin: echo, op: parse}\ninto: secret\n");
+    let doc = collect(std::slice::from_ref(&c), &plugins(), &Options { privileged: false, ..options(true) });
+    assert_eq!((doc["collectors"]["secret"]["status"].as_str(), doc["meta"]["privileged"].as_bool()), (Some("skipped"), Some(false)), "{doc}");
+    assert_eq!(doc["collectors"]["secret"]["reason"], "needs root, and this run is unprivileged");
+    assert_eq!(collect(&[c], &plugins(), &options(true))["collectors"]["secret"]["status"], "ok");
 }
 
 #[test]

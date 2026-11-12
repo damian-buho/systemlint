@@ -142,7 +142,9 @@ expiry is the only judgement that reads the clock at lint time.
 
 ## Lint output and exit codes
 
-`--format human` prints one line per failure and per unknown, then the counts;
+`--format human` prints one line per failure and per unknown, one `not run` line
+per reason a collector was skipped (no root, no `--image-config`, live-only under
+`--root`) naming its collectors and rules, then the counts;
 `--format json` prints the document’s `meta`, every check, passes included, and
 the counts; `--format sarif` and `--format textfile` are described in
 [Outputs](outputs.md). `--output PATH` writes the report atomically instead of
