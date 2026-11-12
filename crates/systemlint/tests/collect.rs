@@ -33,6 +33,9 @@ const PLUGINS: &[(&str, &str, &str)] = &[
     ("secret", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("traced", r#"[{"op":"parse"}]"#, "exit 3"),
     ("untraced", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("lister", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"a.service":{"files":["/etc/os-release","/etc/*","relative","/etc/absent"]},"b.service":{"files":"/etc/os-release"},"path":["/usr","/etc/apt"]}}'"#),
+    ("reader", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("orphan", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
 ];
 
 fn plugins() -> Vec<Plugin> {
@@ -92,6 +95,36 @@ fn reply_lands_under_into_with_diagnostics_redaction_and_meta() {
     let sent = request("echo");
     assert_eq!((sent["protocol"].as_u64(), sent["op"].as_str(), sent["now"].as_str()), (Some(1), Some("parse"), Some("2026-11-11T12:00:00Z")));
     assert_eq!(sent["root"], meta["subject"]["path"]);
+}
+
+#[test]
+fn files_from_and_stat_from_read_the_paths_facts_name_after_their_producer() {
+    let reader = collector("id: reader\nread:\n  files: [/etc/os-release]\n  files-from: [listed.*.files]\n  stat-from: [listed.path]\nparse: {plugin: reader, op: parse}\ninto: read\n");
+    let lister = collector("id: lister\nparse: {plugin: lister, op: parse}\ninto: listed\n");
+    let doc = collect(&[reader, lister], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["reader"]["status"], "ok", "{doc}");
+    let inputs = request("reader")["inputs"].as_array().unwrap().clone();
+    let paths: Vec<&str> = inputs.iter().filter_map(|i| i["path"].as_str()).collect();
+    assert_eq!(paths, ["/etc/apt", "/etc/os-release", "/usr"], "named once each, literally, relative and absent ones dropped: {inputs:?}");
+    assert!(inputs[1]["content"].as_str().unwrap().contains("ID=ubuntu"), "{inputs:?}");
+    assert!(inputs[0]["stat"].is_object() && inputs[0]["content"].is_null(), "{inputs:?}");
+}
+
+#[test]
+fn a_named_fact_nobody_produces_fails_the_collector_naming_it() {
+    let orphan = collector("id: orphan\nread:\n  stat-from: [nowhere.*.path]\nparse: {plugin: orphan, op: parse}\ninto: orphan\n");
+    let doc = collect(&[orphan], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["orphan"]["status"], "error");
+    assert_eq!(doc["collectors"]["orphan"]["reason"], "needs fact nowhere, which no collector produces");
+}
+
+#[test]
+fn a_named_pattern_must_be_whole_segment_wildcards_after_a_literal_outside_into() {
+    for (pattern, why) in [("*.x", "starts with a wildcard"), ("a.b*.c", "whole segments"), ("a..b", "whole segments"), ("out.x", "which this collector writes"), ("out", "which this collector writes")] {
+        let error = Collector::parse(&format!("id: c\nread:\n  files-from: ['{pattern}']\nparse: {{plugin: p, op: o}}\ninto: out\n")).unwrap_err();
+        assert!(error.contains(why), "{pattern}: {error}");
+    }
+    assert!(Collector::parse("id: c\nread:\n  stat-from: [env.*.*.path]\nparse: {plugin: p, op: o}\ninto: files.path\n").is_ok());
 }
 
 #[test]

@@ -26,6 +26,8 @@ into: apt.sources
 | `read.stat` | absolute globs whose files are passed with their `stat` and no content |
 | `read.exec` | an argv list run without a shell, live mode only; the program is an absolute path |
 | `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
+| `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files` |
+| `read.stat-from` | the same, naming files to pass with their `stat` |
 | `live` | `true` when the collector reads what only a running host has, such as `/proc`; skipped under `--root` |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
@@ -162,3 +164,12 @@ A collector never computes a fact from other facts. A plugin op that needs
 facts collected first lists them in `--describe` as `needs`, receives them in
 the request, and returns the derived facts in its reply. See
 [the plugin protocol](protocol.md).
+
+A collector may still read the files a fact names: `read.files-from` and
+`read.stat-from` take every string, or string in a list, at their pattern,
+keep the absolute ones, and read each path as written, never as a glob,
+through the same root. The collector runs after every collector writing under
+the pattern’s literal part, the segments before its first `*`; when that part
+is absent from the facts, it fails naming the fact and the collector that left
+it out, so its rules read as unknown instead of passing on fewer files. A
+pattern may not start with `*` or read what its own collector writes.

@@ -4,7 +4,7 @@
 
 //! Runs every collector against one subject and builds the facts document.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -14,7 +14,7 @@ use serde_json::{Map, Value, json};
 use sha2::Sha256;
 use systemlint_protocol::{Describe, Diagnostic, ExecInput, FileInput, Input, PROTOCOL, Reply, Request, VERSION};
 
-use crate::collector::{Collector, overlaps};
+use crate::collector::{Collector, overlaps, prefix};
 use crate::discovery::Plugin;
 use crate::runner::{self, OUTPUT_CAP};
 use crate::source::Root;
@@ -110,7 +110,7 @@ pub fn collect_reporting(collectors: &[Collector], plugins: &[Plugin], options: 
             outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": reason}));
             continue;
         }
-        if collector.read.exec.is_some() && !options.live && collector.read.files.is_empty() && collector.read.stat.is_empty() {
+        if collector.read.exec.is_some() && !options.live && collector.read.files.is_empty() && collector.read.stat.is_empty() && collector.read.named().next().is_none() {
             log::debug!("collector {} skipped: exec under --root", collector.id);
             outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": format!("runs {} on a live host only, and --root {} was given", collector.read.exec.as_deref().unwrap_or_default()[0], options.root.path().display())}));
             continue;
@@ -128,7 +128,7 @@ pub fn collect_reporting(collectors: &[Collector], plugins: &[Plugin], options: 
     }
     let total = planned.len();
     while !planned.is_empty() {
-        let waits = |needs: &[String], me: usize| needs.iter().any(|n| planned.iter().any(|(j, _, _)| *j != me && overlaps(&collectors[*j].into, n)));
+        let waits = |needs: &[String], me: usize| needs.iter().cloned().chain(collectors[me].read.named().map(|p| prefix(p))).any(|n| planned.iter().any(|(j, _, _)| *j != me && overlaps(&collectors[*j].into, &n)));
         let Some(position) = planned.iter().position(|(i, _, needs)| !waits(needs, *i)) else {
             for (i, _, needs) in planned.drain(..) {
                 log::debug!("collector {} waits in a cycle on {}", collectors[i].id, needs.join(", "));
@@ -141,7 +141,8 @@ pub fn collect_reporting(collectors: &[Collector], plugins: &[Plugin], options: 
         progress(total - planned.len() - 1, total, &collector.id);
         let outcome = trail::scoped(&trail::collector(&collector.id), || {
             gather(collector, &needs, collectors, &facts, &outcomes)
-                .and_then(|given| run(collector, plugin, given, options, &now))
+                .and_then(|given| Ok((given, named(collector, collectors, &facts, &outcomes)?)))
+                .and_then(|(given, named)| run(collector, plugin, given, &named, options, &now))
                 .and_then(|(value, diagnostics, redacted, hashed)| place(&mut facts, &collector.into, value).map(|()| (diagnostics, redacted, hashed)))
         });
         let outcome = match outcome {
@@ -202,11 +203,7 @@ fn gather(collector: &Collector, needs: &[String], collectors: &[Collector], fac
     let mut given = BTreeMap::new();
     for need in needs {
         let Some(value) = lookup(facts, need) else {
-            let producer = collectors.iter().find(|c| c.id != collector.id && overlaps(&c.into, need));
-            return Err(match producer {
-                Some(p) => format!("needs fact {need}, and collector {} finished {}", p.id, outcomes.get(&p.id).and_then(|o| o["status"].as_str()).unwrap_or("without it")),
-                None => format!("needs fact {need}, which no collector produces"),
-            });
+            return Err(missing(collector, need, collectors, outcomes));
         };
         log::trace!("collector {} given {need}", collector.id);
         given.insert(need.clone(), value.clone());
@@ -214,8 +211,57 @@ fn gather(collector: &Collector, needs: &[String], collectors: &[Collector], fac
     Ok(given)
 }
 
-fn run(collector: &Collector, plugin: &Plugin, facts: BTreeMap<String, Value>, options: &Options, now: &str) -> Result<(Value, Vec<Diagnostic>, Vec<String>, usize), String> {
-    let request = Request { protocol: PROTOCOL, op: collector.parse.op.clone(), root: options.root.path().display().to_string(), now: Some(now.to_owned()), inputs: inputs(collector, options)?, facts };
+/// Why the fact `need` is absent: the collector that should have produced it and how it finished, or that none does.
+fn missing(collector: &Collector, need: &str, collectors: &[Collector], outcomes: &Map<String, Value>) -> String {
+    match collectors.iter().find(|c| c.id != collector.id && overlaps(&c.into, need)) {
+        Some(p) => format!("needs fact {need}, and collector {} finished {}", p.id, outcomes.get(&p.id).and_then(|o| o["status"].as_str()).unwrap_or("without it")),
+        None => format!("needs fact {need}, which no collector produces"),
+    }
+}
+
+/// The paths a collector reads or stats because facts name them.
+#[derive(Debug, Default)]
+pub struct Named {
+    pub files: Vec<String>,
+    pub stat: Vec<String>,
+}
+
+/// The absolute paths at each `read.files-from` and `read.stat-from` pattern, failing when a pattern’s literal prefix is absent.
+pub fn named(collector: &Collector, collectors: &[Collector], facts: &Map<String, Value>, outcomes: &Map<String, Value>) -> Result<Named, String> {
+    let resolve = |patterns: &[String]| -> Result<Vec<String>, String> {
+        let mut paths = Vec::new();
+        for pattern in patterns {
+            let literal = prefix(pattern);
+            let Some(start) = lookup(facts, &literal) else {
+                return Err(missing(collector, &literal, collectors, outcomes));
+            };
+            let rest: Vec<&str> = pattern.split('.').skip(literal.split('.').count()).collect();
+            let before = paths.len();
+            strings(start, &rest, &mut paths);
+            log::debug!("collector {}: {pattern} names {} paths", collector.id, paths.len() - before);
+        }
+        paths.retain(|p| p.starts_with('/') || {
+            log::debug!("collector {}: named path {p:?} is not absolute, skipped", collector.id);
+            false
+        });
+        Ok(paths)
+    };
+    Ok(Named { files: resolve(&collector.read.files_from)?, stat: resolve(&collector.read.stat_from)? })
+}
+
+/// Every string at `segments` under `value`, `*` matching each key, a list giving each of its strings.
+fn strings(value: &Value, segments: &[&str], out: &mut Vec<String>) {
+    match (segments.split_first(), value) {
+        (None, Value::String(s)) => out.push(s.clone()),
+        (None, Value::Array(items)) => out.extend(items.iter().filter_map(Value::as_str).map(str::to_owned)),
+        (Some((&"*", rest)), Value::Object(map)) => map.values().for_each(|v| strings(v, rest, out)),
+        (Some((key, rest)), Value::Object(map)) => map.get(*key).into_iter().for_each(|v| strings(v, rest, out)),
+        _ => log::trace!("named fact ends at a {} with {} segments left", if value.is_object() { "map" } else { "value" }, segments.len()),
+    }
+}
+
+fn run(collector: &Collector, plugin: &Plugin, facts: BTreeMap<String, Value>, named: &Named, options: &Options, now: &str) -> Result<(Value, Vec<Diagnostic>, Vec<String>, usize), String> {
+    let request = Request { protocol: PROTOCOL, op: collector.parse.op.clone(), root: options.root.path().display().to_string(), now: Some(now.to_owned()), inputs: read(collector, options, named)?, facts };
     log::debug!("collector {} sends {} inputs to {} {}", collector.id, request.inputs.len(), plugin.name, request.op);
     let body = serde_json::to_vec(&request).map_err(|e| format!("can’t encode the request: {e}"))?;
     let output = runner::call(&plugin.path, &[], Some(body), options.timeout, OUTPUT_CAP).map_err(|e| format!("plugin {}: {e}", plugin.name))?;
@@ -254,32 +300,36 @@ pub fn hash(value: &mut Value, pointers: &[String], key: &HashKey, collector: &s
 
 /// Reads every source of `collector`: file contents and stats merged by path, then the command.
 pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, String> {
+    read(collector, options, &Named::default())
+}
+
+/// Like [`inputs`], adding the `named` paths, taken literally, never as globs.
+pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<Vec<Input>, String> {
     let root = &options.root;
     let mut files: BTreeMap<String, FileInput> = BTreeMap::new();
     let blank = |path: &str| FileInput { path: path.to_owned(), content: None, content_base64: None, stat: None };
-    for pattern in &collector.read.files {
-        for path in root.glob(pattern)? {
-            match root.read(&path, OUTPUT_CAP) {
-                Ok(bytes) => {
-                    let entry = files.entry(path.clone()).or_insert_with(|| blank(&path));
-                    match String::from_utf8(bytes) {
-                        Ok(text) => entry.content = Some(text),
-                        Err(e) => entry.content_base64 = Some(base64(e.as_bytes())),
-                    }
+    let globbed = |patterns: &[String]| -> Result<Vec<String>, String> { patterns.iter().try_fold(Vec::new(), |mut all, p| { all.extend(root.glob(p)?); Ok(all) }) };
+    let reads: BTreeSet<String> = globbed(&collector.read.files)?.into_iter().chain(named.files.iter().cloned()).collect();
+    for path in reads {
+        match root.read(&path, OUTPUT_CAP) {
+            Ok(bytes) => {
+                let entry = files.entry(path.clone()).or_insert_with(|| blank(&path));
+                match String::from_utf8(bytes) {
+                    Ok(text) => entry.content = Some(text),
+                    Err(e) => entry.content_base64 = Some(base64(e.as_bytes())),
                 }
-                Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
-                Err(e) if e.kind() == io::ErrorKind::InvalidInput => log::debug!("collector {}: {path} is not a regular file, skipped", collector.id),
-                Err(e) => return Err(format!("can’t read {path}: {e}")),
             }
+            Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
+            Err(e) if e.kind() == io::ErrorKind::InvalidInput => log::debug!("collector {}: {path} is not a regular file, skipped", collector.id),
+            Err(e) => return Err(format!("can’t read {path}: {e}")),
         }
     }
-    for pattern in &collector.read.stat {
-        for path in root.glob(pattern)? {
-            match root.stat(&path) {
-                Ok(stat) => files.entry(path.clone()).or_insert_with(|| blank(&path)).stat = Some(stat),
-                Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
-                Err(e) => return Err(format!("can’t stat {path}: {e}")),
-            }
+    let stats: BTreeSet<String> = globbed(&collector.read.stat)?.into_iter().chain(named.stat.iter().cloned()).collect();
+    for path in stats {
+        match root.stat(&path) {
+            Ok(stat) => files.entry(path.clone()).or_insert_with(|| blank(&path)).stat = Some(stat),
+            Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
+            Err(e) => return Err(format!("can’t stat {path}: {e}")),
         }
     }
     if let (true, Some(path)) = (collector.read.image_config, &options.image_config) {

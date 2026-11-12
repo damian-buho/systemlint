@@ -43,6 +43,22 @@ pub struct Read {
     pub exec: Option<Vec<String>>,
     #[serde(default, rename = "image-config")]
     pub image_config: bool,
+    #[serde(default, rename = "files-from")]
+    pub files_from: Vec<String>,
+    #[serde(default, rename = "stat-from")]
+    pub stat_from: Vec<String>,
+}
+
+impl Read {
+    /// The fact paths that name paths to read or stat.
+    pub fn named(&self) -> impl Iterator<Item = &String> {
+        self.files_from.iter().chain(&self.stat_from)
+    }
+}
+
+/// The literal part of a fact pattern, every segment before the first `*`.
+pub fn prefix(pattern: &str) -> String {
+    pattern.split('.').take_while(|s| *s != "*").collect::<Vec<_>>().join(".")
 }
 
 /// The `parse:` plugin op.
@@ -72,6 +88,16 @@ impl Collector {
             Some([]) => return Err("read.exec is empty; give an argv list".to_owned()),
             Some([program, ..]) if !program.starts_with('/') => return Err(format!("read.exec program {program} is not an absolute path; PATH is never searched")),
             _ => {}
+        }
+        for pattern in self.read.named() {
+            if pattern.split('.').any(|s| s.is_empty() || (s.contains('*') && s != "*")) {
+                return Err(format!("read pattern {pattern:?} is not a dotted fact path whose wildcards are whole segments"));
+            }
+            match prefix(pattern) {
+                p if p.is_empty() => return Err(format!("read pattern {pattern} starts with a wildcard; name the fact it reads from")),
+                p if overlaps(&p, &self.into) => return Err(format!("read pattern {pattern} reads {p}, which this collector writes")),
+                _ => {}
+            }
         }
         let segments: Vec<&str> = self.into.split('.').collect();
         if segments.iter().any(|s| s.is_empty()) {

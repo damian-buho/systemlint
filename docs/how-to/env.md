@@ -23,7 +23,7 @@ All five use `systemlint-env` and land under `env.<source>.<environment>`.
 | Collector | Reads | Facts at |
 | --- | --- | --- |
 | `env-files` | `/etc/environment`, `/etc/profile.d/*.sh`, `/etc/ld.so.preload` | `env.files.<path>` |
-| `env-defaults` | `/etc/default/*`, the usual `EnvironmentFile=` targets | `env.defaults.<path>` |
+| `env-defaults` | `/etc/default/*` and every unit’s `EnvironmentFile=` | `env.defaults.<path>` |
 | `env-units` | `systemctl show` on a live host, else the `.service` files and drop-ins | `env.units.<unit>` |
 | `env-processes` | `/proc/<pid>/environ`, `cgroup` and `stat`, live and as root only | `env.processes.<unit or container>` |
 | `env-image` | the file given with `--image-config` | `env.image.<path>` |
@@ -36,8 +36,8 @@ All five use `systemlint-env` and land under `env.<source>.<environment>`.
   systemd does: the unit file from the highest of `/etc`, `/run`,
   `/usr/local/lib` and `/usr/lib` (`/lib`), then every drop-in by name, an
   empty value resetting the list. `systemctl show` gives the loaded units the
-  same way; the contents of an `EnvironmentFile=` are read only where
-  `env-defaults` lists them, as `/etc/default/*`.
+  same way; `env-defaults` reads the contents of every `EnvironmentFile=`
+  beside `/etc/default/*`, each file once.
 - **Defaults**: a separate collector, so one file only root may read, such as
   a 0600 `/etc/default/cacerts`, fails `env-defaults` alone in an
   unprivileged run and leaves the other system files judged.
@@ -103,6 +103,7 @@ collect:
 A subject is the source and the environment, such as
 `units, app.service` or `defaults, /etc/default/app`. A rule names the first
 offending variable of an environment; the fix of one shows the next.
-World-writable `PATH` directories are judged for Debian’s default `PATH` by
-`files/world-writable` ([File permissions](files.md)), not yet for the
-entries an environment sets.
+World-writable `PATH` directories are judged by `files/world-writable`
+([File permissions](files.md)) for Debian’s default `PATH` and every absolute
+entry a system file or unit sets; a running process or image may name a path
+in another mount namespace, so their entries are left out.
