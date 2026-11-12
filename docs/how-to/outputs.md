@@ -57,7 +57,7 @@ systemlint --quiet lint --format textfile --fail-on never \
 | `systemlint_checks` | `outcome`: pass, fail, waived, unknown, skip | checks in the run |
 | `systemlint_rule_checks` | `rule`, `outcome` | checks of that rule; absent when zero |
 | `systemlint_failures` | `severity`: error, warning, info, hint | failing checks, waived ones apart |
-| `systemlint_collector_status` | `collector`, `status`: ok, error, skipped | 1 for the status it ended in, else 0 |
+| `systemlint_collector_status` | `collector`, `status`: `ok`, `error`, `skipped` | 1 for the status it ended in, else 0 |
 | `systemlint_privileged` | — | 1 when the facts were collected as root |
 
 node-exporter already exports `node_textfile_mtime_seconds` for the file, so

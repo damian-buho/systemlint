@@ -75,7 +75,7 @@ cat -- "${human}"
 echo "lint exit ${status} at fail_on ${FAIL_ON:-error}"
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-  printf '### Systemlint\n\n```text\n%s\n```\n' "$(cat -- "${human}")" >> "${GITHUB_STEP_SUMMARY}"
+  { echo "### Systemlint"; echo; echo "\`\`\`text"; cat -- "${human}"; echo "\`\`\`"; } >> "${GITHUB_STEP_SUMMARY}"
 fi
 result=pass
 if [[ "${status}" -eq 1 ]]; then
