@@ -182,7 +182,10 @@ can require absence; under `files.*` that path leaves the shipped `files`
 rules `unknown`, so give such a collector its own `into`. To judge a file’s
 contents, read it under `files` with `op: lines`, which keys each file’s list of
 lines by its path, so a rule asserts `contains: {pattern: …}`; contents enter
-the facts document only through a collector the operator writes.
+the facts document only through a collector the operator writes. `op: yaml`
+(YAML 1.2 booleans, so `no` stays a string), `op: toml` (a date as its TOML
+text) and `op: csv` (a list of rows keyed by the header row) key each parsed
+file by its path, a file that does not parse becoming a diagnostic.
 
 To judge any command, a collector file under `collect.directories` runs it
 with `read.exec` and `op: exec`, which returns its `exit-status`, `stdout`,

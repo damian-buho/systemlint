@@ -17,12 +17,13 @@ pub type Sections = BTreeMap<String, BTreeMap<String, Vec<String>>>;
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
-    Describe::new("formats", &[("exec", &[]), ("ini", &[]), ("json", &[]), ("kv", &[]), ("lines", &[]), ("regex", &[]), ("stat", &[]), ("sysctl", &[]), ("toml", &[])])
+    Describe::new("formats", &[("csv", &[]), ("exec", &[]), ("ini", &[]), ("json", &[]), ("kv", &[]), ("lines", &[]), ("regex", &[]), ("stat", &[]), ("sysctl", &[]), ("toml", &[]), ("yaml", &[])])
 }
 
 /// Runs one op.
 pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
+        "csv" => Ok(csv(&request.inputs)),
         "exec" => Ok(exec(&request.inputs)),
         "ini" => Ok(ini(&request.inputs)),
         "json" => Ok(json(&request.inputs)),
@@ -30,6 +31,8 @@ pub fn op(request: Request) -> Result<Reply> {
         "lines" => Ok(lines(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
         "sysctl" => Ok(sysctl(&request.inputs)),
+        "toml" => Ok(toml(&request.inputs)),
+        "yaml" => Ok(yaml(&request.inputs)),
         other => Err(format!("op {other} is not implemented yet").into()),
     }
 }
@@ -196,6 +199,112 @@ pub fn json(inputs: &[Input]) -> Reply {
     reply
 }
 
+/// Every input parsed as one YAML document, YAML 1.2 booleans only, keyed by its path.
+pub fn yaml(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else { continue };
+        match serde_saphyr::from_str_with_options::<Value>(text, serde_saphyr::options! { strict_booleans: true }) {
+            Ok(value) => {
+                reply.facts.insert(path.to_owned(), value);
+            }
+            Err(e) => reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: None, message: format!("not valid YAML: {e}") }),
+        }
+    }
+    reply
+}
+
+/// Every input parsed as TOML, keyed by its path; a date or time becomes its TOML text.
+pub fn toml(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else { continue };
+        match text.parse::<toml::Table>() {
+            Ok(table) => {
+                reply.facts.insert(path.to_owned(), from_toml(toml::Value::Table(table)));
+            }
+            Err(e) => reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: None, message: format!("not valid TOML: {}", e.message()) }),
+        }
+    }
+    reply
+}
+
+fn from_toml(value: toml::Value) -> Value {
+    match value {
+        toml::Value::String(s) => Value::from(s),
+        toml::Value::Integer(n) => Value::from(n),
+        toml::Value::Float(f) => serde_json::Number::from_f64(f).map_or(Value::Null, Value::Number),
+        toml::Value::Boolean(b) => Value::from(b),
+        toml::Value::Datetime(d) => Value::from(d.to_string()),
+        toml::Value::Array(items) => Value::Array(items.into_iter().map(from_toml).collect()),
+        toml::Value::Table(table) => Value::Object(table.into_iter().map(|(k, v)| (k, from_toml(v))).collect()),
+    }
+}
+
+/// Every input parsed as RFC 4180 CSV, keyed by its path: one object per row, keyed by the header row.
+pub fn csv(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else { continue };
+        let mut rows = match records(text) {
+            Ok(rows) => rows.into_iter(),
+            Err(line) => {
+                reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: Some(line), message: "a quoted field never ends".to_owned() });
+                continue;
+            }
+        };
+        let header = rows.next().unwrap_or_default();
+        let mut objects = Vec::new();
+        for (index, row) in rows.enumerate() {
+            if row.len() != header.len() {
+                reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: None, message: format!("row {} has {} fields, the header {}", index + 2, row.len(), header.len()) });
+            }
+            objects.push(Value::Object(header.iter().cloned().zip(row.into_iter().map(Value::from)).collect()));
+        }
+        reply.facts.insert(path.to_owned(), Value::Array(objects));
+    }
+    reply
+}
+
+/// The records of `text`, quotes doubled inside quoted fields, blank lines skipped; the line of an unclosed quote as the error.
+fn records(text: &str) -> std::result::Result<Vec<Vec<String>>, u64> {
+    let (mut rows, mut row, mut field) = (Vec::new(), Vec::new(), String::new());
+    let (mut quoted, mut line, mut opened) = (false, 1, 1);
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        match (c, quoted) {
+            ('"', true) if chars.peek() == Some(&'"') => {
+                field.push('"');
+                chars.next();
+            }
+            ('"', true) => quoted = false,
+            ('"', false) if field.is_empty() => (quoted, opened) = (true, line),
+            (',', false) => row.push(std::mem::take(&mut field)),
+            ('\r', false) if chars.peek() == Some(&'\n') => {}
+            ('\n', false) => {
+                line += 1;
+                row.push(std::mem::take(&mut field));
+                if row.len() > 1 || !row[0].is_empty() {
+                    rows.push(std::mem::take(&mut row));
+                }
+                row.clear();
+            }
+            (c, _) => {
+                line += u64::from(c == '\n');
+                field.push(c);
+            }
+        }
+    }
+    if quoted {
+        return Err(opened);
+    }
+    if !field.is_empty() || !row.is_empty() {
+        row.push(field);
+        rows.push(row);
+    }
+    Ok(rows)
+}
+
 fn kind(value: &Value) -> &'static str {
     match value {
         Value::Array(_) => "list",
@@ -346,7 +455,7 @@ mod tests {
     fn describe_lists_the_generic_parsers() {
         let describe = describe();
         assert_eq!(describe.name, "formats");
-        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["exec", "ini", "json", "kv", "lines", "regex", "stat", "sysctl", "toml"]);
+        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["csv", "exec", "ini", "json", "kv", "lines", "regex", "stat", "sysctl", "toml", "yaml"]);
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
     }
 
@@ -396,6 +505,29 @@ mod tests {
     }
 
     #[test]
+    fn yaml_keeps_no_and_off_as_strings_and_names_a_bad_file() {
+        let reply = super::yaml(&[file("/etc/netplan/a.yaml", "network:\n  dhcp4: no\n  up: true\n"), file("/etc/bad.yaml", "a: [1\n")]);
+        assert_eq!(reply.facts["/etc/netplan/a.yaml"], serde_json::json!({"network": {"dhcp4": "no", "up": true}}));
+        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/bad.yaml"]);
+    }
+
+    #[test]
+    fn toml_turns_tables_and_dates_into_json_and_names_a_bad_file() {
+        let reply = super::toml(&[file("/etc/containerd/config.toml", "version = 3\n[plugins.cri]\nsandbox = \"pause\"\nratio = 0.5\nat = 2026-11-12T10:00:00Z\n"), file("/etc/bad.toml", "a = \n")]);
+        assert_eq!(reply.facts["/etc/containerd/config.toml"], serde_json::json!({"version": 3, "plugins": {"cri": {"sandbox": "pause", "ratio": 0.5, "at": "2026-11-12T10:00:00Z"}}}));
+        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/bad.toml"]);
+    }
+
+    #[test]
+    fn csv_keys_rows_by_the_header_with_rfc_4180_quotes() {
+        let reply = super::csv(&[file("/etc/a.csv", "name,note\r\nroot,\"a, \"\"b\"\"\"\r\n\nbin,\"two\nlines\"\nshort\n")]);
+        assert_eq!(reply.facts["/etc/a.csv"], serde_json::json!([{"name": "root", "note": "a, \"b\""}, {"name": "bin", "note": "two\nlines"}, {"name": "short"}]));
+        assert_eq!(reply.diagnostics.iter().map(|d| d.message.as_str()).collect::<Vec<_>>(), ["row 4 has 1 fields, the header 2"]);
+        let open = super::csv(&[file("/etc/b.csv", "a\n\"x\n")]);
+        assert_eq!((open.facts.len(), open.diagnostics[0].line), (0, Some(2)));
+    }
+
+    #[test]
     fn exec_returns_the_first_command_and_names_the_rest() {
         let run = |argv: &str, exit| Input::Exec(ExecInput { argv: vec![argv.into()], stdout: "a\nb\n".into(), stderr: "warn".into(), exit });
         let reply = super::exec(&[run("/bin/first", 3), file("/etc/a", "x"), run("/bin/second", 0)]);
@@ -429,8 +561,8 @@ mod tests {
 
     #[test]
     fn other_ops_are_not_implemented() {
-        let request = Request { protocol: 1, op: "toml".into(), root: "/".into(), now: None, inputs: vec![], facts: Default::default() };
-        assert!(op(request).unwrap_err().to_string().contains("toml"));
+        let request = Request { protocol: 1, op: "regex".into(), root: "/".into(), now: None, inputs: vec![], facts: Default::default() };
+        assert!(op(request).unwrap_err().to_string().contains("regex"));
     }
 
     fn exec(argv: &str, stdout: &str, exit: i32) -> Input {
