@@ -72,6 +72,20 @@ docker pull kiota.ch/damian-buho/systemlint:latest
 
 Stable releases also publish `X.Y.Z`, `X.Y` and `X` tags — pull the precision you want to pin.
 
+## Usage
+
+Lint a container image with its owners and modes intact (Docker 28 or later), as SARIF:
+
+```sh
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest lint --root /subject --format sarif > systemlint.sarif
+```
+
+Lint the host it runs on, read-only, as root with only the capability to read every file:
+
+```sh
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest lint --root /host
+```
+
 ## Building
 
 Clone the repository and run `make` — every build step, target and entry point is in [Building](docs/BUILD.md).
@@ -79,13 +93,15 @@ Clone the repository and run `make` — every build step, target and entry point
 ## Documentation
 
 - [apt sources](docs/how-to/apt.md)
+- [Linting images in CI](docs/how-to/ci.md)
 - [Collectors](docs/how-to/collectors.md)
 - [Environment variables](docs/how-to/env.md)
 - [File permissions](docs/how-to/files.md)
-- [Kernel parameters, Docker and systemd units](docs/how-to/services.md)
-- [OpenSSH server](docs/how-to/sshd.md)
+- [Outputs: SARIF and Prometheus metrics](docs/how-to/outputs.md)
 - [Plugin protocol v1](docs/how-to/protocol.md)
 - [Rules, rulesets and compliance](docs/how-to/rules.md)
+- [Kernel parameters, Docker and systemd units](docs/how-to/services.md)
+- [OpenSSH server](docs/how-to/sshd.md)
 
 ## Policies
 

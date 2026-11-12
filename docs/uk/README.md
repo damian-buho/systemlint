@@ -74,6 +74,20 @@ docker pull kiota.ch/damian-buho/systemlint:latest
 
 Стабільні випуски також публікують теґи `X.Y.Z`, `X.Y` і `X` — завантажте той рівень точності, який хочете зафіксувати.
 
+## Використання
+
+Перевірте образ контейнера зі збереженими власниками й правами (Docker 28 або новіший), у форматі SARIF:
+
+```sh
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest lint --root /subject --format sarif > systemlint.sarif
+```
+
+Перевірте хост, на якому запускаєте, лише для читання, від root і лише з можливістю читати будь-який файл:
+
+```sh
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest lint --root /host
+```
+
 ## Збирання
 
 Клонуйте репозиторій і виконайте `make` — кожен крок збирання, ціль і точка входу описані в [Збирання](BUILD.md).
@@ -81,13 +95,15 @@ docker pull kiota.ch/damian-buho/systemlint:latest
 ## Документація
 
 - [apt sources](../how-to/apt.md)
+- [Linting images in CI](../how-to/ci.md)
 - [Collectors](../how-to/collectors.md)
 - [Environment variables](../how-to/env.md)
 - [File permissions](../how-to/files.md)
-- [Kernel parameters, Docker and systemd units](../how-to/services.md)
-- [OpenSSH server](../how-to/sshd.md)
+- [Outputs: SARIF and Prometheus metrics](../how-to/outputs.md)
 - [Plugin protocol v1](../how-to/protocol.md)
 - [Rules, rulesets and compliance](../how-to/rules.md)
+- [Kernel parameters, Docker and systemd units](../how-to/services.md)
+- [OpenSSH server](../how-to/sshd.md)
 
 ## Політики
 

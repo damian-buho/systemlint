@@ -92,6 +92,26 @@ org:
           - fixtures/sshd/sshd-T.txt
           - crates/systemlint-sshd/src/defaults.txt
       fd: *captures
+    readme:
+      usage:
+        - name: host
+          priority: 20
+          prefix:
+            en: "Lint the host it runs on, read-only, as root with only the capability to read every file:"
+            es: "Analiza el equipo en el que se ejecuta, en solo lectura, como root y solo con la capacidad de leer cualquier archivo:"
+            uk: "Перевірте хост, на якому запускаєте, лише для читання, від root і лише з можливістю читати будь-який файл:"
+          syntax: sh
+          commands:
+            - docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint ${org.projectfile.artifacts{kind=image}.ref} lint --root /host
+        - name: image
+          priority: 30
+          prefix:
+            en: "Lint a container image with its owners and modes intact (Docker 28 or later), as SARIF:"
+            es: "Analiza una imagen de contenedor con sus propietarios y permisos intactos (Docker 28 o posterior), en SARIF:"
+            uk: "Перевірте образ контейнера зі збереженими власниками й правами (Docker 28 або новіший), у форматі SARIF:"
+          syntax: sh
+          commands:
+            - docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint ${org.projectfile.artifacts{kind=image}.ref} lint --root /subject --format sarif > systemlint.sarif
     conventions:
       fragments:
         parents:

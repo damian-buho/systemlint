@@ -1,0 +1,74 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+name: 'Systemlint'
+description: 'Lint a container image or root filesystem: apt sources, file permissions, sshd and environment'
+author: 'Damián Búho'
+branding:
+  icon: shield
+  color: green
+inputs:
+  image:
+    description: 'Container image to lint, mounted read-only with its owners and modes (needs Docker 28 or later).'
+    required: false
+    default: ''
+  root:
+    description: 'Root filesystem directory to lint instead of an image.'
+    required: false
+    default: ''
+  tags:
+    description: 'Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed. Empty runs every rule.'
+    required: false
+    default: ''
+  fail_on:
+    description: 'Fail the step on a failure at error, warning, info, a score from 0.1 to 9.9, or never.'
+    required: false
+    default: 'error'
+  config:
+    description: 'Systemlint configuration file (collect, lint, waivers), relative to the workspace.'
+    required: false
+    default: ''
+  upload_sarif:
+    description: 'Upload the SARIF report to GitHub code scanning (needs security-events: write).'
+    required: false
+    default: 'false'
+  version:
+    description: 'Systemlint image tag. Empty follows the release the action is pinned to, else latest.'
+    required: false
+    default: ''
+  systemlint_image:
+    description: 'Full systemlint image reference; takes precedence over version.'
+    required: false
+    default: ''
+outputs:
+  facts:
+    description: 'Path to the facts document, JSON, for linting again with another policy'
+    value: ${{ steps.lint.outputs.facts }}
+  sarif:
+    description: 'Path to the SARIF report'
+    value: ${{ steps.lint.outputs.sarif }}
+  result:
+    description: 'pass or fail, after fail_on'
+    value: ${{ steps.lint.outputs.result }}
+runs:
+  using: composite
+  steps:
+    - name: Lint
+      id: lint
+      shell: bash
+      env:
+        ACTION_REF: ${{ github.action_ref }}
+        CONFIG: ${{ inputs.config }}
+        FAIL_ON: ${{ inputs.fail_on }}
+        IMAGE: ${{ inputs.image }}
+        ROOT: ${{ inputs.root }}
+        SYSTEMLINT_IMAGE: ${{ inputs.systemlint_image }}
+        TAGS: ${{ inputs.tags }}
+        VERSION: ${{ inputs.version }}
+      run: ${{ github.action_path }}/.scripts/action/lint.sh
+    - name: Upload SARIF to code scanning
+      if: ${{ always() && inputs.upload_sarif == 'true' && steps.lint.outputs.sarif != '' }}
+      uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      with:
+        sarif_file: ${{ steps.lint.outputs.sarif }}
+        category: systemlint
