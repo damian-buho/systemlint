@@ -12,6 +12,7 @@ pub mod crash;
 pub mod discovery;
 pub mod document;
 pub mod explain;
+pub mod fix;
 pub mod judge;
 pub mod progress;
 pub mod report;

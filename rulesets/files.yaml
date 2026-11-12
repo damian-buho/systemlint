@@ -12,6 +12,7 @@ rules:
     score: 9.5
     message: "{subject} is writable by every user, who can then act as root through it"
     fix: chmod o-w the file
+    remedy: {chmod: o-w}
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     tags: [files]
   files/group-writable:
@@ -32,6 +33,7 @@ rules:
     score: 8.0
     message: "{subject} is owned by uid {got}, not root, so that user can change it"
     fix: chown root the file
+    remedy: {chown: 0}
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     tags: [files]
   files/shadow-mode:
@@ -42,6 +44,7 @@ rules:
     score: 8.5
     message: "{subject} has mode {got}; password hashes need 0640 or stricter, readable by root and the shadow group alone"
     fix: chmod 0640 the file
+    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
     tags: [files]
   files/ssh-host-key-mode:
@@ -52,5 +55,6 @@ rules:
     score: 8.5
     message: "{subject} has mode {got}; a private host key needs 0600, or 0640 for an ssh_keys group, or any user can impersonate this host"
     fix: chmod 0600 the key
+    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://man.openbsd.org/sshd#FILES
     tags: [files, ssh]

@@ -79,6 +79,8 @@ pub struct Check {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fix: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub remedy: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub docs: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rationale: Option<String>,
@@ -361,6 +363,7 @@ fn guards(when: Option<&When>, most: usize, over: &str) -> Result<Vec<Vec<Guard>
 /// Compiles one selected rule, refusing a bad path, schema or `when`, its rulesets’ included.
 pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
     let fail = |e: String| format!("rule {id}: {e}");
+    spec.remedy.as_ref().map_or(Ok(()), crate::fix::Remedy::validate).map_err(fail)?;
     let applies = spec.applies.iter().map(|(name, when)| guards(Some(when), 0, "a ruleset, which has no subject").map(|g| (name.clone(), g)).map_err(|e| fail(format!("ruleset {name}: {e}")))).collect::<Result<Vec<_>, _>>()?;
     if spec.manual {
         log::debug!("rule {id} is manual");
@@ -537,6 +540,7 @@ fn base(rule: &Rule, outcome: Outcome, bound: &[String]) -> Check {
         waiver: None,
         tags: rule.spec.tags.clone(),
         fix: None,
+        remedy: None,
         docs: rule.spec.docs.clone(),
         rationale: rule.spec.rationale.clone(),
         references: rule.spec.references.clone(),
@@ -631,6 +635,7 @@ fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged
         score: Some(score),
         message: Some(message),
         fix: rule.spec.fix.as_ref().map(|f| fill(f, &variables)),
+        remedy: rule.spec.remedy.as_ref().zip(bound.last().filter(|p| p.starts_with('/'))).map(|(r, path)| r.command(path)),
         text: rule.spec.message.clone(),
         variables: if rule.spec.message.is_some() { variables } else { BTreeMap::new() },
         value: Some(value.clone()),

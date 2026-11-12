@@ -142,7 +142,7 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
 }
 
 fn judged(outcome: Outcome, score: f64) -> Check {
-    Check { rule: "r".into(), title: None, outcome, subject: vec![], fact: "f".into(), severity: Some(level_of(score)), score: Some(score), message: None, text: None, variables: BTreeMap::new(), value: None, reason: None, collector: None, waiver: None, tags: vec![], fix: None, docs: None, rationale: None, references: vec![] }
+    Check { rule: "r".into(), title: None, outcome, subject: vec![], fact: "f".into(), severity: Some(level_of(score)), score: Some(score), message: None, text: None, variables: BTreeMap::new(), value: None, reason: None, collector: None, waiver: None, tags: vec![], fix: None, remedy: None, docs: None, rationale: None, references: vec![] }
 }
 
 fn grade(failures: &[f64], passes: usize) -> Option<char> {

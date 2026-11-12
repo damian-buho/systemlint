@@ -109,6 +109,11 @@ impl Root {
         Ok(bytes)
     }
 
+    /// `path` opened to change its mode or owner, refusing a final symlink, never blocking on a FIFO.
+    pub fn open_for_change(&self, path: &str) -> io::Result<File> {
+        self.open_at(path, OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::NOCTTY).map(File::from)
+    }
+
     /// The metadata of `path` itself, a final symlink not followed.
     pub fn stat(&self, path: &str) -> io::Result<Stat> {
         let meta = File::from(self.open_at(path, OFlags::PATH | OFlags::NOFOLLOW)?).metadata()?;

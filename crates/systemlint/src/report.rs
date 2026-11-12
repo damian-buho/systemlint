@@ -234,6 +234,9 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     if let Some(fix) = problems[0][0].fix.as_deref().filter(|_| shared) {
         let _ = writeln!(out, "Fix: {}", sentence(fix));
     }
+    if group.iter().any(|c| c.remedy.is_some() && c.is_failing()) {
+        let _ = writeln!(out, "{}", sentence(&format!("Run systemlint fix --tags {} to make the change", worst.rule)));
+    }
     for reference in worst.references.iter().filter(|_| verbose) {
         let _ = writeln!(out, "See: {} <{}>", reference.title, reference.url);
     }

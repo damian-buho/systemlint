@@ -68,6 +68,8 @@ lint:
   plain: true          # the default --plain; --no-plain or --format undoes it
   waivers: []
   rulesets: {}
+fix:
+  enabled: false       # turn systemlint fix off
 ```
 
 An unknown key, or a value out of range, exits 5 and names the file.

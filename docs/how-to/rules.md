@@ -43,6 +43,7 @@ apt/https:
 | `score` | a number from 0.0 to 9.9, or a curve of `[value, score]` points read against the fact’s number |
 | `message` | the finding’s sentence, with `{got}`, `{field}`, `{fact}` and `{subject}` filled in |
 | `fix` | how to fix it, with the same placeholders; the human report lists the subjects above it, so a fix that leaves `{subject}` out reads once for all of them |
+| `remedy` | a change `systemlint fix` makes to the subject path, see [Remedies](#remedies) |
 | `suggest` | `{fact, otherwise}`: the fact, bound like `when`, whose value fills `{suggested}` in `message` and `fix`, and the words used when it is absent or empty |
 | `docs` | a link |
 | `rationale` | why the rule matters, a `Why:` line under the title of its human block, and in JSON and SARIF `help` |
@@ -189,6 +190,36 @@ selector every rule runs. A selector matching nothing is an error.
 systemlint lint facts.yaml --tags 'strict,!experimental'
 systemlint lint facts.yaml --tags 'cis-ubuntu-26.04:5.2.*'
 ```
+
+## Remedies
+
+A rule may name one remedy beside its prose `fix`, which `systemlint fix`
+applies to each failing subject that is an absolute path:
+
+```yaml
+files/world-writable:
+  fix: chmod o-w the file
+  remedy: {chmod: o-w}
+```
+
+| Remedy | Change |
+| --- | --- |
+| `chmod` | clears the permission bits a symbolic `who-perms` list names, such as `g-wx,o-rwx`; `+` and `=` are refused |
+| `chown` | `0` only: gives the file to root, leaving its group |
+
+A remedy only takes access away, so a ruleset from an untrusted
+`.systemlint.yaml` can never hand a file to a user. An override that sets its
+own `fact` or `facts` drops the inherited remedy.
+
+`systemlint fix` lints the live host, prints each change as its command on
+stdout, and asks before making them when stdin is a terminal. `--dry-run`
+stops after the list, `--force` skips the question, and `--no-input` fails
+naming `--force` instead of asking. Each file is opened again right before its
+change, refusing a symbolic link or a special file, and a line such as
+`/etc/shadow: 0644 → 0640` follows each change made; a change already made
+is skipped, so a re-run after a crash finishes the rest. `fix.enabled: false`
+in the configuration turns the command off. Exit codes: 0 every change made or
+none needed, 1 a change failed or was declined, 2 a change needs `--force`.
 
 ## Waivers
 

@@ -98,6 +98,8 @@ pub struct Spec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fix: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remedy: Option<crate::fix::Remedy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub suggest: Option<Suggest>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub docs: Option<String>,
@@ -184,6 +186,7 @@ fn entry(raw: &Value) -> Result<Spec, String> {
 /// `over` on top of `base`: set fields win, `expect` merges keyword by keyword and drops the inherited message, tags and references add up.
 fn merge(base: Spec, over: Spec) -> Spec {
     let expect_changed = over.expect.is_some();
+    let subject_changed = over.fact.is_some() || over.facts.is_some();
     let expect = match (base.expect, over.expect) {
         (Some(mut b), Some(o)) => {
             b.extend(o);
@@ -208,6 +211,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         score: over.score.or(base.score),
         message: over.message.or(if expect_changed { None } else { base.message }),
         fix: over.fix.or(base.fix),
+        remedy: if subject_changed { over.remedy } else { over.remedy.or(base.remedy) },
         suggest: over.suggest.or(base.suggest),
         docs: over.docs.or(base.docs),
         rationale: over.rationale.or(base.rationale),

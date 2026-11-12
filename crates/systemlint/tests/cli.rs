@@ -57,6 +57,19 @@ fn a_log_format_without_verbose_exits_2() {
 }
 
 #[test]
+fn fix_off_in_the_config_exits_5_naming_the_key() {
+    let (code, stderr) = run(&base("fix-off"), "fix: {enabled: false}\n", &["fix", "--dry-run"]);
+    assert_eq!(code, 5, "{stderr}");
+    assert!(stderr.contains("fix.enabled is false"), "{stderr}");
+}
+
+#[test]
+fn fix_with_force_and_dry_run_exits_2() {
+    let (code, stderr) = run(&base("fix-both"), "", &["fix", "--force", "--dry-run"]);
+    assert_eq!(code, 2, "{stderr}");
+}
+
+#[test]
 fn a_missing_config_exits_5_with_the_fix() {
     let dir = base("config");
     let missing = dir.join("absent.yaml");

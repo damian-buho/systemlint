@@ -55,8 +55,19 @@ pub struct Config {
     pub collect: Collect,
     #[serde(default)]
     pub lint: Lint,
+    #[serde(default)]
+    pub fix: Fix,
     #[serde(default, rename = "project-config")]
     pub project_config: Option<bool>,
+}
+
+/// The `fix:` section.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Fix {
+    /// Whether `systemlint fix` may change files [default: true]
+    #[serde(default)]
+    pub enabled: Option<bool>,
 }
 
 /// The `lint:` section: where rulesets live, inline ones, the default selectors, the threshold and waivers.

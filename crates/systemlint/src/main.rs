@@ -109,6 +109,23 @@ enum Command {
         #[arg(short, long, value_name = "PATH")]
         output: Option<PathBuf>,
     },
+    /// Lint this host, then make the changes its failing rules declare as a remedy
+    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint fix --dry-run\n  sudo systemlint fix --tags files\n  sudo systemlint fix --force")]
+    #[command(after_help = "Only the live host: a remedy clears permission bits or gives a file to root, never more, and each file is read again right before its change.\nExit codes: 0 every change made or none needed, 1 a change failed or was declined, 2 bad arguments or a change needing --force, 4 a plugin or collector refused, 5 config, rules or fix.enabled: false, 6 the root can’t be opened, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md#remedies")]
+    Fix {
+        /// Rules to fix, as for lint [default: lint.tags, else every rule]
+        #[arg(long, value_name = "LIST", value_delimiter = ',')]
+        tags: Vec<String>,
+        /// Print each change as its command and make none
+        #[arg(short = 'n', long)]
+        dry_run: bool,
+        /// Make the changes without asking
+        #[arg(short, long, conflicts_with = "dry_run")]
+        force: bool,
+        /// Never ask; without --force, fail naming it
+        #[arg(long)]
+        no_input: bool,
+    },
     /// Inspect the installed plugins
     #[command(subcommand, help_template = TEMPLATE, before_help = "Examples:\n  systemlint plugin list")]
     #[command(after_help = "Docs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md#discovery-and-trust")]
@@ -203,6 +220,7 @@ fn main() -> ExitCode {
     match command {
         Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format.or(config.collect.format), cli.quiet)),
         Command::Lint { input, tags, standard, fail_on, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
+        Command::Fix { tags, dry_run, force, no_input } => ExitCode::from(fix(&config, &Selection { tags, standards: vec![] }, Ask { dry_run, force, no_input }, cli.quiet)),
         Command::Plugin(PluginCommand::List { format }) => ExitCode::from(plugin_list(&config, format.or(config.plugins.format) == Some(ListFormat::Json), cli.quiet)),
     }
 }
@@ -406,6 +424,75 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
         };
         log::debug!("lint exits on {failed} from {} standards, trusted {trusted}", compliance.len());
         Ok(if failed != 0 { failed } else if trusted { 0 } else { EXIT_PLUGIN })
+    };
+    run().unwrap_or_else(|code| code)
+}
+
+/// How `fix` gets its go-ahead.
+struct Ask {
+    dry_run: bool,
+    force: bool,
+    no_input: bool,
+}
+
+/// Whether the user typed y or yes after `question` on stderr.
+fn confirmed(question: &str) -> bool {
+    eprint!("{question} [y/N] ");
+    let mut answer = String::new();
+    let read = std::io::stdin().read_line(&mut answer);
+    log::debug!("confirmation answered {answer:?} ({read:?})");
+    matches!(answer.trim().to_lowercase().as_str(), "y" | "yes")
+}
+
+fn fix(config: &Config, selection: &Selection, ask: Ask, quiet: bool) -> u8 {
+    if config.fix.enabled == Some(false) {
+        eprintln!("Fixing is off: fix.enabled is false in the configuration. Drop it, or set it to true, to let systemlint change files.");
+        return EXIT_CONFIG;
+    }
+    let run = || -> Result<u8, u8> {
+        let library = library(config)?;
+        let rules = if library.definitions.is_empty() { Vec::new() } else { compiled(&library, selection, config)? };
+        let (document, trusted) = gather(config, None, None, quiet)?;
+        let changes = systemlint::fix::plan(&judge::lint(&document, &rules, &config.lint.waivers, &today()), &rules);
+        let done = if trusted { 0 } else { EXIT_PLUGIN };
+        if changes.is_empty() {
+            if !quiet {
+                eprintln!("Nothing to fix: no failing rule declares a remedy.");
+            }
+            return Ok(done);
+        }
+        let plan: String = changes.iter().map(|c| c.remedy.command(&c.path) + "\n").collect();
+        document::write(Path::new("-"), &plan, 0).map_err(|error| {
+            eprintln!("{error}");
+            EXIT_OUTPUT
+        })?;
+        if ask.dry_run {
+            return Ok(done);
+        }
+        if !ask.force {
+            if ask.no_input || !std::io::stdin().is_terminal() {
+                eprintln!("Pass --force to make {} without asking.", plural(changes.len(), "change"));
+                return Err(2);
+            }
+            if !confirmed(&format!("Make {}?", plural(changes.len(), "change"))) {
+                eprintln!("Nothing changed.");
+                return Err(EXIT_FAIL);
+            }
+        }
+        let root = trail::scoped(trail::INPUT, || Root::open(Path::new("/"))).map_err(fail(trail::INPUT, EXIT_INPUT))?;
+        let mut failed = 0;
+        for change in &changes {
+            match systemlint::fix::apply(&root, change) {
+                Ok(Some((before, after))) => println!("{}: {before} → {after}", change.path),
+                Ok(None) => log::debug!("{} already satisfies {}", change.path, change.rule),
+                Err(error) => {
+                    failed += 1;
+                    eprintln!("{}", systemlint::explain::io("change", Path::new(&change.path), &error, &[(std::io::ErrorKind::PermissionDenied, "Run systemlint fix as root.")]));
+                }
+            }
+        }
+        log::debug!("fix made {} changes, {failed} failed", changes.len() - failed);
+        Ok(if failed > 0 { EXIT_FAIL } else { done })
     };
     run().unwrap_or_else(|code| code)
 }
