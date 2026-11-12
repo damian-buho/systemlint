@@ -250,16 +250,17 @@ fn human_wraps_a_long_not_run_list_within_80_columns() {
 }
 
 #[test]
-fn plain_prints_a_rule_not_run_once_whatever_its_subjects() {
+fn plain_prints_a_rule_not_run_once_per_reason_whatever_its_subjects() {
     let mut document = facts("root");
     document["collectors"]["env-processes"] = json!({"status": "skipped", "reason": "needs root", "into": "env.processes"});
-    document["collectors"]["env-image"] = json!({"status": "skipped", "reason": "needs root", "into": "env.image"});
+    document["collectors"]["env-defaults"] = json!({"status": "skipped", "reason": "needs root", "into": "env.defaults"});
+    document["collectors"]["env-image"] = json!({"status": "skipped", "reason": "no image config", "into": "env.image"});
     document["env"] = json!({"files": {"/etc/environment": {"vars": {}}}});
     let rule = compile("env/any", systemlint::yaml::from_str("fact: env.*.*.vars\nexpect: {type: object}\n").unwrap()).unwrap();
     let checks = lint(&document, &[rule], &[], "2026-11-11");
-    assert!(checks.iter().filter(|c| c.collector.is_some()).count() >= 2, "{checks:?}");
+    assert!(checks.iter().filter(|c| c.collector.is_some()).count() >= 3, "{checks:?}");
     let text = lint_plain(&document, &checks, &[], true);
-    assert_eq!(text.lines().filter(|l| l.starts_with("not-run\t")).collect::<Vec<_>>(), ["not-run\t\tenv/any\t\tneeds root\t"], "{text}");
+    assert_eq!(text.lines().filter(|l| l.starts_with("not-run\t")).collect::<Vec<_>>(), ["not-run\t\tenv/any\t\tneeds root\t", "not-run\t\tenv/any\t\tno image config\t"], "{text}");
 }
 
 #[test]
@@ -268,9 +269,9 @@ fn plain_prints_one_tab_separated_line_per_finding() {
     let text = lint_plain(&document, &checks, &[], false);
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 5, "{text}");
-    assert_eq!(lines[0], "warning\t4.5\tapt/duplicate\t/a.list:1\t/a.list:1 lists the same repository as “/b.sources:1”\tremove one of the entries, then run sudo apt update");
+    assert_eq!(lines[0], "warning\t4.5\tapt/duplicate\t/a.list:1\tlists the same repository as “/b.sources:1”\tremove one of the entries, then run sudo apt update");
     assert!(lines[2].starts_with("error\t7.5\tapt/stale-suite\t/a.list:1\t"), "{text}");
-    assert_eq!(lines[4], "rating\tF\t\t\tRating F · 2 errors, 2 warnings, 0 info · 2 pass\t");
+    assert_eq!(lines[4], "rating\tF\t\t\t2 errors, 2 warnings, 0 info · 2 pass\t");
     assert!(lines.iter().all(|l| l.split('\t').count() == 6 && !l.contains('\x1b')), "{text}");
 }
 
@@ -283,4 +284,29 @@ fn machine_formats_carry_the_rating() {
     assert_eq!(sarif(&document, &checks)["runs"][0]["properties"]["rating"]["grade"], "D");
     assert!(lint_textfile(&document, &checks, &[]).lines().any(|l| l == "systemlint_rating{grade=\"D\"} 0.5"));
     assert!(!lint_textfile(&document, &[], &[]).contains("systemlint_rating{"), "no grade, no sample");
+}
+
+#[test]
+fn a_subject_of_several_keys_shows_its_last_and_keeps_all_of_them_for_waivers() {
+    let rule = compile("files/owner", systemlint::yaml::from_str("title: File not owned by root\nfact: files.*.*.uid\nexpect: {const: 0}\nmessage: '{subject} is owned by uid {got}'\n").unwrap()).unwrap();
+    let document = json!({"files": {"path": {"/usr": {"uid": 1000}}}});
+    let checks = lint(&document, std::slice::from_ref(&rule), &[], "2026-11-11");
+    assert_eq!((checks[0].subject_text(), checks[0].subject_label()), ("path, /usr".to_owned(), "/usr".to_owned()));
+    assert_eq!(checks[0].message.as_deref(), Some("/usr is owned by uid 1000"));
+    assert!(lint_human(&document, &checks, &[], true, false, false).contains("\n- /usr: 1000\n"));
+    assert!(lint_plain(&document, &checks, &[], true).contains("\tfiles/owner\t/usr\tis owned by uid 1000\t"));
+    for (glob, waived) in [("path, /usr", true), ("/usr", true), ("/us", false), ("path", false)] {
+        let waiver = Waiver { rule: "files/owner".into(), subject: Some(glob.into()), reason: "r".into(), until: "2026-12-31".into() };
+        assert_eq!(!lint(&document, std::slice::from_ref(&rule), &[waiver], "2026-11-11")[0].is_failing(), waived, "waiver subject {glob:?}");
+    }
+}
+
+#[test]
+fn plain_drops_only_a_whole_leading_subject_from_the_message() {
+    let rule = |message: &str| compile("x/drop", systemlint::yaml::from_str(&format!("fact: v.*\nexpect: {{const: 0}}\nmessage: '{message}'\n")).unwrap()).unwrap();
+    let document = json!({"v": {"a": 1}});
+    let message = |m: &str| lint_plain(&document, &lint(&document, &[rule(m)], &[], "2026-11-11"), &[], true).split('\t').nth(4).unwrap().to_owned();
+    assert_eq!(message("{subject} holds {got}"), "holds 1");
+    assert_eq!(message("{subject}b holds {got}"), "ab holds 1", "a subject that only starts a word stays");
+    assert_eq!(message("value {subject} holds {got}"), "value a holds 1", "a subject inside the sentence stays");
 }

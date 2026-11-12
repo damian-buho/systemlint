@@ -146,7 +146,7 @@ fn names(value: Option<&Value>, text: &str) -> bool {
 
 /// Whether two failures of one rule point at each other, as the two sides of a duplicate do.
 fn mirrored(a: &Check, b: &Check) -> bool {
-    names(a.value.as_ref(), &b.subject_text()) && names(b.value.as_ref(), &a.subject_text())
+    names(a.value.as_ref(), &b.subject_label()) && names(b.value.as_ref(), &a.subject_label())
 }
 
 /// The failures of one rule in clusters, each cluster one problem: a failure alone, or every subject pointing at another.
@@ -201,7 +201,7 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     let shared = problems.iter().all(|p| p[0].fix == problems[0][0].fix);
     for problem in &problems {
         for check in problem {
-            let (subject, said) = (check.subject_text(), if problem.len() > 1 { None } else { detail(check) });
+            let (subject, said) = (check.subject_label(), if problem.len() > 1 { None } else { detail(check) });
             let named = check.title.is_none() && said.as_deref().is_some_and(|m| m.contains(&subject));
             let mut line = location(if named { "" } else { &subject }, said.as_deref());
             if let Some(w) = &check.waiver {
@@ -358,7 +358,7 @@ pub fn lint_human(document: &Value, checks: &[Check], compliance: &[Report], qui
     }
     for group in by_rule(checks.iter().filter(|c| c.outcome == Outcome::Unknown && skip_reason(document, c).is_none())).values() {
         let _ = writeln!(out, "{}", header("Unknown", group[0], on));
-        group.iter().for_each(|c| { let _ = writeln!(out, "{}", location(&c.subject_text(), c.reason.as_deref())); });
+        group.iter().for_each(|c| { let _ = writeln!(out, "{}", location(&c.subject_label(), c.reason.as_deref())); });
         out.push('\n');
     }
     for check in checks.iter().filter(|c| c.outcome == Outcome::Manual) {
@@ -371,7 +371,7 @@ pub fn lint_human(document: &Value, checks: &[Check], compliance: &[Report], qui
     for group in by_rule(checks.iter().filter(|c| c.outcome == Outcome::Fail && !c.is_failing())).values() {
         let _ = writeln!(out, "{}", header("Waived", group[0], on));
         for (check, w) in group.iter().filter_map(|c| Some((c, c.waiver.as_ref()?))) {
-            let _ = writeln!(out, "{}", location(&check.subject_text(), Some(&format!("{} (until {})", w.reason, w.until))));
+            let _ = writeln!(out, "{}", location(&check.subject_label(), Some(&format!("{} (until {})", w.reason, w.until))));
         }
         out.push('\n');
     }
@@ -392,28 +392,36 @@ fn field(text: &str) -> String {
     text.replace(['\t', '\n'], " ")
 }
 
-/// One finding per tab-separated line, in the human order and undecorated, a rule not run once: outcome or level, score, rule, subject, message, fix; then each standard and its controls.
+/// A check’s message without the subject it opens with, since the subject column already says it.
+fn unsubjected(check: &Check) -> &str {
+    let message = check.message.as_deref().unwrap_or_default();
+    message.strip_prefix(&check.subject_label()).and_then(|m| m.strip_prefix(' ')).filter(|_| !check.subject.is_empty()).unwrap_or(message)
+}
+
+/// One finding per tab-separated line, in the human order and undecorated, a rule not run once per reason: outcome or level, score, rule, subject, message, fix; then each standard and its controls.
 pub fn lint_plain(document: &Value, checks: &[Check], compliance: &[Report], quiet: bool) -> String {
     let mut out = String::new();
     let mut row = |cells: [&str; 6]| { let _ = writeln!(out, "{}", cells.map(field).join("\t")); };
-    for (rule, group) in by_rule(checks.iter().filter(|c| skip_reason(document, c).is_some())) {
-        row(["not-run", "", rule, "", skip_reason(document, group[0]).unwrap_or_default(), ""]);
+    let not_run: BTreeSet<(&str, &str)> = checks.iter().filter_map(|c| Some((c.rule.as_str(), skip_reason(document, c)?))).collect();
+    log::debug!("{} rule and reason pairs not run", not_run.len());
+    for (rule, reason) in not_run {
+        row(["not-run", "", rule, "", reason, ""]);
     }
     for check in checks.iter().filter(|c| c.outcome == Outcome::NotApplicable) {
         row(["not-applicable", "", &check.rule, "", check.reason.as_deref().unwrap_or_default(), ""]);
     }
     for check in checks.iter().filter(|c| c.outcome == Outcome::Unknown && skip_reason(document, c).is_none()) {
-        row(["unknown", "", &check.rule, &check.subject_text(), check.reason.as_deref().unwrap_or_default(), ""]);
+        row(["unknown", "", &check.rule, &check.subject_label(), check.reason.as_deref().unwrap_or_default(), ""]);
     }
     for check in checks.iter().filter(|c| c.outcome == Outcome::Manual) {
         row(["manual", "", &check.rule, "", check.title.as_deref().unwrap_or_default(), check.rationale.as_deref().unwrap_or_default()]);
     }
     for check in checks.iter().filter(|c| c.outcome == Outcome::Fail && !c.is_failing()) {
         let until = check.waiver.as_ref().map(|w| format!("waived until {}: {}", w.until, w.reason)).unwrap_or_default();
-        row(["waived", &format!("{:.1}", check.score.unwrap_or_default()), &check.rule, &check.subject_text(), check.message.as_deref().unwrap_or_default(), &until]);
+        row(["waived", &format!("{:.1}", check.score.unwrap_or_default()), &check.rule, &check.subject_label(), unsubjected(check), &until]);
     }
     for check in ranked(checks).into_iter().flatten() {
-        row([&name(check.severity), &format!("{:.1}", check.score.unwrap_or_default()), &check.rule, &check.subject_text(), check.message.as_deref().unwrap_or_default(), check.fix.as_deref().unwrap_or_default()]);
+        row([&name(check.severity), &format!("{:.1}", check.score.unwrap_or_default()), &check.rule, &check.subject_label(), unsubjected(check), check.fix.as_deref().unwrap_or_default()]);
     }
     for report in compliance {
         let coverage = report.coverage.as_ref().map(|c| format!("{} of {}", c.covered, c.total)).unwrap_or_default();
@@ -424,7 +432,9 @@ pub fn lint_plain(document: &Value, checks: &[Check], compliance: &[Report], qui
     }
     if !quiet {
         let grade = rate(checks).map_or_else(|| "-".to_owned(), |r| r.grade.to_string());
-        let _ = writeln!(out, "rating\t{grade}\t\t\t{}\t", field(summary_line(document, checks, false).trim_end()));
+        let line = summary_line(document, checks, false);
+        let counts = line.trim_end().split_once(" · ").map_or(line.trim_end(), |(_, counts)| counts);
+        let _ = writeln!(out, "rating\t{grade}\t\t\t{}\t", field(counts));
     }
     out
 }

@@ -58,7 +58,10 @@ The `*`s of a path bind subjects: the first `*` of every `when` path takes the
 key the first `*` of `fact` bound, and so on, so every condition holds on the
 same source or unit, never on any. A `when` path may not hold more `*`s than
 `fact`. The checks of a rule are one per subject; a subject is its bound keys,
-joined by a comma and a space.
+joined by a comma and a space (`path, /usr` for `files.*.*.uid`). The reports
+and `{subject}` show only its last key (`/usr`), the one that names the thing;
+`--format json` and `sarif` keep every key, and a waiver’s `subject` matches
+either form.
 
 ### Outcomes
 
@@ -188,8 +191,9 @@ ends with one `Fix:` line, or a fix under each subject when they differ; `-v`
 adds a `See:` line per reference.
 Failures that name each other, the two sides of `apt/duplicate`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
-or level, score, rule, subject, message, fix, with a rule not run on one
-`not-run` line whatever its subjects; under `--standard`, a `standard`
+or level, score, rule, subject, message, fix, the message without the subject
+it opens with, a rule not run on one `not-run` line per reason whatever its
+subjects, and the counts after `rating` and the grade; under `--standard`, a `standard`
 line (verdict, standard, coverage `N of M`, name) and a `control` line per
 control (verdict, standard, ID, reasons joined by `; `, title) follow. Colour marks only the level word
 and rule IDs, so the words still carry the meaning; `--color auto`, the

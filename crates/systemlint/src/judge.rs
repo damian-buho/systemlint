@@ -87,9 +87,14 @@ pub struct Check {
 }
 
 impl Check {
-    /// The subject keys as one string, the form a waiver’s `subject` glob matches.
+    /// The subject keys as one string, the form a waiver’s `subject` glob matches beside the label.
     pub fn subject_text(&self) -> String {
         self.subject.join(", ")
+    }
+
+    /// The subject as a report shows it and `{subject}` fills in: its last key, the one that names the thing.
+    pub fn subject_label(&self) -> String {
+        self.subject.last().cloned().unwrap_or_default()
     }
 
     /// Whether this check counts against the run: a fail no active waiver covers.
@@ -500,7 +505,7 @@ fn check(rule: &Rule, expect: &Validator, document: &Value, bound: &[String]) ->
     let pointer = error.instance_path().as_str().to_owned();
     let got = describe(value.pointer(&pointer));
     let field = pointer.rsplit('/').next().filter(|f| !f.is_empty()).map_or_else(|| keys.last().cloned().unwrap_or_default(), str::to_owned);
-    let subject = bound.join(", ");
+    let subject = bound.last().cloned().unwrap_or_default();
     let mut variables: BTreeMap<String, String> = [("got", got), ("field", field), ("fact", keys.join(".")), ("subject", if subject.is_empty() { "<subject>".to_owned() } else { subject })].into_iter().map(|(k, v)| (k.to_owned(), v)).collect();
     if let Some((path, otherwise)) = &rule.suggest {
         let value = get(document, &concrete(path, bound)).filter(|v| !matches!(v, Value::Null) && v.as_array().is_none_or(|a| !a.is_empty()) && v.as_str().is_none_or(|s| !s.is_empty()));
@@ -559,8 +564,8 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
 pub fn lint(document: &Value, rules: &[Rule], waivers: &[Waiver], today: &str) -> Vec<Check> {
     let mut checks: Vec<Check> = rules.iter().flat_map(|rule| judge(rule, document)).collect();
     for check in checks.iter_mut().filter(|c| c.outcome == Outcome::Fail) {
-        let subject = check.subject_text();
-        if let Some(waiver) = waivers.iter().find(|w| glob(&w.rule, &check.rule) && w.subject.as_deref().is_none_or(|s| glob(s, &subject))) {
+        let (subject, label) = (check.subject_text(), check.subject_label());
+        if let Some(waiver) = waivers.iter().find(|w| glob(&w.rule, &check.rule) && w.subject.as_deref().is_none_or(|s| glob(s, &subject) || glob(s, &label))) {
             let active = today <= waiver.until.as_str();
             log::debug!("rule {} on {subject:?} waived until {} (active {active})", check.rule, waiver.until);
             check.waiver = Some(Waived { reason: waiver.reason.clone(), until: waiver.until.clone(), active });
