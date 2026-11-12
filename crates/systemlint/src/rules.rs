@@ -50,6 +50,14 @@ pub struct Reference {
     pub url: String,
 }
 
+/// The fact that fills `{suggested}`, and the words used when it is absent or empty.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Suggest {
+    pub fact: String,
+    pub otherwise: String,
+}
+
 /// One rule as a ruleset writes it, a definition when it has `fact`, else an override.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -70,6 +78,8 @@ pub struct Spec {
     pub message: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fix: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suggest: Option<Suggest>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub docs: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -156,6 +166,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         score: over.score.or(base.score),
         message: over.message.or(if expect_changed { None } else { base.message }),
         fix: over.fix.or(base.fix),
+        suggest: over.suggest.or(base.suggest),
         docs: over.docs.or(base.docs),
         rationale: over.rationale.or(base.rationale),
         references,

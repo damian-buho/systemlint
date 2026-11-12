@@ -12,12 +12,25 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} still fetches suite {got}, not this host’s release, so its packages stop following the host"
-    fix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite
+    suggest: {fact: apt.sources.*.suggested-suites, otherwise: the host’s VERSION_CODENAME}
+    fix: set the suite to {suggested}, or waive it when the vendor publishes no newer suite
+    docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
+    tags: [apt]
+  apt/stale-uri:
+    title: Source URI names an older release
+    fact: apt.sources.*.stale-uris
+    when: {apt.sources.*.enabled: true}
+    expect: {maxItems: 0}
+    severity: error
+    score: 7.5
+    message: "{subject} fetches {got}, built for another release than this host’s"
+    suggest: {fact: apt.sources.*.suggested-uris, otherwise: the vendor’s path for this release}
+    fix: point the source at {suggested}, or waive it when the vendor publishes no build for this release
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/versioned-uri:
     title: Source URI pins a version
-    fact: apt.sources.*.uris
+    fact: apt.sources.*.pinned-uris
     when: {apt.sources.*.enabled: true}
     expect: {items: {not: {pattern: "^[^:]+://[^/]+/(.*[/_:-])?v?[0-9]+\\.([0-9]+|x)"}}}
     severity: warning

@@ -50,7 +50,7 @@ fn failures(document: &Value) -> Vec<Check> {
     let ruleset = systemlint::yaml::from_str(&std::fs::read_to_string(repository().join("rulesets/apt.yaml")).unwrap()).unwrap();
     let library = Library::new(BTreeMap::from([("apt".to_owned(), ruleset)])).unwrap();
     let rules: Vec<_> = library.select(&["apt".to_owned()]).unwrap().into_iter().map(|(id, spec)| compile(&id, spec).unwrap()).collect();
-    assert_eq!(rules.len(), 9);
+    assert_eq!(rules.len(), 10);
     let checks = lint(document, &rules, &[], "2026-11-11");
     assert!(checks.iter().all(|c| c.outcome != systemlint::judge::Outcome::Unknown), "{checks:#?}");
     checks.into_iter().filter(Check::is_failing).collect()
@@ -66,6 +66,7 @@ fn kiota_docker_on_questing_under_resolute_fails_stale_suite_alone() {
     let found: Vec<(&str, String)> = failures.iter().map(|c| (c.rule.as_str(), c.subject_text())).collect();
     assert_eq!(found, [("apt/stale-suite", "/etc/apt/sources.list.d/docker.sources:5".to_owned())]);
     assert!(failures[0].message.as_deref().unwrap().contains("suite “questing”"), "{:?}", failures[0].message);
+    assert_eq!(failures[0].fix.as_deref(), Some("set the suite to “resolute”, or waive it when the vendor publishes no newer suite"));
 }
 
 #[test]
@@ -85,6 +86,8 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
         ("apt/shared-keyring", format!("{list}:6")),
         ("apt/signed-by", format!("{list}:5")),
         ("apt/stale-release", "/etc/apt/sources.list.d/expired.sources:5".to_owned()),
+        ("apt/stale-suite", format!("{list}:9")),
+        ("apt/stale-uri", format!("{list}:10")),
         ("apt/versioned-uri", format!("{list}:8")),
     ];
     let mut sorted = found.clone();
@@ -92,4 +95,7 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
     expected.sort();
     assert_eq!(sorted, expected);
     assert!(!found.iter().any(|(_, s)| s.contains("off.sources")));
+    let fix = |rule: &str| failures.iter().find(|c| c.rule == rule).and_then(|c| c.fix.clone()).unwrap();
+    assert_eq!(fix("apt/stale-suite"), "set the suite to “llvm-toolchain-resolute-22”, or waive it when the vendor publishes no newer suite");
+    assert_eq!(fix("apt/stale-uri"), "point the source at “https://download.opensuse.org/repositories/devel:/languages:/crystal/xUbuntu_26.04/”, or waive it when the vendor publishes no build for this release");
 }

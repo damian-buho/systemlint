@@ -183,3 +183,13 @@ fn a_waiver_holds_through_its_day_then_expires_into_a_finding() {
     let other = Waiver { subject: Some("/etc/*".into()), ..waiver };
     assert!(lint(&document, &[rule], &[other], "2026-11-01")[0].waiver.is_none(), "a subject glob misses a rule with no subject");
 }
+
+#[test]
+fn suggest_fills_the_fact_bound_to_the_same_subject_or_its_fallback() {
+    let rule = "fact: s.*.old\nexpect: {maxItems: 0}\nsuggest: {fact: s.*.new, otherwise: the host value}\nfix: use {suggested}\n";
+    let document = json!({"s": {"a": {"old": ["x"], "new": ["y"]}, "b": {"old": ["x"], "new": []}, "c": {"old": ["x"]}}});
+    let fixes: Vec<_> = run(rule, &document).into_iter().map(|c| (c.subject_text(), c.fix.unwrap())).collect();
+    assert_eq!(fixes, [("a".to_owned(), "use “y”".to_owned()), ("b".to_owned(), "use the host value".to_owned()), ("c".to_owned(), "use the host value".to_owned())]);
+    let error = compile("test/rule", spec("fact: s.*.old\nexpect: {maxItems: 0}\nsuggest: {fact: s.*.*.new, otherwise: x}\n")).err().unwrap();
+    assert!(error.contains("suggest has 2 * where fact s.*.old has 1"), "{error}");
+}

@@ -77,6 +77,36 @@ pub fn codename(text: &str) -> Option<&'static str> {
     text.split(|c: char| !c.is_ascii_alphanumeric()).find_map(|w| CODENAMES.iter().find(|c| c.eq_ignore_ascii_case(w)).copied())
 }
 
+/// `text` with its first release codename word replaced by `to`, as `llvm-toolchain-resolute-22` from `llvm-toolchain-questing-22`.
+pub fn recode(text: &str, to: &str) -> Option<String> {
+    let mut start = None;
+    for (i, c) in text.char_indices().chain(std::iter::once((text.len(), '-'))) {
+        if c.is_ascii_alphanumeric() {
+            start.get_or_insert(i);
+        } else if let Some(s) = start.take().filter(|s| CODENAMES.iter().any(|n| n.eq_ignore_ascii_case(&text[*s..i]))) {
+            return Some(format!("{}{to}{}", &text[..s], &text[i..]));
+        }
+    }
+    None
+}
+
+/// The byte range of the release number `uri` embeds after the distribution `id`, as `26.04` in `xUbuntu_26.04/` or `2404` in `ubuntu2404/`.
+pub fn release_in(uri: &str, id: &str) -> Option<(usize, usize)> {
+    let lower = uri.to_ascii_lowercase();
+    lower.match_indices(id).find_map(|(at, _)| {
+        let mut i = at + id.len();
+        i += usize::from(lower[i..].starts_with(['_', '/', '-']));
+        let digits = |from: usize| lower[from..].bytes().take_while(u8::is_ascii_digit).count();
+        let whole = digits(i);
+        let end = match (whole, lower[i + whole..].strip_prefix('.').map(|_| digits(i + whole + 1))) {
+            (0, _) => return None,
+            (_, Some(minor)) if minor > 0 => i + whole + 1 + minor,
+            _ => i + whole,
+        };
+        (!lower[end..].starts_with(|c: char| c.is_ascii_alphanumeric())).then_some((i, end))
+    })
+}
+
 fn deb822_source(path: &str, stanza: &Stanza, diagnose: &mut impl FnMut(Option<u64>, String)) -> Option<Source> {
     let missing: Vec<&str> = ["Types", "URIs", "Suites"].into_iter().filter(|f| stanza.get(f).is_none_or(|v| v.trim().is_empty())).collect();
     if !missing.is_empty() {
@@ -175,13 +205,22 @@ fn keyed(mut source: Source) -> Source {
     source
 }
 
-/// The host’s release codenames from `os.release`: its own, and the Ubuntu or Debian one it builds on.
-fn host_codenames(facts: &BTreeMap<String, Value>) -> BTreeSet<String> {
+/// The host’s release codenames from `os.release`, its own first, then the Ubuntu or Debian one it builds on.
+fn host_codenames(facts: &BTreeMap<String, Value>) -> Vec<String> {
     let release = facts.get("os.release");
-    ["VERSION_CODENAME", "UBUNTU_CODENAME", "DEBIAN_CODENAME"].iter().filter_map(|k| release.and_then(|r| r[k].as_str())).filter(|c| !c.is_empty()).map(str::to_ascii_lowercase).collect()
+    let mut names: Vec<String> = ["VERSION_CODENAME", "UBUNTU_CODENAME", "DEBIAN_CODENAME"].iter().filter_map(|k| release.and_then(|r| r[k].as_str())).filter(|c| !c.is_empty()).map(str::to_ascii_lowercase).collect();
+    names.dedup();
+    names
 }
 
-/// One fact per source, keyed `path:line`, with the suites off the host release, the cached lists, duplicates and key conflicts.
+/// The host’s distribution `ID` and `VERSION_ID`, when `os.release` names both.
+fn host_release(facts: &BTreeMap<String, Value>) -> Option<(String, String)> {
+    let release = facts.get("os.release")?;
+    let text = |k: &str| release[k].as_str().filter(|v| !v.is_empty()).map(str::to_ascii_lowercase);
+    Some((text("ID")?, text("VERSION_ID")?))
+}
+
+/// One fact per source, keyed `path:line`, with the suites and URIs off the host release and their replacements, the cached lists, duplicates and key conflicts.
 pub fn sources(inputs: &[Input], facts: &BTreeMap<String, Value>) -> Reply {
     let mut reply = Reply::default();
     let mut all = Vec::new();
@@ -194,6 +233,7 @@ pub fn sources(inputs: &[Input], facts: &BTreeMap<String, Value>) -> Reply {
         }
     }
     let host = host_codenames(facts);
+    let distro = host_release(facts);
     if host.is_empty() && !all.is_empty() {
         reply.diagnostics.push(Diagnostic { path: "os.release".to_owned(), line: None, message: "no VERSION_CODENAME, so stale suites are not judged".to_owned() });
     }
@@ -222,12 +262,23 @@ pub fn sources(inputs: &[Input], facts: &BTreeMap<String, Value>) -> Reply {
             fact["options"] = Value::Object(source.options.clone());
         }
         let found: Vec<(&str, &Value)> = indexes[i].iter().filter_map(|name| lookup(name)).collect();
-        let cached_codename = |suite: &str| source.uris.iter().find_map(|u| lookup(&list_name(u, suite))).and_then(|(_, f)| f["codename"].as_str()).and_then(codename);
-        let codenames: Vec<Option<&str>> = source.suites.iter().map(|suite| codename(suite).or_else(|| cached_codename(suite))).collect();
+        let cached_name = |suite: &str| source.uris.iter().find_map(|u| lookup(&list_name(u, suite))).and_then(|(_, f)| f["codename"].as_str());
+        let named = |suite: &'_ str| if codename(suite).is_some() { Some(suite.to_owned()) } else { cached_name(suite).map(str::to_owned) };
+        let codenames: Vec<Option<&str>> = source.suites.iter().map(|suite| codename(suite).or_else(|| cached_name(suite).and_then(codename))).collect();
         fact["codenames"] = json!(codenames.iter().flatten().collect::<BTreeSet<_>>());
         if !host.is_empty() {
-            let stale: Vec<&String> = source.suites.iter().zip(&codenames).filter(|(_, c)| c.is_some_and(|c| !host.contains(c))).map(|(s, _)| s).collect();
+            let stale: Vec<&String> = source.suites.iter().zip(&codenames).filter(|(_, c)| c.is_some_and(|c| !host.iter().any(|h| h == c))).map(|(s, _)| s).collect();
+            fact["suggested-suites"] = json!(stale.iter().filter_map(|s| named(s).and_then(|n| recode(&n, &host[0]))).collect::<Vec<_>>());
             fact["stale-suites"] = json!(stale);
+        }
+        let uris: Vec<String> = source.uris.iter().map(|u| mask(u)).collect();
+        let releases: Vec<Option<(usize, usize)>> = uris.iter().map(|u| distro.as_ref().and_then(|(id, _)| release_in(u, id))).collect();
+        fact["pinned-uris"] = json!(uris.iter().zip(&releases).filter(|(_, r)| r.is_none()).map(|(u, _)| u).collect::<Vec<_>>());
+        if let Some((_, version)) = &distro {
+            let stale: Vec<(&String, (usize, usize))> = uris.iter().zip(&releases).filter_map(|(u, r)| r.map(|r| (u, r))).filter(|(u, (a, b))| u[*a..*b].replace('.', "") != version.replace('.', "")).collect();
+            let replace = |u: &str, (a, b): (usize, usize)| format!("{}{}{}", &u[..a], if u[a..b].contains('.') { version.clone() } else { version.replace('.', "") }, &u[b..]);
+            fact["suggested-uris"] = json!(stale.iter().map(|(u, r)| replace(u, *r)).collect::<Vec<_>>());
+            fact["stale-uris"] = json!(stale.iter().map(|(u, _)| u).collect::<Vec<_>>());
         }
         fact["lists"] = json!(found.iter().map(|(p, _)| p).collect::<Vec<_>>());
         fact["fetched"] = Value::from(found.len() == indexes[i].len());
@@ -278,6 +329,41 @@ mod tests {
         assert_eq!(codename("llvm-toolchain-questing-22"), Some("questing"));
         assert_eq!(codename("noble/mongodb-org/8.0"), Some("noble"));
         assert_eq!((codename("stable"), codename("nodistro"), codename("/")), (None, None, None));
+    }
+
+    #[test]
+    fn a_codename_word_is_replaced_in_place() {
+        assert_eq!(recode("llvm-toolchain-questing-22", "resolute").as_deref(), Some("llvm-toolchain-resolute-22"));
+        assert_eq!(recode("xenial", "resolute").as_deref(), Some("resolute"));
+        assert_eq!(recode("bookworm-updates", "trixie").as_deref(), Some("trixie-updates"));
+        assert_eq!((recode("stable", "trixie"), recode("nodistro", "resolute")), (None, None));
+    }
+
+    #[test]
+    fn a_release_number_is_found_after_the_distribution() {
+        fn at<'a>(uri: &'a str, id: &str) -> Option<&'a str> {
+            release_in(uri, id).map(|(a, b)| &uri[a..b])
+        }
+        assert_eq!(at("https://o.example/crystal/xUbuntu_26.04/", "ubuntu"), Some("26.04"));
+        assert_eq!(at("https://n.example/repos/ubuntu2404/x86_64/", "ubuntu"), Some("2404"));
+        assert_eq!(at("https://o.example/Debian_13/", "debian"), Some("13"));
+        assert_eq!(at("http://archive.ubuntu.com/ubuntu", "ubuntu"), None);
+        assert_eq!(at("https://deb.nodesource.com/node_26.x", "ubuntu"), None);
+        assert_eq!(at("https://x.example/ubuntu-26.04beta/", "ubuntu"), None);
+    }
+
+    #[test]
+    fn stale_suites_and_uris_carry_the_host_value() {
+        let mut facts = host("resolute");
+        facts.insert("os.release".to_owned(), json!({"ID": "ubuntu", "VERSION_ID": "26.04", "VERSION_CODENAME": "resolute"}));
+        let list = "deb https://s.example/ xenial main\ndeb https://o.example/xUbuntu_26.04/ /\ndeb https://o.example/xUbuntu_25.10/ /\ndeb https://n.example/ubuntu2204/ /\ndeb https://deb.nodesource.com/node_26.x nodistro main\n";
+        let reply = sources(&[file("/e/v.list", list)], &facts);
+        let at = |line: u32| &reply.facts[&format!("/e/v.list:{line}")];
+        assert_eq!((at(1)["stale-suites"].clone(), at(1)["suggested-suites"].clone()), (json!(["xenial"]), json!(["resolute"])));
+        assert_eq!((at(2)["stale-uris"].clone(), at(2)["pinned-uris"].clone()), (json!([]), json!([])), "the host’s own release is current");
+        assert_eq!(at(3)["suggested-uris"], json!(["https://o.example/xUbuntu_26.04/"]));
+        assert_eq!(at(4)["suggested-uris"], json!(["https://n.example/ubuntu2604/"]));
+        assert_eq!((at(5)["stale-uris"].clone(), at(5)["pinned-uris"].clone()), (json!([]), json!(["https://deb.nodesource.com/node_26.x"])), "a vendor version stays for review");
     }
 
     #[test]

@@ -40,6 +40,10 @@ the line it starts on, such as `/etc/apt/sources.list.d/docker.sources:5`.
 | `options` | every other field or option, lowercase name to raw value |
 | `codenames` | the Ubuntu or Debian releases its suites name, read inside the suite (`llvm-toolchain-questing-22`) or, for `stable`, from the cached Release |
 | `stale-suites` | the suites whose release is not the host’s `VERSION_CODENAME`, `UBUNTU_CODENAME` or `DEBIAN_CODENAME`; absent when `os-release` names none |
+| `suggested-suites` | each stale suite with its codename word replaced by the host’s, `llvm-toolchain-resolute-22` for `llvm-toolchain-questing-22` |
+| `stale-uris` | the URIs naming the host’s distribution with another release, `xUbuntu_25.10/` or `ubuntu2204/` on 26.04; absent when `os-release` lacks `ID` or `VERSION_ID` |
+| `suggested-uris` | each stale URI with the host’s `VERSION_ID` in its place, in the same form |
+| `pinned-uris` | the URIs naming no release of the host’s distribution, for the version rule to review |
 | `lists`, `fetched` | the cached Release files of its URI and suite pairs, and whether every pair has one |
 | `expired-lists` | the cached Release files whose `Valid-Until` passed before the collection time |
 | `release-age-days` | the age of the oldest `Date:` among them |
@@ -60,8 +64,9 @@ once its `Valid-Until` passes.
 
 | Rule | Severity | Fails when an enabled source |
 | --- | --- | --- |
-| `apt/stale-suite` | error | names a suite of another Ubuntu or Debian release than the host’s |
-| `apt/versioned-uri` | warning | carries a version in its URI path, such as `/v1.34/` or `node_26.x` |
+| `apt/stale-suite` | error | names a suite of another Ubuntu or Debian release than the host’s; the fix names the host’s suite |
+| `apt/stale-uri` | error | names another release of the host’s distribution in its URI; the fix names the replacement |
+| `apt/versioned-uri` | warning | carries a version in its URI path, such as `/v1.34/` or `node_26.x`, that is no release of the host |
 | `apt/signed-by` | warning | has no `Signed-By` |
 | `apt/shared-keyring` | warning | names a keyring in `/etc/apt/trusted.gpg` or `trusted.gpg.d/` |
 | `apt/https` | warning | fetches over `http://` or `ftp://` |

@@ -42,6 +42,7 @@ apt/https:
 | `score` | a number from 0.0 to 9.9, or a curve of `[value, score]` points read against the fact’s number |
 | `message` | the finding’s sentence, with `{got}`, `{field}`, `{fact}` and `{subject}` filled in |
 | `fix` | how to fix it, with the same placeholders; the human report lists the subjects above it, so a fix that leaves `{subject}` out reads once for all of them |
+| `suggest` | `{fact, otherwise}`: the fact, bound like `when`, whose value fills `{suggested}` in `message` and `fix`, and the words used when it is absent or empty |
 | `docs` | a link |
 | `rationale` | why the rule matters, a `Why:` line under the title of its human block, and in JSON and SARIF `help` |
 | `references` | a list of `{title, url}` sources; an override adds to the list instead of replacing it |

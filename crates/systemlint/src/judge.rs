@@ -287,6 +287,7 @@ pub struct Rule {
     pub id: String,
     pub spec: Spec,
     fact: Vec<Segment>,
+    suggest: Option<(Vec<Segment>, String)>,
     when: Vec<Vec<Guard>>,
     expect: Validator,
 }
@@ -296,6 +297,10 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
     let fail = |e: String| format!("rule {id}: {e}");
     let fact_text = spec.fact.as_deref().ok_or_else(|| fail("has no fact".to_owned()))?;
     let fact = parse_path(fact_text).map_err(fail)?;
+    let suggest = spec.suggest.as_ref().map(|s| parse_path(&s.fact).map(|p| (p, s.otherwise.clone()))).transpose().map_err(fail)?;
+    if let Some((path, _)) = suggest.as_ref().filter(|(p, _)| stars(p) > stars(&fact)) {
+        return Err(fail(format!("suggest has {} * where fact {fact_text} has {}, so it binds no subject", stars(path), stars(&fact))));
+    }
     let expect = schema(spec.expect.as_ref().ok_or_else(|| fail("has no expect".to_owned()))?).map_err(|e| fail(format!("expect {e}")))?;
     let branches = match &spec.when {
         None => vec![],
@@ -319,7 +324,7 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         }
         when.push(guards);
     }
-    Ok(Rule { id: id.to_owned(), spec, fact, when, expect })
+    Ok(Rule { id: id.to_owned(), spec, fact, suggest, when, expect })
 }
 
 enum Tri {
@@ -482,7 +487,13 @@ fn check(rule: &Rule, document: &Value, bound: &[String]) -> Check {
     let got = describe(value.pointer(&pointer));
     let field = pointer.rsplit('/').next().filter(|f| !f.is_empty()).map_or_else(|| keys.last().cloned().unwrap_or_default(), str::to_owned);
     let subject = bound.join(", ");
-    let variables: BTreeMap<String, String> = [("got", got), ("field", field), ("fact", keys.join(".")), ("subject", if subject.is_empty() { "<subject>".to_owned() } else { subject })].into_iter().map(|(k, v)| (k.to_owned(), v)).collect();
+    let mut variables: BTreeMap<String, String> = [("got", got), ("field", field), ("fact", keys.join(".")), ("subject", if subject.is_empty() { "<subject>".to_owned() } else { subject })].into_iter().map(|(k, v)| (k.to_owned(), v)).collect();
+    if let Some((path, otherwise)) = &rule.suggest {
+        let value = get(document, &concrete(path, bound)).filter(|v| !matches!(v, Value::Null) && v.as_array().is_none_or(|a| !a.is_empty()) && v.as_str().is_none_or(|s| !s.is_empty()));
+        let suggested = value.map_or_else(|| otherwise.clone(), |v| describe(Some(v)));
+        log::debug!("rule {} suggests {suggested} for {:?}", rule.id, bound);
+        variables.insert("suggested".to_owned(), suggested);
+    }
     let message = match &rule.spec.message {
         Some(template) => fill(template, &variables),
         None => format!("{}{pointer}: {error}", keys.join(".")),

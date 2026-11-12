@@ -6,3 +6,6 @@ deb http://archive.ubuntu.com/ubuntu resolute main
 deb [signed-by=/etc/apt/trusted.gpg.d/vendor.gpg] https://vendor.example/apt resolute main
 deb [signed-by=/etc/apt/keyrings/vendor.asc trusted=yes] https://vendor.example/apt resolute extra
 deb [signed-by=/etc/apt/keyrings/k8s.asc] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /
+deb [signed-by=/etc/apt/keyrings/llvm.asc] https://apt.llvm.org/questing/ llvm-toolchain-questing-22 main
+deb [signed-by=/etc/apt/keyrings/crystal.asc] https://download.opensuse.org/repositories/devel:/languages:/crystal/xUbuntu_25.10/ /
+deb [signed-by=/etc/apt/keyrings/crystal.asc] https://download.opensuse.org/repositories/devel:/languages:/crystal/xUbuntu_26.04/ /
