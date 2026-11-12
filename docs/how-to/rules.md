@@ -194,9 +194,7 @@ line (verdict, standard, coverage `N of M`, name) and a `control` line per
 control (verdict, standard, ID, reasons joined by `; `, title) follow. Colour marks only the level word
 and rule IDs, so the words still carry the meaning; `--color auto`, the
 default, turns it off under `NO_COLOR`, `SYSTEMLINT_NO_COLOR`, `TERM=dumb` or
-when stdout is not a terminal, and `FORCE_COLOR` turns it on. On a terminal the
-report goes through `$PAGER`, else `less` with `LESS=FIRX`; `PAGER=cat` turns
-that off;
+when stdout is not a terminal, and `FORCE_COLOR` turns it on.
 `--format json` prints the document’s `meta`, every check, passes included, and
 the counts; `--format sarif` and `--format textfile` are described in
 [Outputs](outputs.md). `--output PATH` writes the report atomically instead of

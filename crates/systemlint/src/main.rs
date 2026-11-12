@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::io::{IsTerminal, Write};
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
-use std::process::{Command as Process, ExitCode, Stdio};
+use std::process::ExitCode;
 use std::time::SystemTime;
 
 use clap::{Parser, Subcommand};
@@ -268,25 +268,6 @@ fn today() -> String {
     collect::rfc3339(SystemTime::now())[..10].to_owned()
 }
 
-/// Shows `text` through `$PAGER`, else `less` with `LESS=FIRX` unless `LESS` is set; prints it when no pager runs.
-fn page(text: &str) {
-    let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_owned());
-    let less = std::env::var("LESS").unwrap_or_else(|_| "FIRX".to_owned());
-    let child = (!pager.is_empty()).then(|| Process::new("sh").arg("-c").arg(&pager).env("LESS", less).stdin(Stdio::piped()).spawn());
-    let Some(Ok(mut child)) = child else {
-        log::debug!("no pager from PAGER {pager:?}, printing");
-        return print!("{text}");
-    };
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(text.as_bytes());
-    }
-    let status = child.wait();
-    log::debug!("pager {pager:?} ended {status:?}");
-    if status.ok().and_then(|s| s.code()) == Some(127) {
-        print!("{text}");
-    }
-}
-
 /// What `lint` runs: the `--tags` selectors and the standards to answer.
 struct Selection {
     tags: Vec<String>,
@@ -341,7 +322,6 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
                 eprintln!("{error}");
                 EXIT_CONFIG
             })?,
-            None if matches!(look.format, Format::Human) && !look.plain && terminal && std::io::stdin().is_terminal() => page(&text),
             None => print!("{text}"),
         }
         let failed = if compliance.is_empty() {
