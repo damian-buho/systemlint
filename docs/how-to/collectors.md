@@ -28,6 +28,7 @@ into: apt.sources
 | `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
 | `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files` |
 | `read.stat-from` | the same, naming files to pass with their `stat` |
+| `read.hash` | `sha256`, `sha512` or both: adds the file’s lowercase hex digest to the `stat` of each regular file; needs `stat` or `stat-from` |
 | `live` | `true` when the collector reads what only a running host has, such as `/proc`; skipped under `--root` |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |

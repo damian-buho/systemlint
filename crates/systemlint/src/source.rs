@@ -11,7 +11,10 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use rustix::fs::{Dir, Mode, OFlags, ResolveFlags, openat2};
+use sha2::{Digest as _, Sha256, Sha512};
 use systemlint_protocol::{FileKind, Stat};
+
+use crate::collector::Digest;
 
 /// How often an `openat2` that raced a rename (`EAGAIN`) is retried.
 const RETRIES: u32 = 8;
@@ -109,6 +112,29 @@ impl Root {
         Ok(bytes)
     }
 
+    /// The lowercase hex digests of the regular file at `path`, read in one pass.
+    pub fn digests(&self, path: &str, digests: &[Digest]) -> io::Result<(Option<String>, Option<String>)> {
+        let mut file = File::from(self.open_at(path, OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOCTTY)?);
+        if !file.metadata()?.is_file() {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "not a regular file"));
+        }
+        let (mut sha256, mut sha512) = (digests.contains(&Digest::Sha256).then(Sha256::new), digests.contains(&Digest::Sha512).then(Sha512::new));
+        let (mut buffer, mut total) = (vec![0u8; 64 * 1024], 0u64);
+        loop {
+            let n = match file.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e),
+            };
+            total += n as u64;
+            sha256.iter_mut().for_each(|h| h.update(&buffer[..n]));
+            sha512.iter_mut().for_each(|h| h.update(&buffer[..n]));
+        }
+        log::trace!("digests {path}: {total} bytes");
+        Ok((sha256.map(|h| hex(&h.finalize())), sha512.map(|h| hex(&h.finalize()))))
+    }
+
     /// `path` opened to change its mode or owner, refusing a final symlink, never blocking on a FIFO.
     pub fn open_for_change(&self, path: &str) -> io::Result<File> {
         self.open_at(path, OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::NOCTTY).map(File::from)
@@ -125,6 +151,10 @@ impl Root {
         }
         Ok(stat)
     }
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// The protocol [`Stat`] of `meta`; a symlink’s meaningless 0777 sets no writable boolean.
@@ -148,6 +178,8 @@ pub fn stat_of(meta: &std::fs::Metadata) -> Stat {
         setuid: bits & 0o4000 != 0,
         setgid: bits & 0o2000 != 0,
         linked_to: None,
+        sha256: None,
+        sha512: None,
     }
 }
 

@@ -327,7 +327,16 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
     let stats: BTreeSet<String> = globbed(&collector.read.stat)?.into_iter().chain(named.stat.iter().cloned()).collect();
     for path in stats {
         match root.stat(&path) {
-            Ok(stat) => files.entry(path.clone()).or_insert_with(|| blank(&path)).stat = Some(stat),
+            Ok(mut stat) => {
+                if !collector.read.hash.is_empty() && stat.kind == systemlint_protocol::FileKind::File {
+                    match root.digests(&path, &collector.read.hash) {
+                        Ok((sha256, sha512)) => (stat.sha256, stat.sha512) = (sha256, sha512),
+                        Err(e) if gone(&e) || e.kind() == io::ErrorKind::InvalidInput => log::debug!("collector {}: {path} changed before hashing, no digest", collector.id),
+                        Err(e) => return Err(format!("can’t hash {path}: {e}")),
+                    }
+                }
+                files.entry(path.clone()).or_insert_with(|| blank(&path)).stat = Some(stat);
+            }
             Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
             Err(e) => return Err(format!("can’t stat {path}: {e}")),
         }

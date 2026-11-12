@@ -47,6 +47,16 @@ pub struct Read {
     pub files_from: Vec<String>,
     #[serde(default, rename = "stat-from")]
     pub stat_from: Vec<String>,
+    #[serde(default)]
+    pub hash: Vec<Digest>,
+}
+
+/// A digest `read.hash` adds to the stat of each regular file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Digest {
+    Sha256,
+    Sha512,
 }
 
 impl Read {
@@ -83,6 +93,9 @@ impl Collector {
         }
         if let Some(glob) = self.read.files.iter().chain(&self.read.stat).find(|g| !g.starts_with('/')) {
             return Err(format!("read glob {glob} is not absolute"));
+        }
+        if !self.read.hash.is_empty() && self.read.stat.is_empty() && self.read.stat_from.is_empty() {
+            return Err("read.hash adds digests to stats; list the files under read.stat or read.stat-from".to_owned());
         }
         match self.read.exec.as_deref() {
             Some([]) => return Err("read.exec is empty; give an argv list".to_owned()),

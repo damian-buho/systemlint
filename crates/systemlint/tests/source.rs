@@ -6,6 +6,7 @@ use std::io::ErrorKind;
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
 
+use systemlint::collector::Digest;
 use systemlint::source::{Root, wildcard};
 use systemlint_protocol::FileKind;
 
@@ -100,4 +101,16 @@ fn stat_spells_out_the_mode_bits() {
     assert_eq!(plain.linked_to, None);
     assert_eq!(root.stat("/etc").unwrap().kind, FileKind::Directory);
     assert_eq!(root.stat("/missing").unwrap_err().kind(), ErrorKind::NotFound);
+}
+
+#[test]
+fn digests_follow_fips_180_and_refuse_a_directory() {
+    let dir = fixture("digests");
+    std::fs::write(dir.join("abc"), "abc").unwrap();
+    let root = Root::open(&dir).unwrap();
+    let sha256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+    let sha512 = "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f";
+    assert_eq!(root.digests("/abc", &[Digest::Sha256, Digest::Sha512]).unwrap(), (Some(sha256.into()), Some(sha512.into())));
+    assert_eq!(root.digests("/abc", &[Digest::Sha512]).unwrap(), (None, Some(sha512.into())));
+    assert_eq!(root.digests("/etc", &[Digest::Sha256]).unwrap_err().kind(), ErrorKind::InvalidInput);
 }

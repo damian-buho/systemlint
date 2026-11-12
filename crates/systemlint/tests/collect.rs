@@ -142,6 +142,16 @@ fn files_resolve_in_the_root_and_merge_with_stat() {
 }
 
 #[test]
+fn hash_adds_digests_to_regular_files_alone() {
+    let c = collector("id: dump\nread:\n  stat: [/etc/os-release, /usr/lib/os-release]\n  hash: [sha256]\nparse: {plugin: dump, op: parse}\ninto: dump\n");
+    let inputs = systemlint::collect::inputs(&c, &options(false)).unwrap();
+    let stats: Vec<_> = inputs.iter().map(|i| match i { systemlint_protocol::Input::File(f) => f.stat.clone().unwrap(), _ => panic!("{i:?}") }).collect();
+    assert_eq!((stats[0].sha256.as_deref(), stats[0].linked_to.is_some()), (None, true), "a symlink gets no digest");
+    assert_eq!(stats[1].sha256.as_ref().map(String::len), Some(64));
+    assert_eq!(stats[1].sha512, None);
+}
+
+#[test]
 fn exec_is_skipped_under_root_and_runs_live() {
     let c = collector("id: exec\nread:\n  exec: [/bin/sh, -c, 'echo out; echo err >&2; exit 3']\nparse: {plugin: base, op: release}\ninto: exec\n");
     let skipped = collect(std::slice::from_ref(&c), &plugins(), &options(false));

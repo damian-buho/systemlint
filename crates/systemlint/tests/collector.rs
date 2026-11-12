@@ -50,6 +50,8 @@ fn invalid_collectors_are_refused_with_the_reason() {
         (GOOD.replace("into: os.release", "into: os..release"), "not a dotted fact path"),
         (GOOD.replace("into: os.release", "into: ''"), "not a dotted fact path"),
         (GOOD.replace("into:", "unknown: 1\ninto:"), "not a valid collector"),
+        (GOOD.replace("files: [/etc/os-release]", "files: [/etc/os-release]\n  hash: [sha256]"), "list the files under read.stat"),
+        (GOOD.replace("files: [/etc/os-release]", "stat: [/etc/os-release]\n  hash: [md5]"), "not a valid collector"),
     ] {
         assert!(Collector::parse(&text).unwrap_err().contains(reason), "{text}");
     }
