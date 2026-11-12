@@ -362,8 +362,8 @@ fn field(text: &str) -> String {
     text.replace(['\t', '\n'], " ")
 }
 
-/// One finding per tab-separated line, in the human order and undecorated: outcome or level, score, rule, subject, message, fix.
-pub fn lint_plain(document: &Value, checks: &[Check], quiet: bool) -> String {
+/// One finding per tab-separated line, in the human order and undecorated: outcome or level, score, rule, subject, message, fix; then each standard and its controls.
+pub fn lint_plain(document: &Value, checks: &[Check], compliance: &[Report], quiet: bool) -> String {
     let mut out = String::new();
     let mut row = |cells: [&str; 6]| { let _ = writeln!(out, "{}", cells.map(field).join("\t")); };
     for check in checks.iter().filter(|c| skip_reason(document, c).is_some()) {
@@ -378,6 +378,13 @@ pub fn lint_plain(document: &Value, checks: &[Check], quiet: bool) -> String {
     }
     for check in ranked(checks).into_iter().flatten() {
         row([&name(check.severity), &format!("{:.1}", check.score.unwrap_or_default()), &check.rule, &check.subject_text(), check.message.as_deref().unwrap_or_default(), check.fix.as_deref().unwrap_or_default()]);
+    }
+    for report in compliance {
+        let coverage = report.coverage.as_ref().map(|c| format!("{} of {}", c.covered, c.total)).unwrap_or_default();
+        row(["standard", &name(report.verdict), &report.standard, "", &coverage, &report.name]);
+        for control in &report.controls {
+            row(["control", &name(control.verdict), &report.standard, &control.id, &control.reasons.join("; "), control.title.as_deref().unwrap_or_default()]);
+        }
     }
     if !quiet {
         let grade = rate(checks).map_or_else(|| "-".to_owned(), |r| r.grade.to_string());

@@ -327,7 +327,7 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
         let compliance: Vec<comply::Report> = selection.standards.iter().zip(&catalogs).map(|(standard, catalog)| comply::comply(standard, &rules, &checks, catalog.as_ref())).collect();
         let terminal = output.is_none_or(|p| p == Path::new("-")) && std::io::stdout().is_terminal();
         let text = match look.format {
-            Format::Human if look.plain => report::lint_plain(&document, &checks, quiet),
+            Format::Human if look.plain => report::lint_plain(&document, &checks, &compliance, quiet),
             Format::Human => report::lint_human(&document, &checks, &compliance, quiet, report::colour(look.color, |n| std::env::var(n).ok(), terminal)),
             Format::Json => report::lint_json(&document, &checks, &compliance),
             Format::Sarif => report::lint_sarif(&document, &checks, &compliance),

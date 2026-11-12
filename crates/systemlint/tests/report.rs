@@ -233,7 +233,7 @@ fn human_wraps_a_long_not_run_list_within_80_columns() {
 #[test]
 fn plain_prints_one_tab_separated_line_per_finding() {
     let (document, checks) = sources();
-    let text = lint_plain(&document, &checks, false);
+    let text = lint_plain(&document, &checks, &[], false);
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 5, "{text}");
     assert_eq!(lines[0], "warning\t4.5\tapt/duplicate\t/a.list:1\t/a.list:1 lists the same repository as “/b.sources:1”\tremove one of the entries, then run sudo apt update");

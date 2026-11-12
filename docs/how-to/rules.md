@@ -167,7 +167,9 @@ A failure block opens with the level, the highest score of the rule, its ID and
 ends with one `Fix:` line, or a fix under each subject when they differ.
 Failures that name each other, the two sides of `apt/duplicate`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
-or level, score, rule, subject, message, fix. Colour marks only the level word
+or level, score, rule, subject, message, fix; under `--standard`, a `standard`
+line (verdict, standard, coverage `N of M`, name) and a `control` line per
+control (verdict, standard, ID, reasons joined by `; `, title) follow. Colour marks only the level word
 and rule IDs, so the words still carry the meaning; `--color auto`, the
 default, turns it off under `NO_COLOR`, `SYSTEMLINT_NO_COLOR`, `TERM=dumb` or
 when stdout is not a terminal, and `FORCE_COLOR` turns it on. On a terminal the

@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use systemlint::comply::{self, Catalog, Report, Verdict, comply, overall};
 use systemlint::discovery::Trust;
 use systemlint::judge::{Check, Rule, compile, lint};
-use systemlint::report::{FailOn, lint_human, lint_json, lint_sarif, lint_textfile};
+use systemlint::report::{FailOn, lint_human, lint_json, lint_plain, lint_sarif, lint_textfile};
 use systemlint::rules::{Library, Ruleset};
 
 fn fixtures() -> PathBuf {
@@ -181,6 +181,17 @@ fn machine_formats_carry_each_standard() {
         assert!(text.lines().any(|l| l == line), "{line} missing from {text}");
     }
     assert!(!lint_textfile(&document, &checks, &[]).contains("systemlint_compliance"));
+}
+
+#[test]
+fn the_plain_report_carries_each_standard_before_the_rating() {
+    let document = http_source();
+    let (checks, report) = run("fixture-a", &document, Some(&catalog("fixture-a")));
+    let text = lint_plain(&document, &checks, std::slice::from_ref(&report), false);
+    let rows = "standard\tnon-compliant\tfixture-a\t\t2 of 4\tFixture Benchmark A\ncontrol\tcompliant\tfixture-a\t1.1\t\tRun a supported release\ncontrol\tnon-compliant\tfixture-a\t3.1\tapt/https /etc/apt/sources.list.d/old.sources: /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”\tFetch packages over TLS\ncontrol\tmanual\tfixture-a\t4.2\t\tReview the backup policy\ncontrol\tindeterminate\tfixture-a\t9.9\tno rule covers it\tA control no rule covers yet\nrating\t";
+    assert!(text.contains(rows), "{text}");
+    assert!(text.find("\tapt/https\t").unwrap() < text.find("standard\t").unwrap(), "{text}");
+    assert!(!lint_plain(&document, &checks, &[], false).contains("standard\t"));
 }
 
 fn tree(name: &str, files: &[(&str, &str)]) -> PathBuf {
