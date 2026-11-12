@@ -58,7 +58,24 @@ pub struct Suggest {
     pub otherwise: String,
 }
 
-/// One rule as a ruleset writes it, a definition when it has `fact`, else an override.
+/// One fact of a several-fact rule and the schema it must satisfy.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Member {
+    pub fact: String,
+    pub expect: Map<String, Value>,
+}
+
+/// Several facts judged together: the rule passes when all, any or none of them satisfy their schema.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase", deny_unknown_fields)]
+pub enum Facts {
+    All(Vec<Member>),
+    Any(Vec<Member>),
+    None(Vec<Member>),
+}
+
+/// One rule as a ruleset writes it, a definition when it has `fact` or `facts`, else an override.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Spec {
@@ -68,6 +85,8 @@ pub struct Spec {
     pub fact: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expect: Option<Map<String, Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facts: Option<Facts>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<When>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -98,9 +117,9 @@ pub struct Spec {
 }
 
 impl Spec {
-    /// Whether this entry defines a rule: it names a fact, or is a manual procedure.
+    /// Whether this entry defines a rule: it names a fact or several, or is a manual procedure.
     pub fn defines(&self) -> bool {
-        self.fact.is_some() || self.manual
+        self.fact.is_some() || self.facts.is_some() || self.manual
     }
 
     fn applies_in(&mut self, name: &str, when: Option<&When>) {
@@ -156,7 +175,7 @@ fn entry(raw: &Value) -> Result<Spec, String> {
         Value::String(_) => Ok(Spec { severity: Some(serde_json::from_value(raw.clone()).map_err(|e| e.to_string())?), pinned: true, ..Spec::default() }),
         _ => {
             let spec: Spec = serde_json::from_value(raw.clone()).map_err(|e| e.to_string())?;
-            let pinned = spec.fact.is_none() && spec.severity.is_some() && spec.score.is_none();
+            let pinned = spec.fact.is_none() && spec.facts.is_none() && spec.severity.is_some() && spec.score.is_none();
             Ok(Spec { pinned, ..spec })
         }
     }
@@ -183,6 +202,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         title: over.title.or(base.title),
         fact: over.fact.or(base.fact),
         expect,
+        facts: over.facts.or(base.facts),
         when: over.when.or(base.when),
         severity: if score_set && over.severity.is_none() { None } else { over.severity.or(base.severity) },
         score: over.score.or(base.score),
@@ -213,10 +233,10 @@ impl Library {
                 if let Some(first) = owner.get(id) {
                     return Err(format!("ruleset {name}: rule {id} is already defined in ruleset {first}"));
                 }
-                if spec.manual && (spec.fact.is_some() || spec.expect.is_some()) {
-                    return Err(format!("ruleset {name}: rule {id} is manual, so it takes no fact or expect"));
+                if spec.manual && (spec.fact.is_some() || spec.expect.is_some() || spec.facts.is_some()) {
+                    return Err(format!("ruleset {name}: rule {id} is manual, so it takes no fact, expect or facts"));
                 }
-                if !spec.manual && spec.expect.is_none() {
+                if !spec.manual && spec.facts.is_none() && spec.expect.is_none() {
                     return Err(format!("ruleset {name}: rule {id} has fact but no expect"));
                 }
                 spec.applies_in(name, ruleset.when.as_ref());

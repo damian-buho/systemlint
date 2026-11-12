@@ -12,7 +12,7 @@ use jsonschema::{Keyword, ValidationError, Validator};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::rules::{Reference, Score, Severity, Spec, When, glob};
+use crate::rules::{Facts, Member, Reference, Score, Severity, Spec, When, glob};
 use crate::version::compare_deb;
 
 /// What one rule found on one subject.
@@ -315,7 +315,16 @@ pub struct Rule {
     suggest: Option<(Vec<Segment>, String)>,
     applies: Vec<(String, Vec<Vec<Guard>>)>,
     when: Vec<Vec<Guard>>,
-    expect: Option<Validator>,
+    members: Vec<(Vec<Segment>, Validator)>,
+    combine: Combine,
+}
+
+/// How a rule’s facts combine: every one must satisfy its schema, any one, or none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Combine {
+    All,
+    Any,
+    None,
 }
 
 /// The branches of a `when`, each path holding at most `most` `*`s.
@@ -355,17 +364,35 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
     let applies = spec.applies.iter().map(|(name, when)| guards(Some(when), 0, "a ruleset, which has no subject").map(|g| (name.clone(), g)).map_err(|e| fail(format!("ruleset {name}: {e}")))).collect::<Result<Vec<_>, _>>()?;
     if spec.manual {
         log::debug!("rule {id} is manual");
-        return Ok(Rule { id: id.to_owned(), spec, fact: vec![], suggest: None, applies, when: vec![], expect: None });
+        return Ok(Rule { id: id.to_owned(), spec, fact: vec![], suggest: None, applies, when: vec![], members: vec![], combine: Combine::All });
     }
-    let fact_text = spec.fact.as_deref().ok_or_else(|| fail("has no fact".to_owned()))?;
-    let fact = parse_path(fact_text).map_err(fail)?;
+    let (combine, written): (Combine, Vec<Member>) = match (&spec.facts, &spec.fact, &spec.expect) {
+        (Some(_), Some(_), _) | (Some(_), _, Some(_)) => return Err(fail("has facts, so it takes no fact or expect of its own".to_owned())),
+        (Some(Facts::All(m)), ..) => (Combine::All, m.clone()),
+        (Some(Facts::Any(m)), ..) => (Combine::Any, m.clone()),
+        (Some(Facts::None(m)), ..) => (Combine::None, m.clone()),
+        (None, Some(fact), Some(expect)) => (Combine::All, vec![Member { fact: fact.clone(), expect: expect.clone() }]),
+        (None, None, _) => return Err(fail("has no fact".to_owned())),
+        (None, Some(_), None) => return Err(fail("has no expect".to_owned())),
+    };
+    let Some(fact_text) = written.first().map(|m| m.fact.clone()) else { return Err(fail("facts lists no fact".to_owned())) };
+    let mut members = Vec::new();
+    for m in &written {
+        let path = parse_path(&m.fact).map_err(fail)?;
+        let validator = schema(&m.expect).map_err(|e| fail(if spec.facts.is_some() { format!("facts {}: expect {e}", m.fact) } else { format!("expect {e}") }))?;
+        members.push((path, validator));
+    }
+    let fact = members[0].0.clone();
+    if let Some(m) = written.iter().zip(&members).find(|(_, (p, _))| stars(p) > stars(&fact)).map(|(m, _)| m) {
+        return Err(fail(format!("facts {} has more * than the first fact {fact_text}, so it binds no subject", m.fact)));
+    }
     let suggest = spec.suggest.as_ref().map(|s| parse_path(&s.fact).map(|p| (p, s.otherwise.clone()))).transpose().map_err(fail)?;
     if let Some((path, _)) = suggest.as_ref().filter(|(p, _)| stars(p) > stars(&fact)) {
         return Err(fail(format!("suggest has {} * where fact {fact_text} has {}, so it binds no subject", stars(path), stars(&fact))));
     }
-    let expect = schema(spec.expect.as_ref().ok_or_else(|| fail("has no expect".to_owned()))?).map_err(|e| fail(format!("expect {e}")))?;
     let when = guards(spec.when.as_ref(), stars(&fact), &format!("fact {fact_text}")).map_err(fail)?;
-    Ok(Rule { id: id.to_owned(), spec, fact, suggest, applies, when, expect: Some(expect) })
+    log::debug!("rule {id} judges {} facts as {combine:?}", members.len());
+    Ok(Rule { id: id.to_owned(), spec, fact, suggest, applies, when, members, combine })
 }
 
 enum Tri {
@@ -516,21 +543,73 @@ fn base(rule: &Rule, outcome: Outcome, bound: &[String]) -> Check {
     }
 }
 
-fn check(rule: &Rule, expect: &Validator, document: &Value, bound: &[String]) -> Check {
+/// One fact of a rule on a subject: its keys and value, with the failing pointer and error when its schema fails.
+enum Judged<'a> {
+    Holds(Vec<String>, &'a Value),
+    Fails(Vec<String>, &'a Value, String, String),
+    Unknown(String, Option<String>),
+}
+
+impl Judged<'_> {
+    fn holds(&self) -> bool {
+        matches!(self, Judged::Holds(..))
+    }
+
+    fn fails(&self) -> bool {
+        matches!(self, Judged::Fails(..))
+    }
+
+    fn unknown(&self) -> bool {
+        matches!(self, Judged::Unknown(..))
+    }
+}
+
+fn member<'a>(document: &'a Value, path: &[Segment], expect: &Validator, bound: &[String]) -> Judged<'a> {
+    let keys = concrete(path, bound);
+    let Some(value) = get(document, &keys) else {
+        let (reason, collector) = absent(document, &keys);
+        return Judged::Unknown(reason, collector);
+    };
+    match expect.validate(value) {
+        Ok(()) => Judged::Holds(keys, value),
+        Err(error) => Judged::Fails(keys, value, error.instance_path().as_str().to_owned(), error.to_string()),
+    }
+}
+
+/// The facts of a rule combined in three-valued logic: `None` when the rule passes, else the failing or unknown fact that decides.
+fn verdict<'a>(combine: Combine, mut judged: Vec<Judged<'a>>) -> Option<Judged<'a>> {
+    fn take<'a>(judged: &mut Vec<Judged<'a>>, kind: fn(&Judged<'a>) -> bool) -> Option<Judged<'a>> {
+        judged.iter().position(kind).map(|i| judged.remove(i))
+    }
+    let (holds, fails, unknown) = (Judged::holds, Judged::fails, Judged::unknown);
+    match combine {
+        Combine::All => take(&mut judged, fails).or_else(|| take(&mut judged, unknown)),
+        Combine::Any if judged.iter().any(holds) => None,
+        Combine::Any => take(&mut judged, unknown).or_else(|| take(&mut judged, fails)),
+        Combine::None => match take(&mut judged, holds) {
+            Some(Judged::Holds(keys, value)) => Some(Judged::Fails(keys, value, String::new(), "satisfies its expect, which none of the facts may".to_owned())),
+            _ => take(&mut judged, unknown),
+        },
+    }
+}
+
+/// One check of `rule` on `bound`; `unbound` stands for the first fact when its collection is absent, and then only the facts without `*` are judged beside it.
+fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged<'_>>) -> Check {
     match guard(&rule.when, document, bound) {
         Tri::False(reason) => return Check { reason: Some(reason), ..base(rule, Outcome::Skip, bound) },
         Tri::Unknown(reason, collector) => return Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, bound) },
         Tri::True => {}
     }
-    let keys = concrete(&rule.fact, bound);
-    let Some(value) = get(document, &keys) else {
-        let (reason, collector) = absent(document, &keys);
-        return Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, bound) };
+    let judged = match unbound {
+        None => rule.members.iter().map(|(path, expect)| member(document, path, expect, bound)).collect(),
+        Some(first) => std::iter::once(first).chain(rule.members[1..].iter().filter(|(path, _)| stars(path) == 0).map(|(path, expect)| member(document, path, expect, bound))).collect(),
     };
-    let Err(error) = expect.validate(value) else {
-        return base(rule, Outcome::Pass, bound);
+    let (keys, value, pointer, error) = match verdict(rule.combine, judged) {
+        None => return base(rule, Outcome::Pass, bound),
+        Some(Judged::Unknown(reason, collector)) => return Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, bound) },
+        Some(Judged::Fails(keys, value, pointer, error)) => (keys, value, pointer, error),
+        Some(Judged::Holds(..)) => unreachable!("a verdict is never a holding fact"),
     };
-    let pointer = error.instance_path().as_str().to_owned();
     let got = describe(value.pointer(&pointer));
     let field = pointer.rsplit('/').next().filter(|f| !f.is_empty()).map_or_else(|| keys.last().cloned().unwrap_or_default(), str::to_owned);
     let subject = bound.last().cloned().unwrap_or_default();
@@ -555,6 +634,7 @@ fn check(rule: &Rule, expect: &Validator, document: &Value, bound: &[String]) ->
         text: rule.spec.message.clone(),
         variables: if rule.spec.message.is_some() { variables } else { BTreeMap::new() },
         value: Some(value.clone()),
+        fact: keys.join("."),
         ..base(rule, Outcome::Fail, bound)
     }
 }
@@ -574,18 +654,21 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
             }
         }
     }
-    let Some(expect) = &rule.expect else {
+    if rule.members.is_empty() {
         return vec![base(rule, Outcome::Manual, &[])];
-    };
+    }
     let Some(bindings) = subjects(document, &rule.fact) else {
         let last = rule.fact.iter().position(|s| *s == Segment::Star).unwrap_or(rule.fact.len());
         let keys = concrete(&rule.fact[..last], &[]);
         let (reason, collector) = absent(document, &keys);
         log::debug!("rule {} has no subjects: {reason}", rule.id);
+        if rule.members.len() > 1 {
+            return vec![check(rule, document, &[], Some(Judged::Unknown(reason, collector)))];
+        }
         return vec![Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, &[]) }];
     };
     log::debug!("rule {} judges {} subjects", rule.id, bindings.len());
-    bindings.iter().map(|bound| check(rule, expect, document, bound)).collect()
+    bindings.iter().map(|bound| check(rule, document, bound, None)).collect()
 }
 
 /// Every check of every rule, with the first matching waiver attached to each failure, active through its `until` day.

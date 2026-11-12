@@ -7,6 +7,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use systemlint::discovery::Trust;
+use systemlint::judge::compile;
 use systemlint::rules::{Library, Ruleset, Score, Severity, glob};
 
 fn fixture() -> Ruleset {
@@ -135,8 +136,19 @@ fn a_manual_rule_is_defined_without_fact_and_refuses_one() {
     let library = library(&[("review", "rules:\n  review/backups: {manual: true, title: Review the backup policy, rationale: read the policy}\n"), ("stricter", "rules:\n  review/backups: error\n")]);
     let spec = &library.select(&["stricter".to_owned()]).unwrap()["review/backups"];
     assert!(spec.manual && spec.severity == Some(Severity::Error), "an override keeps the rule manual: {spec:?}");
-    for (yaml, why) in [("rules:\n  m: {manual: true, fact: a}\n", "fact"), ("rules:\n  m: {manual: true, expect: {}}\n", "expect")] {
+    for (yaml, why) in [("rules:\n  m: {manual: true, fact: a}\n", "fact"), ("rules:\n  m: {manual: true, expect: {}}\n", "expect"), ("rules:\n  m: {manual: true, facts: {any: []}}\n", "facts")] {
         let error = Library::new(BTreeMap::from([("bad".to_owned(), systemlint::yaml::from_str(yaml).unwrap())])).unwrap_err();
-        assert!(error.contains("is manual, so it takes no fact or expect"), "{why}: {error}");
+        assert!(error.contains("is manual, so it takes no fact, expect or facts"), "{why}: {error}");
+    }
+}
+
+#[test]
+fn facts_refuse_a_fact_or_an_expect_beside_them_an_overriding_one_included() {
+    let defined = "rules:\n  x/one: {facts: {any: [{fact: a, expect: {const: 1}}, {fact: b, expect: {const: 2}}]}}\n";
+    let over = library(&[("base", defined), ("over", "extends: [base]\nrules:\n  x/one: {expect: {const: 3}}\n"), ("both", "rules:\n  x/two: {fact: a, facts: {all: [{fact: a, expect: {}}]}}\n")]);
+    assert!(compile("x/one", over.select(&["base".to_owned()]).unwrap().remove("x/one").unwrap()).is_ok());
+    for (selector, id) in [("over", "x/one"), ("both", "x/two")] {
+        let error = compile(id, over.select(&[selector.to_owned()]).unwrap().remove(id).unwrap()).err().unwrap_or_default();
+        assert!(error.contains("has facts, so it takes no fact or expect of its own"), "{selector}: {error}");
     }
 }

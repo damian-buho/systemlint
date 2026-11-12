@@ -225,3 +225,60 @@ fn a_manual_rule_answers_manual_once_unless_its_ruleset_does_not_apply() {
     let elsewhere = in_ruleset(&format!("when: {{os.release.ID: debian}}\n{rule}"), &facts("root")).unwrap();
     assert_eq!(outcomes(&elsewhere), [(String::new(), Outcome::NotApplicable)]);
 }
+
+#[test]
+fn several_facts_combine_in_kleene_logic() {
+    let document = json!({"a": 1, "b": 2});
+    let (p, f, u) = ("{fact: a, expect: {const: 1}}", "{fact: b, expect: {const: 1}}", "{fact: missing, expect: {}}");
+    for (how, members, expected) in [
+        ("all", [p, p], Outcome::Pass),
+        ("all", [p, f], Outcome::Fail),
+        ("all", [p, u], Outcome::Unknown),
+        ("all", [u, f], Outcome::Fail),
+        ("any", [f, f], Outcome::Fail),
+        ("any", [f, p], Outcome::Pass),
+        ("any", [f, u], Outcome::Unknown),
+        ("any", [u, p], Outcome::Pass),
+        ("none", [f, f], Outcome::Pass),
+        ("none", [f, p], Outcome::Fail),
+        ("none", [f, u], Outcome::Unknown),
+        ("none", [u, p], Outcome::Fail),
+    ] {
+        let checks = run(&format!("facts: {{{how}: [{}, {}]}}\n", members[0], members[1]), &document);
+        assert_eq!(outcomes(&checks), [(String::new(), expected)], "{how} {members:?}");
+    }
+}
+
+#[test]
+fn several_facts_share_the_subject_the_first_fact_binds() {
+    let document = json!({"sshd": {"hosts": {"h1": {"root": "yes"}, "h2": {"root": "yes"}}}, "pkg": {"h1": {"installed": true}, "h2": {"installed": false}}});
+    let yaml = "facts: {any: [{fact: sshd.hosts.*.root, expect: {const: 'no'}}, {fact: pkg.*.installed, expect: {const: false}}]}\nmessage: '{subject}: {fact} is {got}'\n";
+    let checks = run(yaml, &document);
+    assert_eq!(outcomes(&checks), [("h1".into(), Outcome::Fail), ("h2".into(), Outcome::Pass)]);
+    assert_eq!((checks[0].fact.as_str(), checks[0].message.as_deref()), ("sshd.hosts.h1.root", Some("h1: sshd.hosts.h1.root is “yes”")), "the first failing fact reports");
+    let none = run("facts: {none: [{fact: b, expect: {const: 1}}, {fact: a, expect: {const: 1}}]}\n", &json!({"a": 1, "b": 2}));
+    assert_eq!((none[0].fact.as_str(), none[0].message.as_deref()), ("a", Some("a: satisfies its expect, which none of the facts may")), "none reports the fact that holds");
+}
+
+#[test]
+fn several_facts_refuse_an_empty_list_a_bad_schema_and_an_unbound_star() {
+    for (yaml, wanted) in [
+        ("facts: {all: []}\n", "facts lists no fact"),
+        ("facts: {any: [{fact: a, expect: {type: 7}}]}\n", "facts a: expect"),
+        ("facts: {all: [{fact: a.*, expect: {}}, {fact: b.*.*, expect: {}}]}\n", "facts b.*.* has more * than the first fact a.*"),
+    ] {
+        let error = compile("test/rule", spec(yaml)).err().unwrap_or_default();
+        assert!(error.contains(wanted), "{yaml}: {error}");
+    }
+}
+
+#[test]
+fn an_absent_first_collection_is_one_unknown_fact_the_others_can_still_decide() {
+    let rule = |how: &str| format!("facts: {{{how}: [{{fact: sshd.contexts.*.permitrootlogin, expect: {{const: 'no'}}}}, {{fact: apt.installed, expect: {{not: {{required: [openssh-server]}}}}}}, {{fact: x.*.y, expect: {{}}}}]}}\n");
+    let without = json!({"apt": {"installed": {"bash": {}}}});
+    let with = json!({"apt": {"installed": {"openssh-server": {}}}});
+    assert_eq!(outcomes(&run(&rule("any"), &without)), [(String::new(), Outcome::Pass)], "sshd is not installed");
+    assert_eq!(outcomes(&run(&rule("any"), &with)), [(String::new(), Outcome::Unknown)], "installed, and its config unread");
+    assert_eq!(outcomes(&run(&rule("all"), &with)), [(String::new(), Outcome::Fail)], "installed fails all whatever the config says");
+    assert_eq!(outcomes(&run(&rule("all"), &without)), [(String::new(), Outcome::Unknown)], "a starred fact left out never passes");
+}

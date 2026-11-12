@@ -37,6 +37,7 @@ apt/https:
 | `title` | a short name for the problem, the heading of the rule’s block in the human report |
 | `fact` | the fact path; a `*` segment binds one subject per key or array index |
 | `expect` | the JSON Schema the fact must satisfy, `x-version` included |
+| `facts` | instead of `fact` and `expect`: `all`, `any` or `none` over a list of `{fact, expect}`, see [Several facts](#several-facts) |
 | `when` | a guard: a map is AND, a list of maps is OR; each entry is a constant to equal or a schema to satisfy |
 | `severity` | `error`, `warning`, `info`, `hint` or `off`; `warning` when absent |
 | `score` | a number from 0.0 to 9.9, or a curve of `[value, score]` points read against the fact’s number |
@@ -62,6 +63,31 @@ joined by a comma and a space (`path, /usr` for `files.*.*.uid`). The reports
 and `{subject}` show only its last key (`/usr`), the one that names the thing;
 `--format json` and `sarif` keep every key, and a waiver’s `subject` matches
 either form.
+
+### Several facts
+
+`facts` judges one subject over several facts, under different roots:
+
+```yaml
+ssh/root-login:
+  title: Root may log in over SSH
+  facts:
+    any:
+      - {fact: sshd.contexts.*.permitrootlogin, expect: {const: "no"}}
+      - {fact: apt.installed, expect: {not: {required: [openssh-server]}}}
+```
+
+The first fact binds the subjects, and every other one takes its keys as a
+`when` path does, so it may not hold more `*`s; when the first fact’s collection
+is absent, it is one `unknown` fact and the facts without `*` are judged beside
+it, so the rule above passes on a host without `openssh-server`. `all` passes when every fact
+satisfies its schema, `any` when one does, `none` when none does, in the same
+three-valued logic as `when`: an absent fact makes `all` unknown unless another
+fails, and `any` unknown unless another passes. A failure reports the first
+fact that decides it, in `{fact}`, `{got}` and `{field}`; under `none` that is
+the first fact that holds. Facts under one parent need no `facts`: a schema over
+the parent (`anyOf`) reads them, but an absent key there only fails the schema
+and never answers `unknown`.
 
 ### Outcomes
 
