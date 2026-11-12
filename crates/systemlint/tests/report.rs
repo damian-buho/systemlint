@@ -220,6 +220,14 @@ fn human_puts_a_fix_under_each_location_when_the_fixes_differ() {
     assert_eq!(text, "Warning (5.0): [x/drop] Dropped value\n- a: 1.\n  Fix: drop 1.\n- b: 2.\n  Fix: drop 2.\n\n");
 }
 
+#[test]
+fn human_puts_each_remedy_command_under_its_location_unstopped_so_it_pastes() {
+    let rule = compile("x/mode", systemlint::yaml::from_str("fact: files.*\nexpect: {const: 0}\nfix: clear it\nremedy: {chmod: o-w}\n").unwrap()).unwrap();
+    let document = json!({"files": {"/etc/a": 1, "/etc/b b": 2, "/etc/c": 0}});
+    let text = lint_human(&document, &lint(&document, &[rule], &[], "2026-11-11"), &[], true, false, false);
+    assert_eq!(text, "Warning (5.0): [x/mode]\n- files./etc/a: 0 was expected.\n  Run: chmod o-w /etc/a\n- files./etc/b b: 0 was expected.\n  Run: chmod o-w '/etc/b b'\nFix: clear it.\nOr run systemlint fix --tags x/mode to make every change.\n\n");
+}
+
 const EXPLAINED: &str = "title: Dropped value\nfact: v\nexpect: {const: 0}\nfix: drop it\nrationale: a value [here] leaks\nreferences: [{title: 'CIS 1.2', url: 'https://example.org/cis'}, {title: 'Man page', url: 'https://example.org/man'}]\n";
 
 #[test]

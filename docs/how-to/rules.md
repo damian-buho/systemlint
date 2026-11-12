@@ -247,8 +247,10 @@ worst sits just above the rating and counts
 (`Rating B · 5 errors, 9 warnings, 0 info · 577 pass, 24 not run, 21 skip`).
 A failure block opens with the level, the highest score of the rule, its ID and
 `title`, then a `Why:` line with the `rationale`, lists each subject on its own dash line with the value it failed on, and
-ends with one `Fix:` line, or a fix under each subject when they differ; `-v`
-adds a `See:` line per reference.
+ends with one `Fix:` line, or a fix under each subject when they differ. A rule
+with a remedy puts its command under each subject as a `Run:` line with no full
+stop, so it pastes into a shell, and closes with the `systemlint fix --tags`
+call that makes every change; `-v` adds a `See:` line per reference.
 Failures that name each other, the two sides of `apt/duplicate`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
 or level, score, rule, subject, message, fix, the message without the subject

@@ -206,7 +206,7 @@ fn header(label: &str, check: &Check, on: bool) -> String {
     check.title.as_deref().map_or_else(|| format!("{label}: {id}"), |title| format!("{label}: {id} {title}"))
 }
 
-/// The failing checks of one rule as a block: level and highest score, why, a line per location, the fix once when every location shares it, then the references when `verbose`.
+/// The failing checks of one rule as a block: level and highest score, why, a line per location and its remedy command, the fix once when every location shares it, then the references when `verbose`.
 fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     let worst = group.iter().copied().max_by(|a, b| a.score.unwrap_or_default().total_cmp(&b.score.unwrap_or_default())).unwrap_or(group[0]);
     let (word, code) = level_word(worst.severity);
@@ -226,6 +226,9 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
                 let _ = write!(line, " (waiver expired on {}: {})", w.until, w.reason);
             }
             let _ = writeln!(out, "{}", sentence(&line));
+            if let Some(command) = check.remedy.as_deref().filter(|_| check.is_failing()) {
+                let _ = writeln!(out, "  Run: {command}");
+            }
         }
         if let Some(fix) = problem[0].fix.as_deref().filter(|_| !shared) {
             let _ = writeln!(out, "  Fix: {}", sentence(fix));
@@ -235,7 +238,7 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
         let _ = writeln!(out, "Fix: {}", sentence(fix));
     }
     if group.iter().any(|c| c.remedy.is_some() && c.is_failing()) {
-        let _ = writeln!(out, "{}", sentence(&format!("Run systemlint fix --tags {} to make the change", worst.rule)));
+        let _ = writeln!(out, "{}", sentence(&format!("Or run systemlint fix --tags {} to make every change", worst.rule)));
     }
     for reference in worst.references.iter().filter(|_| verbose) {
         let _ = writeln!(out, "See: {} <{}>", reference.title, reference.url);
