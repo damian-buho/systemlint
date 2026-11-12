@@ -18,7 +18,7 @@ assets="$(.scripts/build-binaries.sh)"
 tarball="${assets##*"
 "}" # the archive is the last asset printed
 
-mkdir --parents --mode=0755 "${prefix}"
+mkdir --parents "${prefix}"
 chmod go-w "${prefix}"
 tar --extract --gzip --same-permissions --no-same-owner --directory "${prefix}" --file "${tarball}"
 log "unpacked ${tarball} -> ${prefix}"
