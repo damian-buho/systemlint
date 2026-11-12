@@ -13,7 +13,7 @@ use systemlint::collector::Collector;
 use systemlint::discovery::Plugin;
 use systemlint::source::Root;
 
-// Each fake plugin: name, ops JSON, and the shell that answers a request after saving it.
+// Each fake plugin, one per test since its request file is shared: name, ops JSON, and the shell that answers a request after saving it.
 const PLUGINS: &[(&str, &str, &str)] = &[
     ("echo", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"a":1,"nested":{"secret":"hunter2"}},"diagnostics":[{"path":"/etc/x","line":2,"message":"odd"}],"redact":["/nested/secret","/absent"]}'"#),
     ("dump", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
@@ -30,6 +30,7 @@ const PLUGINS: &[(&str, &str, &str)] = &[
     ("proc", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("dirs", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("notdir", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("secret", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
 ];
 
 fn plugins() -> Vec<Plugin> {
@@ -40,7 +41,7 @@ fn plugins() -> Vec<Plugin> {
         for (name, ops, answer) in PLUGINS {
             let describe = format!(r#"{{"name":"{name}","version":"9.{}","protocol":1,"ops":{ops}}}"#, name.len());
             let request = dir.join(format!("{name}.request.json"));
-            let body = format!("#!/bin/sh\nif [ \"$1\" = --describe ]; then printf '%s\\n' '{describe}'; exit 0; fi\ncat > '{0}.'$$\nmv '{0}.'$$ '{0}'\n{answer}\n", request.display());
+            let body = format!("#!/bin/sh\nif [ \"$1\" = --describe ]; then printf '%s\\n' '{describe}'; exit 0; fi\ncat > '{}'\n{answer}\n", request.display());
             let temporary = dir.join(format!("{name}.{}.tmp", std::process::id()));
             std::fs::write(&temporary, body).unwrap();
             std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -236,7 +237,7 @@ fn a_live_collector_is_skipped_under_root() {
 
 #[test]
 fn a_privileged_collector_is_skipped_in_an_unprivileged_run() {
-    let c = collector("id: secret\nprivileged: true\nread:\n  files: [/etc/os-release]\nparse: {plugin: echo, op: parse}\ninto: secret\n");
+    let c = collector("id: secret\nprivileged: true\nread:\n  files: [/etc/os-release]\nparse: {plugin: secret, op: parse}\ninto: secret\n");
     let doc = collect(std::slice::from_ref(&c), &plugins(), &Options { privileged: false, ..options(true) });
     assert_eq!((doc["collectors"]["secret"]["status"].as_str(), doc["meta"]["privileged"].as_bool()), (Some("skipped"), Some(false)), "{doc}");
     assert_eq!(doc["collectors"]["secret"]["reason"], "needs root, and this run is unprivileged");
