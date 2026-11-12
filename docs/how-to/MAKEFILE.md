@@ -1453,6 +1453,14 @@ Run Clippy lints on Rust code
 
 > Image: D9T_RUST_TOOLS_IMAGE
 
+### `cargo-mutants`
+
+Run Rust mutation testing and enforce the minimum caught share
+
+`auto-cargo-mutants`
+
+> Image: D9T_RUST_TOOLS_IMAGE
+
 ### `cargo-sort`
 
 Check that Cargo.toml dependencies are sorted
