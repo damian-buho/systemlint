@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
-use systemlint::collect::{HashKey, Options, REDACTED, SCHEMA, base64, collect, rfc3339};
+use systemlint::collect::{HashKey, Options, REDACTED, SCHEMA, base64, collect, collect_reporting, rfc3339};
 use systemlint::collector::Collector;
 use systemlint::discovery::Plugin;
 use systemlint::source::Root;
@@ -154,6 +154,15 @@ fn needs_order_the_run_and_carry_the_facts() {
     let failing = collector("id: base\nparse: {plugin: broken, op: parse}\ninto: os.release\n");
     let doc = collect(&[derive, failing], &plugins(), &options(false));
     assert!(doc["collectors"]["derive"]["reason"].as_str().unwrap().contains("collector base finished error"), "{doc}");
+}
+
+#[test]
+fn progress_counts_each_collector_in_run_order() {
+    let derive = collector("id: derive\nparse: {plugin: derive, op: codename}\ninto: apt.codename\n");
+    let base = collector("id: base\nparse: {plugin: base, op: release}\ninto: os.release\n");
+    let mut seen = Vec::new();
+    collect_reporting(&[derive, base], &plugins(), &options(false), &mut |done, total, id| seen.push((done, total, id.to_owned())));
+    assert_eq!(seen, [(0, 2, "base".to_owned()), (1, 2, "derive".to_owned())]);
 }
 
 #[test]

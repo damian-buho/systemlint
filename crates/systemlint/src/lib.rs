@@ -13,6 +13,7 @@ pub mod discovery;
 pub mod document;
 pub mod explain;
 pub mod judge;
+pub mod progress;
 pub mod report;
 pub mod rules;
 pub mod runner;

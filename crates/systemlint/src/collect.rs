@@ -88,6 +88,11 @@ impl HashKey {
 
 /// The facts document: `meta`, `collectors.<id>` outcomes, and every fact at the top level.
 pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) -> Value {
+    collect_reporting(collectors, plugins, options, &mut |_, _, _| {})
+}
+
+/// Like [`collect`], calling `progress` with the number done, the number to run and the id before each collector runs.
+pub fn collect_reporting(collectors: &[Collector], plugins: &[Plugin], options: &Options, progress: &mut dyn FnMut(usize, usize, &str)) -> Value {
     let now = rfc3339(options.now);
     let (mut facts, mut outcomes, mut versions) = (Map::new(), Map::new(), Map::new());
     let mut described: HashMap<String, Result<Describe, String>> = HashMap::new();
@@ -120,6 +125,7 @@ pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) 
             }
         }
     }
+    let total = planned.len();
     while !planned.is_empty() {
         let waits = |needs: &[String], me: usize| needs.iter().any(|n| planned.iter().any(|(j, _, _)| *j != me && overlaps(&collectors[*j].into, n)));
         let Some(position) = planned.iter().position(|(i, _, needs)| !waits(needs, *i)) else {
@@ -131,6 +137,7 @@ pub fn collect(collectors: &[Collector], plugins: &[Plugin], options: &Options) 
         };
         let (index, plugin, needs) = planned.remove(position);
         let collector = &collectors[index];
+        progress(total - planned.len() - 1, total, &collector.id);
         let outcome = gather(collector, &needs, collectors, &facts, &outcomes)
             .and_then(|given| run(collector, plugin, given, options, &now))
             .and_then(|(value, diagnostics, redacted, hashed)| place(&mut facts, &collector.into, value).map(|()| (diagnostics, redacted, hashed)));

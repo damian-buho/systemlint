@@ -5,7 +5,7 @@
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use clap::{Parser, Subcommand};
 use serde::Serialize;
@@ -17,7 +17,7 @@ use systemlint::judge::{self, Rule};
 use systemlint::report::{self, Colour, FailOn};
 use systemlint::rules::Library;
 use systemlint::source::Root;
-use systemlint::{collector, comply, crash, document, rules, runner};
+use systemlint::{collector, comply, crash, document, progress, rules, runner};
 use systemlint_protocol::{OpSpec, VERSION};
 
 /// Exit code when `lint` finds failures at `--fail-on` or a `--standard` is not complied with, or a `facts` collector failed.
@@ -251,7 +251,22 @@ fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, q
         })?,
     };
     let options = Options { root, live, privileged: rustix::process::geteuid().is_root(), now: SystemTime::now(), timeout: config.collect.timeout.map_or(collect::TIMEOUT, Duration::from_secs), hash_key, image_config };
-    let document = collect::collect(&collectors, &plugins, &options);
+    let started = Instant::now();
+    let status = !quiet && !log::log_enabled!(log::Level::Debug) && std::io::stderr().is_terminal();
+    if status {
+        eprint!("Collecting {} from {}…", plural(collectors.len(), "collector"), options.root.path().display());
+    }
+    let document = collect::collect_reporting(&collectors, &plugins, &options, &mut |done, total, id| {
+        if status {
+            eprint!("\r\x1b[KCollecting {}/{total}: {id}…", done + 1);
+        }
+    });
+    if status {
+        eprint!("\r\x1b[K");
+    }
+    if let Some(line) = progress::finished(started.elapsed(), &progress::commands(&document, &collectors)).filter(|_| !quiet) {
+        eprintln!("{line}");
+    }
     if collectors.is_empty() && !quiet {
         eprintln!("No collectors found. Searched: {}", collector::directories(&exe(), &config.collect.directories).iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
     }
