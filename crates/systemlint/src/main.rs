@@ -38,10 +38,17 @@ const EXIT_INTERNAL: u8 = 70;
 /// Exit code when a plugin was refused or failed to describe itself.
 const EXIT_PLUGIN: u8 = 4;
 
+/// Help laid out description, examples, usage, commands and flags, then the notes and links.
+const TEMPLATE: &str = "{about-with-newline}\n{before-help}{usage-heading} {usage}\n\n{all-args}{after-help}";
+
+/// What `systemlint` with no arguments prints: the description, two examples, the common flags and where the rest is.
+const SUMMARY: &str = "Collects operating system facts and lints them with declarative rules.\n\nExamples:\n  systemlint lint\n  systemlint facts -o host.facts.yaml\n\nCommands: facts, lint, plugin\nCommon flags: --root DIR, --tags LIST, -o PATH, --format FORMAT\nEvery command and flag: systemlint --help, systemlint <command> --help\nDocs: https://kiota.ch/damian-buho/systemlint\n";
+
 /// Collects operating system facts and lints them with declarative rules.
 #[derive(Parser)]
-#[command(name = "systemlint", version = VERSION, arg_required_else_help = true)]
-#[command(after_help = "Examples:\n  systemlint facts\n  systemlint facts --root /mnt/image -o image.facts.yaml\n  systemlint lint --root rootfs --image-config config.json --tags env\n  systemlint lint image.facts.yaml\n  systemlint lint --standard dev-sec-ssh-baseline\n  systemlint plugin list\n\nDocs: https://kiota.ch/damian-buho/systemlint\nIssues: https://kiota.ch/damian-buho/systemlint/issues")]
+#[command(name = "systemlint", version = VERSION, help_template = TEMPLATE)]
+#[command(before_help = "Examples:\n  systemlint lint\n  systemlint facts --root /mnt/image -o image.facts.yaml\n  systemlint lint image.facts.yaml\n  systemlint lint --standard dev-sec-ssh-baseline\n  systemlint plugin list")]
+#[command(after_help = "Docs: https://kiota.ch/damian-buho/systemlint\nIssues: https://kiota.ch/damian-buho/systemlint/issues")]
 struct Cli {
     /// Configuration file [default: /etc/systemlint/config.yaml when it exists]
     #[arg(long, global = true, value_name = "PATH")]
@@ -53,13 +60,14 @@ struct Cli {
     #[arg(short, long, global = true)]
     quiet: bool,
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 
 #[derive(Subcommand)]
 enum Command {
     /// Collect facts and print them as YAML
-    #[command(after_help = "Runs every collector from ../share/systemlint/collectors beside the binary and from collect.directories in the config.\nExit codes: 0 every collector ok or skipped, 1 a collector failed, 2 bad arguments, 4 a plugin or collector refused, 5 config, 6 --root can’t be opened, 7 --output can’t be written, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/collectors.md")]
+    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint facts\n  sudo systemlint facts -o host.facts.yaml\n  systemlint facts --root /mnt/image --format json")]
+    #[command(after_help = "Runs every collector from ../share/systemlint/collectors beside the binary and from collect.directories in the config.\nExit codes: 0 every collector ok or skipped, 1 a collector failed, 2 bad arguments, 4 a plugin or collector refused, 5 config, 6 --root can’t be opened, 7 --output can’t be written, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/collectors.md#the-facts-document")]
     Facts {
         /// Read this root filesystem instead of the live host; commands do not run
         #[arg(long, value_name = "DIR")]
@@ -75,7 +83,8 @@ enum Command {
         format: Option<FactsFormat>,
     },
     /// Lint a saved facts document, or facts collected now
-    #[command(after_help = "Exit codes: 0 clean, 1 failures at --fail-on, 2 bad arguments, 4 a plugin or collector refused, 5 config, rules or catalog, 6 unreadable facts or --root, 7 --output can’t be written, 70 no random hash key.\nWith --standard: 0 compliant, 1 non-compliant, 3 indeterminate, whatever --fail-on says.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md")]
+    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint lint\n  systemlint lint host.facts.yaml --tags sshd,apt\n  systemlint lint --root rootfs --format sarif -o systemlint.sarif")]
+    #[command(after_help = "Exit codes: 0 clean, 1 failures at --fail-on, 2 bad arguments, 4 a plugin or collector refused, 5 config, rules or catalog, 6 unreadable facts or --root, 7 --output can’t be written, 70 no random hash key.\nWith --standard: 0 compliant, 1 non-compliant, 3 indeterminate, whatever --fail-on says.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md#lint-output-and-exit-codes")]
     Lint {
         #[command(flatten)]
         input: Input,
@@ -95,14 +104,16 @@ enum Command {
         output: Option<PathBuf>,
     },
     /// Inspect the installed plugins
-    #[command(subcommand)]
+    #[command(subcommand, help_template = TEMPLATE, before_help = "Examples:\n  systemlint plugin list")]
+    #[command(after_help = "Docs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md#discovery-and-trust")]
     Plugin(PluginCommand),
 }
 
 #[derive(Subcommand)]
 enum PluginCommand {
     /// List every trusted plugin and its ops
-    #[command(after_help = "Searches ../lib/systemlint/plugins beside the systemlint binary, then the plugins.directories the config names.\nExit codes: 0 every plugin listed, 2 bad arguments, 4 a plugin refused or failed to describe itself, 5 config, 7 stdout can’t be written.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md")]
+    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint plugin list\n  systemlint plugin list --format json")]
+    #[command(after_help = "Searches ../lib/systemlint/plugins beside the systemlint binary, then the plugins.directories the config names.\nExit codes: 0 every plugin listed, 2 bad arguments, 4 a plugin refused or failed to describe itself, 5 config, 7 stdout can’t be written.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md#discovery-and-trust")]
     List {
         /// Output format: human, or json (indented)
         #[arg(long, value_enum, default_value_t = ListFormat::Human)]
@@ -179,6 +190,10 @@ fn main() -> ExitCode {
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
     crash::install();
     let cli = Cli::parse();
+    let Some(command) = cli.command else {
+        eprint!("{SUMMARY}");
+        return ExitCode::from(2);
+    };
     let level = if cli.verbose { log::LevelFilter::Debug } else { log::LevelFilter::Off };
     env_logger::Builder::new().filter_level(level).init();
     let config = match load_config(cli.config.as_deref()) {
@@ -188,7 +203,7 @@ fn main() -> ExitCode {
             return ExitCode::from(EXIT_CONFIG);
         }
     };
-    match cli.command {
+    match command {
         Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format, cli.quiet)),
         Command::Lint { input, tags, standard, fail_on, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
         Command::Plugin(PluginCommand::List { format }) => ExitCode::from(plugin_list(&config, format == ListFormat::Json, cli.quiet)),

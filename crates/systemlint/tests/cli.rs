@@ -164,3 +164,23 @@ fn a_closed_stdout_ends_the_run_on_sigpipe_with_no_message() {
     assert_eq!(out.status.signal(), Some(libc::SIGPIPE), "{:?}", out.status);
     assert!(out.stderr.is_empty(), "{}", String::from_utf8_lossy(&out.stderr));
 }
+
+#[test]
+fn no_arguments_print_a_short_summary_and_exit_2() {
+    let dir = base("summary");
+    let (code, stderr) = run(&dir, "", &[]);
+    assert_eq!(code, 2, "{stderr}");
+    assert!(stderr.contains("systemlint --help") && stderr.contains("Examples:"), "{stderr}");
+    assert!(stderr.lines().count() <= 12, "the summary stays short: {stderr}");
+}
+
+#[test]
+fn every_help_opens_with_its_description_then_examples_and_ends_with_a_docs_link() {
+    for args in [&[][..], &["facts"], &["lint"], &["plugin"], &["plugin", "list"]] {
+        let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).args(args).arg("--help").output().unwrap();
+        let help = String::from_utf8(out.stdout).unwrap();
+        let (examples, usage) = (help.find("\nExamples:\n").unwrap_or(usize::MAX), help.find("Usage:").unwrap_or(0));
+        assert!(examples < usage, "{args:?}: examples before usage\n{help}");
+        assert!(help.trim_end().lines().last().is_some_and(|l| l.contains("https://kiota.ch/damian-buho/systemlint")), "{args:?}: docs link last\n{help}");
+    }
+}
