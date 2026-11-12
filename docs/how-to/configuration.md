@@ -41,16 +41,19 @@ skipped.
 ```yaml
 plugins:
   directories: [/opt/systemlint/plugins]
+  format: json         # the default plugin list --format: human or json
 collect:
   directories: [collectors]
   timeout: 30          # seconds per command or plugin call, 1 or more
   hash-key: ...        # 16 characters or more
+  format: json         # the default facts --format, over the --output extension: yaml or json
 lint:
   directories: [rulesets]
   tags: [apt, sshd]    # the default --tags
   fail-on: warning     # the default --fail-on
   format: sarif        # the default --format: human, json, sarif or textfile
   color: never         # the default --color: auto, always or never
+  plain: true          # the default --plain; --no-plain or --format undoes it
   waivers: []
   rulesets: {}
 ```

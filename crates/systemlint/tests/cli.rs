@@ -166,6 +166,52 @@ fn facts_format_beats_the_output_extension() {
 }
 
 #[test]
+fn collect_format_beats_the_output_extension_and_the_flag_beats_it() {
+    let dir = base("collect-format");
+    let root = dir.join("root");
+    std::fs::create_dir(&root).unwrap();
+    let yaml = dir.join("facts.yaml");
+    let written = |args: &[&str]| {
+        let mut all = vec!["--quiet", "facts", "--root", root.to_str().unwrap(), "-o", yaml.to_str().unwrap()];
+        all.extend_from_slice(args);
+        assert_eq!(run(&dir, "collect: {format: json}\n", &all).0, 0);
+        std::fs::read_to_string(&yaml).unwrap()
+    };
+    assert!(written(&[]).starts_with('{'), "collect.format json beats .yaml");
+    assert!(!written(&["--format", "yaml"]).starts_with('{'), "--format yaml beats collect.format");
+}
+
+/// The report `lint` prints under `lint.plain: true` and `args` for a document failing one rule.
+fn plain_report(dir: &Path, args: &[&str]) -> String {
+    let path = dir.join("facts.yaml");
+    std::fs::write(&path, format!("meta: {{schema: {}}}\nx: 1\n", systemlint::collect::SCHEMA)).unwrap();
+    let file = dir.join("config.yaml");
+    std::fs::write(&file, "lint:\n  plain: true\n  rulesets:\n    t: {rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n").unwrap();
+    let out = core().arg("--config").arg(&file).arg("lint").args(args).arg(&path).env("LC_ALL", "C").output().unwrap();
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+#[test]
+fn lint_plain_prints_tab_separated_lines_until_a_flag_says_otherwise() {
+    let dir = base("lint-plain");
+    assert!(plain_report(&dir, &[]).contains("t/x\t"), "lint.plain prints plain lines");
+    assert!(!plain_report(&dir, &["--no-plain"]).contains("t/x\t"), "--no-plain beats lint.plain");
+    assert!(plain_report(&dir, &["--plain", "--no-plain"]).contains("t/x") && !plain_report(&dir, &["--plain", "--no-plain"]).contains("t/x\t"), "the last of --plain and --no-plain wins");
+    assert!(plain_report(&dir, &["--format", "json"]).starts_with('{'), "--format beats lint.plain");
+}
+
+#[test]
+fn plugins_format_json_lists_plugins_as_json() {
+    let dir = base("plugins-format");
+    let path = dir.join("config.yaml");
+    std::fs::write(&path, "plugins: {format: json}\n").unwrap();
+    let json = core().arg("--config").arg(&path).args(["plugin", "list"]).output().unwrap();
+    assert!(String::from_utf8_lossy(&json.stdout).starts_with('['), "plugins.format json");
+    let human = core().arg("--config").arg(&path).args(["plugin", "list", "--format", "human"]).output().unwrap();
+    assert!(!String::from_utf8_lossy(&human.stdout).starts_with('['), "--format human beats plugins.format");
+}
+
+#[test]
 fn an_output_counts_its_findings_one_in_the_singular() {
     let dir = base("wrote");
     let path = dir.join("facts.yaml");

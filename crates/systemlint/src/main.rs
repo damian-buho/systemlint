@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 use serde::Serialize;
 use serde_json::Value;
 use systemlint::collect::{self, Options};
-use systemlint::config::{self, Config};
+use systemlint::config::{self, Config, FactsFormat, ListFormat};
 use systemlint::discovery::{self, Trust};
 use systemlint::judge::{self, Rule};
 use systemlint::report::{self, Colour, FailOn, Format};
@@ -78,7 +78,7 @@ enum Command {
         /// Write the document to PATH atomically, mode 0600, instead of stdout, - for stdout
         #[arg(short, long, value_name = "PATH")]
         output: Option<PathBuf>,
-        /// Document format: yaml or json [default: json when --output ends in .json, else yaml]
+        /// Document format: yaml or json [default: collect.format, else json when --output ends in .json, else yaml]
         #[arg(long, value_enum)]
         format: Option<FactsFormat>,
     },
@@ -115,9 +115,9 @@ enum PluginCommand {
     #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint plugin list\n  systemlint plugin list --format json")]
     #[command(after_help = "Searches ../lib/systemlint/plugins beside the systemlint binary, then the plugins.directories the config names.\nExit codes: 0 every plugin listed, 2 bad arguments, 4 a plugin refused or failed to describe itself, 5 config, 7 stdout can’t be written.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md#discovery-and-trust")]
     List {
-        /// Output format: human, or json (indented)
-        #[arg(long, value_enum, default_value_t = ListFormat::Human)]
-        format: ListFormat,
+        /// Output format: human, or json (indented) [default: plugins.format, else human]
+        #[arg(long, value_enum)]
+        format: Option<ListFormat>,
     },
 }
 
@@ -141,29 +141,18 @@ struct Look {
     /// Output format: human, json, sarif (SARIF 2.1.0) or textfile (node-exporter metrics) [default: lint.format, else human]
     #[arg(long, value_enum)]
     format: Option<Format>,
-    /// One finding per tab-separated line, undecorated, for grep and screen readers
-    #[arg(long, conflicts_with = "format")]
+    /// One finding per tab-separated line, undecorated, for grep and screen readers [default: lint.plain, else off]
+    #[arg(long, conflicts_with = "format", overrides_with = "no_plain")]
     plain: bool,
+    /// The decorated report even when lint.plain is true
+    #[arg(long, overrides_with = "plain")]
+    no_plain: bool,
     /// Colour the human report: auto, always or never; auto is off under NO_COLOR, SYSTEMLINT_NO_COLOR, TERM=dumb or off a terminal [default: lint.color, else auto]
     #[arg(long, value_enum, value_name = "WHEN")]
     color: Option<Colour>,
     /// Add each failing rule’s rationale and references, from the global `--verbose`
     #[arg(skip)]
     verbose: bool,
-}
-
-/// How `facts` encodes its document.
-#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-enum FactsFormat {
-    Yaml,
-    Json,
-}
-
-/// How `plugin list` prints its plugins.
-#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-enum ListFormat {
-    Human,
-    Json,
 }
 
 /// One row of `plugin list --format json`.
@@ -206,9 +195,9 @@ fn main() -> ExitCode {
         Err(code) => return ExitCode::from(code),
     };
     match command {
-        Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format, cli.quiet)),
+        Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format.or(config.collect.format), cli.quiet)),
         Command::Lint { input, tags, standard, fail_on, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
-        Command::Plugin(PluginCommand::List { format }) => ExitCode::from(plugin_list(&config, format == ListFormat::Json, cli.quiet)),
+        Command::Plugin(PluginCommand::List { format }) => ExitCode::from(plugin_list(&config, format.or(config.plugins.format) == Some(ListFormat::Json), cli.quiet)),
     }
 }
 
@@ -386,11 +375,12 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
         let checks = judge::lint(&document, &rules, &config.lint.waivers, &today());
         let compliance: Vec<comply::Report> = selection.standards.iter().zip(&catalogs).map(|(standard, catalog)| comply::comply(standard, &rules, &checks, catalog.as_ref())).collect();
         let terminal = output.is_none_or(|p| p == Path::new("-")) && std::io::stdout().is_terminal();
-        let format = if look.plain { Format::Human } else { look.format.or(config.lint.format).unwrap_or(Format::Human) };
+        let plain = if look.plain || look.no_plain || look.format.is_some() { look.plain } else { config.lint.plain.unwrap_or(false) };
+        let format = if plain { Format::Human } else { look.format.or(config.lint.format).unwrap_or(Format::Human) };
         let color = look.color.or(config.lint.color).unwrap_or(Colour::Auto);
-        log::debug!("report as {format:?}, plain {}, colour {color:?}", look.plain);
+        log::debug!("report as {format:?}, plain {plain}, colour {color:?}");
         let text = match format {
-            Format::Human if look.plain => report::lint_plain(&document, &checks, &compliance, quiet),
+            Format::Human if plain => report::lint_plain(&document, &checks, &compliance, quiet),
             Format::Human => report::lint_human(&document, &checks, &compliance, quiet, look.verbose, report::colour(color, |n| std::env::var(n).ok(), terminal)),
             Format::Json => report::lint_json(&document, &checks, &compliance),
             Format::Sarif => report::lint_sarif(&document, &checks, &compliance),

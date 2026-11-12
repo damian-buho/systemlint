@@ -64,6 +64,8 @@ pub struct Lint {
     pub format: Option<Format>,
     #[serde(default)]
     pub color: Option<Colour>,
+    #[serde(default)]
+    pub plain: Option<bool>,
 }
 
 /// The `collect:` section: where collectors live, and the key hashed values share across runs.
@@ -77,6 +79,8 @@ pub struct Collect {
     /// Seconds an `exec` or a plugin call may take, 1 or more [default: 30]
     #[serde(default)]
     pub timeout: Option<u64>,
+    #[serde(default)]
+    pub format: Option<FactsFormat>,
 }
 
 /// The `plugins:` section.
@@ -85,6 +89,24 @@ pub struct Collect {
 pub struct Plugins {
     #[serde(default)]
     pub directories: Vec<PathBuf>,
+    #[serde(default)]
+    pub format: Option<ListFormat>,
+}
+
+/// How `facts` encodes its document, the `--format` choice, also `collect.format`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FactsFormat {
+    Yaml,
+    Json,
+}
+
+/// How `plugin list` prints its plugins, the `--format` choice, also `plugins.format`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ListFormat {
+    Human,
+    Json,
 }
 
 impl Config {
