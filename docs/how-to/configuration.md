@@ -36,9 +36,21 @@ load a plugin, collector or ruleset that another user can write.
 `systemlint -v` names each file it read, in order, and each absent one it
 skipped.
 
+## Untrusted checkouts
+
+Whoever writes `.systemlint.yaml` controls the policy of a run in that
+directory: its `lint.waivers` can hide any finding. Inside a checkout you do
+not trust, such as a pull request from a fork, pass `--no-project-config` to
+skip the file. To skip it on every run, set `project-config: false` in the
+system or user configuration; the key works only there, since a higher layer
+is read after the project file, and setting it anywhere else exits 5. The
+shipped `action.yaml` runs systemlint in a container that never reads the
+checkout’s file.
+
 ## Keys
 
 ```yaml
+project-config: false  # skip .systemlint.yaml; system or user configuration only
 plugins:
   directories: [/opt/systemlint/plugins]
   format: json         # the default plugin list --format: human or json

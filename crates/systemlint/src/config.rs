@@ -23,14 +23,25 @@ pub const PROJECT: &str = ".systemlint.yaml";
 /// The variable naming a configuration file above the project one.
 pub const ENV: &str = "SYSTEMLINT_CONFIG";
 
-/// The configuration files to read, lowest first, each with whether it must exist.
-pub fn layers(explicit: Option<&Path>, var: impl Fn(&str) -> Option<String>, cwd: &Path) -> Vec<(PathBuf, bool)> {
+/// The key in the system or user configuration that skips the project layer when false.
+pub const PROJECT_KEY: &str = "project-config";
+
+/// What a configuration layer is: read when present, the project file, or one that must exist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Layer {
+    Optional,
+    Project,
+    Required,
+}
+
+/// The configuration files to read, lowest first, each with its kind; the project file only when `project`.
+pub fn layers(explicit: Option<&Path>, project: bool, var: impl Fn(&str) -> Option<String>, cwd: &Path) -> Vec<(PathBuf, Layer)> {
     let user = var("XDG_CONFIG_HOME").map(PathBuf::from).filter(|p| p.is_absolute()).or_else(|| var("HOME").map(|home| Path::new(&home).join(".config")));
-    let mut out = vec![(PathBuf::from(SYSTEM), false)];
-    out.extend(user.map(|dir| (dir.join("systemlint/config.yaml"), false)));
-    out.push((cwd.join(PROJECT), false));
-    out.extend(var(ENV).filter(|p| !p.is_empty()).map(|p| (PathBuf::from(p), true)));
-    out.extend(explicit.map(|p| (p.to_path_buf(), true)));
+    let mut out = vec![(PathBuf::from(SYSTEM), Layer::Optional)];
+    out.extend(user.map(|dir| (dir.join("systemlint/config.yaml"), Layer::Optional)));
+    out.extend(project.then(|| (cwd.join(PROJECT), Layer::Project)));
+    out.extend(var(ENV).filter(|p| !p.is_empty()).map(|p| (PathBuf::from(p), Layer::Required)));
+    out.extend(explicit.map(|p| (p.to_path_buf(), Layer::Required)));
     out
 }
 
@@ -44,6 +55,8 @@ pub struct Config {
     pub collect: Collect,
     #[serde(default)]
     pub lint: Lint,
+    #[serde(default, rename = "project-config")]
+    pub project_config: Option<bool>,
 }
 
 /// The `lint:` section: where rulesets live, inline ones, the default selectors, the threshold and waivers.
@@ -116,15 +129,22 @@ impl Config {
     }
 
     /// Reads every layer that exists, or must, lowest first, a higher one replacing a lower one key by key.
-    pub fn layered(layers: &[(PathBuf, bool)]) -> Result<Self, String> {
+    pub fn layered(layers: &[(PathBuf, Layer)]) -> Result<Self, String> {
         let mut merged = Value::Object(serde_json::Map::new());
         let mut read = Vec::new();
-        for (path, required) in layers {
-            if !required && !path.exists() {
+        for (path, layer) in layers {
+            if *layer != Layer::Required && !path.exists() {
                 log::debug!("config {} is absent, skipped", path.display());
                 continue;
             }
+            if *layer == Layer::Project && merged[PROJECT_KEY] == false {
+                log::debug!("config {} skipped: {PROJECT_KEY} is false in {}", path.display(), read.join(", "));
+                continue;
+            }
             let config = Self::read(path)?;
+            if *layer != Layer::Optional && config.get(PROJECT_KEY).is_some() {
+                return Err(format!("{}: {PROJECT_KEY} works only in {SYSTEM} or the user configuration. Pass --no-project-config to skip {PROJECT} on one run.", path.display()));
+            }
             Self::check(path, config.clone())?;
             log::debug!("config {} read as layer {}", path.display(), read.len() + 1);
             merge(&mut merged, config);

@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use systemlint::config::{Config, ENV, PROJECT, SYSTEM, layers};
+use systemlint::config::{Config, ENV, Layer, PROJECT, SYSTEM, layers};
 use systemlint::report::{Colour, Format};
 
 fn write(name: &str, text: &str) -> PathBuf {
@@ -86,16 +86,16 @@ fn layers_run_system_user_project_environment_then_flag() {
         "SYSTEMLINT_CONFIG" => Some("/ci/config.yaml".to_owned()),
         _ => None,
     };
-    let found = layers(Some(Path::new("flag.yaml")), vars, Path::new("/repo"));
-    let expected = [(SYSTEM, false), ("/home/u/.config/systemlint/config.yaml", false), ("/repo/.systemlint.yaml", false), ("/ci/config.yaml", true), ("flag.yaml", true)];
+    let found = layers(Some(Path::new("flag.yaml")), true, vars, Path::new("/repo"));
+    let expected = [(SYSTEM, Layer::Optional), ("/home/u/.config/systemlint/config.yaml", Layer::Optional), ("/repo/.systemlint.yaml", Layer::Project), ("/ci/config.yaml", Layer::Required), ("flag.yaml", Layer::Required)];
     assert_eq!(found, expected.map(|(p, r)| (PathBuf::from(p), r)));
     assert_eq!((ENV, PROJECT), ("SYSTEMLINT_CONFIG", ".systemlint.yaml"));
 }
 
 #[test]
 fn an_empty_variable_and_no_home_add_no_layer() {
-    let found = layers(None, |n| (n == "SYSTEMLINT_CONFIG").then(String::new), Path::new("/repo"));
-    assert_eq!(found, [(PathBuf::from(SYSTEM), false), (PathBuf::from("/repo/.systemlint.yaml"), false)]);
+    let found = layers(None, true, |n| (n == "SYSTEMLINT_CONFIG").then(String::new), Path::new("/repo"));
+    assert_eq!(found, [(PathBuf::from(SYSTEM), Layer::Optional), (PathBuf::from("/repo/.systemlint.yaml"), Layer::Project)]);
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn a_higher_layer_replaces_a_lower_one_key_by_key() {
     let user = write("layer-user", "plugins:\n  directories: [plugins]\nlint:\n  format: sarif\n  color: never\n");
     let project = write("layer-project", "collect:\n  timeout: 20\nlint:\n  tags: [sshd]\n");
     let absent = system.with_file_name("absent.yaml");
-    let config = Config::layered(&[(system, false), (user.clone(), false), (absent, false), (project, true)]).unwrap();
+    let config = Config::layered(&[(system, Layer::Optional), (user.clone(), Layer::Optional), (absent, Layer::Optional), (project, Layer::Required)]).unwrap();
     assert_eq!(config.collect.timeout, Some(20));
     assert_eq!((config.lint.tags, config.lint.fail_on.as_deref()), (vec!["sshd".to_owned()], Some("warning")));
     assert_eq!((config.lint.format, config.lint.color), (Some(Format::Sarif), Some(Colour::Never)));
@@ -113,9 +113,9 @@ fn a_higher_layer_replaces_a_lower_one_key_by_key() {
 
 #[test]
 fn no_layer_is_the_default_and_a_required_one_must_exist() {
-    let config = Config::layered(&[(PathBuf::from("/nonexistent/systemlint.yaml"), false)]).unwrap();
+    let config = Config::layered(&[(PathBuf::from("/nonexistent/systemlint.yaml"), Layer::Optional)]).unwrap();
     assert_eq!((config.lint.format, config.collect.timeout), (None, None));
-    let error = Config::layered(&[(PathBuf::from("/nonexistent/systemlint.yaml"), true)]).unwrap_err();
+    let error = Config::layered(&[(PathBuf::from("/nonexistent/systemlint.yaml"), Layer::Required)]).unwrap_err();
     assert!(error.contains("/nonexistent/systemlint.yaml"), "{error}");
 }
 
@@ -123,6 +123,32 @@ fn no_layer_is_the_default_and_a_required_one_must_exist() {
 fn an_invalid_layer_is_named_even_under_a_valid_one() {
     let bad = write("layer-bad", "lint:\n  color: sometimes\n");
     let good = write("layer-good", "lint:\n  color: always\n");
-    let error = Config::layered(&[(bad.clone(), false), (good, false)]).unwrap_err();
+    let error = Config::layered(&[(bad.clone(), Layer::Optional), (good, Layer::Optional)]).unwrap_err();
     assert!(error.starts_with(&format!("{} is not a valid configuration", bad.display())), "{error}");
+}
+
+#[test]
+fn no_project_config_drops_only_the_project_layer() {
+    let found = layers(None, false, |_| None, Path::new("/repo"));
+    assert_eq!(found, [(PathBuf::from(SYSTEM), Layer::Optional)]);
+}
+
+#[test]
+fn project_config_false_below_skips_the_project_file() {
+    let user = write("project-off-user", "project-config: false\n");
+    let project = write("project-off-project", "lint:\n  tags: [sshd]\n");
+    let config = Config::layered(&[(user.clone(), Layer::Optional), (project.clone(), Layer::Project)]).unwrap();
+    assert!(config.lint.tags.is_empty(), "project-config: false skips the project layer");
+    let on = write("project-on-user", "project-config: true\n");
+    let config = Config::layered(&[(on, Layer::Optional), (project, Layer::Project)]).unwrap();
+    assert_eq!(config.lint.tags, ["sshd"], "project-config: true reads it");
+}
+
+#[test]
+fn project_config_in_the_project_or_a_required_layer_is_refused() {
+    let set = write("project-key-misplaced", "project-config: false\n");
+    for layer in [Layer::Project, Layer::Required] {
+        let error = Config::layered(&[(set.clone(), layer)]).unwrap_err();
+        assert!(error.contains("--no-project-config"), "{layer:?}: {error}");
+    }
 }

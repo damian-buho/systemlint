@@ -294,3 +294,13 @@ fn an_invalid_project_config_in_the_working_directory_exits_5_naming_it() {
     assert_eq!(out.status.code(), Some(5));
     assert!(String::from_utf8_lossy(&out.stderr).contains(".systemlint.yaml is not a valid configuration"), "{}", String::from_utf8_lossy(&out.stderr));
 }
+
+#[test]
+fn no_project_config_skips_the_working_directory_file() {
+    let dir = base("no-project");
+    std::fs::write(dir.join(".systemlint.yaml"), "nonsense: 1\n").unwrap();
+    let read = core().current_dir(&dir).args(["plugin", "list"]).output().unwrap();
+    assert_eq!(read.status.code(), Some(5), "{}", String::from_utf8_lossy(&read.stderr));
+    let skipped = core().current_dir(&dir).args(["--no-project-config", "plugin", "list"]).output().unwrap();
+    assert_eq!(skipped.status.code(), Some(0), "{}", String::from_utf8_lossy(&skipped.stderr));
+}

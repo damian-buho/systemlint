@@ -53,6 +53,9 @@ struct Cli {
     /// Configuration file over SYSTEMLINT_CONFIG, ./.systemlint.yaml, ~/.config/systemlint/config.yaml and /etc/systemlint/config.yaml, merged key by key
     #[arg(long, global = true, value_name = "PATH")]
     config: Option<PathBuf>,
+    /// Skip ./.systemlint.yaml, as for a checkout you do not trust [default: off, or project-config: false in the system or user config]
+    #[arg(long, global = true)]
+    no_project_config: bool,
     /// Explain each step on stderr
     #[arg(short, long, global = true, conflicts_with = "quiet")]
     verbose: bool,
@@ -190,7 +193,7 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     };
     trail::install(cli.verbose);
-    let config = match trail::scoped(trail::CONFIG, || load_config(cli.config.as_deref())).map_err(fail(trail::CONFIG, EXIT_CONFIG)) {
+    let config = match trail::scoped(trail::CONFIG, || load_config(cli.config.as_deref(), !cli.no_project_config)).map_err(fail(trail::CONFIG, EXIT_CONFIG)) {
         Ok(config) => config,
         Err(code) => return ExitCode::from(code),
     };
@@ -404,9 +407,9 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
     run().unwrap_or_else(|code| code)
 }
 
-fn load_config(explicit: Option<&Path>) -> Result<Config, String> {
+fn load_config(explicit: Option<&Path>, project: bool) -> Result<Config, String> {
     let cwd = std::env::current_dir().unwrap_or_default();
-    Config::layered(&config::layers(explicit, |n| std::env::var(n).ok(), &cwd))
+    Config::layered(&config::layers(explicit, project, |n| std::env::var(n).ok(), &cwd))
 }
 
 fn plugin_list(config: &Config, json: bool, quiet: bool) -> u8 {
