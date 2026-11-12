@@ -4,7 +4,7 @@
 
 //! Reads and writes facts documents, YAML or JSON.
 
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
@@ -44,7 +44,11 @@ pub fn write(path: &Path, text: &str, mode: u32) -> Result<(), String> {
         .and_then(|()| std::fs::rename(&temporary, path));
     if let Err(error) = written {
         let _ = std::fs::remove_file(&temporary);
-        return Err(format!("can’t save {}: {error}", path.display()));
+        let dir = path.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(Path::new("."));
+        let error = if error.kind() == ErrorKind::NotFound && dir.is_dir() { std::io::Error::other(error) } else { error };
+        let mkdir = format!("Run mkdir -p {}, or pick another path.", dir.display());
+        let fixes = [(ErrorKind::NotFound, mkdir.as_str()), (ErrorKind::PermissionDenied, "Pick a directory you can write, or run with sudo."), (ErrorKind::ReadOnlyFilesystem, "Pick a path on a writable file system.")];
+        return Err(crate::explain::io(&format!("write {name} into"), dir, &error, &fixes));
     }
     log::debug!("saved {} bytes to {} with mode {mode:o}", text.len(), path.display());
     Ok(())
@@ -54,7 +58,11 @@ pub fn write(path: &Path, text: &str, mode: u32) -> Result<(), String> {
 pub fn load(path: &Path) -> Result<Value, String> {
     let mut text = String::new();
     let read = if path == Path::new("-") { std::io::stdin().read_to_string(&mut text).map(drop) } else { std::fs::read_to_string(path).map(|t| text = t) };
-    read.map_err(|e| format!("can’t read facts {}: {e}", path.display()))?;
+    read.map_err(|e| {
+        let first = format!("Run systemlint facts --save {} first, or pass - to read stdin.", path.display());
+        let owner = format!("A saved document is mode 0600: run sudo chown \"$(id -un)\" {}, or lint as the user who saved it.", path.display());
+        crate::explain::io("read facts", path, &e, &[(ErrorKind::NotFound, &first), (ErrorKind::PermissionDenied, &owner), (ErrorKind::IsADirectory, "Name a facts file, or pass - to read stdin.")])
+    })?;
     parse(&text).map_err(|e| format!("{} is not a facts document: {e}", path.display()))
 }
 

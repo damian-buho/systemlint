@@ -1,0 +1,108 @@
+// SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+fn base(name: &str) -> PathBuf {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli").join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// Runs the core with an empty config and the C locale, returning the exit code and stderr.
+fn run(dir: &Path, config: &str, args: &[&str]) -> (i32, String) {
+    let path = dir.join("config.yaml");
+    std::fs::write(&path, config).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&path).args(args).env("LC_ALL", "C").output().unwrap();
+    (out.status.code().unwrap(), String::from_utf8_lossy(&out.stderr).into_owned())
+}
+
+fn facts(dir: &Path) -> String {
+    let path = dir.join("facts.yaml");
+    std::fs::write(&path, format!("meta: {{schema: {}}}\n", systemlint::collect::SCHEMA)).unwrap();
+    path.display().to_string()
+}
+
+#[test]
+fn a_usage_error_exits_2() {
+    let (code, _) = run(&base("usage"), "", &["lint", "--bogus"]);
+    assert_eq!(code, 2);
+}
+
+#[test]
+fn a_missing_config_exits_5_with_the_fix() {
+    let dir = base("config");
+    let missing = dir.join("absent.yaml");
+    let out = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&missing).args(["plugin", "list"]).output().unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(5), "{stderr}");
+    assert!(stderr.contains("drop --config to use the defaults"), "{stderr}");
+}
+
+#[test]
+fn an_invalid_config_exits_5() {
+    let (code, stderr) = run(&base("invalid"), "nonsense: 1\n", &["plugin", "list"]);
+    assert_eq!(code, 5, "{stderr}");
+}
+
+#[test]
+fn a_refused_ruleset_directory_exits_5_naming_chmod() {
+    let dir = base("refused");
+    let rules = dir.join("rules");
+    std::fs::create_dir(&rules).unwrap();
+    std::fs::set_permissions(&rules, std::fs::Permissions::from_mode(0o777)).unwrap();
+    let facts = facts(&dir);
+    let (code, stderr) = run(&dir, &format!("lint: {{directories: [{}]}}\n", rules.display()), &["lint", &facts]);
+    assert_eq!(code, 5, "{stderr}");
+    assert!(stderr.contains("chmod go-w"), "{stderr}");
+}
+
+#[test]
+fn a_missing_facts_document_exits_6_naming_facts_save() {
+    let dir = base("input");
+    let absent = dir.join("absent.yaml").display().to_string();
+    let (code, stderr) = run(&dir, "", &["lint", &absent]);
+    assert_eq!(code, 6, "{stderr}");
+    assert!(stderr.contains(&format!("Run systemlint facts --save {absent} first")), "{stderr}");
+}
+
+#[test]
+fn a_document_of_another_schema_exits_6() {
+    let dir = base("schema");
+    let path = dir.join("facts.yaml");
+    std::fs::write(&path, "meta: {schema: 0}\n").unwrap();
+    let (code, stderr) = run(&dir, "", &["lint", &path.display().to_string()]);
+    assert_eq!(code, 6, "{stderr}");
+}
+
+#[test]
+fn a_missing_root_exits_6() {
+    let dir = base("root");
+    let (code, stderr) = run(&dir, "", &["--quiet", "facts", "--root", &dir.join("absent").display().to_string()]);
+    assert_eq!(code, 6, "{stderr}");
+    assert!(stderr.contains("it does not exist"), "{stderr}");
+}
+
+#[test]
+fn an_output_in_a_missing_directory_exits_7_naming_mkdir() {
+    let dir = base("output");
+    let facts = facts(&dir);
+    let missing = dir.join("absent");
+    let (code, stderr) = run(&dir, "", &["--quiet", "lint", "--output", &missing.join("report.txt").display().to_string(), &facts]);
+    assert_eq!(code, 7, "{stderr}");
+    assert!(stderr.contains(&format!("Run mkdir -p {}", missing.display())), "{stderr}");
+}
+
+#[test]
+fn a_save_in_a_missing_directory_exits_7() {
+    let dir = base("save");
+    let root = dir.join("root");
+    std::fs::create_dir(&root).unwrap();
+    let save = dir.join("absent/facts.yaml").display().to_string();
+    let (code, stderr) = run(&dir, "", &["--quiet", "facts", "--root", &root.display().to_string(), "--save", &save]);
+    assert_eq!(code, 7, "{stderr}");
+}

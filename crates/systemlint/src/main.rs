@@ -17,14 +17,23 @@ use systemlint::judge::{self, Rule};
 use systemlint::report::{self, Colour, FailOn};
 use systemlint::rules::Library;
 use systemlint::source::Root;
-use systemlint::{collector, comply, document, rules, runner};
+use systemlint::{collector, comply, crash, document, rules, runner};
 use systemlint_protocol::{OpSpec, VERSION};
 
 /// Exit code when `lint` finds failures at `--fail-on` or a `--standard` is not complied with, or a `facts` collector failed.
 const EXIT_FAIL: u8 = 1;
 
-/// Exit code for an unreadable or invalid configuration, ruleset or facts document.
-const EXIT_CONFIG: u8 = 2;
+/// Exit code for an unreadable, invalid or refused configuration, ruleset or catalog; 2 stays clap’s usage error.
+const EXIT_CONFIG: u8 = 5;
+
+/// Exit code for an unreadable or invalid facts document, or a `--root` that can’t be opened.
+const EXIT_INPUT: u8 = 6;
+
+/// Exit code when the facts or the report can’t be written.
+const EXIT_OUTPUT: u8 = 7;
+
+/// Exit code when the operating system can’t give a random hash key.
+const EXIT_INTERNAL: u8 = 70;
 
 /// Exit code when a plugin was refused or failed to describe itself.
 const EXIT_PLUGIN: u8 = 4;
@@ -50,7 +59,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Collect facts and print them as YAML
-    #[command(after_help = "Runs every collector from ../share/systemlint/collectors beside the binary and from collect.directories in the config.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/collectors.md")]
+    #[command(after_help = "Runs every collector from ../share/systemlint/collectors beside the binary and from collect.directories in the config.\nExit codes: 0 every collector ok or skipped, 1 a collector failed, 2 bad arguments, 4 a plugin or collector refused, 5 config, 6 --root can’t be opened, 7 --save can’t be written, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/collectors.md")]
     Facts {
         /// Read this root filesystem instead of the live host; commands do not run
         #[arg(long, value_name = "DIR")]
@@ -66,7 +75,7 @@ enum Command {
         json: bool,
     },
     /// Lint a saved facts document, or facts collected now
-    #[command(after_help = "Exit codes: 0 clean, 1 failures at --fail-on, 2 bad arguments, config or rules, 4 a plugin was refused.\nWith --standard: 0 compliant, 1 non-compliant, 3 indeterminate, whatever --fail-on says.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md")]
+    #[command(after_help = "Exit codes: 0 clean, 1 failures at --fail-on, 2 bad arguments, 4 a plugin or collector refused, 5 config, rules or catalog, 6 unreadable facts or --root, 7 --output can’t be written, 70 no random hash key.\nWith --standard: 0 compliant, 1 non-compliant, 3 indeterminate, whatever --fail-on says.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md")]
     Lint {
         #[command(flatten)]
         input: Input,
@@ -93,7 +102,7 @@ enum Command {
 #[derive(Subcommand)]
 enum PluginCommand {
     /// List every trusted plugin and its ops
-    #[command(after_help = "Searches ../lib/systemlint/plugins beside the systemlint binary, then the plugins.directories the config names.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md")]
+    #[command(after_help = "Searches ../lib/systemlint/plugins beside the systemlint binary, then the plugins.directories the config names.\nExit codes: 0 every plugin listed, 2 bad arguments, 4 a plugin refused or failed to describe itself, 5 config, 7 stdout can’t be written.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md")]
     List {
         /// Print indented JSON
         #[arg(long)]
@@ -152,6 +161,7 @@ struct Listed {
 }
 
 fn main() -> ExitCode {
+    crash::install();
     let cli = Cli::parse();
     let level = if cli.verbose { log::LevelFilter::Debug } else { log::LevelFilter::Off };
     env_logger::Builder::new().filter_level(level).init();
@@ -184,14 +194,14 @@ fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, q
     let live = root.is_none();
     let root = Root::open(root.unwrap_or(Path::new("/"))).map_err(|error| {
         eprintln!("{error}");
-        EXIT_CONFIG
+        EXIT_INPUT
     })?;
     log::debug!("collecting {} collectors with {} plugins from {} (live {live})", collectors.len(), plugins.len(), root.path().display());
     let hash_key = match &config.collect.hash_key {
         Some(text) => collect::HashKey::configured(text),
         None => collect::HashKey::random().map_err(|error| {
             eprintln!("{error}");
-            EXIT_CONFIG
+            EXIT_INTERNAL
         })?,
     };
     let options = Options { root, live, privileged: rustix::process::geteuid().is_root(), now: SystemTime::now(), timeout: collect::TIMEOUT, hash_key, image_config };
@@ -214,11 +224,11 @@ fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, sa
     };
     let written = match save.filter(|p| *p != Path::new("-")) {
         Some(path) => document::save(&document, path),
-        None => document::render(&document, json).map(|text| print!("{text}")),
+        None => document::render(&document, json).and_then(|text| document::write(Path::new("-"), &text, 0)),
     };
     if let Err(error) = written {
         eprintln!("{error}");
-        return EXIT_CONFIG;
+        return EXIT_OUTPUT;
     }
     let failed = document["collectors"].as_object().map_or(0, |o| o.values().filter(|c| c["status"] == "error").count());
     log::debug!("facts done: {failed} collectors failed, trusted {trusted}");
@@ -235,7 +245,7 @@ fn facts_for(config: &Config, input: &Input, quiet: bool) -> Result<(Value, bool
     match &input.facts {
         Some(path) => document::load(path).map(|d| (d, true)).map_err(|error| {
             eprintln!("{error}");
-            EXIT_CONFIG
+            EXIT_INPUT
         }),
         None => gather(config, input.root.as_deref(), input.image_config.clone(), quiet),
     }
@@ -317,13 +327,10 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
             Format::Sarif => report::lint_sarif(&document, &checks, &compliance),
             Format::Textfile => report::lint_textfile(&document, &checks, &compliance),
         };
-        match output {
-            Some(path) => document::write(path, &text, 0o644).map_err(|error| {
-                eprintln!("{error}");
-                EXIT_CONFIG
-            })?,
-            None => print!("{text}"),
-        }
+        document::write(output.unwrap_or(Path::new("-")), &text, 0o644).map_err(|error| {
+            eprintln!("{error}");
+            EXIT_OUTPUT
+        })?;
         let failed = if compliance.is_empty() {
             u8::from(fail_on.reached(&checks)) * EXIT_FAIL
         } else {
@@ -358,19 +365,24 @@ fn plugin_list(config: &Config, json: bool, quiet: bool) -> u8 {
             Err(error) => problems.push(format!("plugin {} at {}: {error}", plugin.name, plugin.path.display())),
         }
     }
+    let mut text = String::new();
     if json {
-        println!("{}", serde_json::to_string_pretty(&listed).unwrap_or_default());
+        text = serde_json::to_string_pretty(&listed).unwrap_or_default() + "\n";
     } else {
         for row in &listed {
-            println!("{} {} {}", row.name, row.version, row.path.display());
+            text += &format!("{} {} {}\n", row.name, row.version, row.path.display());
             for op in &row.ops {
                 if op.needs.is_empty() {
-                    println!("  {}", op.op);
+                    text += &format!("  {}\n", op.op);
                 } else {
-                    println!("  {} (needs {})", op.op, op.needs.join(", "));
+                    text += &format!("  {} (needs {})\n", op.op, op.needs.join(", "));
                 }
             }
         }
+    }
+    if let Err(error) = document::write(Path::new("-"), &text, 0) {
+        eprintln!("{error}");
+        return EXIT_OUTPUT;
     }
     if listed.is_empty() && problems.is_empty() && !quiet {
         let searched: Vec<String> = dirs.iter().map(|d| d.display().to_string()).collect();

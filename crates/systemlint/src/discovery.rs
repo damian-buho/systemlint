@@ -53,10 +53,11 @@ impl Trust {
             let meta = std::fs::symlink_metadata(ancestor).map_err(|e| refuse(format!("can’t stat {}: {e}", ancestor.display())))?;
             let mode = meta.permissions().mode() & 0o7777;
             if !self.uids.contains(&meta.uid()) {
-                return Err(refuse(format!("{} is owned by uid {}, not root, you or the core’s owner; run chown root {}", ancestor.display(), meta.uid(), ancestor.display())));
+                return Err(refuse(format!("{} is owned by uid {}, not root, you or the core’s owner. Run sudo chown root {}.", ancestor.display(), meta.uid(), ancestor.display())));
             }
             if mode & 0o022 != 0 {
-                return Err(refuse(format!("group or others can write {} (mode {mode:04o}); run chmod go-w {}", ancestor.display(), ancestor.display())));
+                let sudo = if meta.uid() == rustix::process::geteuid().as_raw() { "" } else { "sudo " };
+                return Err(refuse(format!("group or others can write {} (mode {mode:04o}). Run {sudo}chmod go-w {}.", ancestor.display(), ancestor.display())));
             }
             log::trace!("trusted {} uid {} mode {mode:04o}", ancestor.display(), meta.uid());
             if ancestor == self.top {

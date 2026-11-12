@@ -26,9 +26,14 @@ pub struct Root {
 impl Root {
     /// Opens `path` as the root; on a live host that is `/`.
     pub fn open(path: &Path) -> Result<Self, String> {
-        let path = path.canonicalize().map_err(|e| format!("can’t open root {}: {e}", path.display()))?;
-        let fd = rustix::fs::open(&path, OFlags::PATH | OFlags::DIRECTORY | OFlags::CLOEXEC, Mode::empty())
-            .map_err(|e| format!("can’t open root {}: {e}", path.display()))?;
+        let fixes = [
+            (io::ErrorKind::NotFound, "Pass the directory an image is unpacked or mounted at."),
+            (io::ErrorKind::NotADirectory, "Pass a directory, such as an unpacked image’s root."),
+            (io::ErrorKind::PermissionDenied, "Run with sudo, or pick a root you can read."),
+        ];
+        let explain = |e: &io::Error| crate::explain::io("open root", path, e, &fixes);
+        let path = path.canonicalize().map_err(|e| explain(&e))?;
+        let fd = rustix::fs::open(&path, OFlags::PATH | OFlags::DIRECTORY | OFlags::CLOEXEC, Mode::empty()).map_err(|e| explain(&e.into()))?;
         log::debug!("root {} opened", path.display());
         Ok(Self { fd, path })
     }

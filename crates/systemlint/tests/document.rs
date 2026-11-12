@@ -44,7 +44,8 @@ fn save_replaces_an_existing_document() {
 #[test]
 fn save_into_a_missing_directory_names_the_path() {
     let path = dir("missing").join("absent/facts.yaml");
-    assert!(save(&sample(), &path).unwrap_err().contains("absent/facts.yaml"));
+    let error = save(&sample(), &path).unwrap_err();
+    assert!(error.contains(&format!("Can’t write facts.yaml into {}: it does not exist.", path.parent().unwrap().display())), "{error}");
 }
 
 #[test]

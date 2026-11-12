@@ -240,9 +240,14 @@ printing it. `--fail-on` (`lint.fail-on`) takes `error`, the default, `warning`,
 | --- | --- | --- | --- |
 | 0 | no failure at `--fail-on` | compliant or not applicable | every collector ended `ok` or `skipped` |
 | 1 | a failure at `--fail-on` | non-compliant | a collector ended `error`, so the document is partial |
-| 2 | bad arguments, config, facts document, or a ruleset or catalog file invalid or refused | the same | bad arguments or config, or the document could not be written |
+| 2 | bad arguments | the same | the same |
 | 3 | — | indeterminate, or a manual control decides | — |
 | 4 | a plugin or collector file was refused | the same, when otherwise compliant | the same, when no collector ended `error` |
+| 5 | the config, a ruleset or a catalog is unreadable, invalid or refused | the same | the config is unreadable or invalid |
+| 6 | the facts document or `--root` can’t be read | the same | `--root` can’t be opened |
+| 7 | `--output` or stdout can’t be written | the same | `--save` or stdout can’t be written |
+| 70 | the system gave no random hash key | the same | the same |
+| 101 | a crash: one line names the report saved under `$XDG_STATE_HOME/systemlint/` (`~/.local/state/systemlint/`) and a pre-filled issue link | the same | the same |
 
 ## Compliance
 

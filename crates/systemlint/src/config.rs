@@ -65,7 +65,8 @@ pub struct Plugins {
 impl Config {
     /// Reads `path`, resolving relative plugin and collector directories against the file’s own directory.
     pub fn load(path: &Path) -> Result<Self, String> {
-        let text = std::fs::read_to_string(path).map_err(|e| format!("can’t read {}: {e}", path.display()))?;
+        let fixes = [(std::io::ErrorKind::NotFound, "Pass an existing file to --config, or drop --config to use the defaults."), (std::io::ErrorKind::PermissionDenied, "Run with sudo, or pass --config a file you can read.")];
+        let text = std::fs::read_to_string(path).map_err(|e| crate::explain::io("read the configuration", path, &e, &fixes))?;
         let mut config: Self = crate::yaml::from_str(&text).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?;
         let base = path.parent().unwrap_or(Path::new("."));
         for dir in config.plugins.directories.iter_mut().chain(&mut config.collect.directories).chain(&mut config.lint.directories) {
