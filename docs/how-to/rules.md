@@ -151,13 +151,13 @@ the counts; `--format sarif` and `--format textfile` are described in
 printing it. `--fail-on` (`lint.fail-on`) takes `error`, the default, `warning`,
 `info`, a score from 0.1 to 9.9, or `never`; a hint never fails a run.
 
-| Code | `lint` | `comply` |
-| --- | --- | --- |
-| 0 | no failure at `--fail-on` | compliant |
-| 1 | a failure at `--fail-on` | non-compliant |
-| 2 | bad arguments, config, facts document, or a ruleset or catalog file invalid or refused | the same |
-| 3 | — | indeterminate |
-| 4 | a plugin or collector file was refused | the same, when otherwise compliant |
+| Code | `lint` | `comply` | `facts` |
+| --- | --- | --- | --- |
+| 0 | no failure at `--fail-on` | compliant | every collector ended `ok` or `skipped` |
+| 1 | a failure at `--fail-on` | non-compliant | a collector ended `error`, so the document is partial |
+| 2 | bad arguments, config, facts document, or a ruleset or catalog file invalid or refused | the same | bad arguments or config, or the document could not be written |
+| 3 | — | indeterminate | — |
+| 4 | a plugin or collector file was refused | the same, when otherwise compliant | the same, when no collector ended `error` |
 
 ## Compliance
 

@@ -22,3 +22,9 @@ b19-assert matches "FACTS" '"status": "ok"' "${facts}"
 systemlint facts --root "${work}/root" --save "${work}/facts.yaml"
 b19-assert equals "FACTS" "600" "$(stat --format %a "${work}/facts.yaml")"
 systemlint --quiet lint --tags '!files' - < "${work}/facts.yaml"
+
+mkdir --parents "${work}/root/etc/ssh"
+printf 'Include /srv/sshd.conf\n' > "${work}/root/etc/ssh/sshd_config"
+status=0
+systemlint --quiet facts --root "${work}/root" > /dev/null 2>&1 || status=$?
+b19-assert equals "COLLECTOR" "1" "${status}"

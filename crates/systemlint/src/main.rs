@@ -19,7 +19,7 @@ use systemlint::source::Root;
 use systemlint::{collector, comply, document, rules, runner};
 use systemlint_protocol::{OpSpec, VERSION};
 
-/// Exit code when `lint` finds failures at `--fail-on` or `comply` answers non-compliant.
+/// Exit code when `lint` finds failures at `--fail-on`, `comply` answers non-compliant, or a `facts` collector failed.
 const EXIT_FAIL: u8 = 1;
 
 /// Exit code for an unreadable or invalid configuration, ruleset or facts document.
@@ -223,7 +223,15 @@ fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, sa
         eprintln!("{error}");
         return EXIT_CONFIG;
     }
-    if trusted { 0 } else { EXIT_PLUGIN }
+    let failed = document["collectors"].as_object().map_or(0, |o| o.values().filter(|c| c["status"] == "error").count());
+    log::debug!("facts done: {failed} collectors failed, trusted {trusted}");
+    if failed > 0 {
+        EXIT_FAIL
+    } else if trusted {
+        0
+    } else {
+        EXIT_PLUGIN
+    }
 }
 
 fn facts_for(config: &Config, input: &Input, quiet: bool) -> Result<(Value, bool), u8> {
