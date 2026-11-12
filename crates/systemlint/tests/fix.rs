@@ -51,6 +51,14 @@ fn a_chown_to_anyone_but_root_is_refused() {
 }
 
 #[test]
+fn a_chgrp_to_any_group_but_root_is_refused() {
+    assert_eq!(Remedy::Chgrp(0).validate(), Ok(()));
+    assert!(Remedy::Chgrp(1).validate().unwrap_err().contains("only chgrp 0"));
+    assert!(compile("test/rule", systemlint::yaml::from_str("fact: a\nexpect: {const: 0}\nremedy: {chgrp: 1000}\n").unwrap()).is_err());
+    assert_eq!(Remedy::Chgrp(0).command("/etc/sudoers"), "chgrp 0 /etc/sudoers");
+}
+
+#[test]
 fn a_command_quotes_a_path_with_spaces_or_quotes() {
     assert_eq!(Remedy::Chown(0).command("/etc/shadow"), "chown 0 /etc/shadow");
     assert_eq!(Remedy::Chmod("o-w".into()).command("/etc/a b"), "chmod o-w '/etc/a b'");

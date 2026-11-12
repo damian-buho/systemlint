@@ -20,6 +20,8 @@ pub enum Remedy {
     Chmod(String),
     /// Sets the owning uid, leaving the group; only 0, so a fix never hands a file to a user.
     Chown(u32),
+    /// Sets the owning gid, leaving the user; only 0, so a fix never hands a file to a group of users.
+    Chgrp(u32),
 }
 
 impl Remedy {
@@ -29,6 +31,8 @@ impl Remedy {
             Self::Chmod(spec) => cleared(spec).map(|_| ()),
             Self::Chown(0) => Ok(()),
             Self::Chown(uid) => Err(format!("remedy chown {uid}: only chown 0 is allowed, a fix never hands a file to a user")),
+            Self::Chgrp(0) => Ok(()),
+            Self::Chgrp(gid) => Err(format!("remedy chgrp {gid}: only chgrp 0 is allowed, a fix never hands a file to a group of users")),
         }
     }
 
@@ -37,6 +41,7 @@ impl Remedy {
         match self {
             Self::Chmod(spec) => format!("chmod {spec} {}", quote(path)),
             Self::Chown(uid) => format!("chown {uid} {}", quote(path)),
+            Self::Chgrp(gid) => format!("chgrp {gid} {}", quote(path)),
         }
     }
 }
@@ -123,6 +128,14 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
             }
             rustix::fs::fchown(&file, Some(rustix::process::Uid::from_raw(*uid)), None)?;
             Ok(Some((format!("uid {}", meta.uid()), format!("uid {uid}"))))
+        }
+        Remedy::Chgrp(gid) => {
+            log::debug!("{}: gid {}, wanted {gid}", change.path, meta.gid());
+            if meta.gid() == *gid {
+                return Ok(None);
+            }
+            rustix::fs::fchown(&file, None, Some(rustix::process::Gid::from_raw(*gid)))?;
+            Ok(Some((format!("gid {}", meta.gid()), format!("gid {gid}"))))
         }
     }
 }
