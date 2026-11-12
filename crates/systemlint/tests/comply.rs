@@ -168,7 +168,7 @@ fn the_human_report_closes_with_a_standard_section_before_the_rating() {
     let document = http_source();
     let (checks, report) = run("fixture-a", &document, Some(&catalog("fixture-a")));
     let text = lint_human(&document, &checks, std::slice::from_ref(&report), false, false, false);
-    let section = "Standard: non-compliant [fixture-a] Fixture Benchmark A\n- 1.1  compliant      Run a supported release\n- 3.1  non-compliant  Fetch packages over TLS\n       apt/https /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”\n- 4.2  manual         Review the backup policy\n- 9.9  indeterminate  A control no rule covers yet\n       no rule covers it\nCoverage: 2 of 4 controls\nNote: 1 control needs a manual check\n\nRating";
+    let section = "Standard: non-compliant [fixture-a] Fixture Benchmark A\n- 1.1  compliant      Run a supported release.\n- 3.1  non-compliant  Fetch packages over TLS.\n       apt/https /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”.\n- 4.2  manual         Review the backup policy.\n- 9.9  indeterminate  A control no rule covers yet.\n       no rule covers it.\nCoverage: 2 of 4 controls.\nNote: 1 control needs a manual check.\n\nRating";
     assert!(text.contains(section), "{text}");
     assert!(text.find("Warning (5.0): [apt/https]").unwrap() < text.find("Standard:").unwrap(), "{text}");
     assert!(lint_human(&document, &checks, &[report], false, false, true).contains("Standard: \x1b[31mnon-compliant\x1b[0m"));
@@ -267,8 +267,8 @@ fn a_control_nothing_judged_is_not_applicable_and_a_manual_rule_answers_manual()
     assert_eq!((report.verdict, report.coverage.as_ref().unwrap().covered), (Verdict::Compliant, 1), "coverage never counts a control nothing judged");
     assert_eq!(report.note.as_deref(), Some("1 control needs a manual check"), "a compliant answer still names the gap");
     let text = lint_human(&facts("root"), &checks, std::slice::from_ref(&report), false, false, false);
-    assert!(text.contains("- 1  not-applicable\n"), "the verdict column widens to fit: {text}");
-    assert!(text.contains("- 3  manual\n"), "{text}");
+    assert!(text.contains("- 1  not-applicable.\n"), "the verdict column widens to fit: {text}");
+    assert!(text.contains("- 3  manual.\n"), "{text}");
     assert!(text.contains("Not applicable: ruleset debian: when os.release.ID is “ubuntu”\n  deb/only\n"), "{text}");
     assert!(text.contains("Manual: [review/backups] Review the backup policy\n"), "{text}");
     assert!(text.contains("· 0 pass, 1 not applicable, 1 manual\n"), "{text}");

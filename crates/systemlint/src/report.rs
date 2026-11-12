@@ -173,11 +173,20 @@ fn detail(check: &Check) -> Option<String> {
     }
 }
 
-/// `text` ended as a sentence: a full stop added unless it is empty or already ends with sentence punctuation.
+/// `text` ended as a sentence: the full stop of its last letter’s script added unless it is empty or already ends with sentence punctuation.
 fn sentence(text: &str) -> String {
     match text.chars().last() {
-        None | Some('.' | '!' | '?' | '…' | '。' | '！' | '？' | '؟' | '।') => text.to_owned(),
-        Some(_) => format!("{text}."),
+        None | Some('.' | '!' | '?' | '…' | '。' | '！' | '？' | '؟' | '।' | '॥') => text.to_owned(),
+        Some(c) => format!("{text}{}", full_stop(c)),
+    }
+}
+
+/// The full stop of `c`’s script: ideographic for Han and kana, danda for Devanagari, else ASCII.
+fn full_stop(c: char) -> char {
+    match c {
+        '\u{3040}'..='\u{30ff}' | '\u{3400}'..='\u{4dbf}' | '\u{4e00}'..='\u{9fff}' | '\u{f900}'..='\u{faff}' => '。',
+        '\u{0900}'..='\u{097f}' => '।',
+        _ => '.',
     }
 }
 
@@ -318,16 +327,16 @@ fn standard_block(out: &mut String, report: &Report, on: bool) {
     for control in &report.controls {
         let (word, code) = verdict_word(control.verdict);
         let row = format!("- {:width$}  {}{:pad$}  {}", control.id, paint(on, code, &word), "", control.title.as_deref().unwrap_or_default(), pad = column - word.len());
-        let _ = writeln!(out, "{}", row.trim_end());
+        let _ = writeln!(out, "{}", sentence(row.trim_end()));
         for reason in &control.reasons {
-            let _ = writeln!(out, "  {:width$}  {reason}", "");
+            let _ = writeln!(out, "  {:width$}  {}", "", sentence(reason));
         }
     }
     if let Some(c) = &report.coverage {
-        let _ = writeln!(out, "Coverage: {} of {} controls", c.covered, c.total);
+        let _ = writeln!(out, "Coverage: {} of {} controls.", c.covered, c.total);
     }
     if let Some(note) = &report.note {
-        let _ = writeln!(out, "Note: {note}");
+        let _ = writeln!(out, "Note: {}", sentence(note));
     }
     out.push('\n');
 }

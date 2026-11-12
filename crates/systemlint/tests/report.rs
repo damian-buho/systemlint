@@ -310,7 +310,9 @@ fn plain_drops_only_a_whole_leading_subject_from_the_message() {
     assert_eq!(message("{subject}b holds {got}"), "ab holds 1.", "a subject that only starts a word stays");
     assert_eq!(message("value {subject} holds {got}"), "value a holds 1.", "a subject inside the sentence stays");
     let fix = |f: &str| lint_plain(&document, &lint(&document, &[compile("x/fix", systemlint::yaml::from_str(&format!("fact: v.*\nexpect: {{const: 0}}\nfix: '{f}'\n")).unwrap()).unwrap()], &[], "2026-11-11"), &[], true).trim_end().split('\t').nth(5).unwrap().to_owned();
-    assert_eq!((fix("évite {got}"), fix("修正する"), fix("drop it.")), ("Évite 1.".to_owned(), "修正する.".to_owned(), "Drop it.".to_owned()), "a fix opens with a capital and ends once");
+    assert_eq!((fix("évite {got}"), fix("drop it.")), ("Évite 1.".to_owned(), "Drop it.".to_owned()), "a fix opens with a capital and ends once");
+    assert_eq!((fix("修正する"), fix("ぁ"), fix("ヿ"), fix("ठीक करें"), fix("ॿ"), fix("ऀ")), ("修正する。".to_owned(), "ぁ。".to_owned(), "ヿ。".to_owned(), "ठीक करें।".to_owned(), "ॿ।".to_owned(), "ऀ।".to_owned()), "a fix ends with its script’s full stop");
+    assert_eq!((fix("x\u{3040}"), fix("\u{30a0}y"), fix("\u{08ff}"), fix("\u{0980}")), ("X\u{3040}。".to_owned(), "\u{30a0}y.".to_owned(), "\u{08ff}.".to_owned(), "\u{0980}.".to_owned()), "the script ranges end where Unicode ends them");
     for ended in ["holds 1.", "holds 1?", "holds 1…", "holds 1。", "holds 1؟"] {
         assert_eq!(message(&format!("{{subject}} {ended}")), ended, "a message ended as a sentence keeps its own stop");
     }
