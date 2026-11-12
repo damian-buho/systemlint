@@ -96,6 +96,11 @@ org:
           run: .scripts/build-binaries.sh
           description: Build every binary crate as a static musl binary for the OS/arch cell
           tags: [publish]
+        install-binary:
+          forgejo: false
+          gha: false
+          run: .scripts/install-binary.sh
+          description: Build the host-native archive, unpack it into ~/.systemlint and link systemlint into ~/.local/bin
     attributes:
       shell:
         exclude:
