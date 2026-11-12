@@ -402,8 +402,7 @@ fn field(text: &str) -> String {
 
 /// A check’s message without the subject it opens with, since the subject column already says it.
 fn unsubjected(check: &Check) -> &str {
-    let message = check.message.as_deref().unwrap_or_default();
-    message.strip_prefix(&check.subject_label()).and_then(|m| m.strip_prefix(' ')).filter(|_| !check.subject.is_empty()).unwrap_or(message)
+    check.unsubjected().or(check.message.as_deref()).unwrap_or_default()
 }
 
 /// One plain row: the last two cells ended as sentences, the last one capitalised, except on a `standard` row, whose cells are a count and a name.

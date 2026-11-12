@@ -97,6 +97,12 @@ impl Check {
         self.subject.last().cloned().unwrap_or_default()
     }
 
+    /// The message without the whole subject label it opens with, or `None` when it opens with none.
+    pub fn unsubjected(&self) -> Option<&str> {
+        let message = self.message.as_deref()?;
+        message.strip_prefix(&self.subject_label()).and_then(|m| m.strip_prefix(' ')).filter(|_| !self.subject.is_empty())
+    }
+
     /// Whether this check counts against the run: a fail no active waiver covers.
     pub fn is_failing(&self) -> bool {
         self.outcome == Outcome::Fail && !self.waiver.as_ref().is_some_and(|w| w.active)

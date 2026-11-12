@@ -129,7 +129,10 @@ fn controls_of<'a>(tags: &'a [String], standard: &str) -> impl Iterator<Item = &
 fn judge(id: &str, title: Option<String>, rules: &[&Rule], checks: &[Check]) -> ControlResult {
     let ids: Vec<String> = rules.iter().map(|r| r.id.clone()).collect();
     let mine: Vec<&Check> = checks.iter().filter(|c| ids.contains(&c.rule)).collect();
-    let failing: Vec<String> = mine.iter().filter(|c| c.is_failing()).map(|c| format!("{} {}: {}", c.rule, c.subject_label(), c.message.as_deref().unwrap_or_default())).collect();
+    let failing: Vec<String> = mine.iter().filter(|c| c.is_failing()).map(|c| match c.unsubjected() {
+        Some(_) => format!("{} {}", c.rule, c.message.as_deref().unwrap_or_default()),
+        None => format!("{} {}: {}", c.rule, c.subject_label(), c.message.as_deref().unwrap_or_default()),
+    }).collect();
     let unknown: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::Unknown).map(|c| format!("{}: {}", c.rule, c.reason.as_deref().unwrap_or_default())).collect();
     let manual: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::Manual).map(|c| c.title.as_ref().map_or_else(|| c.rule.clone(), |t| format!("{}: {t}", c.rule))).collect();
     let mut inapplicable: Vec<String> = mine.iter().filter(|c| c.outcome == Outcome::NotApplicable).filter_map(|c| c.reason.clone()).chain(mine.iter().filter(|c| c.outcome == Outcome::Skip).map(|c| format!("{}: {}", c.rule, c.reason.as_deref().unwrap_or_default()))).collect();

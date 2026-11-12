@@ -102,6 +102,18 @@ fn a_hint_failure_fails_its_control_whatever_fail_on_says() {
 }
 
 #[test]
+fn a_failing_control_names_its_subject_once() {
+    let reasons = |base: &str, extra: &[(&str, &str)]| {
+        let rules = rules(&[base], &["fixture-a"], extra);
+        let checks = lint(&http_source(), &rules, &[], "2026-11-11");
+        comply("fixture-a", &rules, &checks, None).controls.into_iter().find(|c| c.id == "3.1").unwrap().reasons
+    };
+    assert_eq!(reasons("fixture", &[]), ["apt/https /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”"], "a message that opens with its subject");
+    let other = [("other", "extends: [fixture]\nrules: {apt/https: {message: 'fetches over {got}'}}\n")];
+    assert_eq!(reasons("other", &other), ["apt/https /etc/apt/sources.list.d/old.sources: fetches over “http://old.example/debian”"], "a message that does not");
+}
+
+#[test]
 fn one_rule_tagged_for_two_standards_answers_each_independently() {
     let document = http_source();
     let a = answer("fixture-a", &document, None);
@@ -156,7 +168,7 @@ fn the_human_report_closes_with_a_standard_section_before_the_rating() {
     let document = http_source();
     let (checks, report) = run("fixture-a", &document, Some(&catalog("fixture-a")));
     let text = lint_human(&document, &checks, std::slice::from_ref(&report), false, false, false);
-    let section = "Standard: non-compliant [fixture-a] Fixture Benchmark A\n- 1.1  compliant      Run a supported release\n- 3.1  non-compliant  Fetch packages over TLS\n       apt/https /etc/apt/sources.list.d/old.sources: /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”\n- 4.2  manual         Review the backup policy\n- 9.9  indeterminate  A control no rule covers yet\n       no rule covers it\nCoverage: 2 of 4 controls\nNote: 1 control needs a manual check\n\nRating";
+    let section = "Standard: non-compliant [fixture-a] Fixture Benchmark A\n- 1.1  compliant      Run a supported release\n- 3.1  non-compliant  Fetch packages over TLS\n       apt/https /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”\n- 4.2  manual         Review the backup policy\n- 9.9  indeterminate  A control no rule covers yet\n       no rule covers it\nCoverage: 2 of 4 controls\nNote: 1 control needs a manual check\n\nRating";
     assert!(text.contains(section), "{text}");
     assert!(text.find("Warning (5.0): [apt/https]").unwrap() < text.find("Standard:").unwrap(), "{text}");
     assert!(lint_human(&document, &checks, &[report], false, false, true).contains("Standard: \x1b[31mnon-compliant\x1b[0m"));
@@ -188,7 +200,7 @@ fn the_plain_report_carries_each_standard_before_the_rating() {
     let document = http_source();
     let (checks, report) = run("fixture-a", &document, Some(&catalog("fixture-a")));
     let text = lint_plain(&document, &checks, std::slice::from_ref(&report), false);
-    let rows = "standard\tnon-compliant\tfixture-a\t\t2 of 4\tFixture Benchmark A\ncontrol\tcompliant\tfixture-a\t1.1\t\tRun a supported release.\ncontrol\tnon-compliant\tfixture-a\t3.1\tapt/https /etc/apt/sources.list.d/old.sources: /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”.\tFetch packages over TLS.\ncontrol\tmanual\tfixture-a\t4.2\t\tReview the backup policy.\ncontrol\tindeterminate\tfixture-a\t9.9\tno rule covers it.\tA control no rule covers yet.\nrating\t";
+    let rows = "standard\tnon-compliant\tfixture-a\t\t2 of 4\tFixture Benchmark A\ncontrol\tcompliant\tfixture-a\t1.1\t\tRun a supported release.\ncontrol\tnon-compliant\tfixture-a\t3.1\tapt/https /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”.\tFetch packages over TLS.\ncontrol\tmanual\tfixture-a\t4.2\t\tReview the backup policy.\ncontrol\tindeterminate\tfixture-a\t9.9\tno rule covers it.\tA control no rule covers yet.\nrating\t";
     assert!(text.contains(rows), "{text}");
     assert!(text.find("\tapt/https\t").unwrap() < text.find("standard\t").unwrap(), "{text}");
     assert!(!lint_plain(&document, &checks, &[], false).contains("standard\t"));
