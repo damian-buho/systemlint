@@ -69,12 +69,14 @@ env:
 jobs:
   binaries-are-built:
     runs-on: docker
-    if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository)
+    needs: ["release-tag"]
+    if: ${{ !cancelled() && needs.release-tag.result == 'success' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository)) }}
     strategy:
       matrix:
         TARGET_ARCH: ["amd64", "arm64"]
         TARGET_OS: ["linux"]
     env:
+      M6E_RELEASE_TAG: ${{ needs.release-tag.outputs.tag }}
       TARGET_ARCH: ${{ matrix.TARGET_ARCH }}
       TARGET_OS: ${{ matrix.TARGET_OS }}
     steps:
@@ -90,6 +92,7 @@ jobs:
           version: ${{ vars.M6E_BASE_IMAGE_VARIANT_PREFIX }}musl
           run: .scripts/build-binaries.sh
           env: |-
+            M6E_RELEASE_TAG=${{ needs.release-tag.outputs.tag }}
             TARGET_ARCH=${{ matrix.TARGET_ARCH }}
             TARGET_OS=${{ matrix.TARGET_OS }}
             GITHUB_REF_NAME

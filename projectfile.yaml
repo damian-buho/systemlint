@@ -88,6 +88,7 @@ org:
             - TARGET_OS
             - TARGET_ARCH
             - GITHUB_REF_NAME
+            - M6E_RELEASE_TAG
           guard: Cargo.toml
           image: RUST_TOOL_IMAGE
           m6e:
