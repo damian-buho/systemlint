@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: apt-lists
+read:
+  files: [/var/lib/apt/lists/*_InRelease, /var/lib/apt/lists/*_Release]
+parse: {plugin: apt, op: lists}
+into: apt.lists

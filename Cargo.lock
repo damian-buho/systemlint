@@ -869,6 +869,8 @@ dependencies = [
  "serde",
  "serde-saphyr",
  "serde_json",
+ "systemlint-apt",
+ "systemlint-formats",
  "systemlint-protocol",
  "wait-timeout",
 ]
@@ -877,6 +879,7 @@ dependencies = [
 name = "systemlint-apt"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "systemlint-protocol",
 ]
 

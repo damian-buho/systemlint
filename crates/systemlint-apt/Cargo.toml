@@ -11,4 +11,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+serde_json.workspace = true
 systemlint-protocol.workspace = true

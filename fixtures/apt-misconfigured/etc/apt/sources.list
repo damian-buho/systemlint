@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+deb http://archive.ubuntu.com/ubuntu resolute main
+deb [signed-by=/etc/apt/trusted.gpg.d/vendor.gpg] https://vendor.example/apt resolute main
+deb [signed-by=/etc/apt/keyrings/vendor.asc trusted=yes] https://vendor.example/apt resolute extra
+deb [signed-by=/etc/apt/keyrings/k8s.asc] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /

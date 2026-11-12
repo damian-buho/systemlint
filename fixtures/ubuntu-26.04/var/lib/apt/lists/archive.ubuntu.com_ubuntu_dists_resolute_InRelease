@@ -1,0 +1,16 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Origin: Ubuntu
+Label: Ubuntu
+Suite: resolute
+Version: 26.04
+Codename: resolute
+Date: Thu, 23 Apr 2026 17:07:15 UTC
+Components: main restricted universe multiverse
+MD5Sum:
+ d41d8cd98f00b204e9800998ecf8427e 0 stable/binary-amd64/Packages
+-----BEGIN PGP SIGNATURE-----
+
+fixture, unsigned
+-----END PGP SIGNATURE-----

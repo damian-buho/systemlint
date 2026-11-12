@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: apt-sources
+read:
+  files: [/etc/apt/sources.list, /etc/apt/sources.list.d/*.sources, /etc/apt/sources.list.d/*.list]
+parse: {plugin: apt, op: sources}
+into: apt.sources

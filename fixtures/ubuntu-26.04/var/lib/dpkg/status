@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+Package: docker-ce
+Status: install ok installed
+Architecture: amd64
+Version: 5:29.4.1-1~ubuntu.25.10~questing
+
+Package: openssh-server
+Status: install ok installed
+Architecture: amd64
+Version: 1:10.2p1-2ubuntu3

@@ -80,6 +80,7 @@ docker pull kiota.ch/damian-buho/systemlint:latest
 
 ## Документація
 
+- [apt sources](../how-to/apt.md)
 - [Collectors](../how-to/collectors.md)
 - [Plugin protocol v1](../how-to/protocol.md)
 - [Rules, rulesets and compliance](../how-to/rules.md)

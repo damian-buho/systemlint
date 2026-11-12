@@ -1,0 +1,87 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: apt sources that drift from the host release, lose their signature checks or confuse apt
+rules:
+  apt/stale-suite:
+    fact: apt.sources.*.stale-suites
+    when: {apt.sources.*.enabled: true}
+    expect: {maxItems: 0}
+    severity: error
+    message: "{subject} still fetches suite {got}, not this host’s release, so its packages stop following the host"
+    fix: set the suite in {subject} to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite
+    docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
+    tags: [apt]
+  apt/versioned-uri:
+    fact: apt.sources.*.uris
+    when: {apt.sources.*.enabled: true}
+    expect: {items: {not: {pattern: "^[^:]+://[^/]+/(.*[/_:-])?v?[0-9]+\\.([0-9]+|x)"}}}
+    severity: warning
+    message: "{subject} pins a version in its URI {got}, which no upgrade moves"
+    fix: point {subject} at the vendor’s current release path, and review it at every upgrade
+    docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
+    tags: [apt]
+  apt/signed-by:
+    fact: apt.sources.*.signed-by
+    when: {apt.sources.*.enabled: true}
+    expect: {minItems: 1}
+    severity: warning
+    message: "{subject} has no Signed-By, so any key in the shared keyrings can sign it"
+    fix: download the vendor key to /etc/apt/keyrings and name it in Signed-By of {subject}
+    docs: https://wiki.debian.org/DebianRepository/UseThirdParty
+    tags: [apt]
+  apt/shared-keyring:
+    fact: apt.sources.*.signed-by
+    when: {apt.sources.*.enabled: true}
+    expect: {items: {not: {pattern: "^/etc/apt/trusted\\.gpg(\\.d/|$)"}}}
+    severity: warning
+    message: "{subject} trusts {got}, a keyring apt also trusts for every source without Signed-By"
+    fix: move the key to /etc/apt/keyrings and name it in Signed-By of {subject}
+    docs: https://wiki.debian.org/DebianRepository/UseThirdParty
+    tags: [apt]
+  apt/https:
+    fact: apt.sources.*.uris
+    when: {apt.sources.*.enabled: true}
+    expect: {items: {not: {pattern: "^([a-z]+\\+)?(http|ftp)://"}}}
+    severity: warning
+    message: "{subject} fetches over {got}, which shows every package name to the network and lets it withhold updates"
+    fix: switch {subject} to https://
+    docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
+    tags: [apt]
+  apt/insecure-options:
+    fact: apt.sources.*.insecure-options
+    when: {apt.sources.*.enabled: true}
+    expect: {maxItems: 0}
+    severity: error
+    message: "{subject} sets {got}, which switches off apt’s signature checks"
+    fix: remove {got} from {subject} and give it a Signed-By key
+    docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
+    tags: [apt]
+  apt/duplicate:
+    fact: apt.sources.*.duplicates
+    when: {apt.sources.*.enabled: true}
+    expect: {maxItems: 0}
+    severity: warning
+    message: "{subject} lists the same repository as {got}"
+    fix: keep one of {subject} and {got}
+    docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
+    tags: [apt]
+  apt/key-conflict:
+    fact: apt.sources.*.key-conflicts
+    when: {apt.sources.*.enabled: true}
+    expect: {maxItems: 0}
+    severity: error
+    message: "{subject} and {got} name one repository with different Signed-By keys, so apt refuses to update"
+    fix: give {subject} and {got} the same Signed-By, or keep one of them
+    docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
+    tags: [apt]
+  apt/stale-release:
+    fact: apt.sources.*.expired-lists
+    when: {apt.sources.*.enabled: true}
+    expect: {maxItems: 0}
+    severity: error
+    message: "{subject} has an expired Release file {got}, so apt installs nothing new from it until an update succeeds"
+    fix: run apt update and fix the error it reports for {subject}
+    docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
+    tags: [apt]

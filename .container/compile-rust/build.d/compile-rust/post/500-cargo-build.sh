@@ -24,3 +24,6 @@
 
   b19-run "SYSTEMLINT" "$(_p "Copy %s to %s" "collectors" "/export/usr/local/share/systemlint/collectors/")" --      \
     install -D --mode 0644 --target-directory /export/usr/local/share/systemlint/collectors collectors/*.yaml
+
+  b19-run "SYSTEMLINT" "$(_p "Copy %s to %s" "rulesets" "/export/usr/local/share/systemlint/rulesets/")" --      \
+    install -D --mode 0644 --target-directory /export/usr/local/share/systemlint/rulesets rulesets/*.yaml

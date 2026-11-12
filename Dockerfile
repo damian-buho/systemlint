@@ -31,7 +31,7 @@ ARG M6E_CARGO_REGISTRY_URL
 ARG M6E_VERSION
 
 COPY --chown=${B19_UID}:${B19_GID} .container/compile-rust/ /
-COPY --chown=${B19_UID}:${B19_GID} --parents crates collectors Cargo.* ${B19_HOME}/
+COPY --chown=${B19_UID}:${B19_GID} --parents crates collectors rulesets Cargo.* ${B19_HOME}/
 
 USER 0
 

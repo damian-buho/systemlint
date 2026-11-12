@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+Types: deb
+URIs: http://old.example/v2.1/apt
+Suites: questing
+Components: main
+Trusted: yes
+Enabled: no
