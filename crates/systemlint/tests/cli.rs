@@ -43,6 +43,20 @@ fn a_usage_error_exits_2() {
 }
 
 #[test]
+fn a_json_log_line_names_its_scope() {
+    let (code, stderr) = run(&base("log-json"), "", &["-v", "--log-format", "json", "plugin", "list"]);
+    assert_eq!(code, 0, "{stderr}");
+    let lines: Vec<serde_json::Value> = stderr.lines().filter(|l| l.starts_with('{')).map(|l| serde_json::from_str(l).unwrap()).collect();
+    assert!(lines.iter().any(|l| l["scope"] == "config" && l["level"] == "debug" && l["timestamp"].is_string() && l["message"].is_string()), "{stderr}");
+}
+
+#[test]
+fn a_log_format_without_verbose_exits_2() {
+    let (code, stderr) = run(&base("log-json-quiet"), "", &["--log-format", "json", "plugin", "list"]);
+    assert_eq!(code, 2, "{stderr}");
+}
+
+#[test]
 fn a_missing_config_exits_5_with_the_fix() {
     let dir = base("config");
     let missing = dir.join("absent.yaml");

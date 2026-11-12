@@ -59,6 +59,9 @@ struct Cli {
     /// Explain each step on stderr
     #[arg(short, long, global = true, conflicts_with = "quiet")]
     verbose: bool,
+    /// How --verbose writes each step: text, or json, one object per line naming its collector, plugin or phase as scope
+    #[arg(long, global = true, value_enum, value_name = "FORMAT", default_value = "text", requires = "verbose")]
+    log_format: trail::LogFormat,
     /// Print only results and errors
     #[arg(short, long, global = true)]
     quiet: bool,
@@ -192,7 +195,7 @@ fn main() -> ExitCode {
         eprint!("{SUMMARY}");
         return ExitCode::from(2);
     };
-    trail::install(cli.verbose);
+    trail::install(cli.verbose, cli.log_format);
     let config = match trail::scoped(trail::CONFIG, || load_config(cli.config.as_deref(), !cli.no_project_config)).map_err(fail(trail::CONFIG, EXIT_CONFIG)) {
         Ok(config) => config,
         Err(code) => return ExitCode::from(code),

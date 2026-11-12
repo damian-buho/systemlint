@@ -80,9 +80,30 @@ impl Log for Trail {
     }
 }
 
-/// Installs the logger: every debug record to stderr when `verbose`, else the last [`KEEP`] of each scope.
-pub fn install(verbose: bool) {
-    let verbose = verbose.then(|| env_logger::Builder::new().filter_level(LevelFilter::Debug).build());
+/// How `--verbose` writes each debug record to stderr.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum LogFormat {
+    /// env_logger’s text line.
+    #[default]
+    Text,
+    /// One JSON object per line: timestamp, level, scope, target and message.
+    Json,
+}
+
+/// `record` as one JSON object, its scope `null` outside any.
+pub fn json(record: &Record, now: std::time::SystemTime) -> String {
+    serde_json::json!({"timestamp": crate::collect::rfc3339(now), "level": record.level().as_str().to_lowercase(), "scope": current(), "target": record.target(), "message": record.args().to_string()}).to_string()
+}
+
+/// Installs the logger: every debug record to stderr in `format` when `verbose`, else the last [`KEEP`] of each scope.
+pub fn install(verbose: bool, format: LogFormat) {
+    let verbose = verbose.then(|| {
+        let mut builder = env_logger::Builder::new();
+        if format == LogFormat::Json {
+            builder.format(|out, record| std::io::Write::write_all(out, (json(record, std::time::SystemTime::now()) + "\n").as_bytes()));
+        }
+        builder.filter_level(LevelFilter::Debug).build()
+    });
     if log::set_boxed_logger(Box::new(Trail { verbose })).is_ok() {
         log::set_max_level(LevelFilter::Debug);
     }

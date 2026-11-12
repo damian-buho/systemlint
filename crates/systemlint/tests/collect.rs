@@ -291,7 +291,7 @@ fn a_glob_through_a_file_is_absent_not_an_error() {
 
 #[test]
 fn a_failed_collector_keeps_its_own_debug_records_and_no_other_collectors() {
-    systemlint::trail::install(false);
+    systemlint::trail::install(false, systemlint::trail::LogFormat::Text);
     let failing = collector("id: traced\nread:\n  files: [/etc/os-release]\nparse: {plugin: traced, op: parse}\ninto: traced\n");
     let passing = collector("id: untraced\nread:\n  files: [/etc/os-release]\nparse: {plugin: untraced, op: parse}\ninto: untraced\n");
     let doc = collect(&[failing, passing], &plugins(), &options(false));
