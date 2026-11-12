@@ -184,3 +184,22 @@ fn every_help_opens_with_its_description_then_examples_and_ends_with_a_docs_link
         assert!(help.trim_end().lines().last().is_some_and(|l| l.contains("https://kiota.ch/damian-buho/systemlint")), "{args:?}: docs link last\n{help}");
     }
 }
+
+#[test]
+fn ctrl_c_says_so_and_exits_130() {
+    let dir = base("interrupt");
+    let path = dir.join("config.yaml");
+    std::fs::write(&path, "").unwrap();
+    let child = Command::new(env!("CARGO_BIN_EXE_systemlint")).arg("--config").arg(&path).args(["lint", "-"]).stdin(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
+    let caught = || std::fs::read_to_string(format!("/proc/{}/status", child.id())).ok().and_then(|s| s.lines().find_map(|l| l.strip_prefix("SigCgt:\t").map(|m| u64::from_str_radix(m.trim(), 16).unwrap_or(0))));
+    let mut polls = 0;
+    while caught().is_none_or(|mask| mask & (1 << (libc::SIGINT - 1)) == 0) {
+        polls += 1;
+        assert!(polls < 6000, "the SIGINT handler was never installed");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(unsafe { libc::kill(i32::try_from(child.id()).unwrap(), libc::SIGINT) }, 0);
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(130), "{:?}", out.status);
+    assert_eq!(String::from_utf8_lossy(&out.stderr), "Interrupted, stopping plugins…\n");
+}

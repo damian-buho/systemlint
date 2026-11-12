@@ -247,6 +247,7 @@ printing it, then one stderr line with its number of findings, which `-q` drops.
 | 6 | the facts document or `--root` can’t be read | the same | `--root` can’t be opened |
 | 7 | `--output` or stdout can’t be written | the same | `--output` or stdout can’t be written |
 | 70 | the system gave no random hash key | the same | the same |
+| 130 | Ctrl-C: `Interrupted, stopping plugins…`, the running plugins killed | the same | the same |
 | 101 | a crash: one line names the report saved under `$XDG_STATE_HOME/systemlint/` (`~/.local/state/systemlint/`) and a pre-filled issue link | the same | the same |
 | 141 | stdout closed early (`systemlint facts \| head`): the run ends silently on `SIGPIPE`, which a shell reports as 141 | the same | the same |
 

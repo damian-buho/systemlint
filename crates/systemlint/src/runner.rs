@@ -8,6 +8,7 @@ use std::io::{Read, Write};
 use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
 
 use systemlint_protocol::{Describe, PROTOCOL};
@@ -18,6 +19,29 @@ pub const DESCRIBE_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// The most bytes read from a plugin’s stdout or stderr.
 pub const OUTPUT_CAP: u64 = 16 * 1024 * 1024;
+
+/// The pids of the children running now, 0 in a free slot, so a signal handler can stop them.
+static CHILDREN: [AtomicI32; 64] = [const { AtomicI32::new(0) }; 64];
+
+/// Records `pid` in a free slot, or in none when all 64 are taken.
+fn track(pid: i32) -> Option<&'static AtomicI32> {
+    let slot = CHILDREN.iter().find(|s| s.compare_exchange(0, pid, Ordering::SeqCst, Ordering::SeqCst).is_ok());
+    if slot.is_none() {
+        log::debug!("no free slot to track child {pid}, a Ctrl-C leaves it running");
+    }
+    slot
+}
+
+/// Kills every child running now with SIGKILL and returns how many; async-signal-safe, for a signal handler.
+pub fn stop_children() -> usize {
+    let stop = |pid: i32| pid > 0 && unsafe { libc::kill(pid, libc::SIGKILL) } == 0;
+    CHILDREN.iter().filter(|s| stop(s.swap(0, Ordering::SeqCst))).count()
+}
+
+/// The pids of the children running now.
+pub fn running() -> Vec<i32> {
+    CHILDREN.iter().map(|s| s.load(Ordering::SeqCst)).filter(|&p| p > 0).collect()
+}
 
 /// What a finished program printed, and how it exited.
 #[derive(Debug)]
@@ -46,6 +70,8 @@ pub fn run(path: &Path, args: &[&str], stdin: Option<Vec<u8>>, timeout: Duration
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("can’t start it: {e}"))?;
+    let pid = i32::try_from(child.id()).unwrap_or_default();
+    let slot = track(pid);
     let feed = child.stdin.take().zip(stdin).map(|(mut pipe, bytes)| std::thread::spawn(move || pipe.write_all(&bytes)));
     let drain = |stream: Option<Box<dyn Read + Send>>| {
         std::thread::spawn(move || {
@@ -58,7 +84,11 @@ pub fn run(path: &Path, args: &[&str], stdin: Option<Vec<u8>>, timeout: Duration
     };
     let stdout = drain(child.stdout.take().map(|s| Box::new(s) as Box<dyn Read + Send>));
     let stderr = drain(child.stderr.take().map(|s| Box::new(s) as Box<dyn Read + Send>));
-    let status = match child.wait_timeout(timeout).map_err(|e| format!("can’t wait for it: {e}"))? {
+    let waited = child.wait_timeout(timeout);
+    if let Some(slot) = slot {
+        let _ = slot.compare_exchange(pid, 0, Ordering::SeqCst, Ordering::SeqCst);
+    }
+    let status = match waited.map_err(|e| format!("can’t wait for it: {e}"))? {
         Some(status) => status,
         None => {
             log::debug!("{} passed its {}s timeout, killing it", path.display(), timeout.as_secs());

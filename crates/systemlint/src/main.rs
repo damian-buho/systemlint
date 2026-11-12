@@ -185,9 +185,24 @@ struct Listed {
     ops: Vec<OpSpec>,
 }
 
+/// Exit code after a Ctrl-C, the shell’s 128 plus SIGINT.
+const EXIT_INTERRUPTED: i32 = 130;
+
+/// On SIGINT: says so, kills the running plugins and exits 130, through async-signal-safe calls only.
+extern "C" fn interrupted(_: libc::c_int) {
+    const MESSAGE: &str = "Interrupted, stopping plugins…\n";
+    // SAFETY: write, kill and _exit are async-signal-safe, and MESSAGE is static.
+    unsafe { libc::write(libc::STDERR_FILENO, MESSAGE.as_ptr().cast(), MESSAGE.len()) };
+    runner::stop_children();
+    // SAFETY: _exit skips the destructors and buffers a handler must not run.
+    unsafe { libc::_exit(EXIT_INTERRUPTED) };
+}
+
 fn main() -> ExitCode {
     // SAFETY: restores the default SIGPIPE action Rust’s runtime set to ignore, before any thread starts, so a closed pipe ends the run silently.
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
+    // SAFETY: installs a handler that only calls async-signal-safe functions, before any thread starts.
+    unsafe { libc::signal(libc::SIGINT, interrupted as *const () as libc::sighandler_t) };
     crash::install();
     let cli = Cli::parse();
     let Some(command) = cli.command else {
