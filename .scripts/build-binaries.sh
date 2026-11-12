@@ -50,3 +50,18 @@ for main in crates/*/src/main.rs; do
 	cp "target/${triple}/release/${crate}" "${asset}"
 	printf '%s\n' "${asset}" # callers capture these to find the binaries
 done
+
+stage="target/${triple}/stage"
+rm -rf "${stage}"
+mkdir -p "${stage}/bin" "${stage}/lib/systemlint/plugins" "${stage}/share/systemlint"
+cp "target/${triple}/release/systemlint" "${stage}/bin/"
+for main in crates/systemlint-*/src/main.rs; do
+	crate="${main#crates/}"
+	cp "target/${triple}/release/${crate%%/*}" "${stage}/lib/systemlint/plugins/"
+done
+cp -R collectors rulesets "${stage}/share/systemlint/"
+tarball="$(TARGET_OS="${target_os}" TARGET_ARCH="${target_arch}" .makefile/core/scripts/asset-name.sh dist/systemlint).tar.gz"
+epoch="${SOURCE_DATE_EPOCH:-$(git log -1 --format=%ct 2>/dev/null || echo 0)}"
+log "packing ${stage} -> ${tarball} (mtime ${epoch})"
+tar --create --directory "${stage}" --sort=name --owner=0 --group=0 --numeric-owner --mtime="@${epoch}" --mode='u=rwX,go=rX' bin lib share | gzip --no-name --best > "${tarball}"
+printf '%s\n' "${tarball}"
