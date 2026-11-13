@@ -81,9 +81,11 @@ rule answers `not-applicable`.
 
 `apt/security-suite` (warning) judges the sources together: it fails when no
 enabled `deb` source names a suite ending in `-security`, so the release’s
-security fixes never arrive. It judges only Debian and Ubuntu releases that
-carry a `VERSION_ID`; testing, unstable and rolling derivatives such as Kali
-have no security suite and answer `skip`.
+security fixes never arrive. It judges Debian and Ubuntu releases that carry a
+`VERSION_ID`, and derivatives whose `os-release` names their base in
+`UBUNTU_CODENAME` or `DEBIAN_CODENAME`, such as Linux Mint, Pop!_OS and LMDE;
+testing, unstable, rolling derivatives such as Kali, and derivatives that
+publish no security suite, such as Raspbian, answer `skip`.
 
 A vendor that publishes one suite for every release, such as `xenial` for
 all Ubuntu versions, fails `apt/stale-suite` by design; waive it:

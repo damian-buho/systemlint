@@ -530,6 +530,45 @@ fn a_stable_release_without_an_enabled_binary_security_suite_fails() {
         Outcome::Skip,
         "a rolling derivative"
     );
+    assert_eq!(
+        security(
+            json!({"ID": "raspbian", "ID_LIKE": "debian", "VERSION_ID": "12", "VERSION_CODENAME": "bookworm"}),
+            Some(json!({}))
+        ),
+        Outcome::Skip,
+        "a derivative without a security suite"
+    );
+    for (release, base) in [
+        (
+            json!({"ID": "linuxmint", "ID_LIKE": "ubuntu debian", "VERSION_ID": "22.2", "UBUNTU_CODENAME": "noble"}),
+            "noble",
+        ),
+        (
+            json!({"ID": "pop", "ID_LIKE": "ubuntu debian", "UBUNTU_CODENAME": "noble"}),
+            "noble",
+        ),
+        (
+            json!({"ID": "linuxmint", "ID_LIKE": "debian", "DEBIAN_CODENAME": "trixie"}),
+            "trixie",
+        ),
+    ] {
+        let suite = format!("{base}-security");
+        let sources = |suites: &[&str]| {
+            Some(
+                json!({"/etc/apt/sources.list.d/base.list:1": {"enabled": true, "types": ["deb"], "suites": suites}}),
+            )
+        };
+        assert_eq!(
+            security(release.clone(), sources(&[base])),
+            Outcome::Fail,
+            "{release}"
+        );
+        assert_eq!(
+            security(release.clone(), sources(&[base, &suite])),
+            Outcome::Pass,
+            "{release}"
+        );
+    }
 }
 
 #[test]

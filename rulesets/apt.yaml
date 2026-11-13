@@ -124,7 +124,12 @@ rules:
   apt/security-suite:
     title: No source for security updates
     fact: apt.sources
-    when: {os.release: {required: [ID, VERSION_ID], properties: {ID: {enum: [debian, ubuntu]}}}}
+    when:
+      os.release:
+        anyOf:
+          - {required: [ID, VERSION_ID], properties: {ID: {enum: [debian, ubuntu]}}}
+          - {required: [UBUNTU_CODENAME]}
+          - {required: [DEBIAN_CODENAME]}
     expect:
       not:
         additionalProperties:
