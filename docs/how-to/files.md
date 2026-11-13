@@ -102,7 +102,7 @@ A third, `mounts-usage`, statfs each active mount point on a live host into
 `mounts.usage.<point>`: `blocks` and `inodes` used, in whole percent rounded up
 as `df` does, each left out when the filesystem counts none (`proc`, `sysfs`),
 and `read-only`. A mount point the run may not reach, such as another user’s
-FUSE mount, is left out; a `statfs` that gives no answer within the collector
+FUSE mount, answers `unknown` as its own subject; a `statfs` that gives no answer within the collector
 timeout, as a dead network mount does, fails the collector.
 
 The `mounts` ruleset judges `/tmp`, `/var/tmp` and `/dev/shm` when each is a
@@ -119,8 +119,9 @@ without it, and any interpreter runs a script from there anyway.
 
 The `disk` ruleset judges `mounts.usage` on a live run, scored on a curve from
 warning at 90 % to error from 98 %. It leaves out read-only filesystems, which
-always read full (squashfs snaps, ISO images), and `overlay` mounts, which
-repeat the disk under them once per container:
+always read full (squashfs snaps, ISO images), `overlay` mounts, which
+repeat the disk under them once per container, and `nsfs` namespace handles,
+which hold no data and which an unprivileged run may not reach:
 
 | Rule | Fails when |
 | --- | --- |

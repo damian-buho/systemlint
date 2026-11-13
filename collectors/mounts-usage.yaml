@@ -8,3 +8,4 @@ read:
   statfs-from: [mounts.active]
 parse: {plugin: formats, op: statfs}
 into: mounts.usage
+partial: true

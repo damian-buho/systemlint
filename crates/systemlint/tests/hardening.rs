@@ -855,6 +855,23 @@ fn a_disk_rule_skips_read_only_overlay_and_uncounted_filesystems_and_never_passe
         both(Outcome::Unknown),
         "a failed statfs never passes"
     );
+    let refused = |filesystem: &str| {
+        let document = json!({"mounts": {"active": {"/srv": {"filesystem": filesystem}}, "usage": {}}, "collectors": {"mounts-active": {"status": "ok", "into": "mounts.active"}, "mounts-usage": {"status": "ok", "into": "mounts.usage", "unreadable": {"/srv": "permission denied"}}}});
+        judge("disk", &document)
+            .into_iter()
+            .map(|(rule, _, outcome)| (rule, outcome))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        refused("fuse.sshfs"),
+        both(Outcome::Unknown),
+        "a mount the run may not reach never passes"
+    );
+    assert_eq!(
+        refused("nsfs"),
+        both(Outcome::Skip),
+        "a namespace handle is no storage, reachable or not"
+    );
     let root = json!({"collectors": {"mounts-active": {"status": "skipped", "reason": "live", "into": "mounts.active"}, "mounts-usage": {"status": "skipped", "reason": "live", "into": "mounts.usage"}}});
     assert_eq!(
         judge("disk", &root),

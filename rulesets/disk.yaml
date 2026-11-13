@@ -11,7 +11,7 @@ rules:
       collectors.mounts-usage.status: {not: {const: skipped}}
       mounts.usage.*: {required: [blocks]}
       mounts.usage.*.read-only: false
-      mounts.active.*.filesystem: {not: {const: overlay}}
+      mounts.active.*.filesystem: {not: {enum: [overlay, nsfs]}}
     expect: {maximum: 89}
     score: [[90, 3.3], [98, 6.6]]
     message: "{subject} is {got}% full, so writes there soon fail and logs, databases and package upgrades stop with them"
@@ -25,7 +25,7 @@ rules:
       collectors.mounts-usage.status: {not: {const: skipped}}
       mounts.usage.*: {required: [inodes]}
       mounts.usage.*.read-only: false
-      mounts.active.*.filesystem: {not: {const: overlay}}
+      mounts.active.*.filesystem: {not: {enum: [overlay, nsfs]}}
     expect: {maximum: 89}
     score: [[90, 3.3], [98, 6.6]]
     message: "{subject} has used {got}% of its inodes, so creating a file there soon fails while space is still free"
