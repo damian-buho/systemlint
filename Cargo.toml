@@ -29,6 +29,7 @@ systemlint-env = { path = "crates/systemlint-env" }
 systemlint-formats = { path = "crates/systemlint-formats" }
 systemlint-protocol = { path = "crates/systemlint-protocol" }
 systemlint-sshd = { path = "crates/systemlint-sshd" }
+systemlint-systemd = { path = "crates/systemlint-systemd" }
 toml = { version = "=1.2.1", default-features = false, features = ["std", "serde", "parse"] }
 wait-timeout = "=0.2.1"
 

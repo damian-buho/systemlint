@@ -30,3 +30,4 @@ systemlint-apt.workspace = true
 systemlint-env.workspace = true
 systemlint-formats.workspace = true
 systemlint-sshd.workspace = true
+systemlint-systemd.workspace = true

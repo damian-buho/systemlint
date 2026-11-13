@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "systemlint-systemd"
+description = "systemlint plugin: systemd service units merged from their files and the sandbox they get"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+systemlint-formats.workspace = true
+systemlint-protocol.workspace = true

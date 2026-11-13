@@ -882,3 +882,117 @@ fn a_disk_rule_skips_read_only_overlay_and_uncounted_filesystems_and_never_passe
         "a --root run skips what it never collects"
     );
 }
+
+// A local, enabled, simple service running as root with no sandbox, then `unit` and `state` changes applied, a null state dropping it.
+fn service(unit: Value, state: Value) -> Value {
+    let mut document = json!({"systemd": {"units": {"x.service": {"path": "/etc/systemd/system/x.service", "file": "/etc/systemd/system/x.service", "alias-of": null, "drop-ins": [], "type": "simple", "sections": {"Service": {"ExecStart": ["/opt/x/run"]}}, "sandbox": {"user": "root", "dynamic-user": false, "no-new-privileges": false, "protect-system": "no", "capability-bounding-set": "all"}}}, "state": {"x.service": {"enabled": true, "masked": false}}}, "collectors": {"systemd-units": {"status": "ok", "into": "systemd.units"}, "systemd-state": {"status": "ok", "into": "systemd.state"}}});
+    let at = &mut document["systemd"]["units"]["x.service"];
+    for (key, value) in unit.as_object().unwrap() {
+        match key.strip_prefix("sandbox.") {
+            Some(setting) => at["sandbox"][setting] = value.clone(),
+            None => at[key] = value.clone(),
+        }
+    }
+    if state.is_null() {
+        document["systemd"]["state"] = json!({});
+    }
+    for (key, value) in state.as_object().into_iter().flatten() {
+        document["systemd"]["state"]["x.service"][key] = value.clone();
+    }
+    document
+}
+
+// The outcome of services/unconfined-root over one unit.
+fn unconfined(unit: Value, state: Value) -> Outcome {
+    judge("services", &service(unit, state))[0].2
+}
+
+#[test]
+fn a_local_root_service_fails_until_any_one_confinement_is_set() {
+    let sandbox =
+        |key: &str, value: Value| unconfined(json!({format!("sandbox.{key}"): value}), json!({}));
+    assert_eq!(unconfined(json!({}), json!({})), Outcome::Fail);
+    assert_eq!(sandbox("user", json!("0")), Outcome::Fail, "uid 0 is root");
+    assert_eq!(sandbox("user", json!("svc")), Outcome::Pass);
+    assert_eq!(sandbox("no-new-privileges", json!(true)), Outcome::Pass);
+    assert_eq!(sandbox("protect-system", json!("yes")), Outcome::Pass);
+    assert_eq!(
+        sandbox("capability-bounding-set", json!(["CAP_NET_BIND_SERVICE"])),
+        Outcome::Pass
+    );
+    assert_eq!(sandbox("capability-bounding-set", json!([])), Outcome::Pass);
+}
+
+#[test]
+fn only_enabled_unmasked_long_running_units_written_on_the_host_are_judged() {
+    assert_eq!(
+        unconfined(
+            json!({"file": "/usr/local/lib/systemd/system/x.service"}),
+            json!({})
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        unconfined(json!({"file": "/opt/x/x.service"}), json!({})),
+        Outcome::Fail,
+        "a unit linked in from /opt is local"
+    );
+    for vendor in [
+        "/usr/lib/systemd/system/x.service",
+        "/lib/systemd/system/x.service",
+        "/run/systemd/system/x.service",
+    ] {
+        assert_eq!(
+            unconfined(json!({"file": vendor}), json!({})),
+            Outcome::Skip,
+            "{vendor} is not written by hand"
+        );
+    }
+    assert_eq!(
+        unconfined(json!({"alias-of": "y.service"}), json!({})),
+        Outcome::Skip,
+        "an alias is judged under its unit"
+    );
+    assert_eq!(
+        unconfined(json!({"type": "oneshot"}), json!({})),
+        Outcome::Skip
+    );
+    assert_eq!(
+        unconfined(json!({"type": "notify"}), json!({})),
+        Outcome::Fail
+    );
+    assert_eq!(
+        unconfined(
+            json!({"sections": {"Unit": {"X-Snappy": ["yes"]}}}),
+            json!({})
+        ),
+        Outcome::Skip,
+        "snap run confines it"
+    );
+    assert_eq!(
+        unconfined(
+            json!({"sections": {"Unit": {"Description": ["x"]}}}),
+            json!({})
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        unconfined(json!({}), json!({"enabled": false})),
+        Outcome::Skip
+    );
+    assert_eq!(
+        unconfined(json!({}), json!({"masked": true})),
+        Outcome::Skip
+    );
+    assert_eq!(
+        unconfined(json!({}), Value::Null),
+        Outcome::Unknown,
+        "no state, no verdict"
+    );
+    let empty = json!({"systemd": {"units": {}}, "collectors": {"systemd-units": {"status": "ok", "into": "systemd.units"}}});
+    assert_eq!(
+        judge("services", &empty)[0].2,
+        Outcome::NotApplicable,
+        "no unit file, no systemd"
+    );
+}

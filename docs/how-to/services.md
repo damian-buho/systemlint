@@ -6,17 +6,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Kernel parameters, Docker, systemd units and ufw
 
-Six collectors on `systemlint-formats` record service configuration as
-facts. The `kernel`, `coredump`, `fs-protected`, `ip-routing` and `ip-flood`
-rulesets judge `sysctl`, and `ufw` judges the two `ufw` collectors and the
-state of `ufw.service`; no shipped rule reads the Docker or unit-file facts
-yet.
+Six collectors record service configuration as facts, `systemd-units` on
+`systemlint-systemd` and the rest on `systemlint-formats`. The `kernel`,
+`coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
+`sysctl`, `ufw` judges the two `ufw` collectors and the state of
+`ufw.service`, and `services` judges the sandbox of each unit; no shipped rule
+reads the Docker facts yet.
 
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
 | `sysctl` | `/usr/sbin/sysctl -a` on a live host, else `/etc/sysctl.conf` and the `sysctl.d` directories | `sysctl` | `sysctl` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
-| `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system` | `ini` | `systemd.units.<path>` |
+| `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system`, with its `stat` | `units` | `systemd.units.<unit>` |
 | `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all` on a live host | `systemd` | `systemd.state.<unit>` |
 | `ufw` | `/etc/ufw/ufw.conf` | `kv` | `ufw.conf` |
 | `ufw-binary` | the `ufw` program in `/usr/local/*bin`, `/usr/*bin` and `/*bin` | `stat` | `ufw.binary.<path>` |
@@ -52,22 +53,80 @@ segment.
 
 ## systemd units
 
-`systemd.units` keys each unit file and drop-in by its path, and each holds its
-sections, every key a list of values in file order:
+`systemd.units` keys each unit by its name, merged as systemd loads it: the
+unit file from the highest directory, then its drop-ins by name, one per name
+from the highest directory. A drop-in with no unit file loads nothing and is
+left out.
 
 ```yaml
 systemd:
   units:
-    /usr/lib/systemd/system/app.service:
-      Service:
-        EnvironmentFile: ["-/etc/default/app"]
-        ExecStart: [/opt/app/bin/app]
+    app.service:
+      path: /etc/systemd/system/app.service
+      file: /opt/app/app.service
+      alias-of: null
+      drop-ins: [/etc/systemd/system/app.service.d/override.conf]
+      type: notify
+      sections:
+        Service:
+          ExecStart: ["", /opt/app/bin/app --serve]
+          Type: [notify]
+      sandbox:
+        user: root
+        dynamic-user: false
+        no-new-privileges: false
+        protect-system: "no"
+        capability-bounding-set: all
 ```
 
-A key that repeats keeps every value, an empty one included, since systemd
-reads an empty value as a reset; a line ending in `\` continues on the next. A
-masked unit, a symlink to `/dev/null`, is not a file and is skipped. The
-merged environment of each unit is in [environment variables](env.md).
+- `path`: the unit file found; `file`: where it leads when it is a link, a
+  relative target read from its directory, else `path`.
+- `alias-of`: the unit a link names when its filename differs, as
+  `display-manager.service` names `sddm.service`, else `null`; the alias’s
+  facts are its unit’s.
+- `sections`: every key a list of values in reading order. An empty value
+  drops every value before it and stays, so `["", /bin/b]` reads as systemd’s
+  reset then `/bin/b`; a line ending in `\` continues on the next.
+- `type`: a service’s last valid `Type=`, else the default
+  [`systemd.service(5)`](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html#Type=)
+  names: `dbus` with `BusName=`, `oneshot` with no `ExecStart=`, `exec` with a
+  credential setting, else `simple`.
+- `sandbox`: what a service runs with, from
+  [`systemd.exec(5)`](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html):
+    - `user`: the last `User=`, else `root`; with `DynamicUser=` and no `User=`,
+      the unit name without `.service`, left out when that is no valid user
+      name, since systemd then hashes it.
+    - `dynamic-user`, `no-new-privileges`: booleans, both `false` by default;
+      `DynamicUser=` turns on `NoNewPrivileges=`.
+    - `protect-system`: `no`, `yes`, `full` or `strict`, `no` by default;
+      `DynamicUser=` makes `no` read as `strict`.
+    - `capability-bounding-set`: `all`, or the capabilities kept, sorted. The
+      first line sets the set, a later one adds, a `~` line removes, an empty
+      one empties it and a bare `~` restores every capability.
+
+A value systemd would refuse (`NoNewPrivileges=maybe`) is ignored, as systemd
+ignores it, and named in the collector’s diagnostics. A masked unit, a link to
+`/dev/null`, is no file: the unit below it shows, so a rule guards on
+`systemd.state.*.masked`. The merged environment of each unit is in
+[environment variables](env.md).
+
+### Service sandbox
+
+`services/unconfined-root` fails a service that runs as root with every
+capability, without `NoNewPrivileges=` and without `ProtectSystem=`: any bug in
+it is the whole host. One confinement among the four passes it. It judges only
+units written on the host, as a stock install’s units are the distribution’s:
+
+- the unit is enabled and not masked
+- its `file` is outside `/usr/lib`, `/lib` and `/run`, so a unit linked in
+  from `/opt` counts, and it is no alias
+- it is no `oneshot`, which runs once and exits
+- it carries no `X-Snappy=` in `[Unit]`: snapd writes those units, and
+  `snap run` confines them
+
+The rule covers part of
+[`systemd-analyze security`](https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html),
+whose exposure score it does not reproduce.
 
 ## systemd unit state
 

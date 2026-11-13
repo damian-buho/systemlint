@@ -978,6 +978,7 @@ dependencies = [
  "systemlint-formats",
  "systemlint-protocol",
  "systemlint-sshd",
+ "systemlint-systemd",
  "wait-timeout",
 ]
 
@@ -1024,6 +1025,15 @@ version = "0.0.0"
 dependencies = [
  "serde_json",
  "sha2",
+ "systemlint-protocol",
+]
+
+[[package]]
+name = "systemlint-systemd"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "systemlint-formats",
  "systemlint-protocol",
 ]
 

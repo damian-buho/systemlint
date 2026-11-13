@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Services written on this host that run as root with nothing confining them
+when: {systemd.units: {minProperties: 1}}
+rules:
+  services/unconfined-root:
+    title: Local service runs as root with no sandbox
+    facts:
+      any:
+        - {fact: systemd.units.*.sandbox.user, expect: {not: {enum: [root, "0"]}}}
+        - {fact: systemd.units.*.sandbox.no-new-privileges, expect: {const: true}}
+        - {fact: systemd.units.*.sandbox.protect-system, expect: {not: {const: "no"}}}
+        - {fact: systemd.units.*.sandbox.capability-bounding-set, expect: {not: {const: all}}}
+    when:
+      systemd.units.*.file: {not: {pattern: "^/(usr/lib|lib|run)/"}}
+      systemd.units.*.alias-of: null
+      systemd.units.*.type: {not: {const: oneshot}}
+      systemd.units.*.sections: {properties: {Unit: {not: {required: [X-Snappy]}}}}
+      systemd.state.*.enabled: true
+      systemd.state.*.masked: false
+    severity: warning
+    score: 6.0
+    message: "{subject} runs as root with every capability, may gain privileges through setuid programs and may write anywhere, so any bug in it hands over the whole host"
+    fix: "run systemctl edit on the unit and add DynamicUser=yes, or User= with a service account; if it must stay root, add NoNewPrivileges=yes, ProtectSystem=strict and a CapabilityBoundingSet= of only what it needs"
+    docs: https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#Sandboxing
+    references:
+      - {title: systemd-analyze security, url: "https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html#systemd-analyze%20security%20%5BUNIT...%5D"}
+    tags: [services, systemd, systemd-analyze]

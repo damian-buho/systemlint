@@ -65,6 +65,7 @@ source does.
 | Source | Tag | Reference |
 | --- | --- | --- |
 | Lynis | `lynis` | `{title: Lynis <ID>, url: "https://cisofy.com/lynis/controls/<ID>/"}` |
+| `systemd-analyze security` | `systemd-analyze` | `{title: systemd-analyze security, url}` to its manual |
 | a catalog under `standards/` | `<standard>:<control>` | the standard’s own link |
 
 `systemlint check --tags lynis` then runs every rule that covers a Lynis check.

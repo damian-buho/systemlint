@@ -37,14 +37,18 @@ fn facts(id: &str) -> Value {
         given.iter().all(|i| matches!(i, Input::File(_))),
         "exec never runs under --root"
     );
-    let reply = systemlint_formats::op(Request {
+    let request = Request {
         protocol: PROTOCOL,
         op: c.parse.op.clone(),
         root: "/".to_owned(),
         now: None,
         inputs: given,
         facts: BTreeMap::new(),
-    })
+    };
+    let reply = match c.parse.plugin.as_str() {
+        "systemd" => systemlint_systemd::op(request),
+        _ => systemlint_formats::op(request),
+    }
     .unwrap();
     assert!(
         reply.diagnostics.is_empty(),
@@ -86,21 +90,35 @@ fn docker_daemon_json_lands_as_is() {
 }
 
 #[test]
-fn systemd_units_are_keyed_by_path_and_a_masked_unit_is_skipped() {
+fn systemd_units_merge_each_unit_and_a_masked_unit_is_skipped() {
     let units = facts("systemd-units");
-    let paths: Vec<&String> = units.as_object().unwrap().keys().collect();
+    let names: Vec<&String> = units.as_object().unwrap().keys().collect();
     assert_eq!(
-        paths,
+        names,
         [
-            "/etc/systemd/system/app.service.d/override.conf",
-            "/usr/lib/systemd/system/app.service",
-            "/usr/lib/systemd/system/clean.service"
+            "app.service",
+            "bare.service",
+            "clean.service",
+            "kept.service"
         ]
     );
     assert_eq!(
-        units["/usr/lib/systemd/system/app.service"]["Service"]["EnvironmentFile"],
-        json!(["-/etc/default/app"])
+        units["app.service"]["path"],
+        "/usr/lib/systemd/system/app.service"
     );
+    assert_eq!(
+        units["app.service"]["drop-ins"],
+        json!(["/etc/systemd/system/app.service.d/override.conf"])
+    );
+    assert_eq!(
+        units["app.service"]["sections"]["Service"]["Environment"],
+        json!([
+            "LANG=C.UTF-8",
+            "LD_LIBRARY_PATH=/opt/app/lib \"SSL_CERT_FILE=/opt/app/ca.pem\""
+        ])
+    );
+    assert_eq!(units["bare.service"]["sandbox"]["user"], "root");
+    assert_eq!(units["kept.service"]["sandbox"]["protect-system"], "strict");
 }
 
 #[test]
@@ -109,8 +127,10 @@ fn systemd_state_reads_wants_links_and_masks_under_root() {
         facts("systemd-state"),
         json!({
             "app.service": {"enabled": true, "masked": false},
+            "bare.service": {"enabled": true, "masked": false},
             "clean.service": {"enabled": false, "masked": false},
             "clean.timer": {"enabled": true, "masked": false},
+            "kept.service": {"enabled": true, "masked": false},
             "masked.service": {"enabled": false, "masked": true},
         })
     );
