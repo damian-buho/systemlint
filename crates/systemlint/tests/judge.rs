@@ -1066,3 +1066,25 @@ fn unique_refuses_facts_and_a_fact_without_a_star() {
         .unwrap();
     assert!(star.contains("has no *"), "{star}");
 }
+
+#[test]
+fn an_absent_collection_skips_when_the_rules_own_when_fails_and_is_unknown_otherwise() {
+    let rule = "fact: mounts.active.*.options\nwhen: {mounts: {required: [active]}}\nexpect: {contains: {const: nodev}}\n";
+    let skipped = json!({"mounts": {"fstab": {}}, "collectors": {"mounts-active": {"status": "skipped", "reason": "live", "into": "mounts.active"}}});
+    let checks = run(rule, &skipped);
+    assert_eq!(outcomes(&checks), [(String::new(), Outcome::Skip)]);
+    assert_eq!(
+        checks[0].reason.as_deref(),
+        Some("when mounts.active is none")
+    );
+    let unguarded = run(
+        "fact: mounts.active.*.options\nexpect: {contains: {const: nodev}}\n",
+        &skipped,
+    );
+    assert_eq!(outcomes(&unguarded), [(String::new(), Outcome::Unknown)]);
+    assert_eq!(
+        outcomes(&run(rule, &json!({"collectors": {}}))),
+        [(String::new(), Outcome::Unknown)],
+        "a when that cannot be answered leaves the rule unknown"
+    );
+}

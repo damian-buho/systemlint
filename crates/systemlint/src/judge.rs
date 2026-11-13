@@ -416,15 +416,17 @@ enum Test {
     Schema(Validator, Vec<String>),
 }
 
-/// Adds the property names `schema` reads to `out`, its `anyOf`, `oneOf`, `allOf` and `not` branches included, first seen first.
+/// Adds the property names `schema` reads or requires to `out`, its `anyOf`, `oneOf`, `allOf` and `not` branches included, first seen first.
 fn named(schema: &Value, out: &mut Vec<String>) {
+    let required = schema["required"].as_array().into_iter().flatten();
     for key in schema["properties"]
         .as_object()
         .into_iter()
-        .flat_map(|p| p.keys())
+        .flat_map(|p| p.keys().map(String::as_str))
+        .chain(required.filter_map(Value::as_str))
     {
-        if !out.contains(key) {
-            out.push(key.clone());
+        if !out.iter().any(|o| o == key) {
+            out.push(key.to_owned());
         }
     }
     for branch in ["anyOf", "oneOf", "allOf"]
@@ -1054,6 +1056,13 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
         let keys = concrete(&rule.fact[..last], &[]);
         let (reason, collector) = absent(document, &keys);
         log::debug!("rule {} has no subjects: {reason}", rule.id);
+        if let Tri::False(skipped) = guard(&rule.when, document, &[]) {
+            log::debug!("rule {} skips its absent collection: {skipped}", rule.id);
+            return vec![Check {
+                reason: Some(skipped),
+                ..base(rule, Outcome::Skip, &[])
+            }];
+        }
         if rule.members.len() > 1 {
             return vec![check(
                 rule,

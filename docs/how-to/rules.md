@@ -143,7 +143,9 @@ A ruleset’s `when` is checked first, so a rule outside its target host answers
 
 `when` follows three-valued logic: one false entry makes a map false even when
 another is absent, and one true map makes a list true. A collection absent
-before the first `*` is one `unknown`; a present but empty one gives no check,
+before the first `*` is one `unknown`, or one `skip` when the rule’s `when`
+over its parent is false (`when: {mounts: {required: [active]}}` for a
+collection only a live run fills); a present but empty one gives no check,
 since nothing in it can fail. A `*` also binds every key a collector’s `into`
 places at that point, so a collector that failed under `files.*` is one
 `unknown` subject beside the present ones, never a gap. An unprivileged run, an

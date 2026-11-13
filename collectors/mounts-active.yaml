@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: mounts-active
+live: true
+read:
+  files: [/proc/self/mountinfo]
+parse: {plugin: formats, op: mountinfo}
+into: mounts.active

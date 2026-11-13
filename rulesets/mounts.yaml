@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: World-writable mounts that honour set-user-ID bits or device files
+rules:
+  mounts/nosuid:
+    title: World-writable mount honours set-user-ID bits
+    fact: mounts.active.*.options
+    keys: {enum: [/tmp, /var/tmp, /dev/shm]}
+    when: {mounts: {required: [active]}}
+    expect: {contains: {const: nosuid}}
+    severity: warning
+    score: 4.5
+    message: "{subject} is mounted without nosuid, so a set-user-ID file left in this directory every user writes runs with its owner’s rights"
+    fix: add nosuid to the mount’s options in /etc/fstab or its .mount unit, then run mount -o remount,nosuid {subject}
+    docs: https://man7.org/linux/man-pages/man8/mount.8.html
+    references:
+      - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
+    tags: [mounts, lynis]
+  mounts/nodev:
+    title: World-writable mount honours device files
+    fact: mounts.active.*.options
+    keys: {enum: [/tmp, /var/tmp, /dev/shm]}
+    when: {mounts: {required: [active]}}
+    expect: {contains: {const: nodev}}
+    severity: warning
+    score: 4.5
+    message: "{subject} is mounted without nodev, so a device file unpacked into this directory every user writes opens the device it names"
+    fix: add nodev to the mount’s options in /etc/fstab or its .mount unit, then run mount -o remount,nodev {subject}
+    docs: https://man7.org/linux/man-pages/man8/mount.8.html
+    references:
+      - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
+    tags: [mounts, lynis]
+  mounts/fstab-nosuid:
+    title: World-writable mount declared without nosuid
+    fact: mounts.fstab.*.options
+    keys: {enum: [/tmp, /var/tmp, /dev/shm]}
+    when: {mounts: {not: {required: [active]}}}
+    expect: {contains: {const: nosuid}}
+    severity: warning
+    score: 4.5
+    message: "/etc/fstab mounts {subject} without nosuid, so a set-user-ID file left in this directory every user writes runs with its owner’s rights"
+    fix: add nosuid to the options of {subject} in /etc/fstab
+    docs: https://man7.org/linux/man-pages/man5/fstab.5.html
+    references:
+      - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
+    tags: [mounts, lynis]
+  mounts/fstab-nodev:
+    title: World-writable mount declared without nodev
+    fact: mounts.fstab.*.options
+    keys: {enum: [/tmp, /var/tmp, /dev/shm]}
+    when: {mounts: {not: {required: [active]}}}
+    expect: {contains: {const: nodev}}
+    severity: warning
+    score: 4.5
+    message: "/etc/fstab mounts {subject} without nodev, so a device file unpacked into this directory every user writes opens the device it names"
+    fix: add nodev to the options of {subject} in /etc/fstab
+    docs: https://man7.org/linux/man-pages/man5/fstab.5.html
+    references:
+      - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
+    tags: [mounts, lynis]
