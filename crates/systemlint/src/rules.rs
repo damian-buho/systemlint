@@ -289,7 +289,7 @@ impl Library {
                         "ruleset {name}: rule {id} is manual, so it takes no fact, expect or facts"
                     ));
                 }
-                if !spec.manual && spec.facts.is_none() && spec.expect.is_none() {
+                if !spec.manual && !spec.unique && spec.facts.is_none() && spec.expect.is_none() {
                     return Err(format!("ruleset {name}: rule {id} has fact but no expect"));
                 }
                 spec.applies_in(name, ruleset.when.as_ref());
