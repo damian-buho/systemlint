@@ -247,20 +247,26 @@ fn walk(
     true
 }
 
-/// The keys collectors’ `into` places directly under `at`, present or not.
+/// The keys collectors’ `into` places directly under `at`, present or not, and the paths a collector into `at` could not read.
 fn owed<'a>(document: &'a Value, at: &'a [String]) -> impl Iterator<Item = String> + 'a {
     document["collectors"]
         .as_object()
         .into_iter()
         .flatten()
-        .filter_map(move |(_, outcome)| {
+        .flat_map(move |(_, outcome)| {
             let into: Vec<&str> = outcome["into"]
                 .as_str()
                 .unwrap_or_default()
                 .split('.')
                 .collect();
-            (into.len() == at.len() + 1 && into.iter().zip(at).all(|(a, b)| a == b))
-                .then(|| into[at.len()].to_owned())
+            let under = into.iter().zip(at).all(|(a, b)| a == b);
+            let placed = (under && into.len() == at.len() + 1).then(|| into[at.len()].to_owned());
+            let refused = outcome["unreadable"]
+                .as_object()
+                .filter(|_| under && into.len() == at.len())
+                .into_iter()
+                .flat_map(|paths| paths.keys().cloned());
+            placed.into_iter().chain(refused)
         })
 }
 
@@ -287,6 +293,16 @@ fn producer<'a>(document: &'a Value, keys: &[String]) -> Option<(&'a String, &'a
 /// Why the fact at `keys` is absent, naming the collector that should have produced it.
 fn absent(document: &Value, keys: &[String]) -> (String, Option<String>) {
     let path = keys.join(".");
+    let refused = producer(document, keys).and_then(|(id, outcome)| {
+        let file = keys.get(outcome["into"].as_str()?.split('.').count())?;
+        Some((id, file, outcome["unreadable"][file].as_str()?))
+    });
+    if let Some((id, file, why)) = refused {
+        return (
+            format!("{path} is absent: collector {id} can’t read {file}: {why}"),
+            Some(id.clone()),
+        );
+    }
     match producer(document, keys) {
         Some((id, outcome)) if outcome["status"] == "ok" => (
             format!("{path} is absent from what collector {id} produced"),

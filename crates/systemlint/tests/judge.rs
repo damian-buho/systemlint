@@ -171,6 +171,53 @@ fn an_absent_fact_is_unknown_and_names_the_collector() {
 }
 
 #[test]
+fn a_path_a_partial_collector_could_not_read_is_its_own_unknown_subject() {
+    let document = json!({
+        "env": {"defaults": {"/etc/default/locale": {"vars": {"LANG": "C.UTF-8"}}}, "files": {}},
+        "collectors": {
+            "env-defaults": {"status": "ok", "into": "env.defaults", "unreadable": {"/etc/default/cacerts": "permission denied"}},
+            "env-files": {"status": "ok", "into": "env.files"}
+        }
+    });
+    let checks = run(
+        "fact: env.defaults.*.vars\nexpect: {properties: {LD_PRELOAD: false}}\n",
+        &document,
+    );
+    assert_eq!(
+        outcomes(&checks),
+        [
+            ("/etc/default/cacerts".into(), Outcome::Unknown),
+            ("/etc/default/locale".into(), Outcome::Pass)
+        ],
+        "the readable file is judged and the unreadable one never passes"
+    );
+    assert_eq!(
+        checks[0].reason.as_deref(),
+        Some(
+            "env.defaults./etc/default/cacerts.vars is absent: collector env-defaults can’t read /etc/default/cacerts: permission denied"
+        )
+    );
+    assert_eq!(checks[0].collector.as_deref(), Some("env-defaults"));
+    let deeper = run(
+        "fact: env.*.*.vars\nexpect: {properties: {LD_PRELOAD: false}}\n",
+        &document,
+    );
+    assert_eq!(
+        outcomes(&deeper).len(),
+        2,
+        "a star above into reaches the unreadable path too"
+    );
+    assert_eq!(
+        outcomes(&run(
+            "fact: env.files.*.vars\nexpect: {properties: {LD_PRELOAD: false}}\n",
+            &document
+        )),
+        [],
+        "a sibling collection never inherits another collector’s unreadable paths"
+    );
+}
+
+#[test]
 fn an_empty_collection_gives_no_checks() {
     let mut document = facts("root");
     document["apt"]["sources"] = json!({});

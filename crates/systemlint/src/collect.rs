@@ -270,9 +270,9 @@ pub fn collect_reporting(
             let collector = &collectors[index];
             let placed = result
                 .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
-                .and_then(|(value, diagnostics, redacted, hashed)| {
+                .and_then(|(value, diagnostics, redacted, hashed, unreadable)| {
                     place(&mut facts, &collector.into, value)
-                        .map(|()| (diagnostics, redacted, hashed))
+                        .map(|()| (diagnostics, redacted, hashed, unreadable))
                 });
             record(&mut outcomes, collector, plugin, placed);
         }
@@ -302,16 +302,17 @@ fn record(
     outcomes: &mut Map<String, Value>,
     collector: &Collector,
     plugin: &Plugin,
-    finished: Result<(Vec<Diagnostic>, Vec<String>, usize), String>,
+    finished: Result<Summary, String>,
 ) {
     let outcome = match finished {
-        Ok((diagnostics, redacted, hashed)) => {
+        Ok((diagnostics, redacted, hashed, unreadable)) => {
             log::debug!(
-                "collector {} ok into {}, {} diagnostics, {} redacted, {hashed} hashed",
+                "collector {} ok into {}, {} diagnostics, {} redacted, {hashed} hashed, {} unreadable",
                 collector.id,
                 collector.into,
                 diagnostics.len(),
-                redacted.len()
+                redacted.len(),
+                unreadable.len()
             );
             let mut ok = json!({"status": "ok", "plugin": plugin.name, "op": collector.parse.op});
             if !diagnostics.is_empty() {
@@ -322,6 +323,9 @@ fn record(
             }
             if hashed > 0 {
                 ok["hashed"] = json!(hashed);
+            }
+            if !unreadable.is_empty() {
+                ok["unreadable"] = json!(unreadable);
             }
             ok
         }
@@ -482,6 +486,23 @@ fn strings(value: &Value, segments: &[&str], out: &mut Vec<String>) {
     }
 }
 
+/// A finished collector’s diagnostics, redacted pointers, hashed count and unreadable paths.
+type Summary = (
+    Vec<Diagnostic>,
+    Vec<String>,
+    usize,
+    BTreeMap<String, String>,
+);
+
+/// A finished collector’s facts and its [`Summary`] fields.
+type Finished = (
+    Value,
+    Vec<Diagnostic>,
+    Vec<String>,
+    usize,
+    BTreeMap<String, String>,
+);
+
 fn run(
     collector: &Collector,
     plugin: &Plugin,
@@ -489,13 +510,14 @@ fn run(
     named: &Named,
     options: &Options,
     now: &str,
-) -> Result<(Value, Vec<Diagnostic>, Vec<String>, usize), String> {
+) -> Result<Finished, String> {
+    let (inputs, unreadable) = read_partial(collector, options, named)?;
     let request = Request {
         protocol: PROTOCOL,
         op: collector.parse.op.clone(),
         root: options.root.path().display().to_string(),
         now: Some(now.to_owned()),
-        inputs: read(collector, options, named)?,
+        inputs,
         facts,
     };
     log::debug!(
@@ -538,7 +560,7 @@ fn run(
             None => log::debug!("collector {}: redact {pointer} names no fact", collector.id),
         }
     }
-    Ok((value, reply.diagnostics, redacted, hashed))
+    Ok((value, reply.diagnostics, redacted, hashed, unreadable))
 }
 
 /// The JSON Pointer of every string under `value`, appended to `out`.
@@ -590,7 +612,24 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
 
 /// Like [`inputs`], adding the `named` paths, taken literally, never as globs.
 pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<Vec<Input>, String> {
+    read_partial(collector, options, named).map(|(inputs, _)| inputs)
+}
+
+/// Like [`read`], with each path a `partial` collector may not read and why, instead of failing.
+pub fn read_partial(
+    collector: &Collector,
+    options: &Options,
+    named: &Named,
+) -> Result<(Vec<Input>, BTreeMap<String, String>), String> {
     let root = &options.root;
+    let mut unreadable = BTreeMap::new();
+    let mut refuse = |path: &str, e: &io::Error| {
+        log::debug!(
+            "collector {}: {path} refused, an unknown subject: {e}",
+            collector.id
+        );
+        unreadable.insert(path.to_owned(), e.kind().to_string());
+    };
     let mut files: BTreeMap<String, FileInput> = BTreeMap::new();
     let blank = |path: &str| FileInput {
         path: path.to_owned(),
@@ -624,6 +663,9 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
                 "collector {}: {path} is not a regular file, skipped",
                 collector.id
             ),
+            Err(e) if collector.partial && e.kind() == io::ErrorKind::PermissionDenied => {
+                refuse(&path, &e)
+            }
             Err(e) => return Err(format!("can’t read {path}: {e}")),
         }
     }
@@ -676,6 +718,9 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
                     .absent = true;
             }
             Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
+            Err(e) if collector.partial && e.kind() == io::ErrorKind::PermissionDenied => {
+                refuse(&path, &e)
+            }
             Err(e) => return Err(format!("can’t stat {path}: {e}")),
         }
     }
@@ -699,6 +744,9 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
                     .statfs = Some(statfs);
             }
             Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
+            Err(e) if collector.partial && e.kind() == io::ErrorKind::PermissionDenied => {
+                refuse(&path, &e)
+            }
             Err(e) if e.kind() == io::ErrorKind::PermissionDenied => log::debug!(
                 "collector {}: {path} refused statfs, left out",
                 collector.id
@@ -764,7 +812,7 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
         }
         None => {}
     }
-    Ok(inputs)
+    Ok((inputs, unreadable))
 }
 
 /// Whether `error` says the path is not there, a process that exited mid-read included.

@@ -9,7 +9,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 use systemlint::collect::{
-    HashKey, Options, REDACTED, SCHEMA, base64, collect, collect_reporting, rfc3339,
+    HashKey, Named, Options, REDACTED, SCHEMA, base64, collect, collect_reporting, read_partial,
+    rfc3339,
 };
 use systemlint::collector::Collector;
 use systemlint::discovery::Plugin;
@@ -930,4 +931,62 @@ fn a_process_that_exited_mid_read_is_absent_and_a_denied_read_is_not() {
     assert!(!systemlint::collect::gone(&Error::from_raw_os_error(
         libc::EACCES
     )));
+}
+
+#[test]
+fn a_partial_collector_keeps_what_it_may_read_and_names_the_rest() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("partial");
+    std::fs::create_dir_all(&dir).unwrap();
+    for (name, mode) in [("readable", 0o644), ("refused", 0o000)] {
+        let temporary = dir.join(format!("{name}.{}.tmp", std::process::id()));
+        std::fs::write(&temporary, "A=1\n").unwrap();
+        std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(mode)).unwrap();
+        std::fs::rename(&temporary, dir.join(name)).unwrap();
+    }
+    let options = Options {
+        root: Root::open(&dir).unwrap(),
+        ..options(false)
+    };
+    let yaml = "id: dump\nread:\n  files: [/*]\nparse: {plugin: dump, op: parse}\ninto: dump\n";
+    let root = rustix::process::geteuid().is_root();
+    let partial = collector(&format!("{yaml}partial: true\n"));
+    let (inputs, unreadable) = read_partial(&partial, &options, &Named::default()).unwrap();
+    let read: Vec<String> = inputs
+        .iter()
+        .map(|i| {
+            serde_json::to_value(i).unwrap()["path"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
+        .collect();
+    if root {
+        assert_eq!(
+            (read.len(), unreadable.len()),
+            (2, 0),
+            "root reads a 0000 file"
+        );
+    } else {
+        assert_eq!(read, ["/readable"]);
+        assert_eq!(
+            unreadable.into_iter().collect::<Vec<_>>(),
+            [("/refused".to_owned(), "permission denied".to_owned())]
+        );
+    }
+    let doc = collect(std::slice::from_ref(&partial), &plugins(), &options);
+    assert_eq!(doc["collectors"]["dump"]["status"], "ok", "{doc}");
+    assert_eq!(
+        doc["collectors"]["dump"]["unreadable"].is_object(),
+        !root,
+        "{doc}"
+    );
+    let whole = collect(&[collector(yaml)], &plugins(), &options);
+    let reason = whole["collectors"]["dump"]["reason"]
+        .as_str()
+        .unwrap_or_default();
+    assert_eq!(
+        reason.contains("can’t read /refused"),
+        !root,
+        "without partial one refusal fails it: {whole}"
+    );
 }

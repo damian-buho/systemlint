@@ -31,6 +31,8 @@ pub struct Collector {
     pub privileged: bool,
     #[serde(default)]
     pub secret: bool,
+    #[serde(default)]
+    pub partial: bool,
     #[serde(skip)]
     pub inline: bool,
 }

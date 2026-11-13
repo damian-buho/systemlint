@@ -24,7 +24,7 @@ into: apt.sources
 | `id` | a unique slug; its outcome is recorded as `collectors.<id>` |
 | `read.files` | absolute globs whose files are read and passed with their content |
 | `read.stat` | absolute globs whose files are passed with their `stat` and no content |
-| `read.statfs` | absolute globs whose paths are passed with the `statfs` of the filesystem holding them; a path the run may not reach is left out, and one that gives no answer within the timeout fails the collector |
+| `read.statfs` | absolute globs whose paths are passed with the `statfs` of the filesystem holding them; a path the run may not reach is left out (`partial` makes it unknown), and one that gives no answer within the timeout fails the collector |
 | `read.exec` | an argv list run without a shell, live mode only; the program is an absolute path |
 | `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
 | `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files` |
@@ -34,6 +34,7 @@ into: apt.sources
 | `read.hash` | `sha256`, `sha512` or both: adds the file’s lowercase hex digest to the `stat` of each regular file; needs `stat` or `stat-from` |
 | `live` | `true` when the collector reads what only a running host has, such as `/proc`; skipped under `--root` |
 | `secret` | `true` to replace every string the op returns with its keyed hash, as for values a plugin marks, so a command’s output compares without being stored |
+| `partial` | `true` to keep what the run may read: a path it may not read becomes the key `into.<path>`, which every rule under a `*` there answers `unknown` for; only for an op that keys its facts by input path |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
@@ -86,7 +87,11 @@ without the command input.
 
 A file that exists but cannot be read, such as `/etc/shadow` in an
 unprivileged run, fails the whole collector with that path in its reason,
-because partial facts would read as compliant.
+because partial facts would read as compliant. A `partial` collector records
+such a path and why under `collectors.<id>.unreadable` instead, finishes
+`ok`, and the judge binds the path as a subject under `into` that answers
+`unknown`, naming the file, so `env-defaults` judges every readable
+`/etc/default` file while a 0600 one stays visible.
 
 ## Outcomes
 
@@ -102,7 +107,8 @@ document, with a `reason` when it is not `ok`:
 An `ok` collector also records its `plugin` and `op`, the plugin’s
 `diagnostics`, under `redacted` the JSON Pointers of the values the plugin
 marked secret, which are replaced by `[redacted]` in every output, and under
-`hashed` how many values were replaced by their keyed hash.
+`hashed` how many values were replaced by their keyed hash, and under
+`unreadable` each path a `partial` collector could not read.
 
 A rule that reads a fact from a collector that did not finish `ok` answers
 `unknown`, naming that collector, rather than passing. The `human` report lists
