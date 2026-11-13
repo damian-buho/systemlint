@@ -67,3 +67,15 @@ check:
   waivers:
     - {rule: files/group-writable, subject: "path, /usr/local*", reason: staff installs into /usr/local, until: 2027-06-30}
 ```
+
+## Temporary directories
+
+The `tmp-dirs` collector stats `/tmp`, `/var/tmp` and `/dev/shm` into
+`tmp.dirs.<path>`, apart from the `files` groups, since these directories are
+world-writable by design. The `tmp` ruleset judges them:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `tmp/sticky` | error | a world-writable one lacks the sticky bit, so any user can delete or replace another user’s files in it |
+
+A directory no other user can write, or an absent one, passes.

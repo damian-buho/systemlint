@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Shared temporary directories where one user can delete or swap another user’s files
+rules:
+  tmp/sticky:
+    title: Shared temporary directory without the sticky bit
+    fact: tmp.dirs.*
+    expect:
+      if: {required: [world-writable], properties: {world-writable: {const: true}}}
+      then: {required: [mode], properties: {mode: {pattern: "^[1357]"}}}
+    severity: error
+    score: 7.0
+    message: "{subject} is writable by every user without the sticky bit, so any user can delete or replace another user’s files in it"
+    fix: chmod +t the directory, which leaves it mode 1777
+    docs: https://man7.org/linux/man-pages/man7/inode.7.html
+    references:
+      - {title: Lynis FILE-6362, url: "https://cisofy.com/lynis/controls/FILE-6362/"}
+      - {title: Lynis FILE-6363, url: "https://cisofy.com/lynis/controls/FILE-6363/"}
+    tags: [tmp, lynis]

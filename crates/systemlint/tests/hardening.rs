@@ -113,6 +113,26 @@ fn ufw_switched_off_fails_only_where_its_program_exists() {
     assert_eq!(outcome(&ufw(&["/usr/sbin/ufw"], None)), [Outcome::Unknown], "the program without its configuration");
 }
 
+// The outcome of tmp/sticky on one directory's stat, or with no tmp.dirs at all on None.
+fn tmp(stat: Option<Value>) -> Vec<Outcome> {
+    let mut document = json!({"collectors": {"tmp-dirs": {"status": "ok", "into": "tmp.dirs"}}});
+    if let Some(stat) = stat {
+        document["tmp"] = json!({"dirs": {"/tmp": stat}});
+    }
+    judge("tmp", &document).into_iter().map(|(_, _, o)| o).collect()
+}
+
+#[test]
+fn a_world_writable_temporary_directory_fails_only_without_the_sticky_bit() {
+    assert_eq!(tmp(Some(json!({"exists": true, "mode": "1777", "world-writable": true}))), [Outcome::Pass]);
+    assert_eq!(tmp(Some(json!({"exists": true, "mode": "0777", "world-writable": true}))), [Outcome::Fail]);
+    assert_eq!(tmp(Some(json!({"exists": true, "mode": "3777", "world-writable": true}))), [Outcome::Pass], "setgid beside sticky");
+    assert_eq!(tmp(Some(json!({"exists": true, "mode": "2777", "world-writable": true}))), [Outcome::Fail], "setgid alone");
+    assert_eq!(tmp(Some(json!({"exists": true, "mode": "0775", "world-writable": false}))), [Outcome::Pass], "no other user writes it");
+    assert_eq!(tmp(Some(json!({"exists": false}))), [Outcome::Pass]);
+    assert_eq!(tmp(None), [Outcome::Unknown]);
+}
+
 #[test]
 fn every_rule_carrying_a_lynis_reference_is_tagged_lynis_and_back() {
     for entry in std::fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets")).unwrap() {
