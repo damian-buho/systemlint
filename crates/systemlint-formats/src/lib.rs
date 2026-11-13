@@ -7,17 +7,23 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
-use systemlint_protocol::{Describe, Diagnostic, FileInput, Input, Reply, Request, Result};
+use systemlint_protocol::{Describe, Diagnostic, FileInput, FileKind, Input, Reply, Request, Result};
 
 /// The sysctl.d directories systemd-sysctl reads, highest precedence first; `/etc/sysctl.conf` applies after them all.
 pub const SYSCTL_DIRS: [&str; 5] = ["/etc/sysctl.d", "/run/sysctl.d", "/usr/local/lib/sysctl.d", "/usr/lib/sysctl.d", "/lib/sysctl.d"];
+
+/// The unit directories systemd reads, highest precedence first.
+pub const UNIT_DIRS: [&str; 8] = ["/run/systemd/generator.early", "/etc/systemd/system", "/run/systemd/system", "/run/systemd/generator", "/usr/local/lib/systemd/system", "/usr/lib/systemd/system", "/lib/systemd/system", "/run/systemd/generator.late"];
+
+/// The unit types systemd loads.
+pub const UNIT_TYPES: [&str; 11] = ["service", "socket", "device", "mount", "automount", "swap", "target", "path", "timer", "slice", "scope"];
 
 /// One INI file: every value of every key, by section; keys before the first section sit under `""`.
 pub type Sections = BTreeMap<String, BTreeMap<String, Vec<String>>>;
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
-    Describe::new("formats", &[("csv", &[]), ("exec", &[]), ("ini", &[]), ("json", &[]), ("kv", &[]), ("lines", &[]), ("stat", &[]), ("sysctl", &[]), ("toml", &[]), ("yaml", &[])])
+    Describe::new("formats", &[("csv", &[]), ("exec", &[]), ("ini", &[]), ("json", &[]), ("kv", &[]), ("lines", &[]), ("stat", &[]), ("sysctl", &[]), ("systemd", &[]), ("toml", &[]), ("yaml", &[])])
 }
 
 /// Runs one op.
@@ -31,6 +37,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "lines" => Ok(lines(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
         "sysctl" => Ok(sysctl(&request.inputs)),
+        "systemd" => Ok(systemd(&request.inputs)),
         "toml" => Ok(toml(&request.inputs)),
         "yaml" => Ok(yaml(&request.inputs)),
         other => Err(format!("unknown op {other}").into()),
@@ -408,6 +415,65 @@ pub fn nest(map: &mut Map<String, Value>, key: &str, value: Value) -> std::resul
     Ok(())
 }
 
+/// Each unit’s `enabled` and `masked` from the unit directories, plus `active` and `sub` when `systemctl list-units` exited 0.
+pub fn systemd(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    let mut units: BTreeMap<String, Map<String, Value>> = BTreeMap::new();
+    let mut highest: BTreeMap<String, usize> = BTreeMap::new();
+    let mut live = None;
+    for input in inputs {
+        let (path, stat) = match input {
+            Input::File(FileInput { path, stat: Some(stat), .. }) => (path, stat),
+            Input::File(_) => continue,
+            Input::Exec(e) if e.exit == 0 => {
+                live = Some(e);
+                continue;
+            }
+            Input::Exec(e) if e.exit != 127 => {
+                reply.diagnostics.push(Diagnostic { path: e.argv.join(" "), line: None, message: format!("exited {}, no active state: {}", e.exit, e.stderr.trim()) });
+                continue;
+            }
+            Input::Exec(_) => continue,
+        };
+        let Some((dir, name)) = path.rsplit_once('/').filter(|(_, n)| unit_name(n)) else { continue };
+        let fresh = || Map::from_iter([("enabled".to_owned(), Value::Bool(false)), ("masked".to_owned(), Value::Bool(false))]);
+        if let Some(rank) = UNIT_DIRS.iter().position(|d| *d == dir).filter(|_| stat.kind != FileKind::Directory) {
+            let unit = units.entry(name.to_owned()).or_insert_with(fresh);
+            if highest.get(name).is_none_or(|r| rank < *r) {
+                highest.insert(name.to_owned(), rank);
+                unit.insert("masked".to_owned(), Value::Bool(stat.linked_to.as_deref() == Some("/dev/null") || (stat.kind == FileKind::File && stat.size == 0)));
+            }
+        } else if dir.rsplit_once('/').is_some_and(|(parent, link)| UNIT_DIRS.contains(&parent) && (link.ends_with(".wants") || link.ends_with(".requires"))) {
+            units.entry(name.to_owned()).or_insert_with(fresh).insert("enabled".to_owned(), Value::Bool(true));
+        }
+    }
+    if let Some(exec) = live {
+        let mut seen = std::collections::BTreeSet::new();
+        for line in exec.stdout.lines().filter(|l| !l.trim().is_empty()) {
+            match line.split_whitespace().collect::<Vec<_>>()[..] {
+                [name, _, active, sub, ..] => {
+                    let unit = units.entry(name.to_owned()).or_default();
+                    unit.insert("active".to_owned(), Value::from(active));
+                    unit.insert("sub".to_owned(), Value::from(sub));
+                    seen.insert(name.to_owned());
+                }
+                _ => reply.diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: format!("no “unit load active sub” in {line:?}") }),
+            }
+        }
+        for (_, unit) in units.iter_mut().filter(|(name, _)| !seen.contains(*name)) {
+            unit.insert("active".to_owned(), Value::from("inactive"));
+            unit.insert("sub".to_owned(), Value::from("dead"));
+        }
+    }
+    reply.facts.extend(units.into_iter().map(|(name, unit)| (name, Value::Object(unit))));
+    reply
+}
+
+/// Whether `name` ends in a unit type systemd loads.
+fn unit_name(name: &str) -> bool {
+    name.rsplit_once('.').is_some_and(|(stem, kind)| !stem.is_empty() && UNIT_TYPES.contains(&kind))
+}
+
 /// `uri` with its password replaced, so no credential reaches the facts.
 pub fn mask(uri: &str) -> String {
     let Some((scheme, rest)) = uri.split_once("://") else { return uri.to_owned() };
@@ -455,7 +521,7 @@ mod tests {
     fn describe_lists_the_generic_parsers() {
         let describe = describe();
         assert_eq!(describe.name, "formats");
-        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["csv", "exec", "ini", "json", "kv", "lines", "stat", "sysctl", "toml", "yaml"]);
+        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["csv", "exec", "ini", "json", "kv", "lines", "stat", "sysctl", "systemd", "toml", "yaml"]);
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
     }
 
@@ -557,6 +623,57 @@ mod tests {
         assert_eq!(reply.facts["/etc/gone"], serde_json::json!({"exists": false}));
         assert_eq!(reply.facts.len(), 2);
         assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/a", "/bin/true"]);
+    }
+
+    // A unit-directory entry with its stat: a regular file of `size` bytes, or a symlink to `to`.
+    fn unit(path: &str, size: u64, to: Option<&str>) -> Input {
+        let kind = if to.is_some() { FileKind::Symlink } else { FileKind::File };
+        let stat = Stat { kind, mode: "0644".into(), uid: 0, gid: 0, size, world_writable: false, group_writable: false, setuid: false, setgid: false, linked_to: to.map(str::to_owned), sha256: None, sha512: None };
+        Input::File(FileInput { path: path.into(), content: None, content_base64: None, stat: Some(stat), absent: false })
+    }
+
+    #[test]
+    fn systemd_reads_enablement_and_masks_by_precedence() {
+        let reply = super::systemd(&[
+            unit("/usr/lib/systemd/system/ufw.service", 341, None),
+            unit("/etc/systemd/system/multi-user.target.wants/ufw.service", 35, Some("/usr/lib/systemd/system/ufw.service")),
+            unit("/usr/lib/systemd/system/cups.socket", 200, None),
+            unit("/run/systemd/system/cups.socket", 9, Some("/dev/null")),
+            unit("/etc/systemd/system/cups.socket", 120, None),
+            unit("/usr/lib/systemd/system/empty.service", 200, None),
+            unit("/etc/systemd/system/empty.service", 0, None),
+            unit("/usr/lib/systemd/system/db.service", 200, None),
+            unit("/etc/systemd/system/db.service", 9, Some("/dev/null")),
+            unit("/etc/systemd/system/db.service.d", 4096, None),
+            unit("/etc/systemd/system/opt/x.service", 1, None),
+            unit("/etc/systemd/system/.service", 1, None),
+            unit("/etc/systemd/system/app.conf", 1, None),
+        ]);
+        let facts = Value::Object(reply.facts.into_iter().collect());
+        assert_eq!(facts, serde_json::json!({
+            "ufw.service": {"enabled": true, "masked": false},
+            "cups.socket": {"enabled": false, "masked": false},
+            "empty.service": {"enabled": false, "masked": true},
+            "db.service": {"enabled": false, "masked": true},
+        }), "/etc beats a /run mask, an empty file masks, a stray path or name is no unit");
+        assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
+    }
+
+    #[test]
+    fn systemd_adds_the_live_state_and_marks_unloaded_units_inactive() {
+        let listed = "ufw.service loaded active exited Uncomplicated firewall\nhome.mount not-found inactive dead home.mount\n\nbroken\n";
+        let reply = super::systemd(&[unit("/usr/lib/systemd/system/ufw.service", 341, None), unit("/usr/lib/systemd/system/clean.timer", 30, None), exec("/bin/systemctl list-units", listed, 0)]);
+        assert_eq!(reply.facts["ufw.service"], serde_json::json!({"enabled": false, "masked": false, "active": "active", "sub": "exited"}));
+        assert_eq!(reply.facts["clean.timer"], serde_json::json!({"enabled": false, "masked": false, "active": "inactive", "sub": "dead"}));
+        assert_eq!(reply.facts["home.mount"], serde_json::json!({"active": "inactive", "sub": "dead"}), "a live-only unit claims nothing about its files");
+        assert_eq!(reply.diagnostics.iter().map(|d| d.message.as_str()).collect::<Vec<_>>(), ["no “unit load active sub” in \"broken\""]);
+    }
+
+    #[test]
+    fn systemd_without_a_manager_keeps_the_files_and_says_why() {
+        let reply = super::systemd(&[unit("/usr/lib/systemd/system/ufw.service", 341, None), exec("/bin/systemctl list-units", "", 1), exec("/bin/systemctl list-units", "", 127)]);
+        assert_eq!(reply.facts["ufw.service"], serde_json::json!({"enabled": false, "masked": false}));
+        assert_eq!(reply.diagnostics.iter().map(|d| d.message.as_str()).collect::<Vec<_>>(), ["exited 1, no active state: denied"], "exit 127 is an absent systemctl, no diagnostic");
     }
 
     #[test]

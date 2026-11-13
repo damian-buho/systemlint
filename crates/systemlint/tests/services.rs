@@ -52,3 +52,13 @@ fn systemd_units_are_keyed_by_path_and_a_masked_unit_is_skipped() {
     assert_eq!(paths, ["/etc/systemd/system/app.service.d/override.conf", "/usr/lib/systemd/system/app.service", "/usr/lib/systemd/system/clean.service"]);
     assert_eq!(units["/usr/lib/systemd/system/app.service"]["Service"]["EnvironmentFile"], json!(["-/etc/default/app"]));
 }
+
+#[test]
+fn systemd_state_reads_wants_links_and_masks_under_root() {
+    assert_eq!(facts("systemd-state"), json!({
+        "app.service": {"enabled": true, "masked": false},
+        "clean.service": {"enabled": false, "masked": false},
+        "clean.timer": {"enabled": true, "masked": false},
+        "masked.service": {"enabled": false, "masked": true},
+    }));
+}

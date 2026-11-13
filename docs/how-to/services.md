@@ -6,16 +6,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Kernel parameters, Docker, systemd units and ufw
 
-Five collectors on `systemlint-formats` record service configuration as
+Six collectors on `systemlint-formats` record service configuration as
 facts. The `kernel`, `coredump`, `fs-protected`, `ip-routing` and `ip-flood`
-rulesets judge `sysctl`, and `ufw` judges the two `ufw` collectors; no shipped
-rule reads the Docker or unit facts yet.
+rulesets judge `sysctl`, and `ufw` judges the two `ufw` collectors and the
+state of `ufw.service`; no shipped rule reads the Docker or unit-file facts
+yet.
 
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
 | `sysctl` | `/usr/sbin/sysctl -a` on a live host, else `/etc/sysctl.conf` and the `sysctl.d` directories | `sysctl` | `sysctl` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
 | `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system` | `ini` | `systemd.units.<path>` |
+| `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all` on a live host | `systemd` | `systemd.state.<unit>` |
 | `ufw` | `/etc/ufw/ufw.conf` | `kv` | `ufw.conf` |
 | `ufw-binary` | the `ufw` program in `/usr/local/*bin`, `/usr/*bin` and `/*bin` | `stat` | `ufw.binary.<path>` |
 
@@ -67,9 +69,42 @@ reads an empty value as a reset; a line ending in `\` continues on the next. A
 masked unit, a symlink to `/dev/null`, is not a file and is skipped. The
 merged environment of each unit is in [environment variables](env.md).
 
+## systemd unit state
+
+`systemd.state` keys each unit by its name, timers, sockets and the other unit
+types included:
+
+```yaml
+systemd:
+  state:
+    ufw.service: {enabled: true, masked: false, active: active, sub: exited}
+```
+
+- `enabled`: a `.wants` or `.requires` directory in a unit directory links the
+  unit, as `systemctl enable` makes it; an alias or a unit another one names in
+  its own `Wants=` is not counted.
+- `masked`: the unit’s file in the highest unit directory links to `/dev/null`
+  or is empty, so an `/etc` file overrides a mask in `/run`. The directories,
+  highest first: `/run/systemd/generator.early`, `/etc/systemd/system`,
+  `/run/systemd/system`, `/run/systemd/generator`,
+  `/usr/local/lib/systemd/system`, `/usr/lib/systemd/system`,
+  `/lib/systemd/system`, `/run/systemd/generator.late`.
+- `active` and `sub`: the `ACTIVE` and `SUB` columns of `systemctl
+  list-units`, live only. A unit on disk that the manager has not loaded is
+  `inactive` and `dead`, since systemd unloads only inactive units. A unit only
+  the manager knows, such as a device, carries these two alone. Under `--root`,
+  or where `systemctl` fails (a container with no manager, named in the
+  collector’s diagnostics), no unit has them, and a rule on them answers
+  `unknown`.
+
+Both `enabled` and `masked` come from the files, so they read the same live and
+under `--root`.
+
 ## ufw
 
 `ufw.conf.ENABLED` is what `ufw enable` and `ufw disable` write, and what
 ufw reads at boot to load its rules or not. `ufw.binary` is empty when no `ufw`
 program exists, which makes the `ufw` ruleset `not-applicable`, whatever
-installed it.
+installed it. Once `ENABLED=yes`, `ufw/service-masked` fails a masked
+`ufw.service` and `ufw/service-disabled` one that nothing links, since systemd
+then never starts ufw at boot; a host with no `ufw.service` unit has no check.

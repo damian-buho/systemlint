@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: systemd-state
+read:
+  stat: [/run/systemd/generator.early/*, /run/systemd/generator.early/*.wants/*, /run/systemd/generator.early/*.requires/*, /etc/systemd/system/*, /etc/systemd/system/*.wants/*, /etc/systemd/system/*.requires/*, /run/systemd/system/*, /run/systemd/system/*.wants/*, /run/systemd/system/*.requires/*, /run/systemd/generator/*, /run/systemd/generator/*.wants/*, /run/systemd/generator/*.requires/*, /usr/local/lib/systemd/system/*, /usr/local/lib/systemd/system/*.wants/*, /usr/local/lib/systemd/system/*.requires/*, /usr/lib/systemd/system/*, /usr/lib/systemd/system/*.wants/*, /usr/lib/systemd/system/*.requires/*, /lib/systemd/system/*, /lib/systemd/system/*.wants/*, /lib/systemd/system/*.requires/*, /run/systemd/generator.late/*, /run/systemd/generator.late/*.wants/*, /run/systemd/generator.late/*.requires/*]
+  exec: [/bin/systemctl, list-units, --all, --plain, --no-legend, --full, --no-pager]
+parse: {plugin: formats, op: systemd}
+into: systemd.state
