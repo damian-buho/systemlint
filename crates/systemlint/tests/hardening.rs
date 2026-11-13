@@ -338,8 +338,18 @@ fn ufw_service_fails_when_failed_and_stays_quiet_without_a_manager() {
             "yes",
             json!({"ufw.service": {"enabled": true, "masked": false}})
         ),
-        [Outcome::Pass],
-        "--root has no active state: quiet, not unknown"
+        [Outcome::Skip],
+        "--root has no active state: skip, neither a pass nor unknown"
+    );
+    let mut failed = ufw(&["/usr/sbin/ufw"], Some(json!({"ENABLED": "yes"})));
+    failed["systemd"] = json!({});
+    failed["collectors"]["systemd-state"] =
+        json!({"status": "error", "into": "systemd.state", "reason": "x"});
+    assert!(
+        judge("ufw", &failed)
+            .into_iter()
+            .any(|(rule, _, o)| rule == "ufw/service-failed" && o == Outcome::Unknown),
+        "a failed collector stays unknown"
     );
     assert_eq!(
         ufw_failed("yes", json!({})),

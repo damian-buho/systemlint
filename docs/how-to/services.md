@@ -110,4 +110,4 @@ installed it. Once `ENABLED=yes`, `ufw/service-masked` fails a masked
 then never starts ufw at boot; a host with no `ufw.service` unit has no check.
 `ufw/service-failed` fails a `ufw.service` whose `active` state is `failed`,
 which loaded no rules either; under `--root`, where no unit carries `active`,
-it passes rather than answering `unknown`.
+it answers `skip` rather than `unknown`.
