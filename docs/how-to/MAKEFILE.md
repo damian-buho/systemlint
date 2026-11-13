@@ -1453,6 +1453,22 @@ Run Clippy lints on Rust code
 
 > Image: D9T_RUST_TOOLS_IMAGE
 
+### `cargo-fmt`
+
+Check that Rust source is formatted with rustfmt
+
+`cargo fmt --check`
+
+> Image: RUST_TOOL_IMAGE
+
+### `cargo-fmt-fix`
+
+Format Rust source with rustfmt
+
+`cargo fmt`
+
+> Image: RUST_TOOL_IMAGE
+
 ### `cargo-mutants`
 
 Run Rust mutation testing and enforce the minimum caught share
