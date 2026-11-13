@@ -118,8 +118,22 @@ pub struct FileInput {
     pub content_base64: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stat: Option<Stat>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub statfs: Option<Statfs>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub absent: bool,
+}
+
+/// The filesystem holding a path, as statfs(2) counts it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Statfs {
+    pub blocks: u64,
+    pub blocks_free: u64,
+    pub blocks_available: u64,
+    pub files: u64,
+    pub files_free: u64,
+    pub read_only: bool,
 }
 
 /// A command run by the core.

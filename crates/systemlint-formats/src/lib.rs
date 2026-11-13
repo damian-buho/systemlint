@@ -67,6 +67,7 @@ pub fn describe() -> Describe {
             ("passwd", &[]),
             ("shadow", &[]),
             ("stat", &[]),
+            ("statfs", &[]),
             ("sysctl", &[]),
             ("systemd", &[]),
             ("toml", &[]),
@@ -90,6 +91,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "passwd" => Ok(passwd(&request.inputs)),
         "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
+        "statfs" => Ok(statfs(&request.inputs)),
         "sysctl" => Ok(sysctl(&request.inputs)),
         "systemd" => Ok(systemd(&request.inputs)),
         "toml" => Ok(toml(&request.inputs)),
@@ -141,6 +143,44 @@ pub fn kv(inputs: &[Input]) -> Reply {
                 }
                 Err(message) => diagnose(number, format!("{key}: {message}")),
             }
+        }
+    }
+    reply
+}
+
+/// Every input’s filesystem use keyed by its path: `blocks` and `inodes` used in whole percent rounded up as df(1) does, each left out when the filesystem counts none, and `read-only`.
+pub fn statfs(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    let percent =
+        |used: u64, total: u64| (total > 0).then(|| used.saturating_mul(100).div_ceil(total));
+    for input in inputs {
+        match input {
+            Input::File(FileInput {
+                path,
+                statfs: Some(fs),
+                ..
+            }) => {
+                let used = fs.blocks.saturating_sub(fs.blocks_free);
+                let mut fact =
+                    Map::from_iter([("read-only".to_owned(), Value::Bool(fs.read_only))]);
+                if let Some(blocks) = percent(used, used.saturating_add(fs.blocks_available)) {
+                    fact.insert("blocks".to_owned(), Value::from(blocks));
+                }
+                if let Some(inodes) = percent(fs.files.saturating_sub(fs.files_free), fs.files) {
+                    fact.insert("inodes".to_owned(), Value::from(inodes));
+                }
+                reply.facts.insert(path.clone(), Value::Object(fact));
+            }
+            Input::File(FileInput { path, .. }) => reply.diagnostics.push(Diagnostic {
+                path: path.clone(),
+                line: None,
+                message: "no statfs; list it under read.statfs".to_owned(),
+            }),
+            Input::Exec(exec) => reply.diagnostics.push(Diagnostic {
+                path: exec.argv.join(" "),
+                line: None,
+                message: "a command has no statfs".to_owned(),
+            }),
         }
     }
     reply
@@ -1027,6 +1067,7 @@ mod tests {
             content: Some(content.to_owned()),
             content_base64: None,
             stat: None,
+            statfs: None,
             absent: false,
         })
     }
@@ -1054,6 +1095,7 @@ mod tests {
                 "passwd",
                 "shadow",
                 "stat",
+                "statfs",
                 "sysctl",
                 "systemd",
                 "toml",
@@ -1124,6 +1166,7 @@ mod tests {
             content: None,
             content_base64: Some("AA==".into()),
             stat: None,
+            statfs: None,
             absent: false,
         });
         let reply = kv(&[input]);
@@ -1282,6 +1325,7 @@ mod tests {
             content: None,
             content_base64: None,
             stat: Some(stat),
+            statfs: None,
             absent: false,
         });
         let exec = Input::Exec(ExecInput {
@@ -1295,6 +1339,7 @@ mod tests {
             content: None,
             content_base64: None,
             stat: None,
+            statfs: None,
             absent: true,
         });
         let reply = super::stat(&[with, file("/etc/a", "x"), exec, absent]);
@@ -1342,6 +1387,7 @@ mod tests {
             content: None,
             content_base64: None,
             stat: Some(stat),
+            statfs: None,
             absent: false,
         })
     }
@@ -1665,6 +1711,45 @@ mod tests {
                 ("root", "hash")
             ]
         );
+    }
+
+    #[test]
+    fn statfs_rounds_use_up_as_df_does_and_leaves_out_what_a_filesystem_never_counts() {
+        let fs = |path: &str, blocks, free, available, files, files_free, read_only| {
+            Input::File(FileInput {
+                path: path.into(),
+                content: None,
+                content_base64: None,
+                stat: None,
+                statfs: Some(systemlint_protocol::Statfs {
+                    blocks,
+                    blocks_free: free,
+                    blocks_available: available,
+                    files,
+                    files_free,
+                    read_only,
+                }),
+                absent: false,
+            })
+        };
+        let reply = statfs(&[
+            fs("/", 1000, 150, 100, 200, 22, false),
+            fs("/srv", 1000, 111, 111, 100, 100, false),
+            fs("/proc", 0, 0, 0, 0, 0, false),
+            fs("/snap/core/1", 100, 0, 0, 10, 0, true),
+            file("/etc/x", ""),
+        ]);
+        assert_eq!(
+            json!(reply.facts),
+            json!({
+                "/": {"blocks": 90, "inodes": 89, "read-only": false},
+                "/srv": {"blocks": 89, "inodes": 0, "read-only": false},
+                "/proc": {"read-only": false},
+                "/snap/core/1": {"blocks": 100, "inodes": 100, "read-only": true},
+            }),
+            "850 of the 950 blocks a user may fill is 89.5 %, so 90"
+        );
+        assert_eq!(reply.diagnostics.len(), 1, "{:?}", reply.diagnostics);
     }
 
     #[test]

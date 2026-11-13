@@ -521,6 +521,7 @@ mod tests {
             content: Some(content.to_owned()),
             content_base64: None,
             stat: None,
+            statfs: None,
             absent: false,
         })
     }

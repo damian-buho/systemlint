@@ -9,10 +9,11 @@ use std::io::{self, Read};
 use std::os::fd::OwnedFd;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
-use rustix::fs::{Dir, Mode, OFlags, ResolveFlags, openat2};
+use rustix::fs::{Dir, Mode, OFlags, ResolveFlags, StatVfsMountFlags, openat2};
 use sha2::{Digest as _, Sha256, Sha512};
-use systemlint_protocol::{FileKind, Stat};
+use systemlint_protocol::{FileKind, Stat, Statfs};
 
 use crate::collector::Digest;
 
@@ -201,6 +202,41 @@ impl Root {
             log::trace!("stat {path}: links to {:?}", stat.linked_to);
         }
         Ok(stat)
+    }
+
+    /// The filesystem holding `path`, failing as `TimedOut` when it gives no answer within `timeout`, as a dead network mount does.
+    pub fn statfs(&self, path: &str, timeout: Duration) -> io::Result<Statfs> {
+        let root = Self {
+            fd: self.fd.try_clone()?,
+            path: self.path.clone(),
+        };
+        let (sender, answer) = std::sync::mpsc::channel();
+        let owned = path.to_owned();
+        std::thread::spawn(move || {
+            let result = root
+                .open_at(&owned, OFlags::PATH)
+                .and_then(|fd| rustix::fs::fstatvfs(&fd).map_err(io::Error::from));
+            sender.send(result).ok()
+        });
+        let vfs = answer.recv_timeout(timeout).map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!("statfs gave no answer within {} s", timeout.as_secs()),
+            )
+        })??;
+        log::trace!(
+            "statfs {path}: {} blocks, {} files",
+            vfs.f_blocks,
+            vfs.f_files
+        );
+        Ok(Statfs {
+            blocks: vfs.f_blocks,
+            blocks_free: vfs.f_bfree,
+            blocks_available: vfs.f_bavail,
+            files: vfs.f_files,
+            files_free: vfs.f_ffree,
+            read_only: vfs.f_flag.contains(StatVfsMountFlags::RDONLY),
+        })
     }
 }
 

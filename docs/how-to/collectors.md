@@ -24,10 +24,12 @@ into: apt.sources
 | `id` | a unique slug; its outcome is recorded as `collectors.<id>` |
 | `read.files` | absolute globs whose files are read and passed with their content |
 | `read.stat` | absolute globs whose files are passed with their `stat` and no content |
+| `read.statfs` | absolute globs whose paths are passed with the `statfs` of the filesystem holding them; a path the run may not reach is left out, and one that gives no answer within the timeout fails the collector |
 | `read.exec` | an argv list run without a shell, live mode only; the program is an absolute path |
 | `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
 | `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files` |
 | `read.stat-from` | the same, naming files to pass with their `stat` |
+| `read.statfs-from` | the same, naming paths to pass with their `statfs`, as `mounts.active` |
 | `read.hash` | `sha256`, `sha512` or both: adds the file’s lowercase hex digest to the `stat` of each regular file; needs `stat` or `stat-from` |
 | `live` | `true` when the collector reads what only a running host has, such as `/proc`; skipped under `--root` |
 | `secret` | `true` to replace every string the op returns with its keyed hash, as for values a plugin marks, so a command’s output compares without being stored |
@@ -208,9 +210,10 @@ facts collected first lists them in `--describe` as `needs`, receives them in
 the request, and returns the derived facts in its reply. See
 [the plugin protocol](protocol.md).
 
-A collector may still read the files a fact names: `read.files-from` and
-`read.stat-from` take every string, or string in a list, at their pattern,
-keep the absolute ones, and read each path as written, never as a glob,
+A collector may still read the files a fact names: `read.files-from`,
+`read.stat-from` and `read.statfs-from` take every string, or string in a list,
+at their pattern, or every key of a map there (`mounts.active` names each mount
+point), keep the absolute ones, and read each path as written, never as a glob,
 through the same root. The collector runs after every collector writing under
 the pattern’s literal part, the segments before its first `*`; when that part
 is absent from the facts, it fails naming the fact and the collector that left

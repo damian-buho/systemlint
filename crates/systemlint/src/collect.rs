@@ -165,6 +165,7 @@ pub fn collect_reporting(
             && !options.live
             && collector.read.files.is_empty()
             && collector.read.stat.is_empty()
+            && collector.read.statfs.is_empty()
             && collector.read.named().next().is_none()
         {
             log::debug!("collector {} skipped: exec under --root", collector.id);
@@ -406,14 +407,15 @@ fn missing(
     }
 }
 
-/// The paths a collector reads or stats because facts name them.
+/// The paths a collector reads, stats or statfs because facts name them.
 #[derive(Debug, Default)]
 pub struct Named {
     pub files: Vec<String>,
     pub stat: Vec<String>,
+    pub statfs: Vec<String>,
 }
 
-/// The absolute paths at each `read.files-from` and `read.stat-from` pattern, failing when a pattern’s literal prefix is absent.
+/// The absolute paths at each `read.*-from` pattern, failing when a pattern’s literal prefix is absent.
 pub fn named(
     collector: &Collector,
     collectors: &[Collector],
@@ -453,13 +455,15 @@ pub fn named(
     Ok(Named {
         files: resolve(&collector.read.files_from)?,
         stat: resolve(&collector.read.stat_from)?,
+        statfs: resolve(&collector.read.statfs_from)?,
     })
 }
 
-/// Every string at `segments` under `value`, `*` matching each key, a list giving each of its strings.
+/// Every string at `segments` under `value`, `*` matching each key, a list giving each of its strings, a map its keys.
 fn strings(value: &Value, segments: &[&str], out: &mut Vec<String>) {
     match (segments.split_first(), value) {
         (None, Value::String(s)) => out.push(s.clone()),
+        (None, Value::Object(map)) => out.extend(map.keys().cloned()),
         (None, Value::Array(items)) => {
             out.extend(items.iter().filter_map(Value::as_str).map(str::to_owned))
         }
@@ -593,6 +597,7 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
         content: None,
         content_base64: None,
         stat: None,
+        statfs: None,
         absent: false,
     };
     let globbed = |patterns: &[String]| -> Result<Vec<String>, String> {
@@ -660,6 +665,26 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
             }
             Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
             Err(e) => return Err(format!("can’t stat {path}: {e}")),
+        }
+    }
+    let filesystems: BTreeSet<String> = globbed(&collector.read.statfs)?
+        .into_iter()
+        .chain(named.statfs.iter().cloned())
+        .collect();
+    for path in filesystems {
+        match root.statfs(&path, options.timeout) {
+            Ok(statfs) => {
+                files
+                    .entry(path.clone())
+                    .or_insert_with(|| blank(&path))
+                    .statfs = Some(statfs);
+            }
+            Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
+            Err(e) if e.kind() == io::ErrorKind::PermissionDenied => log::debug!(
+                "collector {}: {path} refused statfs, left out",
+                collector.id
+            ),
+            Err(e) => return Err(format!("can’t statfs {path}: {e}")),
         }
     }
     if let (true, Some(path)) = (collector.read.image_config, &options.image_config) {

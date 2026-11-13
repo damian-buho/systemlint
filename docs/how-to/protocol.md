@@ -101,13 +101,16 @@ $ systemlint-formats --describe
 | `op` | one of the ops `--describe` lists |
 | `root` | `/` on a live host, else the root filesystem being read; paths in `inputs` stay absolute inside it |
 | `now` | the collection time, RFC 3339; a plugin computes every age against it, never its own clock |
-| `inputs[]` | a file `{path, content \| content-base64, stat, absent}` or a command `{argv, stdout, stderr, exit}` |
+| `inputs[]` | a file `{path, content \| content-base64, stat, statfs, absent}` or a command `{argv, stdout, stderr, exit}` |
 | `facts` | the facts the op `needs`, by path |
 
 A file carries `content` when it is valid UTF-8 and `content-base64`
 otherwise; `stat` is present when the collector asked for it. `stat.mode` is
 the octal permission string, and the four booleans spell out the bits a JSON
-Schema cannot test. `absent: true` marks a path an inline collector named
+Schema cannot test. `statfs` is present when the collector asked for it:
+the filesystem holding the path as statfs(2) counts it, in `blocks`,
+`blocks-free`, `blocks-available` (what a user who is not root may still fill),
+`files`, `files-free` and `read-only`. `absent: true` marks a path an inline collector named
 that is not there, carrying no `content` or `stat`.
 
 ## Reply

@@ -141,6 +141,7 @@ mod tests {
             content: Some(status.into()),
             content_base64: None,
             stat: None,
+            statfs: None,
             absent: false,
         })]);
         assert_eq!(

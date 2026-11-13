@@ -116,6 +116,16 @@ const PLUGINS: &[(&str, &str, &str)] = &[
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
     ),
     (
+        "mounter",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"/etc":{"filesystem":"ext4"},"/etc/absent":{},"relative":{}}}'"#,
+    ),
+    (
+        "sizer",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
+    ),
+    (
         "orphan",
         r#"[{"op":"parse"}]"#,
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
@@ -271,6 +281,29 @@ fn files_from_and_stat_from_read_the_paths_facts_name_after_their_producer() {
     );
     assert!(
         inputs[0]["stat"].is_object() && inputs[0]["content"].is_null(),
+        "{inputs:?}"
+    );
+}
+
+#[test]
+fn statfs_and_statfs_from_pass_the_filesystem_of_globbed_paths_and_of_a_map_s_keys() {
+    let sizer = collector(
+        "id: sizer\nread:\n  statfs: [/us*]\n  statfs-from: [points]\nparse: {plugin: sizer, op: parse}\ninto: sized\n",
+    );
+    let mounter = collector("id: mounter\nparse: {plugin: mounter, op: parse}\ninto: points\n");
+    let doc = collect(&[sizer, mounter], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["sizer"]["status"], "ok", "{doc}");
+    let inputs = request("sizer")["inputs"].as_array().unwrap().clone();
+    let paths: Vec<&str> = inputs.iter().filter_map(|i| i["path"].as_str()).collect();
+    assert_eq!(
+        paths,
+        ["/etc", "/usr"],
+        "a map names its keys, relative and absent ones dropped: {inputs:?}"
+    );
+    assert!(
+        inputs.iter().all(|i| i["statfs"]["blocks"].is_u64()
+            && i["statfs"]["read-only"].is_boolean()
+            && i["stat"].is_null()),
         "{inputs:?}"
     );
 }

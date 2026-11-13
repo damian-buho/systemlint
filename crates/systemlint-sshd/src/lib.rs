@@ -216,6 +216,7 @@ mod tests {
             content: Some(text.into()),
             content_base64: None,
             stat: None,
+            statfs: None,
             absent: false,
         })
     }
@@ -452,6 +453,7 @@ mod tests {
             content: None,
             content_base64: Some("AA==".into()),
             stat: None,
+            statfs: None,
             absent: false,
         });
         let (_, diagnostics) = collected(&[

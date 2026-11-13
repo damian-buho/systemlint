@@ -53,6 +53,10 @@ pub struct Read {
     pub stat_from: Vec<String>,
     #[serde(default)]
     pub hash: Vec<Digest>,
+    #[serde(default)]
+    pub statfs: Vec<String>,
+    #[serde(default, rename = "statfs-from")]
+    pub statfs_from: Vec<String>,
 }
 
 /// A digest `read.hash` adds to the stat of each regular file.
@@ -66,7 +70,10 @@ pub enum Digest {
 impl Read {
     /// The fact paths that name paths to read or stat.
     pub fn named(&self) -> impl Iterator<Item = &String> {
-        self.files_from.iter().chain(&self.stat_from)
+        self.files_from
+            .iter()
+            .chain(&self.stat_from)
+            .chain(&self.statfs_from)
     }
 }
 
@@ -114,6 +121,7 @@ impl Collector {
             .files
             .iter()
             .chain(&self.read.stat)
+            .chain(&self.read.statfs)
             .find(|g| !g.starts_with('/'))
         {
             return Err(format!("read glob {glob} is not absolute"));
