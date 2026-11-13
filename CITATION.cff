@@ -33,5 +33,5 @@ keywords:
   - rust
 repository-code: https://kiota.ch/damian-buho/systemlint
 license: AGPL-3.0-only
-version: 0.1.0
-date-released: "2026-11-12"
+version: 0.2.0
+date-released: "2026-11-13"
