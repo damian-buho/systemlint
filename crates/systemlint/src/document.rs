@@ -45,13 +45,24 @@ pub fn write(path: &Path, text: &str, mode: u32) -> Result<(), String> {
     if let Err(error) = written {
         let _ = std::fs::remove_file(&temporary);
         let dir = path.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(Path::new("."));
-        let error = if error.kind() == ErrorKind::NotFound && dir.is_dir() { std::io::Error::other(error) } else { error };
+        if let Some(kind) = pseudo(dir) {
+            return Err(format!("Can’t write {name} into {}: it is on {kind}, a kernel file system that holds no ordinary files. Pick a directory on a regular file system.", dir.display()));
+        }
+        let error =if error.kind() == ErrorKind::NotFound && dir.is_dir() { std::io::Error::other(error) } else { error };
         let mkdir = format!("Run mkdir -p {}, or pick another path.", dir.display());
         let fixes = [(ErrorKind::NotFound, mkdir.as_str()), (ErrorKind::PermissionDenied, "Pick a directory you can write, or run with sudo."), (ErrorKind::ReadOnlyFilesystem, "Pick a path on a writable file system.")];
         return Err(crate::explain::io(&format!("write {name} into"), dir, &error, &fixes));
     }
     log::debug!("saved {} bytes to {} with mode {mode:o}", text.len(), path.display());
     Ok(())
+}
+
+/// The kernel file system `dir` sits on, by its `statfs` magic, when it is `/proc` or `/sys`.
+fn pseudo(dir: &Path) -> Option<&'static str> {
+    let magic = i128::from(rustix::fs::statfs(dir).ok()?.f_type);
+    let kind = [(0x9fa0, "proc"), (0x6265_6572, "sysfs")].into_iter().find(|(m, _)| *m == magic).map(|(_, kind)| kind);
+    log::debug!("{} has file system magic {magic:#x}, pseudo {kind:?}", dir.display());
+    kind
 }
 
 /// Reads a facts document from `path`, or stdin for `-`, refusing another schema.

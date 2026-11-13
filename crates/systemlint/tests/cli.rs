@@ -154,6 +154,46 @@ fn an_output_in_a_missing_directory_exits_7_naming_mkdir() {
 }
 
 #[test]
+fn an_output_into_proc_exits_7_naming_the_file_system() {
+    let dir = base("output-proc");
+    let facts = facts(&dir);
+    let (code, stderr) = run(&dir, "", &["--quiet", "lint", "--output", "/proc/report.txt", &facts]);
+    assert_eq!(code, 7, "{stderr}");
+    assert!(stderr.starts_with("Can’t write report.txt into /proc: it is on proc, a kernel file system that holds no ordinary files. Pick a directory on a regular file system."), "{stderr}");
+}
+
+#[test]
+fn no_random_hash_key_exits_70() {
+    use std::os::unix::process::CommandExt;
+    let dir = base("no-random");
+    let config = dir.join("config.yaml");
+    std::fs::write(&config, "").unwrap();
+    let mut command = core();
+    command.arg("--config").arg(&config).args(["--quiet", "facts", "--root"]).arg(&dir).env("LC_ALL", "C");
+    // SAFETY: the closure only calls prctl on a stack filter between fork and exec.
+    unsafe {
+        command.pre_exec(|| {
+            let insn = |code: u32, jf: u8, k: u32| libc::sock_filter { code: code as u16, jt: 0, jf, k };
+            let filter = [
+                insn(libc::BPF_LD | libc::BPF_W | libc::BPF_ABS, 0, 0),
+                insn(libc::BPF_JMP | libc::BPF_JEQ | libc::BPF_K, 1, libc::SYS_getrandom as u32),
+                insn(libc::BPF_RET | libc::BPF_K, 0, libc::SECCOMP_RET_ERRNO | libc::EPERM as u32),
+                insn(libc::BPF_RET | libc::BPF_K, 0, libc::SECCOMP_RET_ALLOW),
+            ];
+            let program = libc::sock_fprog { len: filter.len() as u16, filter: filter.as_ptr().cast_mut() };
+            if libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 || libc::prctl(libc::PR_SET_SECCOMP, libc::SECCOMP_MODE_FILTER, &raw const program) != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        })
+    };
+    let out = command.output().unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(70), "{stderr}");
+    assert!(stderr.contains("can’t draw a random hash key"), "{stderr}");
+}
+
+#[test]
 fn a_save_in_a_missing_directory_exits_7() {
     let dir = base("save");
     let root = dir.join("root");
