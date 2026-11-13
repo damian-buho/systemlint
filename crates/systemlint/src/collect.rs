@@ -631,8 +631,20 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
         .into_iter()
         .chain(named.stat.iter().cloned())
         .collect();
+    let keep = match &collector.read.stat_keep {
+        Some(schema) => Some(crate::judge::schema(schema)?),
+        None => None,
+    };
+    let (total, mut dropped) = (stats.len(), 0);
     for path in stats {
         match root.stat(&path) {
+            Ok(stat)
+                if keep.as_ref().is_some_and(|k| {
+                    !k.is_valid(&serde_json::to_value(&stat).unwrap_or_default())
+                }) =>
+            {
+                dropped += 1;
+            }
             Ok(mut stat) => {
                 if !collector.read.hash.is_empty()
                     && stat.kind == systemlint_protocol::FileKind::File
@@ -666,6 +678,13 @@ pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<V
             Err(e) if gone(&e) => log::debug!("collector {}: {path} is absent", collector.id),
             Err(e) => return Err(format!("can’t stat {path}: {e}")),
         }
+    }
+    if keep.is_some() {
+        log::debug!(
+            "collector {}: read.stat-keep kept {} of {total} stats",
+            collector.id,
+            total - dropped
+        );
     }
     let filesystems: BTreeSet<String> = globbed(&collector.read.statfs)?
         .into_iter()

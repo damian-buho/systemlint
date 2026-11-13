@@ -186,3 +186,49 @@ fn digests_follow_fips_180_and_refuse_a_directory() {
         ErrorKind::InvalidInput
     );
 }
+
+#[test]
+fn a_double_star_walks_every_path_below_dotted_ones_included_never_a_symlinked_directory() {
+    let dir = fixture("walk");
+    std::fs::create_dir_all(dir.join("usr/a/b")).unwrap();
+    std::fs::create_dir_all(dir.join("usr/.hidden")).unwrap();
+    std::fs::write(dir.join("usr/a/b/file"), "").unwrap();
+    std::fs::write(dir.join("usr/.hidden/x"), "").unwrap();
+    symlink("/etc", dir.join("usr/link")).unwrap();
+    symlink("/usr/a", dir.join("bin")).unwrap();
+    let root = Root::open(&dir).unwrap();
+    assert_eq!(
+        root.glob("/usr/**").unwrap(),
+        [
+            "/usr",
+            "/usr/.hidden",
+            "/usr/.hidden/x",
+            "/usr/a",
+            "/usr/a/b",
+            "/usr/a/b/file",
+            "/usr/link"
+        ],
+        "the link is listed, /etc behind it is not walked"
+    );
+    for pattern in ["/usr/**/file", "/usr/a**", "/**x"] {
+        assert!(
+            root.glob(pattern)
+                .unwrap_err()
+                .contains("whole last component"),
+            "{pattern}"
+        );
+    }
+    assert_eq!(
+        root.glob("/bin/**").unwrap(),
+        ["/bin"],
+        "a symlinked base is not entered"
+    );
+    assert_eq!(root.glob("/missing/**").unwrap(), ["/missing"]);
+    let mut out = Vec::new();
+    assert!(root.walk("/usr", 7, &mut out).is_ok(), "{out:?}");
+    out.clear();
+    assert_eq!(
+        root.walk("/usr", 6, &mut out).unwrap_err(),
+        "names more than 6 paths; narrow it"
+    );
+}

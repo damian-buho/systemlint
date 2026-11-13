@@ -11,7 +11,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rustix::fs::{Dir, Mode, OFlags, ResolveFlags, StatVfsMountFlags, openat2};
+use rustix::fs::{Dir, FileType, Mode, OFlags, ResolveFlags, StatVfsMountFlags, openat2};
 use sha2::{Digest as _, Sha256, Sha512};
 use systemlint_protocol::{FileKind, Stat, Statfs};
 
@@ -19,6 +19,9 @@ use crate::collector::Digest;
 
 /// How often an `openat2` that raced a rename (`EAGAIN`) is retried.
 const RETRIES: u32 = 8;
+
+/// The most paths one glob’s `**` may name before it fails.
+pub const WALK_CAP: usize = 1_000_000;
 
 /// A directory every path is resolved inside, `/` on a live host.
 #[derive(Debug)]
@@ -86,13 +89,23 @@ impl Root {
         }
     }
 
-    /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component and never a leading dot.
+    /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component and never a leading dot, `**` as the whole last component every path below, see [`Root::walk`].
     pub fn glob(&self, pattern: &str) -> Result<Vec<String>, String> {
         let parts: Vec<&str> = pattern.split('/').filter(|p| !p.is_empty()).collect();
+        if parts.iter().rev().skip(1).any(|p| p.contains("**"))
+            || parts.last().is_some_and(|p| p.contains("**") && *p != "**")
+        {
+            return Err(format!("glob {pattern}: ** is only a whole last component"));
+        }
         let mut found = vec![String::new()];
         for part in parts {
             let mut next = Vec::new();
             for base in &found {
+                if part == "**" {
+                    self.walk(base, WALK_CAP, &mut next)
+                        .map_err(|e| format!("glob {pattern}: {e}"))?;
+                    continue;
+                }
                 if !part.contains(['*', '?']) {
                     next.push(format!("{base}/{part}"));
                     continue;
@@ -125,6 +138,56 @@ impl Root {
         found.dedup();
         log::debug!("glob {pattern} names {} paths", found.len());
         Ok(found)
+    }
+
+    /// Appends `base` and every path below it, dotted names included, never entering another filesystem or a symlinked directory; fails once `out` holds more than `cap` paths.
+    pub fn walk(&self, base: &str, cap: usize, out: &mut Vec<String>) -> Result<(), String> {
+        let skipped = |e: &io::Error| {
+            matches!(
+                e.kind(),
+                io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+            ) || e.raw_os_error() == Some(rustix::io::Errno::LOOP.raw_os_error())
+        };
+        out.push(if base.is_empty() { "/" } else { base }.to_owned());
+        let (mut pending, mut device) = (vec![base.to_owned()], None);
+        while let Some(dir) = pending.pop() {
+            let at = if dir.is_empty() { "/" } else { &dir };
+            let fd = match self.open_at(at, OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW) {
+                Ok(fd) => fd,
+                Err(e) if skipped(&e) => {
+                    log::trace!("walk {base}: {at} is no directory to enter: {e}");
+                    continue;
+                }
+                Err(e) => return Err(format!("can’t list {at}: {e}")),
+            };
+            let here = rustix::fs::fstat(&fd)
+                .map_err(|e| format!("can’t stat {at}: {e}"))?
+                .st_dev;
+            match device {
+                Some(start) if start != here => {
+                    log::debug!("walk {base}: {at} is another filesystem, not entered");
+                    continue;
+                }
+                _ => device = Some(here),
+            }
+            for entry in Dir::new(fd).map_err(|e| format!("can’t list {at}: {e}"))? {
+                let entry = entry.map_err(|e| format!("can’t list {at}: {e}"))?;
+                let name = entry.file_name().to_string_lossy();
+                if name == "." || name == ".." {
+                    continue;
+                }
+                let path = format!("{dir}/{name}");
+                if matches!(entry.file_type(), FileType::Directory | FileType::Unknown) {
+                    pending.push(path.clone());
+                }
+                out.push(path);
+                if out.len() > cap {
+                    return Err(format!("names more than {cap} paths; narrow it"));
+                }
+            }
+        }
+        log::debug!("walk {base}: {} paths so far", out.len());
+        Ok(())
     }
 
     /// The bytes of the regular file at `path`, failing above `cap` bytes.

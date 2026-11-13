@@ -126,6 +126,11 @@ const PLUGINS: &[(&str, &str, &str)] = &[
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
     ),
     (
+        "keeper",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
+    ),
+    (
         "orphan",
         r#"[{"op":"parse"}]"#,
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
@@ -306,6 +311,34 @@ fn statfs_and_statfs_from_pass_the_filesystem_of_globbed_paths_and_of_a_map_s_ke
             && i["stat"].is_null()),
         "{inputs:?}"
     );
+}
+
+#[test]
+fn stat_keep_passes_only_the_stats_its_schema_admits() {
+    let keeper = collector(
+        "id: keeper\nread:\n  files: [/etc/os-release]\n  stat: [/etc/os-release, /usr]\n  stat-keep: {properties: {kind: {const: directory}}}\nparse: {plugin: keeper, op: parse}\ninto: kept\n",
+    );
+    let doc = collect(&[keeper], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["keeper"]["status"], "ok", "{doc}");
+    let inputs = request("keeper")["inputs"].as_array().unwrap().clone();
+    assert_eq!(inputs.len(), 2, "{inputs:?}");
+    assert!(
+        inputs[0]["content"].is_string() && inputs[0]["stat"].is_null(),
+        "a read file keeps its content, not a stat the schema refused: {inputs:?}"
+    );
+    assert_eq!(inputs[1]["path"], "/usr");
+    assert_eq!(inputs[1]["stat"]["kind"], "directory");
+    for (read, why) in [
+        ("stat-keep: {}", "list the files under read.stat"),
+        ("stat: [/x]\n  stat-keep: {type: 5}", "no valid schema"),
+        ("stat: [/usr/**/x]", "whole last component"),
+    ] {
+        let error = Collector::parse(&format!(
+            "id: c\nread:\n  {read}\nparse: {{plugin: p, op: o}}\ninto: out\n"
+        ))
+        .unwrap_err();
+        assert!(error.contains(why), "{read}: {error}");
+    }
 }
 
 #[test]

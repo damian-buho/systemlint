@@ -51,6 +51,8 @@ pub struct Read {
     pub files_from: Vec<String>,
     #[serde(default, rename = "stat-from")]
     pub stat_from: Vec<String>,
+    #[serde(default, rename = "stat-keep")]
+    pub stat_keep: Option<serde_json::Map<String, serde_json::Value>>,
     #[serde(default)]
     pub hash: Vec<Digest>,
     #[serde(default)]
@@ -126,12 +128,34 @@ impl Collector {
         {
             return Err(format!("read glob {glob} is not absolute"));
         }
+        if let Some(glob) = self
+            .read
+            .files
+            .iter()
+            .chain(&self.read.stat)
+            .chain(&self.read.statfs)
+            .find(|g| g.contains("**") && !g.ends_with("/**"))
+        {
+            return Err(format!(
+                "read glob {glob} holds ** other than as its whole last component"
+            ));
+        }
         if !self.read.hash.is_empty() && self.read.stat.is_empty() && self.read.stat_from.is_empty()
         {
             return Err(
                 "read.hash adds digests to stats; list the files under read.stat or read.stat-from"
                     .to_owned(),
             );
+        }
+        if let Some(keep) = &self.read.stat_keep {
+            if self.read.stat.is_empty() && self.read.stat_from.is_empty() {
+                return Err(
+                    "read.stat-keep filters stats; list the files under read.stat or read.stat-from"
+                        .to_owned(),
+                );
+            }
+            crate::judge::schema(keep)
+                .map_err(|e| format!("read.stat-keep is no valid schema: {e}"))?;
         }
         match self.read.exec.as_deref() {
             Some([]) => return Err("read.exec is empty; give an argv list".to_owned()),

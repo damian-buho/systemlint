@@ -29,6 +29,7 @@ into: apt.sources
 | `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
 | `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files` |
 | `read.stat-from` | the same, naming files to pass with their `stat` |
+| `read.stat-keep` | a JSON Schema over each `stat`: only the stats it admits reach the plugin, as `{properties: {setuid: {const: true}}}` keeps a walk of `/usr/**` to its set-user-ID files; needs `stat` or `stat-from` |
 | `read.statfs-from` | the same, naming paths to pass with their `statfs`, as `mounts.active` |
 | `read.hash` | `sha256`, `sha512` or both: adds the file’s lowercase hex digest to the `stat` of each regular file; needs `stat` or `stat-from` |
 | `live` | `true` when the collector reads what only a running host has, such as `/proc`; skipped under `--root` |
@@ -45,6 +46,10 @@ input carrying both.
 In a glob, `*` matches any run of characters and `?` one character, both within
 one path component and never a leading dot; `.*` matches dotfiles. A path with
 no wildcard is passed when it exists, and an absent one is not an error. A
+`**` as the whole last component (`/usr/**`) matches the directory and every
+path below it, dotted names included, but never enters a symlinked directory or
+another filesystem; a glob naming more than a million paths fails its
+collector, so a walk that was cut short never passes. A
 `files` match that is not a regular file, such as a directory in
 `/etc/default/*` or a masked unit linked to `/dev/null`, is skipped.
 
