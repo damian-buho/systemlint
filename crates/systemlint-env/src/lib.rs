@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value, json};
-use systemlint_formats::{Sections, mask, parse_ini, text, unquote};
+use systemlint_formats::{Sections, mask, parse_ini, text, unit_files, unquote};
 use systemlint_protocol::{Describe, Diagnostic, Input, Reply, Request, Result};
 
 /// Switch words a value stays in clear as, whatever its name, compared without case.
@@ -26,15 +26,6 @@ pub const CLEAR: [&str; 11] = [
     "SSL_CERT_FILE",
     "SSL_CERT_DIR",
     "REQUESTS_CA_BUNDLE",
-];
-
-/// The systemd system unit directories, highest precedence first.
-pub const UNIT_DIRS: [&str; 5] = [
-    "/etc/systemd/system",
-    "/run/systemd/system",
-    "/usr/local/lib/systemd/system",
-    "/usr/lib/systemd/system",
-    "/lib/systemd/system",
 ];
 
 /// The ld.so preload list, read as a system-wide `LD_PRELOAD`.
@@ -338,52 +329,6 @@ pub fn units(inputs: &[Input]) -> Reply {
         built.place(&mut reply, &unit);
     }
     reply
-}
-
-/// Each unit’s files in the order systemd reads them: the unit file from the highest directory, then its drop-ins by name, one per name.
-pub fn unit_files<'a>(files: &[(&'a str, &'a str)]) -> BTreeMap<String, Vec<(&'a str, &'a str)>> {
-    let mut mains: BTreeMap<String, (usize, &str, &str)> = BTreeMap::new();
-    let mut drops: BTreeMap<String, BTreeMap<&str, (usize, &str, &str)>> = BTreeMap::new();
-    for (path, text) in files {
-        let Some((dir, file)) = path.rsplit_once('/') else {
-            continue;
-        };
-        let (base, unit, dropin) = match dir.rsplit_once('/') {
-            Some((base, d)) if d.ends_with(".d") && file.ends_with(".conf") => {
-                (base, d.trim_end_matches(".d"), true)
-            }
-            _ => (dir, file, false),
-        };
-        let Some(rank) = UNIT_DIRS.iter().position(|d| *d == base) else {
-            continue;
-        };
-        if !unit.contains('.') {
-            continue;
-        }
-        let slot = if dropin {
-            drops
-                .entry(unit.to_owned())
-                .or_default()
-                .entry(file)
-                .or_insert((usize::MAX, "", ""))
-        } else {
-            mains.entry(unit.to_owned()).or_insert((usize::MAX, "", ""))
-        };
-        if rank < slot.0 {
-            *slot = (rank, path, text);
-        }
-    }
-    let mut units: BTreeMap<String, Vec<(&str, &str)>> = BTreeMap::new();
-    for (unit, (_, path, text)) in mains {
-        units.entry(unit).or_default().push((path, text));
-    }
-    for (unit, confs) in drops {
-        units
-            .entry(unit)
-            .or_default()
-            .extend(confs.into_values().map(|(_, p, t)| (p, t)));
-    }
-    units
 }
 
 /// What owns a cgroup: a system service by its unit name, or a container by `container:` and the first 12 characters of its ID.
