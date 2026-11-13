@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 
 ARG B19_RUST_GNU_BASE_IMAGE=registry.invalid/b19/rust:gnu
 ARG B19_UBUNTU_BASE_IMAGE=registry.invalid/b19/ubuntu:resolute
