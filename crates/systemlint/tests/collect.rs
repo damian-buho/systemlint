@@ -38,6 +38,12 @@ const PLUGINS: &[(&str, &str, &str)] = &[
     ("lister", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"a.service":{"files":["/etc/os-release","/etc/*","relative","/etc/absent"]},"b.service":{"files":"/etc/os-release"},"path":["/usr","/etc/apt"]}}'"#),
     ("reader", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
     ("orphan", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"ok":true}}'"#),
+    ("meet-a", r#"[{"op":"parse"}]"#, r#"d=$(dirname "$0"); touch "$d/meet-a.here"; i=0; while [ ! -e "$d/meet-b.here" ] && [ $i -lt 3000 ]; do sleep 0.01; i=$((i+1)); done; [ -e "$d/meet-b.here" ] && printf '%s\n' '{"facts":{"met":true}}'"#),
+    ("meet-b", r#"[{"op":"parse"}]"#, r#"d=$(dirname "$0"); touch "$d/meet-b.here"; i=0; while [ ! -e "$d/meet-a.here" ] && [ $i -lt 3000 ]; do sleep 0.01; i=$((i+1)); done; [ -e "$d/meet-a.here" ] && printf '%s\n' '{"facts":{"met":true}}'"#),
+    ("same-base", r#"[{"op":"release"}]"#, r#"printf '%s\n' '{"facts":{"VERSION_CODENAME":"resolute"}}'"#),
+    ("same-derive", r#"[{"op":"codename","needs":["os.release"]}]"#, r#"printf '%s\n' '{"facts":{"seen":true}}'"#),
+    ("same-a", r#"[{"op":"parse"}]"#, r#"printf '%s\n' '{"facts":{"a":1}}'"#),
+    ("same-b", r#"[{"op":"parse"}]"#, "exit 4"),
 ];
 
 fn plugins() -> Vec<Plugin> {
@@ -70,7 +76,7 @@ fn fixture() -> PathBuf {
 
 fn options(live: bool) -> Options {
     let root = if live { Path::new("/").to_path_buf() } else { fixture() };
-    Options { privileged: true, root: Root::open(&root).unwrap(), live, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None }
+    Options { privileged: true, root: Root::open(&root).unwrap(), live, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None, jobs: 1 }
 }
 
 fn collector(yaml: &str) -> Collector {
@@ -219,6 +225,28 @@ fn progress_counts_each_collector_in_run_order() {
     let mut seen = Vec::new();
     collect_reporting(&[derive, base], &plugins(), &options(false), &mut |done, total, id| seen.push((done, total, id.to_owned())));
     assert_eq!(seen, [(0, 2, "base".to_owned()), (1, 2, "derive".to_owned())]);
+}
+
+#[test]
+fn two_jobs_run_two_collectors_at_once() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("collect");
+    plugins();
+    for marker in ["meet-a.here", "meet-b.here"] {
+        let _ = std::fs::remove_file(dir.join(marker));
+    }
+    let meet = |me: &str| collector(&format!("id: meet-{me}\nparse: {{plugin: meet-{me}, op: parse}}\ninto: meet.{me}\n"));
+    let doc = collect(&[meet("a"), meet("b")], &plugins(), &Options { jobs: 2, ..options(false) });
+    assert_eq!((&doc["meet"]["a"]["met"], &doc["meet"]["b"]["met"]), (&Value::Bool(true), &Value::Bool(true)), "{doc}");
+}
+
+#[test]
+fn any_jobs_give_the_sequential_document() {
+    let set = || ["id: derive\nparse: {plugin: same-derive, op: codename}\ninto: apt.codename\n", "id: a\nparse: {plugin: same-a, op: parse}\ninto: x.a\n", "id: base\nparse: {plugin: same-base, op: release}\ninto: os.release\n", "id: b\nparse: {plugin: same-b, op: parse}\ninto: x.b\n"].map(collector);
+    let sequential = collect(&set(), &plugins(), &Options { jobs: 1, ..options(false) });
+    assert_eq!(sequential["collectors"]["derive"]["status"], "ok", "{sequential}");
+    assert_eq!(sequential["collectors"]["b"]["status"], "error", "{sequential}");
+    let parallel = collect(&set(), &plugins(), &Options { jobs: 64, ..options(false) });
+    assert_eq!(serde_json::to_string(&parallel).unwrap(), serde_json::to_string(&sequential).unwrap());
 }
 
 #[test]

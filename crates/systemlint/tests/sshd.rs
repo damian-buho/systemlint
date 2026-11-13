@@ -24,7 +24,7 @@ fn repository() -> PathBuf {
 // The fixture read by the shipped collector under --root, with the captured `sshd -T` added when `effective` is set.
 fn document(effective: bool) -> Value {
     let collector = Collector::parse(&std::fs::read_to_string(repository().join("collectors/sshd.yaml")).unwrap()).unwrap();
-    let options = Options { privileged: true, root: Root::open(&repository().join("fixtures/sshd")).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None };
+    let options = Options { privileged: true, root: Root::open(&repository().join("fixtures/sshd")).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None, jobs: 1 };
     let mut given = inputs(&collector, &options).unwrap();
     assert!(given.iter().all(|i| matches!(i, Input::File(_))), "exec never runs under --root");
     if effective {

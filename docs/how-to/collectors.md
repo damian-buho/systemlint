@@ -66,7 +66,10 @@ no wildcard is passed when it exists, and an absent one is not an error. A
 
 Every source is read-only and capped at 16 MiB per file or stream; `exec`
 and the plugin call each time out after 30 seconds, or `collect.timeout`
-seconds from the configuration. Under `--root <dir>` every
+seconds from the configuration. Collectors run `--jobs N` at once (1 to 64,
+default `collect.jobs`, else the available CPUs), a collector waiting for
+the ones that produce what it `needs`; the facts document is the same for
+any `N`. Under `--root <dir>` every
 path, symlinks and `..` included, resolves inside that directory through
 `openat2` `RESOLVE_IN_ROOT` (Linux 5.6 or later), so an image’s symlink to
 `/etc/shadow` reads the image’s file, never the host’s. `exec` never runs

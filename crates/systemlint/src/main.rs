@@ -65,6 +65,9 @@ struct Cli {
     /// Print only results and errors
     #[arg(short, long, global = true)]
     quiet: bool,
+    /// Run this many collectors at once, 1 to 64 [default: collect.jobs, else the available CPUs]
+    #[arg(short, long, global = true, value_name = "N", value_parser = clap::value_parser!(u64).range(1..=runner::MAX_CHILDREN as u64))]
+    jobs: Option<u64>,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -235,10 +238,11 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     };
     trail::install(cli.verbose, cli.log_format);
-    let config = match trail::scoped(trail::CONFIG, || load_config(cli.config.as_deref(), !cli.no_project_config)).map_err(fail(trail::CONFIG, EXIT_CONFIG)) {
+    let mut config = match trail::scoped(trail::CONFIG, || load_config(cli.config.as_deref(), !cli.no_project_config)).map_err(fail(trail::CONFIG, EXIT_CONFIG)) {
         Ok(config) => config,
         Err(code) => return ExitCode::from(code),
     };
+    config.collect.jobs = cli.jobs.or(config.collect.jobs);
     match command {
         Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format.or(config.collect.format), cli.quiet)),
         Command::Check { input, tags, standard, fail_on, vars, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard, vars }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
@@ -280,7 +284,8 @@ fn gather(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, q
             EXIT_INTERNAL
         })?,
     };
-    let options = Options { root, live, privileged: rustix::process::geteuid().is_root(), now: SystemTime::now(), timeout: config.collect.timeout.map_or(collect::TIMEOUT, Duration::from_secs), hash_key, image_config };
+    let options = Options { root, live, privileged: rustix::process::geteuid().is_root(), now: SystemTime::now(), timeout: config.collect.timeout.map_or(collect::TIMEOUT, Duration::from_secs), hash_key, image_config, jobs: config.collect.jobs.and_then(|j| usize::try_from(j).ok()).unwrap_or_else(collect::default_jobs) };
+    log::debug!("collect.jobs {:?}, running {} at once", config.collect.jobs, options.jobs);
     let started = Instant::now();
     let status = !quiet && !log::log_enabled!(log::Level::Debug) && std::io::stderr().is_terminal();
     if status {

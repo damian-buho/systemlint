@@ -14,6 +14,7 @@ use crate::collector::Collector;
 use crate::judge::{Waiver, valid_day};
 use crate::report::{Colour, FailOn, Format};
 use crate::rules::Ruleset;
+use crate::runner::MAX_CHILDREN;
 
 /// The system-wide configuration, the lowest layer, read when it exists.
 pub const SYSTEM: &str = "/etc/systemlint/config.yaml";
@@ -106,6 +107,9 @@ pub struct Collect {
     /// Seconds an `exec` or a plugin call may take, 1 or more [default: 30]
     #[serde(default)]
     pub timeout: Option<u64>,
+    /// Collectors run at once, 1 to 64 [default: the available CPUs, at most 64]
+    #[serde(default)]
+    pub jobs: Option<u64>,
     #[serde(default)]
     pub format: Option<FactsFormat>,
     #[serde(default)]
@@ -194,6 +198,9 @@ impl Config {
         }
         if config.collect.timeout == Some(0) {
             return Err(format!("{}: collect.timeout needs 1 second or more, or every plugin call fails", path.display()));
+        }
+        if config.collect.jobs.is_some_and(|j| !(1..=MAX_CHILDREN as u64).contains(&j)) {
+            return Err(format!("{}: collect.jobs needs 1 to {MAX_CHILDREN}, as many collectors as Ctrl-C can stop", path.display()));
         }
         for collector in &mut config.collect.collectors {
             collector.inline = true;

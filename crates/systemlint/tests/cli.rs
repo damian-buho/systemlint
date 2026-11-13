@@ -43,6 +43,19 @@ fn a_usage_error_exits_2() {
 }
 
 #[test]
+fn jobs_outside_1_to_64_is_a_usage_error() {
+    let dir = base("jobs");
+    for refused in ["0", "65"] {
+        let (code, stderr) = run(&dir, "", &["--jobs", refused, "plugin", "list"]);
+        assert_eq!(code, 2, "--jobs {refused}: {stderr}");
+    }
+    for taken in ["1", "64"] {
+        let (code, stderr) = run(&dir, "", &["--jobs", taken, "plugin", "list"]);
+        assert_ne!(code, 2, "--jobs {taken}: {stderr}");
+    }
+}
+
+#[test]
 fn a_json_log_line_names_its_scope() {
     let (code, stderr) = run(&base("log-json"), "", &["-v", "--log-format", "json", "plugin", "list"]);
     assert_eq!(code, 0, "{stderr}");

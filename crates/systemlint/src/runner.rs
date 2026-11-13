@@ -20,10 +20,13 @@ pub const DESCRIBE_TIMEOUT: Duration = Duration::from_secs(30);
 /// The most bytes read from a plugin’s stdout or stderr.
 pub const OUTPUT_CAP: u64 = 16 * 1024 * 1024;
 
-/// The pids of the children running now, 0 in a free slot, so a signal handler can stop them.
-static CHILDREN: [AtomicI32; 64] = [const { AtomicI32::new(0) }; 64];
+/// How many children can run at once and still be stopped by a signal handler.
+pub const MAX_CHILDREN: usize = 64;
 
-/// Records `pid` in a free slot, or in none when all 64 are taken.
+/// The pids of the children running now, 0 in a free slot, so a signal handler can stop them.
+static CHILDREN: [AtomicI32; MAX_CHILDREN] = [const { AtomicI32::new(0) }; 64];
+
+/// Records `pid` in a free slot, or in none when all [`MAX_CHILDREN`] are taken.
 fn track(pid: i32) -> Option<&'static AtomicI32> {
     let slot = CHILDREN.iter().find(|s| s.compare_exchange(0, pid, Ordering::SeqCst, Ordering::SeqCst).is_ok());
     if slot.is_none() {

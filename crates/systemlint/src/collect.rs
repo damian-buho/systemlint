@@ -7,6 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use hmac::{Hmac, KeyInit, Mac};
@@ -16,7 +17,7 @@ use systemlint_protocol::{Describe, Diagnostic, ExecInput, FileInput, Input, PRO
 
 use crate::collector::{Collector, overlaps, prefix};
 use crate::discovery::Plugin;
-use crate::runner::{self, OUTPUT_CAP};
+use crate::runner::{self, MAX_CHILDREN, OUTPUT_CAP};
 use crate::source::Root;
 use crate::trail;
 
@@ -25,6 +26,11 @@ pub const SCHEMA: u32 = 1;
 
 /// How long one collector command or one plugin call may take.
 pub const TIMEOUT: Duration = Duration::from_secs(30);
+
+/// How many collectors run at once by default: the CPUs this process may use, at most [`MAX_CHILDREN`].
+pub fn default_jobs() -> usize {
+    std::thread::available_parallelism().map_or(1, usize::from).min(MAX_CHILDREN)
+}
 
 /// What a value a plugin marks secret is replaced with.
 pub const REDACTED: &str = "[redacted]";
@@ -42,6 +48,7 @@ pub struct Options {
     pub timeout: Duration,
     pub hash_key: HashKey,
     pub image_config: Option<PathBuf>,
+    pub jobs: usize,
 }
 
 /// The key every value a plugin marks for hashing is keyed with: random per run unless the config sets one.
@@ -126,47 +133,43 @@ pub fn collect_reporting(collectors: &[Collector], plugins: &[Plugin], options: 
             }
         }
     }
-    let total = planned.len();
-    while !planned.is_empty() {
-        let waits = |needs: &[String], me: usize| needs.iter().cloned().chain(collectors[me].read.named().map(|p| prefix(p))).any(|n| planned.iter().any(|(j, _, _)| *j != me && overlaps(&collectors[*j].into, &n)));
-        let Some(position) = planned.iter().position(|(i, _, needs)| !waits(needs, *i)) else {
+    let (total, jobs) = (planned.len(), options.jobs.clamp(1, MAX_CHILDREN));
+    log::debug!("running {total} collectors, {jobs} at a time");
+    let (sender, finished) = mpsc::channel();
+    let mut running: Vec<usize> = Vec::new();
+    std::thread::scope(|scope| loop {
+        while running.len() < jobs {
+            let waits = |needs: &[String], me: usize| needs.iter().cloned().chain(collectors[me].read.named().map(|p| prefix(p))).any(|n| planned.iter().map(|(j, _, _)| *j).chain(running.iter().copied()).any(|j| j != me && overlaps(&collectors[j].into, &n)));
+            let Some(position) = planned.iter().position(|(i, _, needs)| !waits(needs, *i)) else { break };
+            let (index, plugin, needs) = planned.remove(position);
+            let collector = &collectors[index];
+            progress(total - planned.len() - 1, total, &collector.id);
+            match trail::scoped(&trail::collector(&collector.id), || gather(collector, &needs, collectors, &facts, &outcomes).and_then(|given| Ok((given, named(collector, collectors, &facts, &outcomes)?)))) {
+                Ok((given, named)) => {
+                    log::debug!("collector {} starts beside {} running", collector.id, running.len());
+                    running.push(index);
+                    let (sender, now) = (sender.clone(), &now);
+                    scope.spawn(move || {
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| trail::scoped(&trail::collector(&collector.id), || run(collector, plugin, given, &named, options, now))));
+                        let _ = sender.send((index, plugin, result));
+                    });
+                }
+                Err(reason) => record(&mut outcomes, collector, plugin, Err(reason)),
+            }
+        }
+        if running.is_empty() {
             for (i, _, needs) in planned.drain(..) {
                 log::debug!("collector {} waits in a cycle on {}", collectors[i].id, needs.join(", "));
                 outcomes.insert(collectors[i].id.clone(), error(format!("needs {}, which wait on this collector in turn", needs.join(", "))));
             }
             break;
-        };
-        let (index, plugin, needs) = planned.remove(position);
+        }
+        let (index, plugin, result) = finished.recv().unwrap_or_else(|_| unreachable!("this thread holds a sender"));
+        running.retain(|&j| j != index);
         let collector = &collectors[index];
-        progress(total - planned.len() - 1, total, &collector.id);
-        let outcome = trail::scoped(&trail::collector(&collector.id), || {
-            gather(collector, &needs, collectors, &facts, &outcomes)
-                .and_then(|given| Ok((given, named(collector, collectors, &facts, &outcomes)?)))
-                .and_then(|(given, named)| run(collector, plugin, given, &named, options, &now))
-                .and_then(|(value, diagnostics, redacted, hashed)| place(&mut facts, &collector.into, value).map(|()| (diagnostics, redacted, hashed)))
-        });
-        let outcome = match outcome {
-            Ok((diagnostics, redacted, hashed)) => {
-                log::debug!("collector {} ok into {}, {} diagnostics, {} redacted, {hashed} hashed", collector.id, collector.into, diagnostics.len(), redacted.len());
-                let mut ok = json!({"status": "ok", "plugin": plugin.name, "op": collector.parse.op});
-                if !diagnostics.is_empty() {
-                    ok["diagnostics"] = json!(diagnostics);
-                }
-                if !redacted.is_empty() {
-                    ok["redacted"] = json!(redacted);
-                }
-                if hashed > 0 {
-                    ok["hashed"] = json!(hashed);
-                }
-                ok
-            }
-            Err(reason) => {
-                log::debug!("collector {} failed: {reason}", collector.id);
-                error(reason)
-            }
-        };
-        outcomes.insert(collector.id.clone(), outcome);
-    }
+        let placed = result.unwrap_or_else(|panic| std::panic::resume_unwind(panic)).and_then(|(value, diagnostics, redacted, hashed)| place(&mut facts, &collector.into, value).map(|()| (diagnostics, redacted, hashed)));
+        record(&mut outcomes, collector, plugin, placed);
+    });
     for collector in collectors {
         if let Some(outcome) = outcomes.get_mut(&collector.id) {
             outcome["into"] = Value::from(collector.into.clone());
@@ -185,6 +188,31 @@ pub fn collect_reporting(collectors: &[Collector], plugins: &[Plugin], options: 
     facts.insert("meta".to_owned(), meta);
     facts.insert("collectors".to_owned(), Value::Object(outcomes));
     Value::Object(facts)
+}
+
+/// Records how `collector` finished in `outcomes`.
+fn record(outcomes: &mut Map<String, Value>, collector: &Collector, plugin: &Plugin, finished: Result<(Vec<Diagnostic>, Vec<String>, usize), String>) {
+    let outcome = match finished {
+        Ok((diagnostics, redacted, hashed)) => {
+            log::debug!("collector {} ok into {}, {} diagnostics, {} redacted, {hashed} hashed", collector.id, collector.into, diagnostics.len(), redacted.len());
+            let mut ok = json!({"status": "ok", "plugin": plugin.name, "op": collector.parse.op});
+            if !diagnostics.is_empty() {
+                ok["diagnostics"] = json!(diagnostics);
+            }
+            if !redacted.is_empty() {
+                ok["redacted"] = json!(redacted);
+            }
+            if hashed > 0 {
+                ok["hashed"] = json!(hashed);
+            }
+            ok
+        }
+        Err(reason) => {
+            log::debug!("collector {} failed: {reason}", collector.id);
+            error(reason)
+        }
+    };
+    outcomes.insert(collector.id.clone(), outcome);
 }
 
 fn error(reason: String) -> Value {

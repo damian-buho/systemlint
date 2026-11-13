@@ -72,6 +72,16 @@ fn a_collect_timeout_needs_1_second() {
 }
 
 #[test]
+fn collect_jobs_run_1_to_64() {
+    for refused in [0, 65] {
+        assert!(Config::load(&write(&format!("jobs-{refused}"), &format!("collect:\n  jobs: {refused}\n"))).unwrap_err().contains("collect.jobs needs 1 to 64"), "{refused}");
+    }
+    for taken in [1, 64] {
+        assert_eq!(Config::load(&write(&format!("jobs-{taken}"), &format!("collect:\n  jobs: {taken}\n"))).unwrap().collect.jobs, Some(taken));
+    }
+}
+
+#[test]
 fn an_inline_collector_is_checked_and_can_not_exec() {
     let inline = |read: &str| format!("collect:\n  collectors:\n    - id: nginx\n      read: {{{read}}}\n      parse: {{plugin: formats, op: stat}}\n      into: files.nginx\n");
     let config = Config::load(&write("inline", &inline("stat: [/etc/nginx/nginx.conf], hash: [sha256]"))).unwrap();
