@@ -983,3 +983,86 @@ fn an_absent_first_collection_is_one_unknown_fact_the_others_can_still_decide() 
         "a starred fact left out never passes"
     );
 }
+
+#[test]
+fn a_unique_fact_fails_every_subject_sharing_its_value_and_names_the_others() {
+    let users = json!({"accounts": {"passwd": {
+        "root": {"uid": 0}, "toor": {"uid": 0}, "bob": {"uid": 1000},
+        "a": {"uid": 7}, "b": {"uid": 7}, "c": {"uid": 7}
+    }}, "collectors": {"accounts-passwd": {"status": "ok", "into": "accounts.passwd"}}});
+    let checks = run(
+        "fact: accounts.passwd.*.uid\nunique: true\nmessage: '{subject} shares uid {got} with {others}'\n",
+        &users,
+    );
+    let messages: Vec<_> = checks
+        .iter()
+        .map(|c| (c.subject_label(), c.outcome, c.message.clone()))
+        .collect();
+    assert_eq!(
+        messages,
+        [
+            (
+                "a".into(),
+                Outcome::Fail,
+                Some("a shares uid 7 with b, c".into())
+            ),
+            (
+                "b".into(),
+                Outcome::Fail,
+                Some("b shares uid 7 with a, c".into())
+            ),
+            ("bob".into(), Outcome::Pass, None),
+            (
+                "c".into(),
+                Outcome::Fail,
+                Some("c shares uid 7 with a, b".into())
+            ),
+            (
+                "root".into(),
+                Outcome::Fail,
+                Some("root shares uid 0 with toor".into())
+            ),
+            (
+                "toor".into(),
+                Outcome::Fail,
+                Some("toor shares uid 0 with root".into())
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_unique_fact_compares_only_subjects_that_pass() {
+    let users = json!({"accounts": {"passwd": {
+        "root": {"uid": 0, "shell": "/bin/bash"}, "toor": {"uid": 0, "shell": "/bin/sh"},
+        "nobody": {"uid": 0, "shell": "/usr/sbin/nologin"}, "ghost": {"shell": "/bin/sh"}
+    }}, "collectors": {"accounts-passwd": {"status": "ok", "into": "accounts.passwd"}}});
+    let checks = run(
+        "fact: accounts.passwd.*.uid\nunique: true\nkeys: {not: {const: toor}}\nwhen: {accounts.passwd.*.shell: {not: {const: /usr/sbin/nologin}}}\nexpect: {type: integer}\n",
+        &users,
+    );
+    assert_eq!(
+        outcomes(&checks),
+        [
+            ("ghost".into(), Outcome::Unknown),
+            ("nobody".into(), Outcome::Skip),
+            ("root".into(), Outcome::Pass),
+        ],
+        "a subject left out by keys, skipped or unknown shares nothing"
+    );
+}
+
+#[test]
+fn unique_refuses_facts_and_a_fact_without_a_star() {
+    let facts = compile(
+        "test/rule",
+        spec("unique: true\nfacts:\n  all:\n    - {fact: a.*.b, expect: {}}\n"),
+    )
+    .err()
+    .unwrap();
+    assert!(facts.contains("takes no facts"), "{facts}");
+    let star = compile("test/rule", spec("unique: true\nfact: os.release.ID\n"))
+        .err()
+        .unwrap();
+    assert!(star.contains("has no *"), "{star}");
+}

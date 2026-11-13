@@ -51,6 +51,7 @@ apt/https:
 | `references` | a list of `{title, url}` sources; an override adds to the list instead of replacing it |
 | `tags` | slugs; a tag with `:` names a control of a standard |
 | `manual` | `true` for a procedure a person follows: no `fact` or `expect`, the steps in `rationale` |
+| `unique` | `true` to fail every subject whose fact value another subject holds too, see [Unique values](#unique-values); `expect` may then be left out |
 
 A fact path is dotted (`os.release.VERSION_ID`), or a JSON Pointer when it
 starts with `/`, for keys holding dots (`/files/~1etc~1ssh~1sshd_config.d~1a.conf/mode`).
@@ -104,6 +105,24 @@ fact that decides it, in `{fact}`, `{got}` and `{field}`; under `none` that is
 the first fact that holds. Facts under one parent need no `facts`: a schema over
 the parent (`anyOf`) reads them, but an absent key there only fails the schema
 and never answers `unknown`.
+
+### Unique values
+
+`unique: true` compares the fact across the rule’s subjects, after `keys`,
+`when` and `expect` have judged each one:
+
+```yaml
+accounts/uid-unique:
+  fact: accounts.passwd.*.uid
+  unique: true
+  message: "{subject} shares uid {got} with {others}"
+```
+
+Every subject that passed and holds a value another passing subject holds
+fails, and `{others}` names the rest, joined by a comma. A subject that is
+skipped, unknown, failed by `expect` or left out by `keys` takes no part, so
+it never makes another fail. The fact needs a `*`, and `facts` takes no
+`unique`.
 
 ### Outcomes
 
@@ -401,4 +420,7 @@ facts need it:
   `{fact}`, not the host or origin of a URL;
 - exit code 3 means an indeterminate compliance answer, not a failed fetch, and
   4 a refused plugin or file;
-- there are no `unique`, `scope`, `hints` or built-in rules.
+- `unique: true` sits beside `fact` and fails each subject that shares a value,
+  where spiderlint’s `unique: <fact>` gives one finding per value, so a waiver
+  or SARIF fingerprint still names one subject;
+- there are no `scope`, `hints` or built-in rules.

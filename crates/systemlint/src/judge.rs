@@ -526,6 +526,11 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
             combine: Combine::All,
         });
     }
+    if spec.unique && spec.facts.is_some() {
+        return Err(fail(
+            "is unique, which compares one fact across subjects, so it takes no facts".to_owned(),
+        ));
+    }
     let (combine, written): (Combine, Vec<Member>) = match (&spec.facts, &spec.fact, &spec.expect) {
         (Some(_), Some(_), _) | (Some(_), _, Some(_)) => {
             return Err(fail(
@@ -540,6 +545,13 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
             vec![Member {
                 fact: fact.clone(),
                 expect: expect.clone(),
+            }],
+        ),
+        (None, Some(fact), None) if spec.unique => (
+            Combine::All,
+            vec![Member {
+                fact: fact.clone(),
+                expect: Map::new(),
             }],
         ),
         (None, None, _) => return Err(fail("has no fact".to_owned())),
@@ -561,6 +573,11 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         members.push((path, validator));
     }
     let fact = members[0].0.clone();
+    if spec.unique && stars(&fact) == 0 {
+        return Err(fail(format!(
+            "is unique across the subjects a * binds, and fact {fact_text} has no *"
+        )));
+    }
     if let Some(m) = written
         .iter()
         .zip(&members)
@@ -917,7 +934,22 @@ fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged
         Some(Judged::Fails(keys, value, pointer, error)) => (keys, value, pointer, error),
         Some(Judged::Holds(..)) => unreachable!("a verdict is never a holding fact"),
     };
-    let got = describe(value.pointer(&pointer));
+    failure(rule, document, bound, &keys, value, &pointer, &error, None)
+}
+
+/// The failing check of `rule` on `bound` for `value` at `keys`, its message filled; `others` names the subjects a `unique` value collides with.
+#[allow(clippy::too_many_arguments)]
+fn failure(
+    rule: &Rule,
+    document: &Value,
+    bound: &[String],
+    keys: &[String],
+    value: &Value,
+    pointer: &str,
+    error: &str,
+    others: Option<String>,
+) -> Check {
+    let got = describe(value.pointer(pointer));
     let field = pointer
         .rsplit('/')
         .next()
@@ -940,6 +972,9 @@ fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged
     .into_iter()
     .map(|(k, v)| (k.to_owned(), v))
     .collect();
+    if let Some(others) = others {
+        variables.insert("others".to_owned(), others);
+    }
     if let Some((path, otherwise)) = &rule.suggest {
         let value = get(document, &concrete(path, bound)).filter(|v| {
             !matches!(v, Value::Null)
@@ -954,7 +989,7 @@ fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged
         Some(template) => fill(template, &variables),
         None => format!("{}{pointer}: {error}", keys.join(".")),
     };
-    let score = score(&rule.spec, value.pointer(&pointer));
+    let score = score(&rule.spec, value.pointer(pointer));
     log::debug!("rule {} fails on {:?} with score {score}", rule.id, bound);
     Check {
         severity: Some(level_of(score)),
@@ -1038,10 +1073,55 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
         .filter(|bound| kept(rule, bound))
         .collect();
     log::debug!("rule {} judges {} subjects", rule.id, bindings.len());
-    bindings
+    let mut checks: Vec<Check> = bindings
         .iter()
         .map(|bound| check(rule, document, bound, None))
-        .collect()
+        .collect();
+    if rule.spec.unique {
+        collide(rule, document, &bindings, &mut checks);
+    }
+    checks
+}
+
+/// Fails every passing check of a `unique` rule whose fact value another passing check holds too.
+fn collide(rule: &Rule, document: &Value, bindings: &[Vec<String>], checks: &mut [Check]) {
+    let mut holders: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for (i, bound) in bindings.iter().enumerate() {
+        let value = get(document, &concrete(&rule.fact, bound));
+        if let Some(value) = value.filter(|_| checks[i].outcome == Outcome::Pass) {
+            holders.entry(value.to_string()).or_default().push(i);
+        }
+    }
+    for (value, held) in holders.iter().filter(|(_, held)| held.len() > 1) {
+        log::debug!(
+            "rule {} finds {value} held by {} subjects",
+            rule.id,
+            held.len()
+        );
+        for &i in held {
+            let others = held
+                .iter()
+                .filter(|&&j| j != i)
+                .map(|&j| bindings[j].last().cloned().unwrap_or_default())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let keys = concrete(&rule.fact, &bindings[i]);
+            let Some(value) = get(document, &keys) else {
+                continue;
+            };
+            let error = format!("is also the value of {others}");
+            checks[i] = failure(
+                rule,
+                document,
+                &bindings[i],
+                &keys,
+                value,
+                "",
+                &error,
+                Some(others),
+            );
+        }
+    }
 }
 
 /// Whether `keys` admits the key of the fact’s last `*`; a binding cut short by an absent fact is kept.

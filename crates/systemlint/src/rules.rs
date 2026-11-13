@@ -113,6 +113,8 @@ pub struct Spec {
     pub tags: Vec<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub manual: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub unique: bool,
     #[serde(skip)]
     pub pinned: bool,
     /// The `when` of every ruleset that defines or brings the rule, by ruleset name.
@@ -258,6 +260,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         references,
         tags,
         manual: over.manual || base.manual,
+        unique: over.unique || base.unique,
         pinned: over.pinned || (!score_set && base.pinned),
         applies,
     }
