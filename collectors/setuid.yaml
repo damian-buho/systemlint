@@ -6,6 +6,7 @@ id: setuid
 privileged: true
 read:
   stat: [/usr/**, /bin/**, /sbin/**, /lib/**, /lib64/**, /opt/**]
+  stat-parents: true
   stat-keep:
     properties: {kind: {const: file}}
     anyOf:

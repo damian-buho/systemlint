@@ -44,8 +44,18 @@ The `setuid` collector walks `/usr`, `/bin`, `/sbin`, `/lib`, `/lib64` and
 set-group-ID bit (`read.stat-keep`) into `setuid.<path>`, in the same stat
 shape. It needs root, since `/opt` often holds directories only root may list,
 and sits outside `files` so the `files` rules never judge a package’s setuid
-file owned by its service user. No rule reads it yet; it is an inventory to
-compare between runs.
+file owned by its service user. It also stats every directory above each kept
+file (`read.stat-parents`), `/` left out, into the same map, since whoever may
+write one of them can swap the file for a program of their own. The `setuid`
+ruleset judges every entry, file or directory:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `setuid/world-writable` | error | a set-user-ID or set-group-ID file, or a directory above it, is writable by others |
+| `setuid/group-writable` | warning | one of them is writable by its group |
+
+A directory with the sticky bit passes both, since then no other user may
+rename or delete the root-owned file in it.
 
 The groups are separate collectors so that one unreadable directory, such as a
 0750 `/etc/sudoers.d` in an unprivileged run, fails its own group alone. Rules

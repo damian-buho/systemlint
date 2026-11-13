@@ -996,3 +996,49 @@ fn only_enabled_unmasked_long_running_units_written_on_the_host_are_judged() {
         "no unit file, no systemd"
     );
 }
+
+// The setuid rule outcomes for one entry of the inventory, or with no setuid facts at all on None.
+fn setuid(stat: Option<Value>) -> Vec<(String, Outcome)> {
+    let mut document = json!({"collectors": {"setuid": {"status": "ok", "into": "setuid"}}});
+    if let Some(stat) = stat {
+        document["setuid"] = json!({"/opt/tool": stat});
+    }
+    judge("setuid", &document)
+        .into_iter()
+        .map(|(rule, _, o)| (rule, o))
+        .collect()
+}
+
+#[test]
+fn a_setuid_file_or_its_directory_fails_when_another_user_may_write_it() {
+    let rules = |world, group| {
+        vec![
+            ("setuid/group-writable".to_owned(), group),
+            ("setuid/world-writable".to_owned(), world),
+        ]
+    };
+    let entry = |kind: &str, mode: &str| {
+        let bits = u32::from_str_radix(mode, 8).unwrap();
+        json!({"exists": true, "kind": kind, "mode": mode, "world-writable": bits & 0o002 != 0, "group-writable": bits & 0o020 != 0})
+    };
+    use Outcome::{Fail, Pass, Unknown};
+    for (kind, mode, world, group) in [
+        ("directory", "0755", Pass, Pass),
+        ("directory", "0757", Fail, Pass),
+        ("directory", "0775", Pass, Fail),
+        ("directory", "1777", Pass, Pass),
+        ("directory", "2777", Fail, Fail),
+        ("directory", "3777", Pass, Pass),
+        ("file", "4755", Pass, Pass),
+        ("file", "4757", Fail, Pass),
+        ("file", "2775", Pass, Fail),
+        ("file", "5777", Fail, Fail),
+    ] {
+        assert_eq!(
+            setuid(Some(entry(kind, mode))),
+            rules(world, group),
+            "{kind} {mode}"
+        );
+    }
+    assert_eq!(setuid(None), rules(Unknown, Unknown));
+}
