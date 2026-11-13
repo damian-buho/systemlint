@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: each user’s ~/.ssh and what is in it, kept from other users
+rules:
+  ssh-user/world-writable:
+    title: SSH user file writable by every user
+    fact: ssh-user.*.*.world-writable
+    expect: {const: false}
+    severity: error
+    score: 9.0
+    message: "{subject} is writable by every user, who can then add a key or a command and log in as its owner"
+    fix: chmod o-w the file
+    remedy: {chmod: o-w}
+    docs: https://man.openbsd.org/sshd#FILES
+    tags: [ssh]
+  ssh-user/directory-mode:
+    title: ~/.ssh open to other users
+    fact: ssh-user.directories.*.mode
+    expect: {pattern: "^[0-7]{3}0$"}
+    severity: warning
+    score: 3.0
+    message: "{subject} has mode {got}; other users can reach its public keys, known_hosts and config, which name the hosts its owner logs in to"
+    fix: chmod 0700 the directory
+    remedy: {chmod: o-rwx}
+    docs: https://man.openbsd.org/ssh#FILES
+    tags: [ssh]

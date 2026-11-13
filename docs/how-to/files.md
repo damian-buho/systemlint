@@ -88,6 +88,25 @@ world-writable by design. The `tmp` ruleset judges them:
 
 A directory no other user can write, or an absent one, passes.
 
+## Users’ SSH directories
+
+Two collectors stat each `/etc/passwd` home’s `.ssh` (`read.stat-from`
+`{accounts.passwd.*.home}/.ssh`) into `ssh-user.directories.<path>`, and every
+entry in it, dotted names left out, into `ssh-user.files.<path>`. Both need
+root, since another user’s home is often 0750, and sit outside `files`, since
+these belong to their users, not to root. A home that is absent, a file or a
+relative path names nothing. The `ssh-user` ruleset judges them:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `ssh-user/world-writable` | error | a `.ssh` or an entry in it is writable by others, who can then add a key and log in as its owner |
+| `ssh-user/directory-mode` | warning | a `.ssh` grants others any access, so they reach its public keys, `known_hosts` and `config` |
+
+Group bits pass both: Debian and Ubuntu give each user a group of their own,
+and their OpenSSH accepts a group-writable `.ssh` when that group holds its
+owner alone. A symlink passes, its booleans being false; its target is not
+followed.
+
 ## Mounts
 
 Two collectors read the mount table, each keyed by mount point with its
