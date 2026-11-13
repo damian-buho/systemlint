@@ -556,3 +556,127 @@ fn every_rule_carrying_a_lynis_reference_is_tagged_lynis_and_back() {
         }
     }
 }
+
+// A document with the accounts collectors' facts: passwd, group and shadow entries by name.
+fn accounts(passwd: Value, group: Value, shadow: Value) -> Value {
+    json!({"accounts": {"passwd": passwd, "group": group, "shadow": shadow}, "collectors": {
+        "accounts-passwd": {"status": "ok", "into": "accounts.passwd"},
+        "accounts-group": {"status": "ok", "into": "accounts.group"},
+        "accounts-shadow": {"status": "ok", "into": "accounts.shadow"}}})
+}
+
+// One passwd entry with the given uid and password word, never repeated.
+fn user(uid: u32, password: &str) -> Value {
+    json!({"uid": uid, "password": password, "shadowed": []})
+}
+
+// The (subject, outcome) pairs one accounts rule gives.
+fn account_rule(rule: &str, document: &Value) -> Vec<(String, Outcome)> {
+    judge("accounts", document)
+        .into_iter()
+        .filter(|(r, _, _)| r == rule)
+        .map(|(_, s, o)| (s, o))
+        .collect()
+}
+
+#[test]
+fn a_second_uid_zero_fails_once_and_a_shared_uid_fails_every_holder() {
+    let document = accounts(
+        json!({"root": user(0, "shadow"), "toor": user(0, "shadow"), "bin": user(1, "shadow"), "a": user(1000, "shadow"), "b": user(1000, "shadow"), "c": user(1001, "shadow")}),
+        json!({}),
+        json!({}),
+    );
+    assert_eq!(
+        account_rule("accounts/uid-zero", &document),
+        [
+            ("a".into(), Outcome::Pass),
+            ("b".into(), Outcome::Pass),
+            ("bin".into(), Outcome::Pass),
+            ("c".into(), Outcome::Pass),
+            ("toor".into(), Outcome::Fail),
+        ],
+        "uid 1 is the edge: only 0 is root"
+    );
+    assert_eq!(
+        account_rule("accounts/uid-unique", &document),
+        [
+            ("a".into(), Outcome::Fail),
+            ("b".into(), Outcome::Fail),
+            ("bin".into(), Outcome::Pass),
+            ("c".into(), Outcome::Pass),
+            ("root".into(), Outcome::Skip),
+            ("toor".into(), Outcome::Skip),
+        ],
+        "uid 0 is accounts/uid-zero’s finding, not a second one"
+    );
+}
+
+#[test]
+fn a_shared_gid_and_a_repeated_name_fail() {
+    let group = |gid: u32, shadowed: Value| json!({"gid": gid, "shadowed": shadowed});
+    let document = accounts(
+        json!({"root": {"uid": 0, "password": "shadow", "shadowed": [9]}}),
+        json!({"adm": group(4, json!([])), "tty": group(5, json!([])), "wheel": group(5, json!([12, 14]))}),
+        json!({}),
+    );
+    assert_eq!(
+        account_rule("accounts/gid-unique", &document),
+        [
+            ("adm".into(), Outcome::Pass),
+            ("tty".into(), Outcome::Fail),
+            ("wheel".into(), Outcome::Fail),
+        ]
+    );
+    assert_eq!(
+        account_rule("accounts/group-repeated", &document),
+        [
+            ("adm".into(), Outcome::Pass),
+            ("tty".into(), Outcome::Pass),
+            ("wheel".into(), Outcome::Fail),
+        ]
+    );
+    assert_eq!(
+        account_rule("accounts/user-repeated", &document),
+        [("root".into(), Outcome::Fail)]
+    );
+}
+
+#[test]
+fn an_empty_password_fails_where_the_system_reads_it() {
+    let document = accounts(
+        json!({"open": user(1000, "empty"), "viashadow": user(1001, "shadow"), "locked": user(1002, "shadow"), "inline": user(1003, "hash")}),
+        json!({}),
+        json!({"open": {"password": "hash"}, "viashadow": {"password": "empty"}, "locked": {"password": "locked"}, "inline": {"password": "empty"}}),
+    );
+    assert_eq!(
+        account_rule("accounts/passwd-empty-password", &document),
+        [
+            ("inline".into(), Outcome::Pass),
+            ("locked".into(), Outcome::Pass),
+            ("open".into(), Outcome::Fail),
+            ("viashadow".into(), Outcome::Pass),
+        ]
+    );
+    assert_eq!(
+        account_rule("accounts/shadow-empty-password", &document),
+        [
+            ("inline".into(), Outcome::Skip),
+            ("locked".into(), Outcome::Pass),
+            ("open".into(), Outcome::Skip),
+            ("viashadow".into(), Outcome::Fail),
+        ],
+        "shadow counts only where /etc/passwd defers to it"
+    );
+    let mut unprivileged = document.clone();
+    unprivileged["accounts"]
+        .as_object_mut()
+        .unwrap()
+        .remove("shadow");
+    unprivileged["collectors"]["accounts-shadow"] =
+        json!({"status": "skipped", "into": "accounts.shadow", "reason": "privileged"});
+    assert_eq!(
+        account_rule("accounts/shadow-empty-password", &unprivileged),
+        [(String::new(), Outcome::Unknown)],
+        "an unprivileged run never reads as a pass"
+    );
+}

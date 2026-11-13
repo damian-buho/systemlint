@@ -1,0 +1,91 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Local accounts and groups that share an identity, hide behind a repeated name or open without a password
+rules:
+  accounts/uid-zero:
+    title: An account other than root has uid 0
+    fact: accounts.passwd.*.uid
+    keys: {not: {const: root}}
+    expect: {not: {const: 0}}
+    severity: error
+    score: 8.0
+    message: "{subject} has uid 0 in /etc/passwd, so it holds every privilege root does under another name"
+    fix: give {subject} its own uid with usermod --uid, or remove it with userdel if nobody needs it
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
+    references:
+      - {title: Lynis AUTH-9204, url: "https://cisofy.com/lynis/controls/AUTH-9204/"}
+    tags: [accounts, lynis]
+  accounts/uid-unique:
+    title: Accounts share a uid
+    fact: accounts.passwd.*.uid
+    when: {accounts.passwd.*.uid: {not: {const: 0}}}
+    unique: true
+    severity: warning
+    score: 5.0
+    message: "{subject} shares uid {got} with {others}, so each owns the other’s files and processes"
+    fix: give {subject} a uid of its own with usermod --uid, then chown what it should own
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
+    references:
+      - {title: Lynis AUTH-9208, url: "https://cisofy.com/lynis/controls/AUTH-9208/"}
+    tags: [accounts, lynis]
+  accounts/gid-unique:
+    title: Groups share a gid
+    fact: accounts.group.*.gid
+    unique: true
+    severity: warning
+    score: 5.0
+    message: "{subject} shares gid {got} with {others}, so a member of one gets the other’s file access"
+    fix: give {subject} a gid of its own with groupmod --gid, then chgrp what it should own
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/group.5.html
+    references:
+      - {title: Lynis AUTH-9222, url: "https://cisofy.com/lynis/controls/AUTH-9222/"}
+    tags: [accounts, lynis]
+  accounts/user-repeated:
+    title: A user name appears twice in /etc/passwd
+    fact: accounts.passwd.*.shadowed
+    expect: {maxItems: 0}
+    severity: warning
+    score: 4.0
+    message: "{subject} appears again on line(s) {got} of /etc/passwd, which the system never reads, since the first line wins"
+    fix: merge what you meant into the first {subject} line of /etc/passwd and delete the later one with vipw
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
+    tags: [accounts]
+  accounts/group-repeated:
+    title: A group name appears twice in /etc/group
+    fact: accounts.group.*.shadowed
+    expect: {maxItems: 0}
+    severity: warning
+    score: 4.0
+    message: "{subject} appears again on line(s) {got} of /etc/group, which the system never reads, since the first line wins"
+    fix: merge the members you meant into the first {subject} line of /etc/group and delete the later one with vigr
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/group.5.html
+    references:
+      - {title: Lynis AUTH-9226, url: "https://cisofy.com/lynis/controls/AUTH-9226/"}
+    tags: [accounts, lynis]
+  accounts/passwd-empty-password:
+    title: An account has an empty password field in /etc/passwd
+    fact: accounts.passwd.*.password
+    expect: {not: {const: empty}}
+    severity: error
+    score: 8.0
+    message: "{subject} has an empty password field in /etc/passwd, so any service that allows empty passwords lets it in without one"
+    fix: run passwd {subject} to set a password, or passwd --lock {subject} if nobody logs in as it
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
+    references:
+      - {title: Lynis AUTH-9283, url: "https://cisofy.com/lynis/controls/AUTH-9283/"}
+    tags: [accounts, lynis]
+  accounts/shadow-empty-password:
+    title: An account has an empty password in /etc/shadow
+    fact: accounts.shadow.*.password
+    when: {accounts.passwd.*.password: shadow}
+    expect: {not: {const: empty}}
+    severity: error
+    score: 8.0
+    message: "{subject} has an empty password in /etc/shadow, so any service that allows empty passwords lets it in without one"
+    fix: run passwd {subject} to set a password, or passwd --lock {subject} if nobody logs in as it
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
+    references:
+      - {title: Lynis AUTH-9283, url: "https://cisofy.com/lynis/controls/AUTH-9283/"}
+    tags: [accounts, lynis]
