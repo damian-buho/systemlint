@@ -87,8 +87,9 @@ Clona el repositorio y ejecuta `make`: cada paso de compilación, destino y punt
 - [File permissions](../how-to/files.md)
 - [Outputs: SARIF and Prometheus metrics](../how-to/outputs.md)
 - [Plugin protocol v1](../how-to/protocol.md)
+- [Rule book: how to write a shipped rule](../how-to/rule-book.md)
 - [Rules, rulesets and compliance](../how-to/rules.md)
-- [Kernel parameters, Docker and systemd units](../how-to/services.md)
+- [Kernel parameters, Docker, systemd units and ufw](../how-to/services.md)
 - [OpenSSH server](../how-to/sshd.md)
 
 ## Políticas

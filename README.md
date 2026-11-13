@@ -85,8 +85,9 @@ Clone the repository and run `make` — every build step, target and entry point
 - [File permissions](docs/how-to/files.md)
 - [Outputs: SARIF and Prometheus metrics](docs/how-to/outputs.md)
 - [Plugin protocol v1](docs/how-to/protocol.md)
+- [Rule book: how to write a shipped rule](docs/how-to/rule-book.md)
 - [Rules, rulesets and compliance](docs/how-to/rules.md)
-- [Kernel parameters, Docker and systemd units](docs/how-to/services.md)
+- [Kernel parameters, Docker, systemd units and ufw](docs/how-to/services.md)
 - [OpenSSH server](docs/how-to/sshd.md)
 
 ## Policies
