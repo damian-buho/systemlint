@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! `authorized_keys` files per account: each key’s type, size, fingerprint, comment and options, never the key itself.
+//! `authorized_keys` files per account: each key’s type, size, fingerprint, comment, options and line hash, never the key itself.
 
 use std::collections::BTreeMap;
 
@@ -77,8 +77,8 @@ pub fn authorized(
 }
 
 /// One `authorized_keys` line: `None` when blank or a comment, else the key or why sshd skips it.
-pub fn key(line: &str) -> std::result::Result<Option<Value>, String> {
-    let line = line.trim();
+pub fn key(raw: &str) -> std::result::Result<Option<Value>, String> {
+    let line = raw.trim();
     if line.is_empty() || line.starts_with('#') {
         return Ok(None);
     }
@@ -110,6 +110,7 @@ pub fn key(line: &str) -> std::result::Result<Option<Value>, String> {
         "fingerprint": format!("SHA256:{}", encode(&Sha256::digest(&blob))),
         "comment": words.next().unwrap_or_default().trim(),
         "options": options,
+        "line-sha256": Sha256::digest(raw.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>(),
     })))
 }
 
@@ -286,6 +287,11 @@ mod tests {
         assert_eq!(k["comment"], "alice@example");
         assert_eq!(k["options"], json!({}));
         assert_eq!(k["fingerprint"], ED25519_FINGERPRINT);
+        assert_eq!(
+            k["line-sha256"].as_str().map(str::len),
+            Some(64),
+            "the raw line’s hash, which fix compares before commenting it out"
+        );
         assert!(!k.to_string().contains("AAAAC3"), "the key never leaves");
         let rsa = key(RSA1024).unwrap().unwrap();
         assert_eq!(

@@ -161,7 +161,9 @@ path with another token is left out with a diagnostic, as sshd refuses it.
 `authorized-keys` keeps, per account, the `stat` of each file read and each
 key keyed `path:line`: its type, size in bits, SHA256 fingerprint as
 `ssh-keygen -l` prints it, comment, and options, a flag as `true` and a
-valued option as the list of every value it was given. The key itself never
+valued option as the list of every value it was given. `line-sha256` hashes
+the line as written, so `systemlint fix` comments out only the line the lint
+judged. The key itself never
 leaves the plugin. A blank or comment line holds no key; a line sshd would
 skip is a diagnostic naming it. An account none of whose files exist has no
 entry.
