@@ -11,8 +11,8 @@ and cache, and the `apt` ruleset judges them. Nothing runs `apt`: every input
 is a file, so a live host and `--root` give the same facts.
 
 ```sh
-systemlint lint --tags apt
-systemlint lint --root /mnt/image --tags apt
+systemlint check --tags apt
+systemlint check --root /mnt/image --tags apt
 ```
 
 ## Collectors
@@ -83,7 +83,7 @@ A vendor that publishes one suite for every release, such as `xenial` for
 all Ubuntu versions, fails `apt/stale-suite` by design; waive it:
 
 ```yaml
-lint:
+check:
   waivers:
     - {rule: apt/stale-suite, subject: /etc/apt/sources.list.d/signal-desktop.sources:*, reason: Signal publishes xenial only, until: 2027-06-30}
 ```

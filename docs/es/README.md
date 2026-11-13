@@ -64,13 +64,13 @@ El archivo contiene el núcleo, sus complementos, recolectores y conjuntos de re
 Analiza una imagen de contenedor con sus propietarios y permisos intactos (Docker 28 o posterior), en SARIF:
 
 ```sh
-docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest lint --root /subject --format sarif > systemlint.sarif
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest check --root /subject --format sarif > systemlint.sarif
 ```
 
 Analiza el equipo en el que se ejecuta, en solo lectura, como root y solo con la capacidad de leer cualquier archivo:
 
 ```sh
-docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest lint --root /host
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest check --root /host
 ```
 
 ## Compilación

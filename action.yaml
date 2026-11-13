@@ -25,7 +25,7 @@ inputs:
     required: false
     default: 'error'
   config:
-    description: 'Systemlint configuration file (collect, lint, waivers), relative to the workspace.'
+    description: 'Systemlint configuration file (collect, check, waivers), relative to the workspace.'
     required: false
     default: ''
   upload_sarif:

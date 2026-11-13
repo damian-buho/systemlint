@@ -55,7 +55,7 @@ pub struct Config {
     #[serde(default)]
     pub collect: Collect,
     #[serde(default)]
-    pub lint: Lint,
+    pub check: Check,
     #[serde(default)]
     pub fix: Fix,
     #[serde(default, rename = "project-config")]
@@ -71,10 +71,10 @@ pub struct Fix {
     pub enabled: Option<bool>,
 }
 
-/// The `lint:` section: where rulesets live, inline ones, the default selectors, var values, the threshold and waivers.
+/// The `check:` section: where rulesets live, inline ones, the default selectors, var values, the threshold and waivers.
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Lint {
+pub struct Check {
     #[serde(default)]
     pub directories: Vec<PathBuf>,
     #[serde(default)]
@@ -176,7 +176,7 @@ impl Config {
         let text = std::fs::read_to_string(path).map_err(|e| crate::explain::io("read the configuration", path, &e, &fixes))?;
         let mut tree: Value = crate::yaml::from_str::<Option<Value>>(&text).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?.unwrap_or_else(|| Value::Object(serde_json::Map::new()));
         let base = path.parent().unwrap_or(Path::new("."));
-        for pointer in ["/plugins/directories", "/collect/directories", "/lint/directories"] {
+        for pointer in ["/plugins/directories", "/collect/directories", "/check/directories"] {
             for dir in tree.pointer_mut(pointer).and_then(Value::as_array_mut).into_iter().flatten() {
                 if let Some(relative) = dir.as_str().filter(|d| Path::new(d).is_relative()) {
                     *dir = Value::from(base.join(relative).display().to_string());
@@ -202,10 +202,10 @@ impl Config {
                 return Err(format!("{}: collect.collectors {}: an inline collector can’t exec; put it in a collect.directories file", path.display(), collector.id));
             }
         }
-        if let Some(text) = &config.lint.fail_on {
-            text.parse::<FailOn>().map_err(|e| format!("{}: lint.{e}", path.display()))?;
+        if let Some(text) = &config.check.fail_on {
+            text.parse::<FailOn>().map_err(|e| format!("{}: check.{e}", path.display()))?;
         }
-        if let Some(w) = config.lint.waivers.iter().find(|w| !valid_day(&w.until) || w.reason.trim().is_empty()) {
+        if let Some(w) = config.check.waivers.iter().find(|w| !valid_day(&w.until) || w.reason.trim().is_empty()) {
             return Err(format!("{}: the waiver of rule {} needs a reason and an until day as YYYY-MM-DD, got until {:?}", path.display(), w.rule, w.until));
         }
         log::debug!("config {} names {} plugin and {} collector directories", path.display(), config.plugins.directories.len(), config.collect.directories.len());

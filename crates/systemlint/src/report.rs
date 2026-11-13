@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Lint output in every format, each standard’s answer within it, and the `--fail-on` threshold.
+//! Check output in every format, each standard’s answer within it, and the `--fail-on` threshold.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -14,7 +14,7 @@ use crate::comply::{Report, Verdict};
 use crate::judge::{Check, Outcome, band};
 use crate::rules::Severity;
 
-/// The failures that make `lint` exit 1: at or above a level, at or above a score, or never.
+/// The failures that make `check` exit 1: at or above a level, at or above a score, or never.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FailOn {
     Level(Severity),
@@ -106,7 +106,7 @@ pub fn colour(choice: Colour, var: impl Fn(&str) -> Option<String>, terminal: bo
     decided
 }
 
-/// The `--color` choice, also `lint.color`.
+/// The `--color` choice, also `check.color`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Colour {
@@ -643,7 +643,7 @@ fn name(value: impl serde::Serialize) -> String {
 pub fn lint_textfile(document: &Value, checks: &[Check], compliance: &[Report]) -> String {
     let mut out = String::new();
     let s = summary(checks);
-    out.push_str("# HELP systemlint_checks Checks of the last lint run by outcome.\n# TYPE systemlint_checks gauge\n");
+    out.push_str("# HELP systemlint_checks Checks of the last check by outcome.\n# TYPE systemlint_checks gauge\n");
     for outcome in ["pass", "fail", "waived", "unknown", "skip", "not-applicable", "manual"] {
         let _ = writeln!(out, "systemlint_checks{{outcome=\"{outcome}\"}} {}", s[outcome]);
     }
@@ -652,16 +652,16 @@ pub fn lint_textfile(document: &Value, checks: &[Check], compliance: &[Report]) 
         let outcome = if check.outcome == Outcome::Fail && !check.is_failing() { "waived".to_owned() } else { name(check.outcome) };
         *per_rule.entry((check.rule.as_str(), outcome)).or_insert(0_usize) += 1;
     }
-    out.push_str("# HELP systemlint_rule_checks Checks of the last lint run by rule and outcome.\n# TYPE systemlint_rule_checks gauge\n");
+    out.push_str("# HELP systemlint_rule_checks Checks of the last check by rule and outcome.\n# TYPE systemlint_rule_checks gauge\n");
     for ((rule, outcome), count) in &per_rule {
         let _ = writeln!(out, "systemlint_rule_checks{{rule=\"{}\",outcome=\"{outcome}\"}} {count}", label(rule));
     }
-    out.push_str("# HELP systemlint_failures Failing checks of the last lint run by severity, waived ones apart.\n# TYPE systemlint_failures gauge\n");
+    out.push_str("# HELP systemlint_failures Failing checks of the last check by severity, waived ones apart.\n# TYPE systemlint_failures gauge\n");
     for severity in [Severity::Error, Severity::Warning, Severity::Info, Severity::Hint] {
         let _ = writeln!(out, "systemlint_failures{{severity=\"{}\"}} {}", name(severity), checks.iter().filter(|c| c.is_failing() && c.severity == Some(severity)).count());
     }
     if let Some(rating) = rate(checks) {
-        out.push_str("# HELP systemlint_rating Share of judged checks the last lint run kept after failure costs, labelled with its grade.\n# TYPE systemlint_rating gauge\n");
+        out.push_str("# HELP systemlint_rating Share of judged checks the last check kept after failure costs, labelled with its grade.\n# TYPE systemlint_rating gauge\n");
         let _ = writeln!(out, "systemlint_rating{{grade=\"{}\"}} {}", rating.grade, rating.score);
     }
     if !compliance.is_empty() {
@@ -686,7 +686,7 @@ pub fn lint_textfile(document: &Value, checks: &[Check], compliance: &[Report]) 
     out
 }
 
-/// How `lint` prints its report, the `--format` choice, also `lint.format`.
+/// How `check` prints its report, the `--format` choice, also `check.format`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Format {

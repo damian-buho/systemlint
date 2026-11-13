@@ -62,13 +62,13 @@ The archive holds the core, its plugins, collectors and rulesets under `bin/`, `
 Lint a container image with its owners and modes intact (Docker 28 or later), as SARIF:
 
 ```sh
-docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest lint --root /subject --format sarif > systemlint.sarif
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest check --root /subject --format sarif > systemlint.sarif
 ```
 
 Lint the host it runs on, read-only, as root with only the capability to read every file:
 
 ```sh
-docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest lint --root /host
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest check --root /host
 ```
 
 ## Building

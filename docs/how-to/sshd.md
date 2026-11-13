@@ -12,8 +12,8 @@ cryptography. The rules give the same answer whether the configuration came
 from `sshd -T` or from the files.
 
 ```sh
-sudo systemlint lint --tags ssh
-systemlint lint --root /mnt/image --tags ssh
+sudo systemlint check --tags ssh
+systemlint check --root /mnt/image --tags ssh
 ```
 
 ## Collector
@@ -94,7 +94,7 @@ block.
 The rules follow the controls of
 [dev-sec ssh-baseline](https://github.com/dev-sec/ssh-baseline) (Apache-2.0),
 whose IDs each rule carries as a `dev-sec-ssh-baseline:<id>` tag, so
-`systemlint lint --standard dev-sec-ssh-baseline` answers per control. The wording and
+`systemlint check --standard dev-sec-ssh-baseline` answers per control. The wording and
 thresholds are systemlint’s own.
 
 | Rule | Control | Severity | Fails when |

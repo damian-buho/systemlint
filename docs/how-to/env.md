@@ -12,8 +12,8 @@ image config, and the `env` ruleset judges the variables that inject code,
 turn off TLS checks, carry credentials or open the `PATH`.
 
 ```sh
-sudo systemlint lint --tags env
-systemlint lint --root rootfs --image-config config.json --tags env
+sudo systemlint check --tags env
+systemlint check --root rootfs --image-config config.json --tags env
 ```
 
 ## Collectors

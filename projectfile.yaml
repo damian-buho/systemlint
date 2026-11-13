@@ -148,7 +148,7 @@ org:
             uk: "Перевірте хост, на якому запускаєте, лише для читання, від root і лише з можливістю читати будь-який файл:"
           syntax: sh
           commands:
-            - docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint ${org.projectfile.artifacts{kind=image}.ref} lint --root /host
+            - docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint ${org.projectfile.artifacts{kind=image}.ref} check --root /host
         - name: image
           priority: 30
           prefix:
@@ -157,7 +157,7 @@ org:
             uk: "Перевірте образ контейнера зі збереженими власниками й правами (Docker 28 або новіший), у форматі SARIF:"
           syntax: sh
           commands:
-            - docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint ${org.projectfile.artifacts{kind=image}.ref} lint --root /subject --format sarif > systemlint.sarif
+            - docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint ${org.projectfile.artifacts{kind=image}.ref} check --root /subject --format sarif > systemlint.sarif
     conventions:
       fragments:
         parents:

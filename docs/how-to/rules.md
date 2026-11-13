@@ -6,10 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Rules, rulesets and compliance
 
-`systemlint lint` judges a facts document with declarative rules, and with
+`systemlint check` judges a facts document with declarative rules, and with
 `--standard` groups that judgement by the controls of a standard too. It reads
-a saved document (`lint facts.yaml`, `lint -` for stdin) or collects one first
-(`lint`, `lint --root DIR`).
+a saved document (`check facts.yaml`, `check -` for stdin) or collects one first
+(`check`, `check --root DIR`).
 
 ## A rule
 
@@ -175,8 +175,8 @@ grade closes the human report and is `rating` in JSON, the run’s
 
 A ruleset is a YAML file named after itself, shipped in
 `../share/systemlint/rulesets/` beside the binary or found in a
-`lint.directories` entry, under the same ownership and permission checks as
-plugins. A config may also hold rulesets inline under `lint.rulesets`; a name
+`check.directories` entry, under the same ownership and permission checks as
+plugins. A config may also hold rulesets inline under `check.rulesets`; a name
 used twice is refused.
 
 ```yaml
@@ -218,7 +218,7 @@ rules:
 ```
 
 A value comes from the first that sets it: `--var NAME=VALUE`, `--vars FILE` (a
-YAML map), the environment variable `from-env` names, `lint.vars`, then
+YAML map), the environment variable `from-env` names, `check.vars`, then
 `default`. A string that is only `${name}` takes the value with its type, so
 `maximum` above gets the number 90; a text value from a flag or the environment
 takes the type of a number or boolean default, and fails when it is not one.
@@ -229,7 +229,7 @@ its ruleset does not declare, or when a value names a var no ruleset declares.
 
 ## Selecting rules
 
-`--tags`, or `lint.tags` in the config, is one comma list of selectors. Each
+`--tags`, or `check.tags` in the config, is one comma list of selectors. Each
 names a ruleset, or is a glob (`*` any run of characters, `/` and `:`
 included; `?` one) over rule IDs and tags. The list is a union: a ruleset
 brings its overrides, an ID or tag pick brings the plain rule unless a ruleset
@@ -237,8 +237,8 @@ already brought it. `!x` removes what `x` names; `off` rules drop out. With no
 selector every rule runs. A selector matching nothing is an error.
 
 ```sh
-systemlint lint facts.yaml --tags 'strict,!experimental'
-systemlint lint facts.yaml --tags 'cis-ubuntu-26.04:5.2.*'
+systemlint check facts.yaml --tags 'strict,!experimental'
+systemlint check facts.yaml --tags 'cis-ubuntu-26.04:5.2.*'
 ```
 
 ## Remedies
@@ -276,7 +276,7 @@ none needed, 1 a change failed or was declined, 2 a change needs `--force`.
 ## Waivers
 
 ```yaml
-lint:
+check:
   waivers:
     - {rule: apt/*, subject: /etc/apt/sources.list.d/*, reason: the mirror moves in December, until: 2026-12-31}
 ```
@@ -287,7 +287,7 @@ subject or those its `subject` glob matches, through the `until` day. Both
 no exit code; after `until` it is a finding again, marked as expired. Waiver
 expiry is the only judgement that reads the clock at lint time.
 
-## Lint output and exit codes
+## Check output and exit codes
 
 `--format human` prints one block per rule, an empty line after each: a
 `Not run` block per reason a collector was skipped (no root, no
@@ -318,10 +318,10 @@ when stdout is not a terminal, and `FORCE_COLOR` turns it on.
 `--format json` prints the document’s `meta`, every check, passes included, and
 the counts; `--format sarif` and `--format textfile` are described in
 [Outputs](outputs.md). `-o PATH` (`--output`) writes the report atomically instead of
-printing it, then one stderr line with its number of findings, which `-q` drops. `--fail-on` (`lint.fail-on`) takes `error`, the default, `warning`,
+printing it, then one stderr line with its number of findings, which `-q` drops. `--fail-on` (`check.fail-on`) takes `error`, the default, `warning`,
 `info`, a score from 0.1 to 9.9, or `never`; a hint never fails a run.
 
-| Code | `lint` | `lint --standard` | `facts` |
+| Code | `check` | `check --standard` | `facts` |
 | --- | --- | --- | --- |
 | 0 | no failure at `--fail-on` | compliant or not applicable | every collector ended `ok` or `skipped` |
 | 1 | a failure at `--fail-on` | non-compliant | a collector ended `error`, so the document is partial |
@@ -338,8 +338,8 @@ printing it, then one stderr line with its number of findings, which `-q` drops.
 
 ## Compliance
 
-`systemlint lint --standard <standard>` adds the rules tagged
-`<standard>:<control>` to the rules `--tags` or `lint.tags` select, or runs them
+`systemlint check --standard <standard>` adds the rules tagged
+`<standard>:<control>` to the rules `--tags` or `check.tags` select, or runs them
 alone when neither is set, and answers per control; `--standard` may be given
 several times. The verdict, not `--fail-on`, then decides the exit code, so a
 failing hint still fails its control:
@@ -367,7 +367,7 @@ standard; SARIF and textfile carry it as described in [Outputs](outputs.md).
 
 A catalog, `<standard>.yaml` in a rules directory or in the `standards`
 directory beside it (`../share/systemlint/standards/` beside the binary, or a
-sibling of a `lint.directories` entry), lists every control, adds the display
+sibling of a `check.directories` entry), lists every control, adds the display
 name, and gives coverage. Ruleset loading skips a catalog, and catalog lookup
 skips a ruleset:
 

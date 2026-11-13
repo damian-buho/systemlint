@@ -21,11 +21,11 @@ b19-assert matches "FACTS" '"status": "ok"' "${facts}"
 
 systemlint facts --root "${work}/root" --output "${work}/facts.yaml"
 b19-assert equals "FACTS" "600" "$(stat --format %a "${work}/facts.yaml")"
-systemlint --quiet lint --tags '!files' - < "${work}/facts.yaml"
+systemlint --quiet check --tags '!files' - < "${work}/facts.yaml"
 
 stdout="$(cd "${work}" && systemlint facts --root "${work}/root" --output - --format json)"
 b19-assert matches "DASH" '"VERSION_CODENAME": "inside root"' "${stdout}"
-report="$(cd "${work}" && systemlint --quiet lint --tags '!files' --format textfile --fail-on never --output - - < "${work}/facts.yaml")"
+report="$(cd "${work}" && systemlint --quiet check --tags '!files' --format textfile --fail-on never --output - - < "${work}/facts.yaml")"
 b19-assert matches "DASH" 'systemlint_collector_status\{collector="os-release",status="ok"\} 1' "${report}"
 b19-assert equals "DASH" "absent" "$(test -e "${work}/-" && echo present || echo absent)"
 

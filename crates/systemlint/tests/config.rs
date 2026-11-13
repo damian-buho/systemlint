@@ -42,12 +42,12 @@ fn missing_file_names_the_path() {
 }
 
 #[test]
-fn the_lint_section_resolves_directories_and_read_waivers() {
-    let path = write("lint", "lint:\n  directories: [rules]\n  tags: [fixture, '!experimental']\n  fail-on: warning\n  rulesets:\n    strict: {extends: [fixture], rules: {apt/https: error}}\n  waivers:\n    - {rule: apt/*, subject: /etc/apt/*, reason: mirror moves in December, until: 2026-12-31}\n");
+fn the_check_section_resolves_directories_and_read_waivers() {
+    let path = write("check", "check:\n  directories: [rules]\n  tags: [fixture, '!experimental']\n  fail-on: warning\n  rulesets:\n    strict: {extends: [fixture], rules: {apt/https: error}}\n  waivers:\n    - {rule: apt/*, subject: /etc/apt/*, reason: mirror moves in December, until: 2026-12-31}\n");
     let config = Config::load(&path).unwrap();
-    assert_eq!(config.lint.directories, [path.parent().unwrap().join("rules")]);
-    assert_eq!((config.lint.tags.len(), config.lint.waivers[0].until.as_str()), (2, "2026-12-31"));
-    assert!(config.lint.rulesets.contains_key("strict"));
+    assert_eq!(config.check.directories, [path.parent().unwrap().join("rules")]);
+    assert_eq!((config.check.tags.len(), config.check.waivers[0].until.as_str()), (2, "2026-12-31"));
+    assert!(config.check.rulesets.contains_key("strict"));
 }
 
 #[test]
@@ -58,10 +58,10 @@ fn a_comply_section_is_refused() {
 
 #[test]
 fn a_waiver_without_a_day_or_reason_and_a_bad_fail_on_are_refused() {
-    for (name, text) in [("no-day", "lint:\n  waivers: [{rule: a, reason: r, until: soon}]\n"), ("no-reason", "lint:\n  waivers: [{rule: a, reason: ' ', until: 2026-12-31}]\n")] {
+    for (name, text) in [("no-day", "check:\n  waivers: [{rule: a, reason: r, until: soon}]\n"), ("no-reason", "check:\n  waivers: [{rule: a, reason: ' ', until: 2026-12-31}]\n")] {
         assert!(Config::load(&write(name, text)).unwrap_err().contains("needs a reason and an until day"), "{name}");
     }
-    assert!(Config::load(&write("fail-on", "lint:\n  fail-on: loud\n")).unwrap_err().contains("lint.fail-on \"loud\""));
+    assert!(Config::load(&write("fail-on", "check:\n  fail-on: loud\n")).unwrap_err().contains("check.fail-on \"loud\""));
 }
 
 #[test]
@@ -109,29 +109,29 @@ fn an_empty_variable_and_no_home_add_no_layer() {
 
 #[test]
 fn a_higher_layer_replaces_a_lower_one_key_by_key() {
-    let system = write("layer-system", "collect:\n  timeout: 10\nlint:\n  tags: [apt]\n  fail-on: warning\n");
-    let user = write("layer-user", "plugins:\n  directories: [plugins]\nlint:\n  format: sarif\n  color: never\n");
-    let project = write("layer-project", "collect:\n  timeout: 20\nlint:\n  tags: [sshd]\n");
+    let system = write("layer-system", "collect:\n  timeout: 10\ncheck:\n  tags: [apt]\n  fail-on: warning\n");
+    let user = write("layer-user", "plugins:\n  directories: [plugins]\ncheck:\n  format: sarif\n  color: never\n");
+    let project = write("layer-project", "collect:\n  timeout: 20\ncheck:\n  tags: [sshd]\n");
     let absent = system.with_file_name("absent.yaml");
     let config = Config::layered(&[(system, Layer::Optional), (user.clone(), Layer::Optional), (absent, Layer::Optional), (project, Layer::Required)]).unwrap();
     assert_eq!(config.collect.timeout, Some(20));
-    assert_eq!((config.lint.tags, config.lint.fail_on.as_deref()), (vec!["sshd".to_owned()], Some("warning")));
-    assert_eq!((config.lint.format, config.lint.color), (Some(Format::Sarif), Some(Colour::Never)));
+    assert_eq!((config.check.tags, config.check.fail_on.as_deref()), (vec!["sshd".to_owned()], Some("warning")));
+    assert_eq!((config.check.format, config.check.color), (Some(Format::Sarif), Some(Colour::Never)));
     assert_eq!(config.plugins.directories, [user.parent().unwrap().join("plugins")]);
 }
 
 #[test]
 fn no_layer_is_the_default_and_a_required_one_must_exist() {
     let config = Config::layered(&[(PathBuf::from("/nonexistent/systemlint.yaml"), Layer::Optional)]).unwrap();
-    assert_eq!((config.lint.format, config.collect.timeout), (None, None));
+    assert_eq!((config.check.format, config.collect.timeout), (None, None));
     let error = Config::layered(&[(PathBuf::from("/nonexistent/systemlint.yaml"), Layer::Required)]).unwrap_err();
     assert!(error.contains("/nonexistent/systemlint.yaml"), "{error}");
 }
 
 #[test]
 fn an_invalid_layer_is_named_even_under_a_valid_one() {
-    let bad = write("layer-bad", "lint:\n  color: sometimes\n");
-    let good = write("layer-good", "lint:\n  color: always\n");
+    let bad = write("layer-bad", "check:\n  color: sometimes\n");
+    let good = write("layer-good", "check:\n  color: always\n");
     let error = Config::layered(&[(bad.clone(), Layer::Optional), (good, Layer::Optional)]).unwrap_err();
     assert!(error.starts_with(&format!("{} is not a valid configuration", bad.display())), "{error}");
 }
@@ -145,12 +145,12 @@ fn no_project_config_drops_only_the_project_layer() {
 #[test]
 fn project_config_false_below_skips_the_project_file() {
     let user = write("project-off-user", "project-config: false\n");
-    let project = write("project-off-project", "lint:\n  tags: [sshd]\n");
+    let project = write("project-off-project", "check:\n  tags: [sshd]\n");
     let config = Config::layered(&[(user.clone(), Layer::Optional), (project.clone(), Layer::Project)]).unwrap();
-    assert!(config.lint.tags.is_empty(), "project-config: false skips the project layer");
+    assert!(config.check.tags.is_empty(), "project-config: false skips the project layer");
     let on = write("project-on-user", "project-config: true\n");
     let config = Config::layered(&[(on, Layer::Optional), (project, Layer::Project)]).unwrap();
-    assert_eq!(config.lint.tags, ["sshd"], "project-config: true reads it");
+    assert_eq!(config.check.tags, ["sshd"], "project-config: true reads it");
 }
 
 #[test]

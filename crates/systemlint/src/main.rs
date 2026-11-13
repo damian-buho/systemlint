@@ -20,7 +20,7 @@ use systemlint::source::Root;
 use systemlint::{collector, comply, crash, document, progress, rules, runner, trail};
 use systemlint_protocol::{OpSpec, VERSION};
 
-/// Exit code when `lint` finds failures at `--fail-on` or a `--standard` is not complied with, or a `facts` collector failed.
+/// Exit code when `check` finds failures at `--fail-on` or a `--standard` is not complied with, or a `facts` collector failed.
 const EXIT_FAIL: u8 = 1;
 
 /// Exit code for an unreadable, invalid or refused configuration, ruleset or catalog; 2 stays clap’s usage error.
@@ -42,12 +42,12 @@ const EXIT_PLUGIN: u8 = 4;
 const TEMPLATE: &str = "{about-with-newline}\n{before-help}{usage-heading} {usage}\n\n{all-args}{after-help}";
 
 /// What `systemlint` with no arguments prints: the description, two examples, the common flags and where the rest is.
-const SUMMARY: &str = "Collects operating system facts and lints them with declarative rules.\n\nExamples:\n  systemlint lint\n  systemlint facts -o host.facts.yaml\n\nCommands: facts, lint, plugin\nCommon flags: --root DIR, --tags LIST, -o PATH, --format FORMAT\nEvery command and flag: systemlint --help, systemlint <command> --help\nDocs: https://kiota.ch/damian-buho/systemlint\n";
+const SUMMARY: &str = "Collects operating system facts and lints them with declarative rules.\n\nExamples:\n  systemlint check\n  systemlint facts -o host.facts.yaml\n\nCommands: facts, check, plugin\nCommon flags: --root DIR, --tags LIST, -o PATH, --format FORMAT\nEvery command and flag: systemlint --help, systemlint <command> --help\nDocs: https://kiota.ch/damian-buho/systemlint\n";
 
 /// Collects operating system facts and lints them with declarative rules.
 #[derive(Parser)]
 #[command(name = "systemlint", version = VERSION, help_template = TEMPLATE)]
-#[command(before_help = "Examples:\n  systemlint lint\n  systemlint facts --root /mnt/image -o image.facts.yaml\n  systemlint lint image.facts.yaml\n  systemlint lint --standard dev-sec-ssh-baseline\n  systemlint plugin list")]
+#[command(before_help = "Examples:\n  systemlint check\n  systemlint facts --root /mnt/image -o image.facts.yaml\n  systemlint check image.facts.yaml\n  systemlint check --standard dev-sec-ssh-baseline\n  systemlint plugin list")]
 #[command(after_help = "Docs: https://kiota.ch/damian-buho/systemlint\nIssues: https://kiota.ch/damian-buho/systemlint/issues")]
 struct Cli {
     /// Configuration file over SYSTEMLINT_CONFIG, ./.systemlint.yaml, ~/.config/systemlint/config.yaml and /etc/systemlint/config.yaml, merged key by key
@@ -88,19 +88,19 @@ enum Command {
         #[arg(long, value_enum)]
         format: Option<FactsFormat>,
     },
-    /// Lint a saved facts document, or facts collected now
-    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint lint\n  systemlint lint host.facts.yaml --tags sshd,apt\n  systemlint lint --root rootfs --format sarif -o systemlint.sarif")]
-    #[command(after_help = "Exit codes: 0 clean, 1 failures at --fail-on, 2 bad arguments, 4 a plugin or collector refused, 5 config, rules or catalog, 6 unreadable facts or --root, 7 --output can’t be written, 70 no random hash key.\nWith --standard: 0 compliant, 1 non-compliant, 3 indeterminate, whatever --fail-on says.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md#lint-output-and-exit-codes")]
-    Lint {
+    /// Check a saved facts document, or facts collected now
+    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint check\n  systemlint check host.facts.yaml --tags sshd,apt\n  systemlint check --root rootfs --format sarif -o systemlint.sarif")]
+    #[command(after_help = "Exit codes: 0 clean, 1 failures at --fail-on, 2 bad arguments, 4 a plugin or collector refused, 5 config, rules or catalog, 6 unreadable facts or --root, 7 --output can’t be written, 70 no random hash key.\nWith --standard: 0 compliant, 1 non-compliant, 3 indeterminate, whatever --fail-on says.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md#check-output-and-exit-codes")]
+    Check {
         #[command(flatten)]
         input: Input,
-        /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, !x removes [default: lint.tags, else every rule]
+        /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, !x removes [default: check.tags, else every rule]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
         /// Also run the rules tagged STANDARD:<control> and answer per control; repeatable
         #[arg(long, value_name = "STANDARD")]
         standard: Vec<String>,
-        /// Exit 1 on a failure at error, warning, info, a score from 0.1 to 9.9, or never [default: lint.fail-on, else error]
+        /// Exit 1 on a failure at error, warning, info, a score from 0.1 to 9.9, or never [default: check.fail-on, else error]
         #[arg(long, value_name = "LEVEL")]
         fail_on: Option<FailOn>,
         #[command(flatten)]
@@ -111,14 +111,14 @@ enum Command {
         #[arg(short, long, value_name = "PATH")]
         output: Option<PathBuf>,
     },
-    /// Lint this host or a root filesystem, then make the changes its failing rules declare as a remedy
+    /// Check this host or a root filesystem, then make the changes its failing rules declare as a remedy
     #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint fix --dry-run\n  sudo systemlint fix --tags files\n  systemlint fix --root rootfs --force")]
     #[command(after_help = "A remedy clears permission bits or gives a file to root, never more, and each file is read again right before its change.\nExit codes: 0 every change made or none needed, 1 a change failed or was declined, 2 bad arguments or a change needing --force, 4 a plugin or collector refused, 5 config, rules or fix.enabled: false, 6 the root can’t be opened, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md#remedies")]
     Fix {
-        /// Lint and change this root filesystem, such as an image being built, instead of the live host
+        /// Check and change this root filesystem, such as an image being built, instead of the live host
         #[arg(long, value_name = "DIR")]
         root: Option<PathBuf>,
-        /// Rules to fix, as for lint [default: lint.tags, else every rule]
+        /// Rules to fix, as for check [default: check.tags, else every rule]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
         #[command(flatten)]
@@ -168,7 +168,7 @@ struct Input {
 /// Values for the vars rulesets declare.
 #[derive(clap::Args)]
 struct Vars {
-    /// Set a ruleset var, over --vars, its from-env variable, lint.vars and its default; repeatable
+    /// Set a ruleset var, over --vars, its from-env variable, check.vars and its default; repeatable
     #[arg(long = "var", value_name = "NAME=VALUE", value_parser = var)]
     var: Vec<(String, String)>,
     /// Read ruleset vars from this YAML map of name: value pairs, under --var
@@ -180,19 +180,19 @@ fn var(text: &str) -> Result<(String, String), String> {
     text.split_once('=').filter(|(name, _)| !name.is_empty()).map(|(n, v)| (n.to_owned(), v.to_owned())).ok_or_else(|| format!("{text} is not NAME=VALUE"))
 }
 
-/// How `lint` lays out its report.
+/// How `check` lays out its report.
 #[derive(clap::Args)]
 struct Look {
-    /// Output format: human, json, sarif (SARIF 2.1.0) or textfile (node-exporter metrics) [default: lint.format, else human]
+    /// Output format: human, json, sarif (SARIF 2.1.0) or textfile (node-exporter metrics) [default: check.format, else human]
     #[arg(long, value_enum)]
     format: Option<Format>,
-    /// One finding per tab-separated line, undecorated, for grep and screen readers [default: lint.plain, else off]
+    /// One finding per tab-separated line, undecorated, for grep and screen readers [default: check.plain, else off]
     #[arg(long, conflicts_with = "format", overrides_with = "no_plain")]
     plain: bool,
-    /// The decorated report even when lint.plain is true
+    /// The decorated report even when check.plain is true
     #[arg(long, overrides_with = "plain")]
     no_plain: bool,
-    /// Colour the human report: auto, always or never; auto is off under NO_COLOR, SYSTEMLINT_NO_COLOR, TERM=dumb or off a terminal [default: lint.color, else auto]
+    /// Colour the human report: auto, always or never; auto is off under NO_COLOR, SYSTEMLINT_NO_COLOR, TERM=dumb or off a terminal [default: check.color, else auto]
     #[arg(long, value_enum, value_name = "WHEN")]
     color: Option<Colour>,
     /// Add each failing rule’s rationale and references, from the global `--verbose`
@@ -241,7 +241,7 @@ fn main() -> ExitCode {
     };
     match command {
         Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format.or(config.collect.format), cli.quiet)),
-        Command::Lint { input, tags, standard, fail_on, vars, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard, vars }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
+        Command::Check { input, tags, standard, fail_on, vars, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard, vars }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
         Command::Fix { root, tags, vars, dry_run, force, no_input } => ExitCode::from(fix(&config, root.as_deref(), &Selection { tags, standards: vec![], vars }, Ask { dry_run, force, no_input }, cli.quiet)),
         Command::Plugin(PluginCommand::List { format }) => ExitCode::from(plugin_list(&config, format.or(config.plugins.format) == Some(ListFormat::Json), cli.quiet)),
     }
@@ -326,7 +326,7 @@ fn facts(config: &Config, root: Option<&Path>, image_config: Option<PathBuf>, ou
     let failed = document["collectors"].as_object().map_or(0, |o| o.values().filter(|c| c["status"] == "error").count());
     if let Some(path) = saved.filter(|_| !quiet) {
         let ran = document["collectors"].as_object().map_or(0, serde_json::Map::len);
-        eprintln!("Saved facts from {} ({}) to {}. Lint them with: systemlint lint {}", plural(ran, "collector"), plural(failed, "error"), path.display(), path.display());
+        eprintln!("Saved facts from {} ({}) to {}. Check them with: systemlint check {}", plural(ran, "collector"), plural(failed, "error"), path.display(), path.display());
     }
     log::debug!("facts done: {failed} collectors failed, trusted {trusted}");
     if failed > 0 {
@@ -346,13 +346,13 @@ fn facts_for(config: &Config, input: &Input, quiet: bool) -> Result<(Value, bool
 }
 
 fn library(config: &Config, vars: &Vars) -> Result<Library, u8> {
-    let dirs = rules::directories(&exe(), &config.lint.directories);
+    let dirs = rules::directories(&exe(), &config.check.directories);
     let mut flags = vec![("--var".to_owned(), vars.var.iter().map(|(n, v)| (n.clone(), Value::from(v.as_str()))).collect())];
     if let Some(path) = &vars.vars {
         flags.push((format!("--vars {}", path.display()), trail::scoped(trail::CONFIG, || systemlint::vars::file(path)).map_err(fail(trail::CONFIG, EXIT_CONFIG))?));
     }
-    let supplied = systemlint::vars::Supplied { flags, config: config.lint.vars.clone(), ..Default::default() };
-    let (library, refusals) = trail::scoped(trail::CONFIG, || Library::load(&dirs, &Trust::invoking_user(), &config.lint.rulesets, &supplied));
+    let supplied = systemlint::vars::Supplied { flags, config: config.check.vars.clone(), ..Default::default() };
+    let (library, refusals) = trail::scoped(trail::CONFIG, || Library::load(&dirs, &Trust::invoking_user(), &config.check.rulesets, &supplied));
     print_refusals(trail::CONFIG, &refusals);
     let library = library.map_err(fail(trail::CONFIG, EXIT_CONFIG))?;
     log::debug!("{} rulesets define {} rules, searched {}", library.rulesets.len(), library.definitions.len(), dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
@@ -360,7 +360,7 @@ fn library(config: &Config, vars: &Vars) -> Result<Library, u8> {
 }
 
 fn compiled(library: &Library, selection: &Selection, config: &Config) -> Result<Vec<Rule>, u8> {
-    let base = if selection.tags.is_empty() { &config.lint.tags } else { &selection.tags };
+    let base = if selection.tags.is_empty() { &config.check.tags } else { &selection.tags };
     let selected = trail::scoped(trail::CONFIG, || library.select_for(base, &selection.standards).and_then(|specs| specs.into_iter().map(|(id, spec)| judge::compile(&id, spec)).collect::<Result<Vec<_>, _>>()));
     selected.map_err(fail(trail::CONFIG, EXIT_CONFIG))
 }
@@ -399,7 +399,7 @@ fn today() -> String {
     collect::rfc3339(SystemTime::now())[..10].to_owned()
 }
 
-/// What `lint` runs: the `--tags` selectors, the standards to answer and the ruleset var values.
+/// What `check` runs: the `--tags` selectors, the standards to answer and the ruleset var values.
 struct Selection {
     tags: Vec<String>,
     standards: Vec<String>,
@@ -408,7 +408,7 @@ struct Selection {
 
 /// The catalog of each standard, from the rules directories or their `standards` siblings.
 fn catalogs(config: &Config, standards: &[String]) -> Result<Vec<Option<comply::Catalog>>, u8> {
-    let dirs = comply::directories(&rules::directories(&exe(), &config.lint.directories));
+    let dirs = comply::directories(&rules::directories(&exe(), &config.check.directories));
     let mut out = Vec::new();
     for standard in standards {
         let (catalog, refusals) = trail::scoped(trail::CONFIG, || comply::catalog(&dirs, &Trust::invoking_user(), standard));
@@ -428,18 +428,18 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
         let library = library(config, &selection.vars)?;
         let rules = if library.definitions.is_empty() { Vec::new() } else { compiled(&library, selection, config)? };
         let catalogs = catalogs(config, &selection.standards)?;
-        let fail_on = fail_on.or_else(|| config.lint.fail_on.as_deref().and_then(|t| t.parse().ok())).unwrap_or(FailOn::Level(rules::Severity::Error));
+        let fail_on = fail_on.or_else(|| config.check.fail_on.as_deref().and_then(|t| t.parse().ok())).unwrap_or(FailOn::Level(rules::Severity::Error));
         let (document, trusted) = facts_for(config, input, quiet)?;
         log::debug!("linting facts of {} collected at {} with {} rules", document["meta"]["subject"], document["meta"]["collected-at"], rules.len());
         if rules.is_empty() && !quiet {
-            eprintln!("No rules selected. Searched: {}", rules::directories(&exe(), &config.lint.directories).iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
+            eprintln!("No rules selected. Searched: {}", rules::directories(&exe(), &config.check.directories).iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
         }
-        let checks = judge::lint(&document, &rules, &config.lint.waivers, &today());
+        let checks = judge::lint(&document, &rules, &config.check.waivers, &today());
         let compliance: Vec<comply::Report> = selection.standards.iter().zip(&catalogs).map(|(standard, catalog)| comply::comply(standard, &rules, &checks, catalog.as_ref())).collect();
         let terminal = output.is_none_or(|p| p == Path::new("-")) && std::io::stdout().is_terminal();
-        let plain = if look.plain || look.no_plain || look.format.is_some() { look.plain } else { config.lint.plain.unwrap_or(false) };
-        let format = if plain { Format::Human } else { look.format.or(config.lint.format).unwrap_or(Format::Human) };
-        let color = look.color.or(config.lint.color).unwrap_or(Colour::Auto);
+        let plain = if look.plain || look.no_plain || look.format.is_some() { look.plain } else { config.check.plain.unwrap_or(false) };
+        let format = if plain { Format::Human } else { look.format.or(config.check.format).unwrap_or(Format::Human) };
+        let color = look.color.or(config.check.color).unwrap_or(Colour::Auto);
         log::debug!("report as {format:?}, plain {plain}, colour {color:?}");
         let text = match format {
             Format::Human if plain => report::lint_plain(&document, &checks, &compliance, quiet),
@@ -460,7 +460,7 @@ fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<F
         } else {
             comply::overall(&compliance).code()
         };
-        log::debug!("lint exits on {failed} from {} standards, trusted {trusted}", compliance.len());
+        log::debug!("check exits on {failed} from {} standards, trusted {trusted}", compliance.len());
         Ok(if failed != 0 { failed } else if trusted { 0 } else { EXIT_PLUGIN })
     };
     run().unwrap_or_else(|code| code)
@@ -491,7 +491,7 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
         let library = library(config, &selection.vars)?;
         let rules = if library.definitions.is_empty() { Vec::new() } else { compiled(&library, selection, config)? };
         let (document, trusted) = gather(config, root, None, quiet)?;
-        let changes = systemlint::fix::plan(&judge::lint(&document, &rules, &config.lint.waivers, &today()), &rules);
+        let changes = systemlint::fix::plan(&judge::lint(&document, &rules, &config.check.waivers, &today()), &rules);
         let done = if trusted { 0 } else { EXIT_PLUGIN };
         if changes.is_empty() {
             if !quiet {

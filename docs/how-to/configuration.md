@@ -23,9 +23,9 @@ missing file exits 5. A flag beats every file.
 ## Merging
 
 A higher layer replaces a lower one key by key. Sections and maps merge, so a
-project file that sets only `collect.timeout` keeps the system `lint.tags`,
+project file that sets only `collect.timeout` keeps the system `check.tags`,
 and an inline ruleset keeps the rulesets of lower layers. A list is one value:
-`lint.waivers` or `plugins.directories` in the project file replaces the
+`check.waivers` or `plugins.directories` in the project file replaces the
 system list, it never extends it.
 
 A relative directory resolves against the directory of the file that names
@@ -39,7 +39,7 @@ skipped.
 ## Untrusted checkouts
 
 Whoever writes `.systemlint.yaml` controls the policy of a run in that
-directory: its `lint.waivers` can hide any finding. Inside a checkout you do
+directory: its `check.waivers` can hide any finding. Inside a checkout you do
 not trust, such as a pull request from a fork, pass `--no-project-config` to
 skip the file. To skip it on every run, set `project-config: false` in the
 system or user configuration; the key works only there, since a higher layer
@@ -60,7 +60,7 @@ collect:
   hash-key: ...        # 16 characters or more
   collectors: []       # inline collectors, never exec; see collectors.md
   format: json         # the default facts --format, over the --output extension: yaml or json
-lint:
+check:
   directories: [rulesets]
   tags: [apt, sshd]    # the default --tags
   vars: {ntp: time.example}  # ruleset var values, under --var, --vars and from-env

@@ -12,8 +12,8 @@ hold password hashes or host keys, or sit in the default `PATH`, and the
 `/etc/shadow` is judged without being opened.
 
 ```sh
-systemlint lint --tags files
-systemlint lint --root /mnt/image --tags files
+systemlint check --tags files
+systemlint check --root /mnt/image --tags files
 ```
 
 ## Collectors
@@ -63,7 +63,7 @@ once 2775 `root:staff`; waive `files/group-writable` there when the `staff`
 group is meant to install software:
 
 ```yaml
-lint:
+check:
   waivers:
     - {rule: files/group-writable, subject: "path, /usr/local*", reason: staff installs into /usr/local, until: 2027-06-30}
 ```

@@ -38,7 +38,7 @@ fn facts(dir: &Path) -> String {
 
 #[test]
 fn a_usage_error_exits_2() {
-    let (code, _) = run(&base("usage"), "", &["lint", "--bogus"]);
+    let (code, _) = run(&base("usage"), "", &["check", "--bogus"]);
     assert_eq!(code, 2);
 }
 
@@ -97,7 +97,7 @@ fn a_document_of_another_schema_prints_the_bytes_read() {
     let dir = base("schema-traced");
     let path = dir.join("facts.yaml");
     std::fs::write(&path, "meta: {schema: 0}\n").unwrap();
-    let (code, stderr) = run(&dir, "", &["lint", &path.display().to_string()]);
+    let (code, stderr) = run(&dir, "", &["check", &path.display().to_string()]);
     assert_eq!(code, 6, "{stderr}");
     assert!(stderr.contains(&format!("\n  read 18 bytes of facts from {}", path.display())), "{stderr}");
 }
@@ -109,7 +109,7 @@ fn a_refused_ruleset_directory_exits_5_naming_chmod() {
     std::fs::create_dir(&rules).unwrap();
     std::fs::set_permissions(&rules, std::fs::Permissions::from_mode(0o777)).unwrap();
     let facts = facts(&dir);
-    let (code, stderr) = run(&dir, &format!("lint: {{directories: [{}]}}\n", rules.display()), &["lint", &facts]);
+    let (code, stderr) = run(&dir, &format!("check: {{directories: [{}]}}\n", rules.display()), &["check", &facts]);
     assert_eq!(code, 5, "{stderr}");
     assert!(stderr.contains("chmod go-w"), "{stderr}");
     assert!(stderr.contains("\n  trusting owners uid 0"), "{stderr}");
@@ -119,7 +119,7 @@ fn a_refused_ruleset_directory_exits_5_naming_chmod() {
 fn a_missing_facts_document_exits_6_naming_facts_output() {
     let dir = base("input");
     let absent = dir.join("absent.yaml").display().to_string();
-    let (code, stderr) = run(&dir, "", &["lint", &absent]);
+    let (code, stderr) = run(&dir, "", &["check", &absent]);
     assert_eq!(code, 6, "{stderr}");
     assert!(stderr.contains(&format!("Run systemlint facts --output {absent} first")), "{stderr}");
 }
@@ -129,7 +129,7 @@ fn a_document_of_another_schema_exits_6() {
     let dir = base("schema");
     let path = dir.join("facts.yaml");
     std::fs::write(&path, "meta: {schema: 0}\n").unwrap();
-    let (code, stderr) = run(&dir, "", &["lint", &path.display().to_string()]);
+    let (code, stderr) = run(&dir, "", &["check", &path.display().to_string()]);
     assert_eq!(code, 6, "{stderr}");
 }
 
@@ -148,7 +148,7 @@ fn an_output_in_a_missing_directory_exits_7_naming_mkdir() {
     let dir = base("output");
     let facts = facts(&dir);
     let missing = dir.join("absent");
-    let (code, stderr) = run(&dir, "", &["--quiet", "lint", "--output", &missing.join("report.txt").display().to_string(), &facts]);
+    let (code, stderr) = run(&dir, "", &["--quiet", "check", "--output", &missing.join("report.txt").display().to_string(), &facts]);
     assert_eq!(code, 7, "{stderr}");
     assert!(stderr.contains(&format!("Run mkdir -p {}", missing.display())), "{stderr}");
 }
@@ -157,7 +157,7 @@ fn an_output_in_a_missing_directory_exits_7_naming_mkdir() {
 fn an_output_into_proc_exits_7_naming_the_file_system() {
     let dir = base("output-proc");
     let facts = facts(&dir);
-    let (code, stderr) = run(&dir, "", &["--quiet", "lint", "--output", "/proc/report.txt", &facts]);
+    let (code, stderr) = run(&dir, "", &["--quiet", "check", "--output", "/proc/report.txt", &facts]);
     assert_eq!(code, 7, "{stderr}");
     assert!(stderr.starts_with("Can’t write report.txt into /proc: it is on proc, a kernel file system that holds no ordinary files. Pick a directory on a regular file system."), "{stderr}");
 }
@@ -211,7 +211,7 @@ fn a_save_says_what_it_wrote_and_how_to_lint_it_unless_quiet() {
     let save = dir.join("facts.yaml").display().to_string();
     let (code, stderr) = run(&dir, "", &["facts", "--root", &root.display().to_string(), "--output", &save]);
     assert_eq!(code, 0, "{stderr}");
-    assert!(stderr.contains(&format!("Saved facts from 0 collectors (0 errors) to {save}. Lint them with: systemlint lint {save}")), "{stderr}");
+    assert!(stderr.contains(&format!("Saved facts from 0 collectors (0 errors) to {save}. Check them with: systemlint check {save}")), "{stderr}");
     let (_, quiet) = run(&dir, "", &["--quiet", "facts", "--root", &root.display().to_string(), "--output", &save]);
     assert!(!quiet.contains("Saved"), "{quiet}");
 }
@@ -262,23 +262,23 @@ fn collect_format_beats_the_output_extension_and_the_flag_beats_it() {
     assert!(!written(&["--format", "yaml"]).starts_with('{'), "--format yaml beats collect.format");
 }
 
-/// The report `lint` prints under `lint.plain: true` and `args` for a document failing one rule.
+/// The report `check` prints under `check.plain: true` and `args` for a document failing one rule.
 fn plain_report(dir: &Path, args: &[&str]) -> String {
     let path = dir.join("facts.yaml");
     std::fs::write(&path, format!("meta: {{schema: {}}}\nx: 1\n", systemlint::collect::SCHEMA)).unwrap();
     let file = dir.join("config.yaml");
-    std::fs::write(&file, "lint:\n  plain: true\n  rulesets:\n    t: {rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n").unwrap();
-    let out = core().arg("--config").arg(&file).arg("lint").args(args).arg(&path).env("LC_ALL", "C").output().unwrap();
+    std::fs::write(&file, "check:\n  plain: true\n  rulesets:\n    t: {rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n").unwrap();
+    let out = core().arg("--config").arg(&file).arg("check").args(args).arg(&path).env("LC_ALL", "C").output().unwrap();
     String::from_utf8_lossy(&out.stdout).into_owned()
 }
 
 #[test]
 fn lint_plain_prints_tab_separated_lines_until_a_flag_says_otherwise() {
     let dir = base("lint-plain");
-    assert!(plain_report(&dir, &[]).contains("t/x\t"), "lint.plain prints plain lines");
-    assert!(!plain_report(&dir, &["--no-plain"]).contains("t/x\t"), "--no-plain beats lint.plain");
+    assert!(plain_report(&dir, &[]).contains("t/x\t"), "check.plain prints plain lines");
+    assert!(!plain_report(&dir, &["--no-plain"]).contains("t/x\t"), "--no-plain beats check.plain");
     assert!(plain_report(&dir, &["--plain", "--no-plain"]).contains("t/x") && !plain_report(&dir, &["--plain", "--no-plain"]).contains("t/x\t"), "the last of --plain and --no-plain wins");
-    assert!(plain_report(&dir, &["--format", "json"]).starts_with('{'), "--format beats lint.plain");
+    assert!(plain_report(&dir, &["--format", "json"]).starts_with('{'), "--format beats check.plain");
 }
 
 #[test]
@@ -298,11 +298,11 @@ fn an_output_counts_its_findings_one_in_the_singular() {
     let path = dir.join("facts.yaml");
     std::fs::write(&path, format!("meta: {{schema: {}}}\nx: 1\n", systemlint::collect::SCHEMA)).unwrap();
     let report = dir.join("report.sarif").display().to_string();
-    let config = "lint:\n  rulesets:\n    t: {rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n";
-    let (code, stderr) = run(&dir, config, &["lint", "--format", "sarif", "--output", &report, &path.display().to_string()]);
+    let config = "check:\n  rulesets:\n    t: {rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n";
+    let (code, stderr) = run(&dir, config, &["check", "--format", "sarif", "--output", &report, &path.display().to_string()]);
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains(&format!("Wrote 1 finding to {report}.")), "{stderr}");
-    let (_, quiet) = run(&dir, config, &["--quiet", "lint", "--output", &report, &path.display().to_string()]);
+    let (_, quiet) = run(&dir, config, &["--quiet", "check", "--output", &report, &path.display().to_string()]);
     assert!(!quiet.contains("Wrote"), "{quiet}");
 }
 
@@ -314,15 +314,15 @@ fn ruleset_vars_come_from_var_then_vars_then_config_then_default() {
     let file = dir.join("vars.yaml");
     std::fs::write(&file, "want: 1\n").unwrap();
     let (facts, file) = (path.display().to_string(), file.display().to_string());
-    let config = "lint:\n  rulesets:\n    t: {vars: {want: {default: 2}}, rules: {t/x: {fact: x, expect: {const: '${want}'}, severity: error}}}\n";
-    assert_eq!(run(&dir, config, &["lint", &facts]).0, 1, "the default 2 fails x: 1");
-    assert_eq!(run(&dir, &format!("{config}  vars: {{want: 1}}\n"), &["lint", &facts]).0, 0, "lint.vars beats the default");
-    assert_eq!(run(&dir, config, &["lint", "--vars", &file, &facts]).0, 0, "--vars beats the default");
-    assert_eq!(run(&dir, config, &["lint", "--vars", &file, "--var", "want=3", &facts]).0, 1, "--var beats --vars");
-    assert_eq!(run(&dir, config, &["lint", "--var", "want=1", &facts]).0, 0, "a --var text takes the number type of its default");
-    let (code, stderr) = run(&dir, config, &["lint", "--var", "wnat=1", &facts]);
+    let config = "check:\n  rulesets:\n    t: {vars: {want: {default: 2}}, rules: {t/x: {fact: x, expect: {const: '${want}'}, severity: error}}}\n";
+    assert_eq!(run(&dir, config, &["check", &facts]).0, 1, "the default 2 fails x: 1");
+    assert_eq!(run(&dir, &format!("{config}  vars: {{want: 1}}\n"), &["check", &facts]).0, 0, "check.vars beats the default");
+    assert_eq!(run(&dir, config, &["check", "--vars", &file, &facts]).0, 0, "--vars beats the default");
+    assert_eq!(run(&dir, config, &["check", "--vars", &file, "--var", "want=3", &facts]).0, 1, "--var beats --vars");
+    assert_eq!(run(&dir, config, &["check", "--var", "want=1", &facts]).0, 0, "a --var text takes the number type of its default");
+    let (code, stderr) = run(&dir, config, &["check", "--var", "wnat=1", &facts]);
     assert_eq!((code, stderr.lines().next()), (5, Some("--var sets var wnat, which no ruleset declares")), "{stderr}");
-    assert_eq!(run(&dir, config, &["lint", "--var", "=1", &facts]).0, 2);
+    assert_eq!(run(&dir, config, &["check", "--var", "=1", &facts]).0, 2);
 }
 
 #[test]
@@ -349,7 +349,7 @@ fn no_arguments_print_a_short_summary_and_exit_2() {
 
 #[test]
 fn every_help_opens_with_its_description_then_examples_and_ends_with_a_docs_link() {
-    for args in [&[][..], &["facts"], &["lint"], &["plugin"], &["plugin", "list"]] {
+    for args in [&[][..], &["facts"], &["check"], &["plugin"], &["plugin", "list"]] {
         let out = core().args(args).arg("--help").output().unwrap();
         let help = String::from_utf8(out.stdout).unwrap();
         let (examples, usage) = (help.find("\nExamples:\n").unwrap_or(usize::MAX), help.find("Usage:").unwrap_or(0));
@@ -363,7 +363,7 @@ fn ctrl_c_says_so_and_exits_130() {
     let dir = base("interrupt");
     let path = dir.join("config.yaml");
     std::fs::write(&path, "").unwrap();
-    let child = core().arg("--config").arg(&path).args(["lint", "-"]).stdin(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
+    let child = core().arg("--config").arg(&path).args(["check", "-"]).stdin(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
     let caught = || std::fs::read_to_string(format!("/proc/{}/status", child.id())).ok().and_then(|s| s.lines().find_map(|l| l.strip_prefix("SigCgt:\t").map(|m| u64::from_str_radix(m.trim(), 16).unwrap_or(0))));
     let mut polls = 0;
     while caught().is_none_or(|mask| mask & (1 << (libc::SIGINT - 1)) == 0) {
@@ -389,7 +389,7 @@ fn a_missing_systemlint_config_exits_5_naming_it() {
 #[test]
 fn an_invalid_project_config_in_the_working_directory_exits_5_naming_it() {
     let dir = base("project-config");
-    std::fs::write(dir.join(".systemlint.yaml"), "lint:\n  format: html\n").unwrap();
+    std::fs::write(dir.join(".systemlint.yaml"), "check:\n  format: html\n").unwrap();
     let out = core().current_dir(&dir).env("LC_ALL", "C").args(["plugin", "list"]).output().unwrap();
     assert_eq!(out.status.code(), Some(5));
     assert!(String::from_utf8_lossy(&out.stderr).contains(".systemlint.yaml is not a valid configuration"), "{}", String::from_utf8_lossy(&out.stderr));

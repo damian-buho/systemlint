@@ -33,8 +33,8 @@ jobs:
 | --- | --- | --- |
 | `image` | — | Image to lint; set this or `root` |
 | `root` | — | Root filesystem directory to lint |
-| `tags` | every rule | Selector list, as `lint --tags` |
-| `fail_on` | `error` | As `lint --fail-on` |
+| `tags` | every rule | Selector list, as `check --tags` |
+| `fail_on` | `error` | As `check --fail-on` |
 | `config` | — | A systemlint configuration file in the workspace |
 | `upload_sarif` | `false` | Upload to GitHub code scanning |
 | `version` | the pinned release, else `latest` | Systemlint image tag |
@@ -48,7 +48,7 @@ Outputs: `facts` (the facts document, JSON), `sarif`, `result` (`pass` or
 1. `systemlint facts` once, in the systemlint image, as root with every
    capability dropped but `DAC_READ_SEARCH`, so it reads 0600 files such as
    `/etc/shadow` and can change nothing; no network, read-only filesystem.
-2. `systemlint lint -` twice on those facts, as the runner’s own user: once
+2. `systemlint check -` twice on those facts, as the runner’s own user: once
    for SARIF, once for the human report and the exit code. Both judge the same
    facts, so they never disagree, and nothing root-owned is left in
    `RUNNER_TEMP`.
@@ -74,5 +74,5 @@ docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEA
   facts --root /subject --format json > facts.json
 docker run --rm --interactive --network none --read-only --user "$(id --user)" \
   --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest \
-  lint - --format sarif < facts.json > systemlint.sarif
+  check - --format sarif < facts.json > systemlint.sarif
 ```

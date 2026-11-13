@@ -44,7 +44,7 @@ pub enum Verdict {
 }
 
 impl Verdict {
-    /// The exit code of `lint --standard` answering this: 0 compliant or not applicable, 1 non-compliant, 3 indeterminate or manual.
+    /// The exit code of `check --standard` answering this: 0 compliant or not applicable, 1 non-compliant, 3 indeterminate or manual.
     pub fn code(self) -> u8 {
         match self {
             Self::Compliant | Self::NotApplicable => 0,

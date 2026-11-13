@@ -22,8 +22,8 @@ fn the_directory_prefers_an_absolute_xdg_state_home() {
 
 #[test]
 fn the_report_names_version_platform_args_and_panic() {
-    let text = report("boom", "src/x.rs:1:2", &["systemlint".into(), "lint".into()], "trace");
-    for part in [systemlint_protocol::VERSION, std::env::consts::ARCH, "[\"systemlint\", \"lint\"]", "panic: boom", "at: src/x.rs:1:2", "trace"] {
+    let text = report("boom", "src/x.rs:1:2", &["systemlint".into(), "check".into()], "trace");
+    for part in [systemlint_protocol::VERSION, std::env::consts::ARCH, "[\"systemlint\", \"check\"]", "panic: boom", "at: src/x.rs:1:2", "trace"] {
         assert!(text.contains(part), "{part}: {text}");
     }
 }

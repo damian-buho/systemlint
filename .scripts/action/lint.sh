@@ -63,7 +63,7 @@ fi
 docker run "${sandbox[@]}" --user 0 --cap-add DAC_READ_SEARCH "${subject[@]}" "${tool}" "${config[@]}" --quiet facts "${where[@]}" --format json > "${facts}"
 echo "facts ${facts}: $(wc --bytes < "${facts}") bytes"
 
-lint=("${config[@]}" lint -)
+lint=("${config[@]}" check -)
 if [[ -n "${TAGS:-}" ]]; then
   lint+=(--tags "${TAGS}")
 fi

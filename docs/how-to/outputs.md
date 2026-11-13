@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Outputs: SARIF and Prometheus metrics
 
-`systemlint lint` prints a human report by default. Two more formats feed
+`systemlint check` prints a human report by default. Two more formats feed
 other tools, and `--output PATH` writes any format to a file through a
 temporary sibling and a rename, mode 0644 under the umask, so a reader never
 sees half a report. `--output -` prints to stdout.
@@ -17,7 +17,7 @@ sees half a report. `--output -` prints to stdout.
 log, the format GitHub code scanning and most security dashboards read.
 
 ```sh
-systemlint lint --root rootfs --format sarif --output systemlint.sarif
+systemlint check --root rootfs --format sarif --output systemlint.sarif
 ```
 
 | Check | SARIF result |
@@ -57,7 +57,7 @@ Write into its directory with `--output`, so node-exporter never reads half a
 file:
 
 ```sh
-systemlint --quiet lint --format textfile --fail-on never \
+systemlint --quiet check --format textfile --fail-on never \
   --output /var/lib/node_exporter/textfile/systemlint.prom
 ```
 

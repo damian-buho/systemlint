@@ -67,7 +67,7 @@ source does.
 | Lynis | `lynis` | `{title: Lynis <ID>, url: "https://cisofy.com/lynis/controls/<ID>/"}` |
 | a catalog under `standards/` | `<standard>:<control>` | the standard’s own link |
 
-`systemlint lint --tags lynis` then runs every rule that covers a Lynis check.
+`systemlint check --tags lynis` then runs every rule that covers a Lynis check.
 
 ## Tests
 
