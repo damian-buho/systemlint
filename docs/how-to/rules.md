@@ -283,7 +283,9 @@ files/world-writable:
 A remedy only takes access away, so a ruleset from an untrusted
 `.systemlint.yaml` can never hand a file to a user. A line is changed only
 when it still hashes to the `line-sha256` its facts carry, so a file edited
-since the lint fails that change, naming the line, instead of losing another. An override that sets its
+since the lint fails that change, naming the line, instead of losing another. A line remedy never
+disables the last line its owner has, such as an account’s only authorized key:
+`fix` keeps it, prints `Kept <path:line>`, and exits 1 until another is added. An override that sets its
 own `fact` or `facts` drops the inherited remedy.
 
 `systemlint fix` lints the live host, or with `--root DIR` a root filesystem

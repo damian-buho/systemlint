@@ -4,7 +4,7 @@
 
 //! The remedies a rule may declare, the plan a lint run yields, and applying it through [`Root`].
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::os::unix::fs::{FileExt, MetadataExt};
 
@@ -146,12 +146,20 @@ impl Change {
     }
 }
 
+/// The changes a lint calls for, and the line changes held back since each would disable the last line of its owner.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Plan {
+    pub changes: Vec<Change>,
+    pub kept: Vec<(Change, String)>,
+}
+
 /// The changes the failing checks over `document` call for, one per subject and remedy, in path order.
-pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> Vec<Change> {
+pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> Plan {
     let remedies: BTreeMap<&str, (&Rule, &Remedy)> = rules
         .iter()
         .filter_map(|r| r.spec.remedy.as_ref().map(|m| (r.id.as_str(), (r, m))))
         .collect();
+    let mut owners: BTreeMap<String, Vec<(String, BTreeSet<String>)>> = BTreeMap::new();
     let mut changes: Vec<Change> = checks
         .iter()
         .filter(|c| c.is_failing())
@@ -162,10 +170,20 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> V
                 Remedy::DisableLine(_) => {
                     let (path, n) = line_of(&subject)?;
                     let sha = rule
-                        .subject_value(document, &c.subject)
+                        .subject_value(document, &c.subject, 1)
                         .and_then(|v| v.get("line-sha256"))
                         .and_then(serde_json::Value::as_str);
                     log::debug!("{} on {subject}: line-sha256 {sha:?}", c.rule);
+                    let siblings = rule
+                        .subject_value(document, &c.subject, 2)
+                        .and_then(serde_json::Value::as_object)
+                        .map(|m| m.keys().cloned().collect())
+                        .unwrap_or_default();
+                    let owner = c.subject[..c.subject.len().saturating_sub(1)].join(", ");
+                    owners
+                        .entry(subject.clone())
+                        .or_default()
+                        .push((owner, siblings));
                     (path.to_owned(), Some((n, sha?.to_owned())))
                 }
                 _ => (subject, None),
@@ -182,12 +200,34 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> V
     let key = |c: &Change| (c.path.clone(), c.line.clone(), c.remedy.command(""));
     changes.sort_by_key(key);
     changes.dedup_by(|a, b| a.path == b.path && a.line == b.line && a.remedy == b.remedy);
+    let mut disabled: BTreeSet<String> = BTreeSet::new();
+    let mut plan = Plan::default();
+    for change in changes {
+        let subject = change.subject();
+        let last = owners
+            .get(&subject)
+            .into_iter()
+            .flatten()
+            .find(|(_, lines)| lines.iter().all(|l| *l == subject || disabled.contains(l)));
+        match (change.line.is_some(), last) {
+            (true, Some((owner, _))) => {
+                log::debug!("{subject} kept: the last line {owner} has");
+                let reason = format!("it is the last line left for {owner}");
+                plan.kept.push((change, reason));
+            }
+            _ => {
+                disabled.insert(subject);
+                plan.changes.push(change);
+            }
+        }
+    }
     log::debug!(
-        "{} changes planned from {} checks",
-        changes.len(),
+        "{} changes planned, {} kept, from {} checks",
+        plan.changes.len(),
+        plan.kept.len(),
         checks.len()
     );
-    changes
+    plan
 }
 
 /// What applying a change did: the state before and after, or none when it was already made.

@@ -145,7 +145,8 @@ fn a_plan_lists_each_failing_path_once() {
         &lint(&document, &rules, &[], "2026-11-12"),
         &rules,
         &document,
-    );
+    )
+    .changes;
     assert_eq!(
         changes.iter().map(|c| c.path.as_str()).collect::<Vec<_>>(),
         ["/etc/crontab"]
@@ -210,25 +211,65 @@ const KEYS: &str = "ssh-ed25519 AAAA one\nssh-dss AAAA two\r\n# note\nssh-ed2551
 
 // A plan disabling DSA lines over a document whose line 2 carries the hash `sha`, or none.
 fn dsa_plan(sha: Option<String>) -> Vec<Change> {
-    let rule = compile(
+    let mut key = json!({"type": "ssh-dss"});
+    if let Some(sha) = sha {
+        key["line-sha256"] = json!(sha);
+    }
+    let document = json!({"ssh": {"authorized-keys": {"alice": {"keys": {"/keys:2": key, "/keys:1": {"type": "ssh-ed25519"}}}}}});
+    let rules = [dsa_rule()];
+    plan(
+        &lint(&document, &rules, &[], "2026-11-12"),
+        &rules,
+        &document,
+    )
+    .changes
+}
+
+// The rule that comments out every DSA line.
+fn dsa_rule() -> systemlint::judge::Rule {
+    compile(
         "a/dsa",
         systemlint::yaml::from_str(
             "fact: ssh.authorized-keys.*.keys.*.type\nexpect: {not: {pattern: ^ssh-dss}}\nremedy: {disable-line: authorized-keys}\n",
         )
         .unwrap(),
     )
-    .unwrap();
-    let mut key = json!({"type": "ssh-dss"});
-    if let Some(sha) = sha {
-        key["line-sha256"] = json!(sha);
-    }
-    let document = json!({"ssh": {"authorized-keys": {"alice": {"keys": {"/keys:2": key, "/keys:1": {"type": "ssh-ed25519"}}}}}});
-    let rules = [rule];
-    plan(
+    .unwrap()
+}
+
+#[test]
+fn a_line_remedy_never_disables_the_last_line_of_any_owner() {
+    let dss =
+        |n: u32| json!({"type": "ssh-dss", "line-sha256": line_sha256(&format!("ssh-dss {n}"))});
+    let document = json!({"ssh": {"authorized-keys": {
+        "alice": {"keys": {"/a:1": dss(1), "/a:2": dss(2), "/a:3": {"type": "ssh-ed25519"}}},
+        "bob": {"keys": {"/b:1": dss(1), "/b:2": dss(2)}},
+        "carol": {"keys": {"/a:1": dss(1)}},
+    }}});
+    let rules = [dsa_rule()];
+    let planned = plan(
         &lint(&document, &rules, &[], "2026-11-12"),
         &rules,
         &document,
-    )
+    );
+    let subjects = |changes: Vec<Change>| changes.iter().map(Change::subject).collect::<Vec<_>>();
+    assert_eq!(
+        subjects(planned.changes),
+        ["/a:2", "/b:1"],
+        "alice keeps her ed25519 key, bob his second"
+    );
+    assert_eq!(
+        planned
+            .kept
+            .iter()
+            .map(|(c, why)| format!("{} {why}", c.subject()))
+            .collect::<Vec<_>>(),
+        [
+            "/a:1 it is the last line left for carol",
+            "/b:2 it is the last line left for bob"
+        ],
+        "a line two accounts share is kept when either would lose its last"
+    );
 }
 
 #[test]

@@ -807,24 +807,34 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
             compiled(&library, selection, config)?
         };
         let (document, trusted) = gather(config, root, None, quiet)?;
-        let changes = systemlint::fix::plan(
+        let systemlint::fix::Plan { changes, kept } = systemlint::fix::plan(
             &judge::lint(&document, &rules, &config.check.waivers, &today()),
             &rules,
             &document,
         );
-        let done = if trusted { 0 } else { EXIT_PLUGIN };
-        if changes.is_empty() {
-            if !quiet {
-                eprintln!("Nothing to fix: no failing rule declares a remedy.");
-            }
-            return Ok(done);
-        }
         let base = root.unwrap_or(Path::new("/"));
         let shown = |change: &systemlint::fix::Change| {
             base.join(change.subject().trim_start_matches('/'))
                 .display()
                 .to_string()
         };
+        for (change, reason) in &kept {
+            eprintln!(
+                "Kept {}: {reason}. Add another first, then fix again.",
+                shown(change)
+            );
+        }
+        let done = match (trusted, kept.is_empty()) {
+            (_, false) => EXIT_FAIL,
+            (true, true) => 0,
+            (false, true) => EXIT_PLUGIN,
+        };
+        if changes.is_empty() {
+            if !quiet && kept.is_empty() {
+                eprintln!("Nothing to fix: no failing rule declares a remedy.");
+            }
+            return Ok(done);
+        }
         log::debug!(
             "fix plans {} changes under {}",
             changes.len(),

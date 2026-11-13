@@ -474,10 +474,15 @@ pub struct Rule {
 }
 
 impl Rule {
-    /// The object holding the fact a check of `subject` judged, its last key dropped.
-    pub fn subject_value<'a>(&self, document: &'a Value, subject: &[String]) -> Option<&'a Value> {
+    /// The value `up` keys above the fact a check of `subject` judged: 1 is the object holding it.
+    pub fn subject_value<'a>(
+        &self,
+        document: &'a Value,
+        subject: &[String],
+        up: usize,
+    ) -> Option<&'a Value> {
         let keys = concrete(&self.fact, subject);
-        get(document, keys.split_last()?.1)
+        get(document, &keys[..keys.len().checked_sub(up)?])
     }
 }
 
