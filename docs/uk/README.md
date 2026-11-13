@@ -79,6 +79,7 @@ docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEA
 
 ## Документація
 
+- [Local accounts and groups](../how-to/accounts.md)
 - [apt sources](../how-to/apt.md)
 - [Linting images in CI](../how-to/ci.md)
 - [Collectors](../how-to/collectors.md)
