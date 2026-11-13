@@ -810,6 +810,7 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
         let changes = systemlint::fix::plan(
             &judge::lint(&document, &rules, &config.check.waivers, &today()),
             &rules,
+            &document,
         );
         let done = if trusted { 0 } else { EXIT_PLUGIN };
         if changes.is_empty() {
@@ -820,7 +821,7 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
         }
         let base = root.unwrap_or(Path::new("/"));
         let shown = |change: &systemlint::fix::Change| {
-            base.join(change.path.trim_start_matches('/'))
+            base.join(change.subject().trim_start_matches('/'))
                 .display()
                 .to_string()
         };

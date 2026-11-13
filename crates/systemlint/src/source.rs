@@ -260,6 +260,15 @@ impl Root {
         .map(File::from)
     }
 
+    /// `path` opened to rewrite in place, refusing a final symlink, never blocking on a FIFO.
+    pub fn open_for_edit(&self, path: &str) -> io::Result<File> {
+        self.open_at(
+            path,
+            OFlags::RDWR | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::NOCTTY,
+        )
+        .map(File::from)
+    }
+
     /// The metadata of `path` itself, a final symlink not followed.
     pub fn stat(&self, path: &str) -> io::Result<Stat> {
         let fd = self.open_at(path, OFlags::PATH | OFlags::NOFOLLOW)?;

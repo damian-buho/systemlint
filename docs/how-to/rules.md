@@ -278,9 +278,12 @@ files/world-writable:
 | `chmod` | clears the permission bits a symbolic `who-perms` list names, such as `g-wx,o-rwx`; `+` and `=` are refused |
 | `chown` | `0` only: gives the file to root, leaving its group |
 | `chgrp` | `0` only: gives the file to the root group, leaving its owner |
+| `disable-line` | `authorized-keys` only: comments out the subject line, named `path:line`, of a syntax where every line grants access |
 
 A remedy only takes access away, so a ruleset from an untrusted
-`.systemlint.yaml` can never hand a file to a user. An override that sets its
+`.systemlint.yaml` can never hand a file to a user. A line is changed only
+when it still hashes to the `line-sha256` its facts carry, so a file edited
+since the lint fails that change, naming the line, instead of losing another. An override that sets its
 own `fact` or `facts` drops the inherited remedy.
 
 `systemlint fix` lints the live host, or with `--root DIR` a root filesystem

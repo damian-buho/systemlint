@@ -5,9 +5,11 @@
 //! The remedies a rule may declare, the plan a lint run yields, and applying it through [`Root`].
 
 use std::collections::BTreeMap;
-use std::os::unix::fs::MetadataExt;
+use std::io::Read;
+use std::os::unix::fs::{FileExt, MetadataExt};
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::judge::{Check, Rule};
 use crate::source::Root;
@@ -22,6 +24,31 @@ pub enum Remedy {
     Chown(u32),
     /// Sets the owning gid, leaving the user; only 0, so a fix never hands a file to a group of users.
     Chgrp(u32),
+    /// Comments out the subject line, only in a syntax where every line grants access.
+    #[serde(rename = "disable-line")]
+    DisableLine(Lines),
+}
+
+/// A file syntax whose every line only grants access, so commenting one out only takes access away.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub enum Lines {
+    /// `authorized_keys`, where each line lets one more key log in.
+    AuthorizedKeys,
+}
+
+/// `subject` split into its path and 1-based line number, as `path:line` keys name a line.
+pub fn line_of(subject: &str) -> Option<(&str, usize)> {
+    let (path, line) = subject.rsplit_once(':')?;
+    line.parse().ok().filter(|n| *n > 0).map(|n| (path, n))
+}
+
+/// The SHA-256 of one line in lowercase hex, as `line-sha256` facts carry it.
+pub fn line_sha256(line: &str) -> String {
+    Sha256::digest(line.as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 impl Remedy {
@@ -37,15 +64,20 @@ impl Remedy {
             Self::Chgrp(gid) => Err(format!(
                 "remedy chgrp {gid}: only chgrp 0 is allowed, a fix never hands a file to a group of users"
             )),
+            Self::DisableLine(_) => Ok(()),
         }
     }
 
-    /// The shell command this remedy stands for on `path`.
-    pub fn command(&self, path: &str) -> String {
+    /// The shell command this remedy stands for on `subject`, a path or for a line `path:line`.
+    pub fn command(&self, subject: &str) -> String {
         match self {
-            Self::Chmod(spec) => format!("chmod {spec} {}", quote(path)),
-            Self::Chown(uid) => format!("chown {uid} {}", quote(path)),
-            Self::Chgrp(gid) => format!("chgrp {gid} {}", quote(path)),
+            Self::Chmod(spec) => format!("chmod {spec} {}", quote(subject)),
+            Self::Chown(uid) => format!("chown {uid} {}", quote(subject)),
+            Self::Chgrp(gid) => format!("chgrp {gid} {}", quote(subject)),
+            Self::DisableLine(_) => match line_of(subject) {
+                Some((path, line)) => format!("sed -i '{line}s/^/#/' {}", quote(path)),
+                None => format!("# no line named in {}", quote(subject)),
+            },
         }
     }
 }
@@ -95,34 +127,61 @@ fn quote(path: &str) -> String {
     }
 }
 
-/// One change to make: the remedy of `rule` on the subject `path`.
+/// One change to make: the remedy of `rule` on the subject `path`, or on its line holding the given SHA-256.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Change {
     pub rule: String,
     pub path: String,
+    pub line: Option<(usize, String)>,
     pub remedy: Remedy,
 }
 
-/// The changes the failing checks call for, one per path and remedy, in path order.
-pub fn plan(checks: &[Check], rules: &[Rule]) -> Vec<Change> {
-    let remedies: BTreeMap<&str, &Remedy> = rules
+impl Change {
+    /// The path, or `path:line` for a line change.
+    pub fn subject(&self) -> String {
+        match &self.line {
+            Some((n, _)) => format!("{}:{n}", self.path),
+            None => self.path.clone(),
+        }
+    }
+}
+
+/// The changes the failing checks over `document` call for, one per subject and remedy, in path order.
+pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> Vec<Change> {
+    let remedies: BTreeMap<&str, (&Rule, &Remedy)> = rules
         .iter()
-        .filter_map(|r| r.spec.remedy.as_ref().map(|m| (r.id.as_str(), m)))
+        .filter_map(|r| r.spec.remedy.as_ref().map(|m| (r.id.as_str(), (r, m))))
         .collect();
     let mut changes: Vec<Change> = checks
         .iter()
         .filter(|c| c.is_failing())
         .filter_map(|c| {
-            remedies.get(c.rule.as_str()).map(|m| Change {
+            let (rule, remedy) = remedies.get(c.rule.as_str())?;
+            let subject = c.subject_label();
+            let (path, line) = match remedy {
+                Remedy::DisableLine(_) => {
+                    let (path, n) = line_of(&subject)?;
+                    let sha = rule
+                        .subject_value(document, &c.subject)
+                        .and_then(|v| v.get("line-sha256"))
+                        .and_then(serde_json::Value::as_str);
+                    log::debug!("{} on {subject}: line-sha256 {sha:?}", c.rule);
+                    (path.to_owned(), Some((n, sha?.to_owned())))
+                }
+                _ => (subject, None),
+            };
+            Some(Change {
                 rule: c.rule.clone(),
-                path: c.subject_label(),
-                remedy: (*m).clone(),
+                path,
+                line,
+                remedy: (*remedy).clone(),
             })
         })
         .filter(|c| c.path.starts_with('/'))
         .collect();
-    changes.sort_by(|a, b| (&a.path, a.remedy.command("")).cmp(&(&b.path, b.remedy.command(""))));
-    changes.dedup_by(|a, b| a.path == b.path && a.remedy == b.remedy);
+    let key = |c: &Change| (c.path.clone(), c.line.clone(), c.remedy.command(""));
+    changes.sort_by_key(key);
+    changes.dedup_by(|a, b| a.path == b.path && a.line == b.line && a.remedy == b.remedy);
     log::debug!(
         "{} changes planned from {} checks",
         changes.len(),
@@ -137,6 +196,9 @@ pub type Applied = Option<(String, String)>;
 /// Makes `change` on the file it names under `root`, re-read right before, refusing a symlink or a special file.
 pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
     change.remedy.validate().map_err(std::io::Error::other)?;
+    if let Remedy::DisableLine(_) = change.remedy {
+        return disable(root, change);
+    }
     let file = root.open_for_change(&change.path).map_err(|e| {
         if e.raw_os_error() == Some(libc::ELOOP) {
             std::io::Error::new(
@@ -181,5 +243,64 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
             rustix::fs::fchown(&file, None, Some(rustix::process::Gid::from_raw(*gid)))?;
             Ok(Some((format!("gid {}", meta.gid()), format!("gid {gid}"))))
         }
+        Remedy::DisableLine(_) => disable(root, change),
     }
+}
+
+/// Comments out the line `change` names, refusing when it no longer holds the text the lint hashed.
+fn disable(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
+    let invalid = |why: String| std::io::Error::new(std::io::ErrorKind::InvalidData, why);
+    let (number, sha) = change
+        .line
+        .as_ref()
+        .ok_or_else(|| invalid("the subject names no line".to_owned()))?;
+    let mut file = root.open_for_edit(&change.path)?;
+    let meta = file.metadata()?;
+    if !meta.is_file() {
+        return Err(invalid("not a regular file".to_owned()));
+    }
+    if meta.len() > crate::runner::OUTPUT_CAP {
+        return Err(invalid(format!(
+            "{} bytes is past what systemlint rewrites",
+            meta.len()
+        )));
+    }
+    rustix::fs::flock(&file, rustix::fs::FlockOperation::NonBlockingLockExclusive)?;
+    let mut text = String::new();
+    (&mut file)
+        .take(crate::runner::OUTPUT_CAP)
+        .read_to_string(&mut text)?;
+    let mut offset = 0;
+    let found = text.split_inclusive('\n').enumerate().find_map(|(i, raw)| {
+        let start = offset;
+        offset += raw.len();
+        (i + 1 == *number).then_some((start, raw))
+    });
+    let (start, raw) = found.ok_or_else(|| {
+        invalid(format!(
+            "line {number} is gone, so lint again before fixing"
+        ))
+    })?;
+    let line = raw.strip_suffix('\n').unwrap_or(raw);
+    let line = line.strip_suffix('\r').unwrap_or(line);
+    log::debug!(
+        "{}: line {number} hashes {}, wanted {sha}",
+        change.path,
+        line_sha256(line)
+    );
+    if line
+        .strip_prefix('#')
+        .is_some_and(|rest| line_sha256(rest) == *sha)
+    {
+        return Ok(None);
+    }
+    if line_sha256(line) != *sha {
+        return Err(invalid(format!(
+            "line {number} changed since the lint, so lint again before fixing"
+        )));
+    }
+    let tail = format!("#{}", &text[start..]);
+    file.write_all_at(tail.as_bytes(), start as u64)?;
+    file.sync_all()?;
+    Ok(Some(("active".to_owned(), "commented out".to_owned())))
 }

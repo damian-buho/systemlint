@@ -473,6 +473,14 @@ pub struct Rule {
     combine: Combine,
 }
 
+impl Rule {
+    /// The object holding the fact a check of `subject` judged, its last key dropped.
+    pub fn subject_value<'a>(&self, document: &'a Value, subject: &[String]) -> Option<&'a Value> {
+        let keys = concrete(&self.fact, subject);
+        get(document, keys.split_last()?.1)
+    }
+}
+
 /// How a rule’s facts combine: every one must satisfy its schema, any one, or none.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Combine {

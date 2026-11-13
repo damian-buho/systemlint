@@ -6,7 +6,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
-use systemlint::fix::{Change, Remedy, apply, cleared, plan};
+use systemlint::fix::{Change, Lines, Remedy, apply, cleared, line_sha256, plan};
 use systemlint::judge::{compile, lint};
 use systemlint::source::Root;
 
@@ -33,6 +33,7 @@ fn chmod(spec: &str, path: &str) -> Change {
     Change {
         rule: "test/rule".into(),
         path: path.into(),
+        line: None,
         remedy: Remedy::Chmod(spec.into()),
     }
 }
@@ -140,7 +141,11 @@ fn a_plan_lists_each_failing_path_once() {
     };
     let document = json!({"files": {"cron": {"/etc/crontab": {"world-writable": true}, "/etc/cron.d": {"world-writable": false}}}});
     let rules = [rule("a/rule"), rule("b/rule")];
-    let changes = plan(&lint(&document, &rules, &[], "2026-11-12"), &rules);
+    let changes = plan(
+        &lint(&document, &rules, &[], "2026-11-12"),
+        &rules,
+        &document,
+    );
     assert_eq!(
         changes.iter().map(|c| c.path.as_str()).collect::<Vec<_>>(),
         ["/etc/crontab"]
@@ -198,4 +203,95 @@ fn applying_to_a_symlink_or_a_fifo_is_refused() {
         0o666,
         "the link target is untouched"
     );
+}
+
+// The keys of a test authorized_keys file, line 2 being the DSA key a rule fails.
+const KEYS: &str = "ssh-ed25519 AAAA one\nssh-dss AAAA two\r\n# note\nssh-ed25519 AAAA three";
+
+// A plan disabling DSA lines over a document whose line 2 carries the hash `sha`, or none.
+fn dsa_plan(sha: Option<String>) -> Vec<Change> {
+    let rule = compile(
+        "a/dsa",
+        systemlint::yaml::from_str(
+            "fact: ssh.authorized-keys.*.keys.*.type\nexpect: {not: {pattern: ^ssh-dss}}\nremedy: {disable-line: authorized-keys}\n",
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let mut key = json!({"type": "ssh-dss"});
+    if let Some(sha) = sha {
+        key["line-sha256"] = json!(sha);
+    }
+    let document = json!({"ssh": {"authorized-keys": {"alice": {"keys": {"/keys:2": key, "/keys:1": {"type": "ssh-ed25519"}}}}}});
+    let rules = [rule];
+    plan(
+        &lint(&document, &rules, &[], "2026-11-12"),
+        &rules,
+        &document,
+    )
+}
+
+#[test]
+fn a_line_remedy_comments_out_only_the_line_the_lint_hashed() {
+    let dir = base("line");
+    std::fs::write(dir.join("keys"), KEYS).unwrap();
+    let root = Root::open(&dir).unwrap();
+    let changes = dsa_plan(Some(line_sha256("ssh-dss AAAA two")));
+    assert_eq!(changes.len(), 1, "{changes:?}");
+    assert_eq!(changes[0].subject(), "/keys:2");
+    assert_eq!(
+        changes[0].remedy.command(&changes[0].subject()),
+        "sed -i '2s/^/#/' /keys"
+    );
+    assert_eq!(
+        apply(&root, &changes[0]).unwrap(),
+        Some(("active".into(), "commented out".into()))
+    );
+    assert_eq!(
+        apply(&root, &changes[0]).unwrap(),
+        None,
+        "a re-run changes nothing"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("keys")).unwrap(),
+        KEYS.replace("ssh-dss", "#ssh-dss"),
+        "every other byte is kept, CRLF and the unterminated last line included"
+    );
+}
+
+#[test]
+fn a_line_remedy_refuses_a_changed_line_and_plans_nothing_without_a_hash() {
+    let dir = base("line-changed");
+    std::fs::write(dir.join("keys"), KEYS).unwrap();
+    let root = Root::open(&dir).unwrap();
+    let changes = dsa_plan(Some(line_sha256("ssh-dss AAAA other")));
+    assert!(
+        apply(&root, &changes[0])
+            .unwrap_err()
+            .to_string()
+            .contains("changed since the lint")
+    );
+    let mut gone = changes[0].clone();
+    gone.line = Some((5, line_sha256("")));
+    assert!(
+        apply(&root, &gone)
+            .unwrap_err()
+            .to_string()
+            .contains("line 5 is gone")
+    );
+    assert_eq!(std::fs::read_to_string(dir.join("keys")).unwrap(), KEYS);
+    assert_eq!(
+        dsa_plan(None),
+        [],
+        "a subject with no line hash is never changed"
+    );
+}
+
+#[test]
+fn a_line_remedy_names_a_syntax_whose_every_line_grants() {
+    assert_eq!(
+        serde_json::from_value::<Remedy>(json!({"disable-line": "authorized-keys"})).unwrap(),
+        Remedy::DisableLine(Lines::AuthorizedKeys)
+    );
+    assert!(serde_json::from_value::<Remedy>(json!({"disable-line": "sudoers"})).is_err());
 }
