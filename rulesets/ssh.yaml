@@ -13,7 +13,9 @@ rules:
     message: "{subject} sets PermitRootLogin {got}, so it lets root log in with a password"
     fix: set PermitRootLogin prohibit-password, or no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, dev-sec-ssh-baseline:sshd-06]
+    references:
+      - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
+    tags: [ssh, dev-sec-ssh-baseline:sshd-06, lynis]
   ssh/password-authentication:
     title: Passwords accepted over the network
     fact: sshd.contexts.*.passwordauthentication
@@ -63,7 +65,9 @@ rules:
     message: "{subject} sets IgnoreRhosts {got}, so it reads users’ .rhosts and .shosts files"
     fix: set IgnoreRhosts yes
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, dev-sec-ssh-baseline:sshd-23]
+    references:
+      - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
+    tags: [ssh, dev-sec-ssh-baseline:sshd-23, lynis]
   ssh/strict-modes:
     title: Writable key files accepted
     fact: sshd.global.*.strictmodes
@@ -73,7 +77,9 @@ rules:
     message: "{subject} sets StrictModes {got}, so it accepts key files that other users can write"
     fix: set StrictModes yes
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, dev-sec-ssh-baseline:sshd-11]
+    references:
+      - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
+    tags: [ssh, dev-sec-ssh-baseline:sshd-11, lynis]
   ssh/user-environment:
     title: Users may set their session environment
     fact: sshd.global.*.permituserenvironment
@@ -83,7 +89,9 @@ rules:
     message: "{subject} sets PermitUserEnvironment {got}, so it lets users set variables such as LD_PRELOAD for their session"
     fix: set PermitUserEnvironment no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, dev-sec-ssh-baseline:sshd-17]
+    references:
+      - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
+    tags: [ssh, dev-sec-ssh-baseline:sshd-17, lynis]
   ssh/x11-forwarding:
     title: X11 forwarding on
     fact: sshd.contexts.*.x11forwarding
@@ -103,7 +111,9 @@ rules:
     message: "{subject} sets GatewayPorts {got}, so it lets forwarded ports listen on every address, not only on loopback"
     fix: set GatewayPorts no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, dev-sec-ssh-baseline:sshd-41]
+    references:
+      - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
+    tags: [ssh, dev-sec-ssh-baseline:sshd-41, lynis]
   ssh/tunnel:
     title: Tunnel device forwarding on
     fact: sshd.contexts.*.permittunnel
@@ -113,7 +123,9 @@ rules:
     message: "{subject} sets PermitTunnel {got}, so it allows tun device forwarding, a full network link into the host"
     fix: set PermitTunnel no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, dev-sec-ssh-baseline:sshd-38]
+    references:
+      - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
+    tags: [ssh, dev-sec-ssh-baseline:sshd-38, lynis]
   ssh/ciphers:
     title: Weak cipher offered
     fact: sshd.global.*.ciphers
@@ -153,7 +165,9 @@ rules:
     message: "{subject} sets MaxAuthTries {got}, so it allows many authentication attempts per connection"
     fix: set MaxAuthTries 4 or lower
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, dev-sec-ssh-baseline:sshd-19]
+    references:
+      - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
+    tags: [ssh, dev-sec-ssh-baseline:sshd-19, lynis]
   ssh/login-grace-time:
     title: Unauthenticated connections kept open long
     fact: sshd.global.*.logingracetime
@@ -163,7 +177,9 @@ rules:
     message: "{subject} sets LoginGraceTime {got}, so it keeps unauthenticated connections open for long, 0 meaning forever"
     fix: set LoginGraceTime between 1 and 60 seconds
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, dev-sec-ssh-baseline:sshd-18]
+    references:
+      - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
+    tags: [ssh, dev-sec-ssh-baseline:sshd-18, lynis]
   ssh/log-level:
     title: Login keys not logged
     fact: sshd.contexts.*.loglevel
@@ -173,4 +189,6 @@ rules:
     message: "{subject} sets LogLevel {got}, so it does not log which key each user logged in with"
     fix: set LogLevel VERBOSE
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, dev-sec-ssh-baseline:sshd-13]
+    references:
+      - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
+    tags: [ssh, dev-sec-ssh-baseline:sshd-13, lynis]

@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Interfaces that let a remote sender choose how this host routes its traffic
+rules:
+  ip-routing/ipv4-redirects:
+    title: IPv4 ICMP redirects accepted
+    fact: sysctl.settings.net.ipv4.conf.*.accept_redirects
+    keys: {not: {const: lo}}
+    when: {sysctl.settings.net.ipv4.conf.*.forwarding: 0}
+    expect: {const: 0}
+    severity: warning
+    score: 5.0
+    message: "{subject} accepts IPv4 ICMP redirects (accept_redirects {got}), so anyone on the link can reroute this host’s traffic through themselves"
+    fix: set net.ipv4.conf.all.accept_redirects = 0 and net.ipv4.conf.default.accept_redirects = 0, then each listed interface’s key
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [ip-routing, sysctl, lynis]
+  ip-routing/ipv6-redirects:
+    title: IPv6 ICMP redirects accepted
+    fact: sysctl.settings.net.ipv6.conf.*.accept_redirects
+    keys: {not: {enum: [all, lo]}}
+    when: {sysctl.settings.net.ipv6.conf.*.forwarding: 0}
+    expect: {const: 0}
+    severity: warning
+    score: 5.0
+    message: "{subject} accepts IPv6 ICMP redirects (accept_redirects {got}), so anyone on the link can reroute this host’s traffic through themselves"
+    fix: set net.ipv6.conf.default.accept_redirects = 0, then each listed interface’s key
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [ip-routing, sysctl, lynis]
+  ip-routing/ipv4-source-route:
+    title: IPv4 source-routed packets accepted
+    keys: {not: {const: all}}
+    facts:
+      any:
+        - {fact: sysctl.settings.net.ipv4.conf.*.accept_source_route, expect: {const: 0}}
+        - {fact: sysctl.settings.net.ipv4.conf.all.accept_source_route, expect: {const: 0}}
+    severity: warning
+    score: 6.0
+    message: "{subject} and all both set accept_source_route, so a sender can dictate the path replies take and slip past filters that trust the source address"
+    fix: set net.ipv4.conf.all.accept_source_route = 0
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [ip-routing, sysctl, lynis]

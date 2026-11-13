@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Network settings that let a flood exhaust this host or use it to amplify an attack
+rules:
+  ip-flood/syncookies:
+    title: SYN cookies off
+    fact: sysctl.settings.net.ipv4.tcp_syncookies
+    expect: {minimum: 1}
+    severity: warning
+    score: 4.5
+    message: "net.ipv4.tcp_syncookies is {got}, so a SYN flood fills the connection backlog and the host stops accepting TCP connections"
+    fix: set net.ipv4.tcp_syncookies = 1
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [ip-flood, sysctl, lynis]
+  ip-flood/broadcast-echo:
+    title: Broadcast pings answered
+    fact: sysctl.settings.net.ipv4.icmp_echo_ignore_broadcasts
+    expect: {const: 1}
+    severity: warning
+    score: 4.0
+    message: "net.ipv4.icmp_echo_ignore_broadcasts is {got}, so the host answers pings sent to a broadcast address and can amplify a smurf attack"
+    fix: set net.ipv4.icmp_echo_ignore_broadcasts = 1
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [ip-flood, sysctl, lynis]

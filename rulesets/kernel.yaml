@@ -1,0 +1,90 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Kernel settings that hand unprivileged users memory layouts, kernel addresses or attack surface
+rules:
+  kernel/aslr:
+    title: Address space randomization weakened
+    fact: sysctl.settings.kernel.randomize_va_space
+    expect: {const: 2}
+    severity: error
+    score: 7.5
+    message: "kernel.randomize_va_space is {got}, so stack, heap or mmap addresses are predictable, which makes memory corruption bugs easier to exploit"
+    fix: set kernel.randomize_va_space = 2 in a file under /etc/sysctl.d/
+    docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#randomize-va-space
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [kernel, sysctl, lynis]
+  kernel/kptr-restrict:
+    title: Kernel addresses shown to every user
+    fact: sysctl.settings.kernel.kptr_restrict
+    expect: {minimum: 1}
+    severity: warning
+    score: 5.0
+    message: "kernel.kptr_restrict is {got}, so /proc and other interfaces print kernel pointers to unprivileged users, which defeats kernel address randomization"
+    fix: set kernel.kptr_restrict = 1, or 2 to hide them from root as well
+    docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#kptr-restrict
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [kernel, sysctl, lynis]
+  kernel/dmesg-restrict:
+    title: Kernel log readable by every user
+    fact: sysctl.settings.kernel.dmesg_restrict
+    expect: {const: 1}
+    severity: warning
+    score: 4.0
+    message: "kernel.dmesg_restrict is {got}, so any user can read the kernel log, which can leak addresses and hardware details"
+    fix: set kernel.dmesg_restrict = 1
+    docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#dmesg-restrict
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [kernel, sysctl, lynis]
+  kernel/ptrace-scope:
+    title: Any process may trace another of the same user
+    fact: sysctl.settings.kernel.yama.ptrace_scope
+    expect: {minimum: 1}
+    severity: warning
+    score: 5.0
+    message: "kernel.yama.ptrace_scope is {got}, so one compromised process can read the memory and secrets of every other process its user runs"
+    fix: set kernel.yama.ptrace_scope = 1, so only a parent may trace its children
+    docs: https://docs.kernel.org/admin-guide/LSM/Yama.html
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [kernel, sysctl, lynis]
+  kernel/unprivileged-bpf:
+    title: Unprivileged users may load BPF programs
+    fact: sysctl.settings.kernel.unprivileged_bpf_disabled
+    expect: {minimum: 1}
+    severity: warning
+    score: 6.0
+    message: "kernel.unprivileged_bpf_disabled is {got}, so any user can load BPF programs, a frequent path to kernel exploits"
+    fix: set kernel.unprivileged_bpf_disabled = 1, or 2 to let an administrator turn it back on until reboot
+    docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#unprivileged-bpf-disabled
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [kernel, sysctl, lynis]
+  kernel/perf-events:
+    title: Unprivileged users may profile the kernel
+    fact: sysctl.settings.kernel.perf_event_paranoid
+    expect: {minimum: 2}
+    severity: warning
+    score: 4.0
+    message: "kernel.perf_event_paranoid is {got}, so unprivileged users can sample kernel activity through perf_event_open, which leaks kernel addresses and timing"
+    fix: set kernel.perf_event_paranoid = 2
+    docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#perf-event-paranoid
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [kernel, sysctl, lynis]
+  kernel/tty-ldisc-autoload:
+    title: Any user may load TTY line discipline modules
+    fact: sysctl.settings.dev.tty.ldisc_autoload
+    expect: {const: 0}
+    severity: info
+    score: 2.5
+    message: "dev.tty.ldisc_autoload is {got}, so any user can make the kernel load a rarely used line discipline module, and with it that module’s bugs"
+    fix: set dev.tty.ldisc_autoload = 0 unless a serial device needs a line discipline loaded on demand
+    docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [kernel, sysctl, lynis]

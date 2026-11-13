@@ -35,6 +35,12 @@ fn sysctl_under_root_applies_the_files_in_systemd_order() {
 }
 
 #[test]
+fn ufw_conf_and_binary_land_where_the_ufw_ruleset_reads_them() {
+    assert_eq!(facts("ufw"), json!({"ENABLED": "no", "LOGLEVEL": "low"}));
+    assert_eq!(facts("ufw-binary").as_object().unwrap().keys().collect::<Vec<_>>(), ["/usr/sbin/ufw"]);
+}
+
+#[test]
 fn docker_daemon_json_lands_as_is() {
     assert_eq!(facts("docker-daemon"), json!({"icc": false, "live-restore": true, "insecure-registries": ["registry.lan:5000"]}));
 }

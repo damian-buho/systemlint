@@ -187,7 +187,7 @@ rules:
   apt/https: error
   os/supported: {expect: {enum: ["26.04"]}}
   ssh/legacy: off
-  sysctl/kptr-restrict: 7.5
+  kernel/kptr-restrict: 7.5
 ```
 
 An entry with `fact` defines a rule; a rule is defined in one ruleset only. Any

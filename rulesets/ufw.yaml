@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: An installed ufw firewall left switched off
+when: {ufw.binary: {minProperties: 1}}
+rules:
+  ufw/disabled:
+    title: ufw installed but switched off
+    fact: ufw.conf.ENABLED
+    expect: {const: "yes"}
+    severity: error
+    score: 7.0
+    message: "/etc/ufw/ufw.conf sets ENABLED={got}, so ufw loads no rules at boot and the host runs without its firewall"
+    fix: run ufw enable once the rules allow your own SSH session, or uninstall ufw if another firewall guards the host
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
+    references:
+      - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
+    tags: [ufw, firewall, lynis]

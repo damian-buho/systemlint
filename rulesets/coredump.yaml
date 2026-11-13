@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Core dumps that hand the memory of a privileged program to the user who crashed it
+rules:
+  coredump/suid-dumpable:
+    title: Setuid programs dump core readable by the user
+    fact: sysctl.settings.fs.suid_dumpable
+    expect: {enum: [0, 2]}
+    severity: error
+    score: 6.8
+    message: "fs.suid_dumpable is {got}, so a crashed setuid program leaves a core file its user can read, with the secrets it held"
+    fix: set fs.suid_dumpable = 0, or 2 when a root-only crash handler such as apport or systemd-coredump receives the dumps
+    docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#suid-dumpable
+    references:
+      - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
+    tags: [coredump, sysctl, lynis]
