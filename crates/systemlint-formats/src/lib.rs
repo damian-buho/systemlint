@@ -57,10 +57,13 @@ pub fn describe() -> Describe {
         &[
             ("csv", &[]),
             ("exec", &[]),
+            ("group", &[]),
             ("ini", &[]),
             ("json", &[]),
             ("kv", &[]),
             ("lines", &[]),
+            ("passwd", &[]),
+            ("shadow", &[]),
             ("stat", &[]),
             ("sysctl", &[]),
             ("systemd", &[]),
@@ -75,10 +78,13 @@ pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
         "csv" => Ok(csv(&request.inputs)),
         "exec" => Ok(exec(&request.inputs)),
+        "group" => Ok(group(&request.inputs)),
         "ini" => Ok(ini(&request.inputs)),
         "json" => Ok(json(&request.inputs)),
         "kv" => Ok(kv(&request.inputs)),
         "lines" => Ok(lines(&request.inputs)),
+        "passwd" => Ok(passwd(&request.inputs)),
+        "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
         "sysctl" => Ok(sysctl(&request.inputs)),
         "systemd" => Ok(systemd(&request.inputs)),
@@ -220,6 +226,117 @@ pub fn lines(inputs: &[Input]) -> Reply {
         );
     }
     reply
+}
+
+/// A password field as a word, never its hash: `shadow` for `x`, `empty`, `locked` for a leading `!` or `*`, else `hash`.
+fn password(field: &str) -> &'static str {
+    match field {
+        "x" => "shadow",
+        "" => "empty",
+        f if f.starts_with(['!', '*']) => "locked",
+        _ => "hash",
+    }
+}
+
+/// A numeric id field, or the message naming it.
+fn id(parts: &[&str], index: usize, name: &str) -> std::result::Result<Value, String> {
+    parts[index]
+        .parse::<u32>()
+        .map(Value::from)
+        .map_err(|_| format!("{name} {:?} is not a number", parts[index]))
+}
+
+/// One account line’s fields parsed into facts, or the message naming the bad field.
+type Entry = fn(&[&str]) -> std::result::Result<Map<String, Value>, String>;
+
+/// A passwd(5) line’s facts.
+fn passwd_entry(parts: &[&str]) -> std::result::Result<Map<String, Value>, String> {
+    Ok(Map::from_iter([
+        ("password".to_owned(), Value::from(password(parts[1]))),
+        ("uid".to_owned(), id(parts, 2, "uid")?),
+        ("gid".to_owned(), id(parts, 3, "gid")?),
+        ("gecos".to_owned(), Value::from(parts[4])),
+        ("home".to_owned(), Value::from(parts[5])),
+        ("shell".to_owned(), Value::from(parts[6])),
+    ]))
+}
+
+/// A group(5) line’s facts.
+fn group_entry(parts: &[&str]) -> std::result::Result<Map<String, Value>, String> {
+    let members: Vec<&str> = parts[3].split(',').filter(|m| !m.is_empty()).collect();
+    Ok(Map::from_iter([
+        ("password".to_owned(), Value::from(password(parts[1]))),
+        ("gid".to_owned(), id(parts, 2, "gid")?),
+        ("members".to_owned(), Value::from(members)),
+    ]))
+}
+
+/// A shadow(5) line’s facts, the hash reduced to its word.
+fn shadow_entry(parts: &[&str]) -> std::result::Result<Map<String, Value>, String> {
+    Ok(Map::from_iter([(
+        "password".to_owned(),
+        Value::from(password(parts[1])),
+    )]))
+}
+
+/// Every entry of a colon-separated account database keyed by name, its `line`, and the later lines repeating the name, which glibc never reads, in `shadowed`.
+fn accounts(inputs: &[Input], fields: usize, entry: Entry) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
+        for (index, raw) in text.lines().enumerate() {
+            let number = index as u64 + 1;
+            let line = raw.trim_start();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let parts: Vec<&str> = line.split(':').collect();
+            let failed = if parts.len() == fields {
+                if let Some(Value::Object(first)) = reply.facts.get_mut(parts[0]) {
+                    if let Some(Value::Array(shadowed)) = first.get_mut("shadowed") {
+                        shadowed.push(Value::from(number));
+                    }
+                    continue;
+                }
+                match entry(&parts) {
+                    Ok(mut facts) => {
+                        facts.insert("line".to_owned(), Value::from(number));
+                        facts.insert("shadowed".to_owned(), Value::Array(Vec::new()));
+                        reply
+                            .facts
+                            .insert(parts[0].to_owned(), Value::Object(facts));
+                        continue;
+                    }
+                    Err(message) => message,
+                }
+            } else {
+                format!("{} fields where {fields} are expected", parts.len())
+            };
+            reply.diagnostics.push(Diagnostic {
+                path: path.to_owned(),
+                line: Some(number),
+                message: failed,
+            });
+        }
+    }
+    reply
+}
+
+/// Every account of passwd(5) files by name.
+pub fn passwd(inputs: &[Input]) -> Reply {
+    accounts(inputs, 7, passwd_entry)
+}
+
+/// Every group of group(5) files by name.
+pub fn group(inputs: &[Input]) -> Reply {
+    accounts(inputs, 4, group_entry)
+}
+
+/// Every account of shadow(5) files by name, with no hash.
+pub fn shadow(inputs: &[Input]) -> Reply {
+    accounts(inputs, 9, shadow_entry)
 }
 
 /// The text of a file input, or a diagnostic when it is missing or not UTF-8.
@@ -810,8 +927,8 @@ mod tests {
                 .map(|o| o.op.as_str())
                 .collect::<Vec<_>>(),
             [
-                "csv", "exec", "ini", "json", "kv", "lines", "stat", "sysctl", "systemd", "toml",
-                "yaml"
+                "csv", "exec", "group", "ini", "json", "kv", "lines", "passwd", "shadow", "stat",
+                "sysctl", "systemd", "toml", "yaml"
             ]
         );
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
@@ -1361,5 +1478,63 @@ mod tests {
             "http://u:[redacted]@proxy:3128/"
         );
         assert_eq!(mask("http://proxy:3128"), "http://proxy:3128");
+    }
+
+    #[test]
+    fn passwd_keys_accounts_by_name_the_first_line_winning() {
+        let reply = passwd(&[file(
+            "/etc/passwd",
+            "root:x:0:0:root:/root:/bin/bash\n# a comment\n\n  toor::0:0::/root:/bin/sh\nbob:$6$salt$hash:1000:1000:Bob,,,:/home/bob:/bin/bash\nroot:x:1001:1001::/x:/bin/sh\nbad:x:zero:0::/:/bin/sh\nshort:x:1:1\n",
+        )]);
+        assert_eq!(
+            json!(reply.facts),
+            json!({
+                "root": {"password": "shadow", "uid": 0, "gid": 0, "gecos": "root", "home": "/root", "shell": "/bin/bash", "line": 1, "shadowed": [6]},
+                "toor": {"password": "empty", "uid": 0, "gid": 0, "gecos": "", "home": "/root", "shell": "/bin/sh", "line": 4, "shadowed": []},
+                "bob": {"password": "hash", "uid": 1000, "gid": 1000, "gecos": "Bob,,,", "home": "/home/bob", "shell": "/bin/bash", "line": 5, "shadowed": []},
+            })
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| (d.line, d.message.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (Some(7), "uid \"zero\" is not a number"),
+                (Some(8), "4 fields where 7 are expected"),
+            ]
+        );
+    }
+
+    #[test]
+    fn group_lists_members_and_shadow_never_returns_a_hash() {
+        let groups = group(&[file("/etc/group", "sudo:x:27:alice,bob\nusers:x:100:\n")]);
+        assert_eq!(
+            json!(groups.facts),
+            json!({
+                "sudo": {"password": "shadow", "gid": 27, "members": ["alice", "bob"], "line": 1, "shadowed": []},
+                "users": {"password": "shadow", "gid": 100, "members": [], "line": 2, "shadowed": []},
+            })
+        );
+        let shadowed = shadow(&[file(
+            "/etc/shadow",
+            "root:$y$j9T$secret:20000:0:99999:7:::\ndaemon:*:20000:0:99999:7:::\nlocked:!$6$x:20000::::::\nopen::20000:0:99999:7:::\n",
+        )]);
+        let text = json!(shadowed.facts).to_string();
+        assert!(!text.contains("secret"), "{text}");
+        assert_eq!(
+            shadowed
+                .facts
+                .iter()
+                .map(|(name, f)| (name.as_str(), f["password"].as_str().unwrap()))
+                .collect::<Vec<_>>(),
+            [
+                ("daemon", "locked"),
+                ("locked", "locked"),
+                ("open", "empty"),
+                ("root", "hash")
+            ]
+        );
     }
 }
