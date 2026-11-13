@@ -123,3 +123,53 @@ and `LogLevel INFO`, so a stock server fails those rules until hardened. The
 controls about ports, listen addresses, banners and forwarding of TCP or
 agents depend on each site and have no rule; the permissions of the files
 under `/etc/ssh` are the [files](files.md) ruleset’s.
+
+## Authorized keys
+
+| Collector | Reads | Facts at |
+| --- | --- | --- |
+| `ssh-authorized-key-files` | the same as `sshd`, plus `accounts.passwd` and `accounts.group` | `ssh.authorized-key-files.<account>` |
+| `ssh-authorized-keys` | every file the previous facts name, root only | `ssh.authorized-keys.<account>` |
+
+```yaml
+ssh:
+  authorized-key-files:
+    alice: [/etc/ssh/ops/1000, /home/alice/.ssh/authorized_keys]
+  authorized-keys:
+    alice:
+      files:
+        /home/alice/.ssh/authorized_keys: {kind: file, mode: "0600", uid: 1000, gid: 1000, …}
+      keys:
+        /home/alice/.ssh/authorized_keys:3:
+          type: ssh-rsa
+          bits: 1024
+          fingerprint: SHA256:k35ODz81KXzw/r4J3gBeEn0haj1GObKbZGcoaxLMRLM
+          comment: old
+          options: {restrict: true, from: ["192.0.2.0/24"]}
+```
+
+`authorized-key-files` lists, per local account, every path sshd may read its
+keys from, in sshd’s order. It walks the `Match` blocks in file order: one
+whose `User` and `Group` criteria rule the account out is skipped, one that
+also names a connection criterion (`Address`, `Host`, `LocalPort` …) may apply
+and adds its `AuthorizedKeysFile`, and the first that always applies adds its
+own and ends the list; otherwise the global value comes last. `%%`, `%h`, `%u`
+and `%U` are expanded and a relative path lands below the home directory; a
+path with another token is left out with a diagnostic, as sshd refuses it.
+`none` names no file.
+
+`authorized-keys` keeps, per account, the `stat` of each file read and each
+key keyed `path:line`: its type, size in bits, SHA256 fingerprint as
+`ssh-keygen -l` prints it, comment, and options, a flag as `true` and a
+valued option as the list of every value it was given. The key itself never
+leaves the plugin. A blank or comment line holds no key; a line sshd would
+skip is a diagnostic naming it. An account none of whose files exist has no
+entry.
+
+| Rule | Fails when |
+| --- | --- |
+| `authorized-keys/rsa-size` | an RSA key of 1024 to 2047 bits, while `RequiredRSASize` is at its 1024 floor and `PubkeyAcceptedAlgorithms` takes RSA |
+| `authorized-keys/dsa` | a DSA key, while `PubkeyAcceptedAlgorithms` still takes `ssh-dss`; OpenSSH 10 dropped DSA, so there the rule is a skip |
+
+Both guards read the main file’s context, so a `Match` block that changes
+either setting for some connections is not judged.

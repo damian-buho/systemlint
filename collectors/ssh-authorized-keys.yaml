@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: ssh-authorized-keys
+read:
+  files-from: [ssh.authorized-key-files.*]
+  stat-from: [ssh.authorized-key-files.*]
+parse: {plugin: sshd, op: authorized-keys}
+into: ssh.authorized-keys
+privileged: true

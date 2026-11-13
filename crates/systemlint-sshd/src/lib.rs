@@ -9,7 +9,9 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 use systemlint_protocol::{Describe, Diagnostic, Input, Reply, Request, Result};
 
+pub mod authorized;
 pub mod config;
+pub mod keys;
 
 use config::{MAIN, Raw};
 
@@ -42,13 +44,27 @@ const PACKAGE: &str = "openssh-server";
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
-    Describe::new("sshd", &[("config", &["apt.installed"])])
+    Describe::new(
+        "sshd",
+        &[
+            ("config", &["apt.installed"]),
+            (
+                "authorized-key-files",
+                &["apt.installed", "accounts.passwd", "accounts.group"],
+            ),
+            ("authorized-keys", &[keys::NAMED]),
+        ],
+    )
 }
 
 /// Runs one op.
 pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
         "config" => server(&request.inputs, &request.facts).map_err(Into::into),
+        "authorized-key-files" => {
+            authorized::files(&request.inputs, &request.facts).map_err(Into::into)
+        }
+        "authorized-keys" => keys::authorized(&request.inputs, &request.facts).map_err(Into::into),
         other => Err(format!("op {other} is not implemented").into()),
     }
 }
@@ -58,6 +74,61 @@ pub fn server(
     inputs: &[Input],
     facts: &BTreeMap<String, Value>,
 ) -> std::result::Result<Reply, String> {
+    let Loaded {
+        mut reply,
+        source,
+        global,
+        blocks,
+        from,
+        guessed,
+    } = load(inputs, facts)?;
+    let (mut fixed, mut contexts) = (Map::new(), Map::new());
+    if source != "none" {
+        let (shared, rest): (Map<String, Value>, Map<String, Value>) = config::facts(&global)
+            .into_iter()
+            .partition(|(k, _)| config::MATCH.contains(&k.as_str()));
+        fixed.insert(MAIN.to_owned(), Value::Object(rest));
+        contexts.insert(MAIN.to_owned(), Value::Object(shared));
+        for block in blocks {
+            let mut merged: Map<String, Value> = config::facts(&overlay(&global, &block.raw))
+                .into_iter()
+                .filter(|(k, _)| config::MATCH.contains(&k.as_str()))
+                .collect();
+            merged.insert("match".to_owned(), Value::from(block.criteria));
+            contexts.insert(block.key, Value::Object(merged));
+        }
+    }
+    reply.facts.insert("source".to_owned(), Value::from(source));
+    reply
+        .facts
+        .insert("global".to_owned(), Value::Object(fixed));
+    reply
+        .facts
+        .insert("contexts".to_owned(), Value::Object(contexts));
+    if source == "files" {
+        reply.facts.insert("defaults".to_owned(), Value::from(from));
+        if guessed {
+            reply.diagnostics.push(Diagnostic { path: "apt.installed".to_owned(), line: None, message: format!("no {PACKAGE} version installed, so the files are read against the newest defaults, {from}") });
+        }
+    }
+    Ok(reply)
+}
+
+/// The configuration the inputs give, with the diagnostics reading it raised.
+pub struct Loaded {
+    pub reply: Reply,
+    pub source: &'static str,
+    pub global: Raw,
+    pub blocks: Vec<config::Block>,
+    pub from: &'static str,
+    pub guessed: bool,
+}
+
+/// Reads the files and `sshd -T` output: `source`, the global settings over the defaults, and the `Match` blocks in file order.
+pub fn load(
+    inputs: &[Input],
+    facts: &BTreeMap<String, Value>,
+) -> std::result::Result<Loaded, String> {
     let mut reply = Reply::default();
     let mut files = BTreeMap::new();
     let (mut effective, mut failed) = (None, Vec::new());
@@ -120,37 +191,18 @@ pub fn server(
         (None, true) => "files",
         (None, false) => "none",
     };
-    let (mut fixed, mut contexts) = (Map::new(), Map::new());
-    if source != "none" {
-        let global: Raw = effective.unwrap_or_else(|| overlay(&defaults, &parsed.global));
-        let (shared, rest): (Map<String, Value>, Map<String, Value>) = config::facts(&global)
-            .into_iter()
-            .partition(|(k, _)| config::MATCH.contains(&k.as_str()));
-        fixed.insert(MAIN.to_owned(), Value::Object(rest));
-        contexts.insert(MAIN.to_owned(), Value::Object(shared));
-        for block in parsed.blocks {
-            let mut merged: Map<String, Value> = config::facts(&overlay(&global, &block.raw))
-                .into_iter()
-                .filter(|(k, _)| config::MATCH.contains(&k.as_str()))
-                .collect();
-            merged.insert("match".to_owned(), Value::from(block.criteria));
-            contexts.insert(block.key, Value::Object(merged));
-        }
-    }
-    reply.facts.insert("source".to_owned(), Value::from(source));
-    reply
-        .facts
-        .insert("global".to_owned(), Value::Object(fixed));
-    reply
-        .facts
-        .insert("contexts".to_owned(), Value::Object(contexts));
-    if source == "files" {
-        reply.facts.insert("defaults".to_owned(), Value::from(from));
-        if installed.is_none() {
-            reply.diagnostics.push(Diagnostic { path: "apt.installed".to_owned(), line: None, message: format!("no {PACKAGE} version installed, so the files are read against the newest defaults, {from}") });
-        }
-    }
-    Ok(reply)
+    let global = match &effective {
+        Some(raw) => raw.clone(),
+        None => overlay(&defaults, &parsed.global),
+    };
+    Ok(Loaded {
+        reply,
+        source,
+        global,
+        blocks: parsed.blocks,
+        from,
+        guessed: installed.is_none(),
+    })
 }
 
 // The installed `openssh-server` version, keyed by name or `name:arch`.
@@ -256,7 +308,16 @@ mod tests {
                 .iter()
                 .map(|o| (o.op.as_str(), o.needs.clone()))
                 .collect::<Vec<_>>(),
-            [("config", vec!["apt.installed".to_owned()])]
+            [
+                ("config", vec!["apt.installed".to_owned()]),
+                (
+                    "authorized-key-files",
+                    ["apt.installed", "accounts.passwd", "accounts.group"]
+                        .map(str::to_owned)
+                        .to_vec()
+                ),
+                ("authorized-keys", vec![keys::NAMED.to_owned()])
+            ]
         );
         assert!(
             op(Request {

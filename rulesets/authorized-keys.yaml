@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: the keys each account’s AuthorizedKeysFile lets log in
+rules:
+  authorized-keys/rsa-size:
+    title: Short RSA key authorized
+    fact: ssh.authorized-keys.*.keys.*.bits
+    when:
+      ssh.authorized-keys.*.keys.*.type: {pattern: "^ssh-rsa"}
+      /sshd/contexts/~1etc~1ssh~1sshd_config/requiredrsasize: {maximum: 1024}
+      /sshd/contexts/~1etc~1ssh~1sshd_config/pubkeyacceptedalgorithms: {contains: {pattern: "^(rsa-sha2-|ssh-rsa)"}}
+    expect: {not: {minimum: 1024, maximum: 2047}}
+    severity: warning
+    score: 5.0
+    message: "{subject} is a {got}-bit RSA key, which sshd accepts and which is within reach of factoring"
+    fix: replace the key with an ed25519 one (ssh-keygen -t ed25519) and remove the line
+    docs: https://man.openbsd.org/sshd_config#RequiredRSASize
+    tags: [ssh]
+  authorized-keys/dsa:
+    title: DSA key authorized
+    fact: ssh.authorized-keys.*.keys.*.type
+    when:
+      /sshd/contexts/~1etc~1ssh~1sshd_config/pubkeyacceptedalgorithms: {contains: {pattern: "^ssh-dss"}}
+    expect: {not: {pattern: "^ssh-dss"}}
+    severity: warning
+    score: 5.0
+    message: "{subject} is a DSA key, fixed at 1024 bits, and PubkeyAcceptedAlgorithms still lets it log in"
+    fix: replace the key with an ed25519 one (ssh-keygen -t ed25519) and remove ssh-dss from PubkeyAcceptedAlgorithms
+    docs: https://man.openbsd.org/sshd_config#PubkeyAcceptedAlgorithms
+    tags: [ssh]
