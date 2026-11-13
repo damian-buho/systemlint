@@ -117,6 +117,16 @@ const PLUGINS: &[(&str, &str, &str)] = &[
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
     ),
     (
+        "templater",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
+    ),
+    (
+        "literal",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
+    ),
+    (
         "mounter",
         r#"[{"op":"parse"}]"#,
         r#"printf '%s\n' '{"facts":{"/etc":{"filesystem":"ext4"},"/etc/absent":{},"relative":{}}}'"#,
@@ -292,6 +302,32 @@ fn files_from_and_stat_from_read_the_paths_facts_name_after_their_producer() {
 }
 
 #[test]
+fn a_from_template_globs_its_suffix_below_each_named_path_taken_literally() {
+    let templater = collector(
+        "id: templater\nread:\n  stat-from: ['{listed.path}/*', '{listed.path}/lib/os-release']\nparse: {plugin: templater, op: parse}\ninto: templated\n",
+    );
+    let literal = collector(
+        "id: literal\nread:\n  stat-from: ['{listed.*.files}/sources.list.d']\nparse: {plugin: literal, op: parse}\ninto: literal\n",
+    );
+    let lister = collector("id: lister\nparse: {plugin: lister, op: parse}\ninto: listed\n");
+    let doc = collect(&[templater, literal, lister], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["templater"]["status"], "ok", "{doc}");
+    let inputs = request("templater")["inputs"].as_array().unwrap().clone();
+    let paths: Vec<&str> = inputs.iter().filter_map(|i| i["path"].as_str()).collect();
+    assert_eq!(
+        paths,
+        ["/etc/apt/sources.list.d", "/usr/lib", "/usr/lib/os-release"],
+        "each base globbed, absent matches dropped: {inputs:?}"
+    );
+    assert_eq!(doc["collectors"]["literal"]["status"], "ok", "{doc}");
+    assert_eq!(
+        request("literal")["inputs"],
+        serde_json::json!([]),
+        "a fact’s /etc/* stays literal and a file base names nothing below it"
+    );
+}
+
+#[test]
 fn statfs_and_statfs_from_pass_the_filesystem_of_globbed_paths_and_of_a_map_s_keys() {
     let sizer = collector(
         "id: sizer\nread:\n  statfs: [/us*]\n  statfs-from: [points]\nparse: {plugin: sizer, op: parse}\ninto: sized\n",
@@ -363,6 +399,12 @@ fn a_named_pattern_must_be_whole_segment_wildcards_after_a_literal_outside_into(
         ("a..b", "whole segments"),
         ("out.x", "which this collector writes"),
         ("out", "which this collector writes"),
+        ("{a.b", "nor {a fact path}"),
+        ("{a.b}x", "nor {a fact path}"),
+        ("{a.{b}}/x", "nor {a fact path}"),
+        ("{a.b}/**/x", "whole last component"),
+        ("{*.x}/y", "starts with a wildcard"),
+        ("{out.x}/y", "which this collector writes"),
     ] {
         let error = Collector::parse(&format!(
             "id: c\nread:\n  files-from: ['{pattern}']\nparse: {{plugin: p, op: o}}\ninto: out\n"
@@ -371,6 +413,7 @@ fn a_named_pattern_must_be_whole_segment_wildcards_after_a_literal_outside_into(
         assert!(error.contains(why), "{pattern}: {error}");
     }
     assert!(Collector::parse("id: c\nread:\n  stat-from: [env.*.*.path]\nparse: {plugin: p, op: o}\ninto: files.path\n").is_ok());
+    assert!(Collector::parse("id: c\nread:\n  stat-from: ['{accounts.passwd.*.home}/.ssh/**']\nparse: {plugin: p, op: o}\ninto: ssh-user\n").is_ok());
 }
 
 #[test]

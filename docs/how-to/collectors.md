@@ -27,7 +27,7 @@ into: apt.sources
 | `read.statfs` | absolute globs whose paths are passed with the `statfs` of the filesystem holding them; a path the run may not reach is left out (`partial` makes it unknown), and one that gives no answer within the timeout fails the collector |
 | `read.exec` | an argv list run without a shell, live mode only; the program is an absolute path |
 | `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
-| `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files` |
+| `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files`; `{pattern}/glob` globs below each, as `{accounts.passwd.*.home}/.ssh/*` |
 | `read.stat-from` | the same, naming files to pass with their `stat` |
 | `read.stat-keep` | a JSON Schema over each `stat`: only the stats it admits reach the plugin, as `{properties: {setuid: {const: true}}}` keeps a walk of `/usr/**` to its set-user-ID files; needs `stat` or `stat-from` |
 | `read.statfs-from` | the same, naming paths to pass with their `statfs`, as `mounts.active` |
@@ -225,7 +225,10 @@ A collector may still read the files a fact names: `read.files-from`,
 `read.stat-from` and `read.statfs-from` take every string, or string in a list,
 at their pattern, or every key of a map there (`mounts.active` names each mount
 point), keep the absolute ones, and read each path as written, never as a glob,
-through the same root. The collector runs after every collector writing under
+through the same root. A pattern in braces followed by an absolute glob,
+`{accounts.passwd.*.home}/.ssh/*`, globs that suffix below each named path: the
+named part stays literal, so a home of `/srv/*` matches nothing it would not
+match as written, and an absent home, or one that is a file, names nothing. The collector runs after every collector writing under
 the pattern’s literal part, the segments before its first `*`; when that part
 is absent from the facts, it fails naming the fact and the collector that left
 it out, so its rules read as unknown instead of passing on fewer files. A

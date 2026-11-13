@@ -91,13 +91,18 @@ impl Root {
 
     /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component and never a leading dot, `**` as the whole last component every path below, see [`Root::walk`].
     pub fn glob(&self, pattern: &str) -> Result<Vec<String>, String> {
+        self.glob_under("", pattern)
+    }
+
+    /// Like [`Root::glob`], below the literal `base`, whose own `*` and `?` match nothing.
+    pub fn glob_under(&self, base: &str, pattern: &str) -> Result<Vec<String>, String> {
         let parts: Vec<&str> = pattern.split('/').filter(|p| !p.is_empty()).collect();
         if parts.iter().rev().skip(1).any(|p| p.contains("**"))
             || parts.last().is_some_and(|p| p.contains("**") && *p != "**")
         {
             return Err(format!("glob {pattern}: ** is only a whole last component"));
         }
-        let mut found = vec![String::new()];
+        let mut found = vec![base.trim_end_matches('/').to_owned()];
         for part in parts {
             let mut next = Vec::new();
             for base in &found {
@@ -136,7 +141,7 @@ impl Root {
         }
         found.sort();
         found.dedup();
-        log::debug!("glob {pattern} names {} paths", found.len());
+        log::debug!("glob {base}{pattern} names {} paths", found.len());
         Ok(found)
     }
 

@@ -17,7 +17,7 @@ use systemlint_protocol::{
     Describe, Diagnostic, ExecInput, FileInput, Input, PROTOCOL, Reply, Request, VERSION,
 };
 
-use crate::collector::{Collector, overlaps, prefix};
+use crate::collector::{Collector, overlaps, prefix, template};
 use crate::discovery::Plugin;
 use crate::runner::{self, MAX_CHILDREN, OUTPUT_CAP};
 use crate::source::Root;
@@ -204,7 +204,7 @@ pub fn collect_reporting(
                     needs
                         .iter()
                         .cloned()
-                        .chain(collectors[me].read.named().map(|p| prefix(p)))
+                        .chain(collectors[me].read.named().map(prefix))
                         .any(|n| {
                             planned
                                 .iter()
@@ -411,24 +411,26 @@ fn missing(
     }
 }
 
-/// The paths a collector reads, stats or statfs because facts name them.
+/// The paths a collector reads, stats or statfs because facts name them, each a literal base and the glob below it.
 #[derive(Debug, Default)]
 pub struct Named {
-    pub files: Vec<String>,
-    pub stat: Vec<String>,
-    pub statfs: Vec<String>,
+    pub files: Vec<(String, String)>,
+    pub stat: Vec<(String, String)>,
+    pub statfs: Vec<(String, String)>,
 }
 
-/// The absolute paths at each `read.*-from` pattern, failing when a pattern’s literal prefix is absent.
+/// The absolute paths at each `read.*-from` pattern with its glob, failing when a pattern’s literal prefix is absent.
 pub fn named(
     collector: &Collector,
     collectors: &[Collector],
     facts: &Map<String, Value>,
     outcomes: &Map<String, Value>,
 ) -> Result<Named, String> {
-    let resolve = |patterns: &[String]| -> Result<Vec<String>, String> {
-        let mut paths = Vec::new();
-        for pattern in patterns {
+    let resolve = |entries: &[String]| -> Result<Vec<(String, String)>, String> {
+        let mut named = Vec::new();
+        for entry in entries {
+            let (pattern, suffix) = template(entry);
+            let mut paths = Vec::new();
             let literal = prefix(pattern);
             let Some(start) = lookup(facts, &literal) else {
                 return Err(missing(collector, &literal, collectors, outcomes));
@@ -437,24 +439,24 @@ pub fn named(
                 .split('.')
                 .skip(literal.split('.').count())
                 .collect();
-            let before = paths.len();
             strings(start, &rest, &mut paths);
             log::debug!(
-                "collector {}: {pattern} names {} paths",
+                "collector {}: {entry} names {} paths",
                 collector.id,
-                paths.len() - before
+                paths.len()
             );
+            paths.retain(|p| {
+                p.starts_with('/') || {
+                    log::debug!(
+                        "collector {}: named path {p:?} is not absolute, skipped",
+                        collector.id
+                    );
+                    false
+                }
+            });
+            named.extend(paths.into_iter().map(|p| (p, suffix.to_owned())));
         }
-        paths.retain(|p| {
-            p.starts_with('/') || {
-                log::debug!(
-                    "collector {}: named path {p:?} is not absolute, skipped",
-                    collector.id
-                );
-                false
-            }
-        });
-        Ok(paths)
+        Ok(named)
     };
     Ok(Named {
         files: resolve(&collector.read.files_from)?,
@@ -645,9 +647,20 @@ pub fn read_partial(
             Ok(all)
         })
     };
+    let expanded = |named: &[(String, String)]| -> Result<Vec<String>, String> {
+        named
+            .iter()
+            .try_fold(Vec::new(), |mut all, (base, suffix)| {
+                match suffix.is_empty() {
+                    true => all.push(base.clone()),
+                    false => all.extend(root.glob_under(base, suffix)?),
+                }
+                Ok(all)
+            })
+    };
     let reads: BTreeSet<String> = globbed(&collector.read.files)?
         .into_iter()
-        .chain(named.files.iter().cloned())
+        .chain(expanded(&named.files)?)
         .collect();
     for path in reads {
         match root.read(&path, OUTPUT_CAP) {
@@ -671,7 +684,7 @@ pub fn read_partial(
     }
     let stats: BTreeSet<String> = globbed(&collector.read.stat)?
         .into_iter()
-        .chain(named.stat.iter().cloned())
+        .chain(expanded(&named.stat)?)
         .collect();
     let keep = match &collector.read.stat_keep {
         Some(schema) => Some(crate::judge::schema(schema)?),
@@ -733,7 +746,7 @@ pub fn read_partial(
     }
     let filesystems: BTreeSet<String> = globbed(&collector.read.statfs)?
         .into_iter()
-        .chain(named.statfs.iter().cloned())
+        .chain(expanded(&named.statfs)?)
         .collect();
     for path in filesystems {
         match root.statfs(&path, options.timeout) {

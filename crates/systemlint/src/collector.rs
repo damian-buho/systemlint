@@ -72,13 +72,26 @@ pub enum Digest {
 }
 
 impl Read {
-    /// The fact paths that name paths to read or stat.
-    pub fn named(&self) -> impl Iterator<Item = &String> {
+    /// Every `read.*-from` entry, as written.
+    pub fn from(&self) -> impl Iterator<Item = &String> {
         self.files_from
             .iter()
             .chain(&self.stat_from)
             .chain(&self.statfs_from)
     }
+
+    /// The fact paths that name paths to read or stat.
+    pub fn named(&self) -> impl Iterator<Item = &str> {
+        self.from().map(|entry| template(entry).0)
+    }
+}
+
+/// A `read.*-from` entry split into its fact pattern and the glob after a `{pattern}`, empty for a bare pattern.
+pub fn template(entry: &str) -> (&str, &str) {
+    entry
+        .strip_prefix('{')
+        .and_then(|rest| rest.split_once('}'))
+        .unwrap_or((entry, ""))
 }
 
 /// The literal part of a fact pattern, every segment before the first `*`.
@@ -168,7 +181,16 @@ impl Collector {
             }
             _ => {}
         }
-        for pattern in self.read.named() {
+        for entry in self.read.from() {
+            let (pattern, suffix) = template(entry);
+            if pattern.contains(['{', '}'])
+                || !(suffix.is_empty() || suffix.starts_with('/'))
+                || (suffix.contains("**") && !suffix.ends_with("/**"))
+            {
+                return Err(format!(
+                    "read pattern {entry:?} is not a fact path, nor {{a fact path}} then a /glob whose ** is its whole last component"
+                ));
+            }
             if pattern
                 .split('.')
                 .any(|s| s.is_empty() || (s.contains('*') && s != "*"))
