@@ -39,6 +39,14 @@ itself, not followed, with its target as written in `linked-to`, and its
 booleans are all false; its target is judged where a collector lists it. A
 collector with `read.hash` adds `sha256` or `sha512` to each regular file.
 
+The `setuid` collector walks `/usr`, `/bin`, `/sbin`, `/lib`, `/lib64` and
+`/opt` (`read.stat` `**`) and keeps the regular files with a set-user-ID or
+set-group-ID bit (`read.stat-keep`) into `setuid.<path>`, in the same stat
+shape. It needs root, since `/opt` often holds directories only root may list,
+and sits outside `files` so the `files` rules never judge a package’s setuid
+file owned by its service user. No rule reads it yet; it is an inventory to
+compare between runs.
+
 The groups are separate collectors so that one unreadable directory, such as a
 0750 `/etc/sudoers.d` in an unprivileged run, fails its own group alone. Rules
 over every group (`files.*.*`) then answer `unknown` for that group, naming its
