@@ -744,6 +744,27 @@ pub fn read_partial(
             total - dropped
         );
     }
+    let parents: BTreeSet<String> = match collector.read.stat_parents {
+        true => files
+            .iter()
+            .filter(|(_, f)| f.stat.is_some())
+            .flat_map(|(path, _)| std::path::Path::new(path).ancestors().skip(1))
+            .filter(|dir| dir.parent().is_some())
+            .map(|dir| dir.to_string_lossy().into_owned())
+            .filter(|dir| files.get(dir).is_none_or(|f| f.stat.is_none()))
+            .collect(),
+        false => BTreeSet::new(),
+    };
+    for dir in parents {
+        match root.stat(&dir) {
+            Ok(stat) => {
+                log::debug!("collector {}: stat parent {dir}", collector.id);
+                files.entry(dir.clone()).or_insert_with(|| blank(&dir)).stat = Some(stat);
+            }
+            Err(e) if gone(&e) => log::debug!("collector {}: parent {dir} is absent", collector.id),
+            Err(e) => return Err(format!("can’t stat {dir}: {e}")),
+        }
+    }
     let filesystems: BTreeSet<String> = globbed(&collector.read.statfs)?
         .into_iter()
         .chain(expanded(&named.statfs)?)

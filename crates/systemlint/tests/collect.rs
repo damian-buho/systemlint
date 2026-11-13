@@ -142,6 +142,11 @@ const PLUGINS: &[(&str, &str, &str)] = &[
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
     ),
     (
+        "parents",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
+    ),
+    (
         "orphan",
         r#"[{"op":"parse"}]"#,
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
@@ -351,6 +356,23 @@ fn statfs_and_statfs_from_pass_the_filesystem_of_globbed_paths_and_of_a_map_s_ke
 }
 
 #[test]
+fn stat_parents_adds_every_directory_above_a_kept_stat_but_root() {
+    let parents = collector(
+        "id: parents\nread:\n  stat: [/usr/lib/os-release, /etc/os-release]\n  stat-keep: {properties: {kind: {const: file}}}\n  stat-parents: true\nparse: {plugin: parents, op: parse}\ninto: kept\n",
+    );
+    let doc = collect(&[parents], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["parents"]["status"], "ok", "{doc}");
+    let inputs = request("parents")["inputs"].as_array().unwrap().clone();
+    let paths: Vec<_> = inputs.iter().map(|i| i["path"].as_str().unwrap()).collect();
+    assert_eq!(
+        paths,
+        ["/usr", "/usr/lib", "/usr/lib/os-release"],
+        "the dropped symlink /etc/os-release has no parents, / is never one: {inputs:?}"
+    );
+    assert_eq!(inputs[0]["stat"]["kind"], "directory", "{inputs:?}");
+}
+
+#[test]
 fn stat_keep_passes_only_the_stats_its_schema_admits() {
     let keeper = collector(
         "id: keeper\nread:\n  files: [/etc/os-release]\n  stat: [/etc/os-release, /usr]\n  stat-keep: {properties: {kind: {const: directory}}}\nparse: {plugin: keeper, op: parse}\ninto: kept\n",
@@ -369,6 +391,7 @@ fn stat_keep_passes_only_the_stats_its_schema_admits() {
         ("stat-keep: {}", "list the files under read.stat"),
         ("stat: [/x]\n  stat-keep: {type: 5}", "no valid schema"),
         ("stat: [/usr/**/x]", "whole last component"),
+        ("stat-parents: true", "list the files under read.stat"),
     ] {
         let error = Collector::parse(&format!(
             "id: c\nread:\n  {read}\nparse: {{plugin: p, op: o}}\ninto: out\n"

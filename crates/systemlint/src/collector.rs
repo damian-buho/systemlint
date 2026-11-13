@@ -55,6 +55,8 @@ pub struct Read {
     pub stat_from: Vec<String>,
     #[serde(default, rename = "stat-keep")]
     pub stat_keep: Option<serde_json::Map<String, serde_json::Value>>,
+    #[serde(default, rename = "stat-parents")]
+    pub stat_parents: bool,
     #[serde(default)]
     pub hash: Vec<Digest>,
     #[serde(default)]
@@ -159,6 +161,12 @@ impl Collector {
         {
             return Err(
                 "read.hash adds digests to stats; list the files under read.stat or read.stat-from"
+                    .to_owned(),
+            );
+        }
+        if self.read.stat_parents && self.read.stat.is_empty() && self.read.stat_from.is_empty() {
+            return Err(
+                "read.stat-parents stats the directories above stats; list the files under read.stat or read.stat-from"
                     .to_owned(),
             );
         }
