@@ -16,7 +16,15 @@ use systemlint::rules::Library;
 use systemlint::source::Root;
 use systemlint_protocol::{PROTOCOL, Request};
 
-const COLLECTORS: [&str; 7] = ["files-shadow", "files-sudoers", "files-cron", "files-sshd", "files-ssh-host-keys", "files-apt-keyrings", "files-path"];
+const COLLECTORS: [&str; 7] = [
+    "files-shadow",
+    "files-sudoers",
+    "files-cron",
+    "files-sshd",
+    "files-ssh-host-keys",
+    "files-apt-keyrings",
+    "files-path",
+];
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -31,7 +39,11 @@ fn root() -> PathBuf {
         ("etc/gshadow", Some(""), 0o640),
         ("etc/sudoers", Some("root ALL=(ALL) ALL\n"), 0o440),
         ("etc/sudoers.d", None, 0o750),
-        ("etc/sudoers.d/deploy", Some("deploy ALL=(ALL) NOPASSWD: ALL\n"), 0o666),
+        (
+            "etc/sudoers.d/deploy",
+            Some("deploy ALL=(ALL) NOPASSWD: ALL\n"),
+            0o666,
+        ),
         ("etc/ssh", None, 0o755),
         ("etc/ssh/sshd_config", Some("PermitRootLogin no\n"), 0o644),
         ("etc/ssh/ssh_host_ed25519_key", Some("private\n"), 0o644),
@@ -58,23 +70,57 @@ fn root() -> PathBuf {
 
 // Each files collector read through the core and parsed by the formats library in-process.
 fn document() -> Value {
-    let options = Options { privileged: true, root: Root::open(&root()).unwrap(), live: false, now: UNIX_EPOCH + Duration::from_secs(1_794_398_400), timeout: Duration::from_secs(60), hash_key: HashKey::configured("a fixture hash key"), image_config: None, jobs: 1 };
+    let options = Options {
+        privileged: true,
+        root: Root::open(&root()).unwrap(),
+        live: false,
+        now: UNIX_EPOCH + Duration::from_secs(1_794_398_400),
+        timeout: Duration::from_secs(60),
+        hash_key: HashKey::configured("a fixture hash key"),
+        image_config: None,
+        jobs: 1,
+    };
     let (mut groups, mut outcomes) = (Map::new(), Map::new());
     for id in COLLECTORS {
-        let c = Collector::parse(&fs::read_to_string(repository().join(format!("collectors/{id}.yaml"))).unwrap()).unwrap();
-        let request = Request { protocol: PROTOCOL, op: c.parse.op.clone(), root: "/".to_owned(), now: None, inputs: inputs(&c, &options).unwrap(), facts: BTreeMap::new() };
+        let c = Collector::parse(
+            &fs::read_to_string(repository().join(format!("collectors/{id}.yaml"))).unwrap(),
+        )
+        .unwrap();
+        let request = Request {
+            protocol: PROTOCOL,
+            op: c.parse.op.clone(),
+            root: "/".to_owned(),
+            now: None,
+            inputs: inputs(&c, &options).unwrap(),
+            facts: BTreeMap::new(),
+        };
         let reply = systemlint_formats::op(request).unwrap();
-        assert!(reply.diagnostics.is_empty(), "{id}: {:?}", reply.diagnostics);
-        groups.insert(c.into.strip_prefix("files.").unwrap().to_owned(), Value::Object(reply.facts.into_iter().collect()));
+        assert!(
+            reply.diagnostics.is_empty(),
+            "{id}: {:?}",
+            reply.diagnostics
+        );
+        groups.insert(
+            c.into.strip_prefix("files.").unwrap().to_owned(),
+            Value::Object(reply.facts.into_iter().collect()),
+        );
         outcomes.insert(id.to_owned(), json!({"status": "ok", "into": c.into}));
     }
     json!({"files": groups, "collectors": outcomes})
 }
 
 fn checks(document: &Value) -> Vec<Check> {
-    let ruleset = systemlint::yaml::from_str(&fs::read_to_string(repository().join("rulesets/files.yaml")).unwrap()).unwrap();
+    let ruleset = systemlint::yaml::from_str(
+        &fs::read_to_string(repository().join("rulesets/files.yaml")).unwrap(),
+    )
+    .unwrap();
     let library = Library::new(BTreeMap::from([("files".to_owned(), ruleset)])).unwrap();
-    let rules: Vec<_> = library.select(&["files".to_owned()]).unwrap().into_iter().map(|(id, spec)| compile(&id, spec).unwrap()).collect();
+    let rules: Vec<_> = library
+        .select(&["files".to_owned()])
+        .unwrap()
+        .into_iter()
+        .map(|(id, spec)| compile(&id, spec).unwrap())
+        .collect();
     assert_eq!(rules.len(), 5);
     lint(document, &rules, &[], "2026-11-11")
 }
@@ -82,33 +128,73 @@ fn checks(document: &Value) -> Vec<Check> {
 #[test]
 fn a_0644_host_key_and_a_0666_sudoers_drop_in_fail_and_nothing_else_does() {
     let document = document();
-    assert_eq!(document["files"]["sudoers"]["/etc/sudoers.d/deploy"]["mode"], "0666");
-    assert_eq!(document["files"]["cron"].as_object().unwrap().len(), 1, "a missing cron.d is no subject");
+    assert_eq!(
+        document["files"]["sudoers"]["/etc/sudoers.d/deploy"]["mode"],
+        "0666"
+    );
+    assert_eq!(
+        document["files"]["cron"].as_object().unwrap().len(),
+        1,
+        "a missing cron.d is no subject"
+    );
     let checks = checks(&document);
-    assert!(checks.iter().all(|c| c.outcome != Outcome::Unknown), "{checks:#?}");
-    let found: Vec<(&str, String)> = checks.iter().filter(|c| c.is_failing() && c.rule != "files/owner").map(|c| (c.rule.as_str(), c.subject_text())).collect();
+    assert!(
+        checks.iter().all(|c| c.outcome != Outcome::Unknown),
+        "{checks:#?}"
+    );
+    let found: Vec<(&str, String)> = checks
+        .iter()
+        .filter(|c| c.is_failing() && c.rule != "files/owner")
+        .map(|c| (c.rule.as_str(), c.subject_text()))
+        .collect();
     assert_eq!(
         found,
         [
-            ("files/group-writable", "sudoers, /etc/sudoers.d/deploy".to_owned()),
-            ("files/ssh-host-key-mode", "/etc/ssh/ssh_host_ed25519_key".to_owned()),
-            ("files/world-writable", "sudoers, /etc/sudoers.d/deploy".to_owned()),
+            (
+                "files/group-writable",
+                "sudoers, /etc/sudoers.d/deploy".to_owned()
+            ),
+            (
+                "files/ssh-host-key-mode",
+                "/etc/ssh/ssh_host_ed25519_key".to_owned()
+            ),
+            (
+                "files/world-writable",
+                "sudoers, /etc/sudoers.d/deploy".to_owned()
+            ),
         ]
     );
-    let host_key = checks.iter().find(|c| c.rule == "files/ssh-host-key-mode" && c.is_failing()).unwrap();
-    assert!(host_key.message.as_deref().unwrap().contains("mode “0644”"), "{:?}", host_key.message);
+    let host_key = checks
+        .iter()
+        .find(|c| c.rule == "files/ssh-host-key-mode" && c.is_failing())
+        .unwrap();
+    assert!(
+        host_key.message.as_deref().unwrap().contains("mode “0644”"),
+        "{:?}",
+        host_key.message
+    );
     let root = rustix::process::geteuid().is_root();
     let owners: Vec<_> = checks.iter().filter(|c| c.rule == "files/owner").collect();
     assert_eq!(owners.len(), 11);
-    assert!(owners.iter().all(|c| c.is_failing() != root), "a test file is owned by the runner: root passes, anyone else fails");
+    assert!(
+        owners.iter().all(|c| c.is_failing() != root),
+        "a test file is owned by the runner: root passes, anyone else fails"
+    );
 }
 
 #[test]
 fn the_shadow_and_host_key_patterns_take_0640_or_stricter_at_every_edge() {
     let mut document = json!({"files": {"shadow": {}}, "collectors": {"files-shadow": {"status": "ok", "into": "files.shadow"}}});
-    for mode in ["0000", "0400", "0600", "0640", "0200", "0644", "0660", "0740", "0641", "4640", "0650"] {
-        document["files"]["shadow"][mode] = json!({"mode": mode, "uid": 0, "world-writable": false, "group-writable": false});
+    for mode in [
+        "0000", "0400", "0600", "0640", "0200", "0644", "0660", "0740", "0641", "4640", "0650",
+    ] {
+        document["files"]["shadow"][mode] =
+            json!({"mode": mode, "uid": 0, "world-writable": false, "group-writable": false});
     }
-    let failing: Vec<String> = checks(&document).into_iter().filter(|c| c.rule == "files/shadow-mode" && c.is_failing()).map(|c| c.subject_text()).collect();
+    let failing: Vec<String> = checks(&document)
+        .into_iter()
+        .filter(|c| c.rule == "files/shadow-mode" && c.is_failing())
+        .map(|c| c.subject_text())
+        .collect();
     assert_eq!(failing, ["0641", "0644", "0650", "0660", "0740", "4640"]);
 }

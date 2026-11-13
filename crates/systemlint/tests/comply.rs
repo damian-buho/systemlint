@@ -22,14 +22,33 @@ fn facts(name: &str) -> Value {
 }
 
 fn library(extra: &[(&str, &str)]) -> Library {
-    let mut rulesets = BTreeMap::from([("fixture".to_owned(), systemlint::yaml::from_str(&std::fs::read_to_string(fixtures().join("rulesets/fixture.yaml")).unwrap()).unwrap())]);
-    rulesets.extend(extra.iter().map(|(name, text)| ((*name).to_owned(), systemlint::yaml::from_str::<Ruleset>(text).unwrap())));
+    let mut rulesets = BTreeMap::from([(
+        "fixture".to_owned(),
+        systemlint::yaml::from_str(
+            &std::fs::read_to_string(fixtures().join("rulesets/fixture.yaml")).unwrap(),
+        )
+        .unwrap(),
+    )]);
+    rulesets.extend(extra.iter().map(|(name, text)| {
+        (
+            (*name).to_owned(),
+            systemlint::yaml::from_str::<Ruleset>(text).unwrap(),
+        )
+    }));
     Library::new(rulesets).unwrap()
 }
 
 fn rules(base: &[&str], standards: &[&str], extra: &[(&str, &str)]) -> Vec<Rule> {
-    let (base, standards): (Vec<String>, Vec<String>) = (base.iter().map(|s| (*s).to_owned()).collect(), standards.iter().map(|s| (*s).to_owned()).collect());
-    library(extra).select_for(&base, &standards).unwrap().into_iter().map(|(id, spec)| compile(&id, spec).unwrap()).collect()
+    let (base, standards): (Vec<String>, Vec<String>) = (
+        base.iter().map(|s| (*s).to_owned()).collect(),
+        standards.iter().map(|s| (*s).to_owned()).collect(),
+    );
+    library(extra)
+        .select_for(&base, &standards)
+        .unwrap()
+        .into_iter()
+        .map(|(id, spec)| compile(&id, spec).unwrap())
+        .collect()
 }
 
 fn ids(rules: &[Rule]) -> Vec<&str> {
@@ -37,7 +56,10 @@ fn ids(rules: &[Rule]) -> Vec<&str> {
 }
 
 fn catalog(standard: &str) -> Catalog {
-    systemlint::yaml::from_str(&std::fs::read_to_string(fixtures().join(format!("standards/{standard}.yaml"))).unwrap()).unwrap()
+    systemlint::yaml::from_str(
+        &std::fs::read_to_string(fixtures().join(format!("standards/{standard}.yaml"))).unwrap(),
+    )
+    .unwrap()
 }
 
 fn run(standard: &str, document: &Value, catalog: Option<&Catalog>) -> (Vec<Check>, Report) {
@@ -52,7 +74,11 @@ fn answer(standard: &str, document: &Value, catalog: Option<&Catalog>) -> Report
 }
 
 fn verdicts(report: &Report) -> Vec<(&str, Verdict)> {
-    report.controls.iter().map(|c| (c.id.as_str(), c.verdict)).collect()
+    report
+        .controls
+        .iter()
+        .map(|c| (c.id.as_str(), c.verdict))
+        .collect()
 }
 
 fn http_source() -> Value {
@@ -63,21 +89,49 @@ fn http_source() -> Value {
 
 #[test]
 fn a_standard_adds_its_tagged_rules_to_the_selectors() {
-    assert_eq!(ids(&rules(&[], &["fixture-a"], &[])), ["apt/https", "os/supported"]);
-    assert_eq!(ids(&rules(&["files"], &["fixture-a"], &[])), ["apt/https", "os/supported", "shadow/private"]);
-    assert_eq!(ids(&rules(&[], &["fixture-a", "fixture-b"], &[])), ["apt/https", "os/supported", "shadow/private"]);
-    assert_eq!(ids(&rules(&["!apt"], &["fixture-a"], &[])), ["os/supported"]);
-    assert_eq!(rules(&[], &[], &[]).len(), 4, "no standard and no selector is every rule");
+    assert_eq!(
+        ids(&rules(&[], &["fixture-a"], &[])),
+        ["apt/https", "os/supported"]
+    );
+    assert_eq!(
+        ids(&rules(&["files"], &["fixture-a"], &[])),
+        ["apt/https", "os/supported", "shadow/private"]
+    );
+    assert_eq!(
+        ids(&rules(&[], &["fixture-a", "fixture-b"], &[])),
+        ["apt/https", "os/supported", "shadow/private"]
+    );
+    assert_eq!(
+        ids(&rules(&["!apt"], &["fixture-a"], &[])),
+        ["os/supported"]
+    );
+    assert_eq!(
+        rules(&[], &[], &[]).len(),
+        4,
+        "no standard and no selector is every rule"
+    );
 }
 
 #[test]
 fn a_standard_no_rule_carries_selects_nothing_and_is_indeterminate() {
     assert!(rules(&[], &["nothing"], &[]).is_empty());
-    assert!(rules(&["!experimental"], &["nothing"], &[]).is_empty(), "only exclusions never widen to every rule");
+    assert!(
+        rules(&["!experimental"], &["nothing"], &[]).is_empty(),
+        "only exclusions never widen to every rule"
+    );
     assert_eq!(ids(&rules(&["os"], &["nothing"], &[])), ["os/supported"]);
     let report = comply("nothing", &[], &[], None);
-    assert_eq!((report.verdict, report.verdict.code()), (Verdict::Indeterminate, 3));
-    assert!(report.note.as_deref().unwrap().contains("no rule is tagged nothing:*"));
+    assert_eq!(
+        (report.verdict, report.verdict.code()),
+        (Verdict::Indeterminate, 3)
+    );
+    assert!(
+        report
+            .note
+            .as_deref()
+            .unwrap()
+            .contains("no rule is tagged nothing:*")
+    );
 }
 
 #[test]
@@ -85,20 +139,43 @@ fn an_unprivileged_run_is_indeterminate_never_compliant() {
     let root = answer("fixture-b", &facts("root"), None);
     assert_eq!((root.verdict, root.verdict.code()), (Verdict::Compliant, 0));
     let unprivileged = answer("fixture-b", &facts("unprivileged"), None);
-    assert_eq!((unprivileged.verdict, unprivileged.verdict.code()), (Verdict::Indeterminate, 3));
-    assert_eq!(verdicts(&unprivileged), [("B-7", Verdict::Compliant), ("B-9", Verdict::Indeterminate)]);
-    assert!(unprivileged.controls[1].reasons[0].contains("Permission denied"), "{:?}", unprivileged.controls[1].reasons);
+    assert_eq!(
+        (unprivileged.verdict, unprivileged.verdict.code()),
+        (Verdict::Indeterminate, 3)
+    );
+    assert_eq!(
+        verdicts(&unprivileged),
+        [("B-7", Verdict::Compliant), ("B-9", Verdict::Indeterminate)]
+    );
+    assert!(
+        unprivileged.controls[1].reasons[0].contains("Permission denied"),
+        "{:?}",
+        unprivileged.controls[1].reasons
+    );
 }
 
 #[test]
 fn a_hint_failure_fails_its_control_whatever_fail_on_says() {
-    let rules = rules(&["hinted"], &["fixture-a"], &[("hinted", "extends: [fixture]\nrules: {apt/https: hint}\n")]);
+    let rules = rules(
+        &["hinted"],
+        &["fixture-a"],
+        &[("hinted", "extends: [fixture]\nrules: {apt/https: hint}\n")],
+    );
     let document = http_source();
     let checks = lint(&document, &rules, &[], "2026-11-11");
-    assert!(!"info".parse::<FailOn>().unwrap().reached(&checks), "a hint never reaches --fail-on");
+    assert!(
+        !"info".parse::<FailOn>().unwrap().reached(&checks),
+        "a hint never reaches --fail-on"
+    );
     let report = comply("fixture-a", &rules, &checks, None);
-    assert_eq!(verdicts(&report), [("1.1", Verdict::Compliant), ("3.1", Verdict::NonCompliant)]);
-    assert_eq!((report.verdict, report.verdict.code()), (Verdict::NonCompliant, 1));
+    assert_eq!(
+        verdicts(&report),
+        [("1.1", Verdict::Compliant), ("3.1", Verdict::NonCompliant)]
+    );
+    assert_eq!(
+        (report.verdict, report.verdict.code()),
+        (Verdict::NonCompliant, 1)
+    );
 }
 
 #[test]
@@ -106,11 +183,27 @@ fn a_failing_control_names_its_subject_once() {
     let reasons = |base: &str, extra: &[(&str, &str)]| {
         let rules = rules(&[base], &["fixture-a"], extra);
         let checks = lint(&http_source(), &rules, &[], "2026-11-11");
-        comply("fixture-a", &rules, &checks, None).controls.into_iter().find(|c| c.id == "3.1").unwrap().reasons
+        comply("fixture-a", &rules, &checks, None)
+            .controls
+            .into_iter()
+            .find(|c| c.id == "3.1")
+            .unwrap()
+            .reasons
     };
-    assert_eq!(reasons("fixture", &[]), ["apt/https /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”"], "a message that opens with its subject");
-    let other = [("other", "extends: [fixture]\nrules: {apt/https: {message: 'fetches over {got}'}}\n")];
-    assert_eq!(reasons("other", &other), ["apt/https /etc/apt/sources.list.d/old.sources: fetches over “http://old.example/debian”"], "a message that does not");
+    assert_eq!(
+        reasons("fixture", &[]),
+        ["apt/https /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”"],
+        "a message that opens with its subject"
+    );
+    let other = [(
+        "other",
+        "extends: [fixture]\nrules: {apt/https: {message: 'fetches over {got}'}}\n",
+    )];
+    assert_eq!(
+        reasons("other", &other),
+        ["apt/https /etc/apt/sources.list.d/old.sources: fetches over “http://old.example/debian”"],
+        "a message that does not"
+    );
 }
 
 #[test]
@@ -118,30 +211,60 @@ fn one_rule_tagged_for_two_standards_answers_each_independently() {
     let document = http_source();
     let a = answer("fixture-a", &document, None);
     let b = answer("fixture-b", &document, None);
-    assert_eq!((a.verdict, b.verdict), (Verdict::NonCompliant, Verdict::Compliant));
-    assert_eq!(verdicts(&a), [("1.1", Verdict::Compliant), ("3.1", Verdict::NonCompliant)]);
-    assert_eq!(verdicts(&b), [("B-7", Verdict::Compliant), ("B-9", Verdict::Compliant)]);
+    assert_eq!(
+        (a.verdict, b.verdict),
+        (Verdict::NonCompliant, Verdict::Compliant)
+    );
+    assert_eq!(
+        verdicts(&a),
+        [("1.1", Verdict::Compliant), ("3.1", Verdict::NonCompliant)]
+    );
+    assert_eq!(
+        verdicts(&b),
+        [("B-7", Verdict::Compliant), ("B-9", Verdict::Compliant)]
+    );
     assert!(a.controls[0].rules == b.controls[0].rules && a.controls[0].rules == ["os/supported"]);
 }
 
 #[test]
 fn several_standards_answer_the_worst_verdict() {
-    let (compliant, failing) = (answer("fixture-b", &http_source(), None), answer("fixture-a", &http_source(), None));
+    let (compliant, failing) = (
+        answer("fixture-b", &http_source(), None),
+        answer("fixture-a", &http_source(), None),
+    );
     let unknown = answer("fixture-b", &facts("unprivileged"), None);
     assert_eq!(overall(&[]), Verdict::Indeterminate);
-    assert_eq!(overall(std::slice::from_ref(&compliant)), Verdict::Compliant);
-    assert_eq!(overall(&[compliant.clone(), unknown.clone()]), Verdict::Indeterminate);
-    assert_eq!(overall(&[unknown, failing, compliant]), Verdict::NonCompliant);
+    assert_eq!(
+        overall(std::slice::from_ref(&compliant)),
+        Verdict::Compliant
+    );
+    assert_eq!(
+        overall(&[compliant.clone(), unknown.clone()]),
+        Verdict::Indeterminate
+    );
+    assert_eq!(
+        overall(&[unknown, failing, compliant]),
+        Verdict::NonCompliant
+    );
     assert_eq!(Verdict::Manual.code(), 3);
 }
 
 #[test]
 fn without_a_catalog_compliant_only_means_no_tagged_rule_failed() {
     let (checks, report) = run("fixture-b", &facts("root"), None);
-    assert!(report.note.as_deref().unwrap().contains("compliant only means no rule tagged fixture-b:* failed"));
+    assert!(
+        report
+            .note
+            .as_deref()
+            .unwrap()
+            .contains("compliant only means no rule tagged fixture-b:* failed")
+    );
     assert!(report.coverage.is_none());
     let text = lint_human(&facts("root"), &checks, &[report], false, false, false);
-    assert!(text.contains("Note: there is no catalog of fixture-b"), "{text}");
+    assert!(
+        text.contains("Note: there is no catalog of fixture-b"),
+        "{text}"
+    );
 }
 
 #[test]
@@ -149,8 +272,22 @@ fn a_catalog_with_an_uncovered_control_is_indeterminate() {
     let catalog = catalog("fixture-a");
     let report = answer("fixture-a", &facts("root"), Some(&catalog));
     assert_eq!(report.verdict, Verdict::Indeterminate);
-    assert_eq!(verdicts(&report), [("1.1", Verdict::Compliant), ("3.1", Verdict::Compliant), ("4.2", Verdict::Manual), ("9.9", Verdict::Indeterminate)]);
-    assert_eq!((report.coverage.as_ref().unwrap().covered, report.coverage.as_ref().unwrap().total), (2, 4));
+    assert_eq!(
+        verdicts(&report),
+        [
+            ("1.1", Verdict::Compliant),
+            ("3.1", Verdict::Compliant),
+            ("4.2", Verdict::Manual),
+            ("9.9", Verdict::Indeterminate)
+        ]
+    );
+    assert_eq!(
+        (
+            report.coverage.as_ref().unwrap().covered,
+            report.coverage.as_ref().unwrap().total
+        ),
+        (2, 4)
+    );
     assert_eq!(report.name, "Fixture Benchmark A");
 }
 
@@ -160,18 +297,35 @@ fn a_failure_beats_an_uncovered_control() {
     document["os"]["release"]["VERSION_ID"] = json!("25.10");
     let report = answer("fixture-a", &document, Some(&catalog("fixture-a")));
     assert_eq!(report.verdict, Verdict::NonCompliant);
-    assert!(report.controls[0].reasons[0].contains("release “25.10” is not supported"), "{:?}", report.controls[0].reasons);
+    assert!(
+        report.controls[0].reasons[0].contains("release “25.10” is not supported"),
+        "{:?}",
+        report.controls[0].reasons
+    );
 }
 
 #[test]
 fn the_human_report_closes_with_a_standard_section_before_the_rating() {
     let document = http_source();
     let (checks, report) = run("fixture-a", &document, Some(&catalog("fixture-a")));
-    let text = lint_human(&document, &checks, std::slice::from_ref(&report), false, false, false);
+    let text = lint_human(
+        &document,
+        &checks,
+        std::slice::from_ref(&report),
+        false,
+        false,
+        false,
+    );
     let section = "Standard: non-compliant [fixture-a] Fixture Benchmark A\n- 1.1  compliant      Run a supported release.\n- 3.1  non-compliant  Fetch packages over TLS.\n       apt/https /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”.\n- 4.2  manual         Review the backup policy.\n- 9.9  indeterminate  A control no rule covers yet.\n       no rule covers it.\nCoverage: 2 of 4 controls.\nNote: 1 control needs a manual check.\n\nRating";
     assert!(text.contains(section), "{text}");
-    assert!(text.find("Warning (5.0): [apt/https]").unwrap() < text.find("Standard:").unwrap(), "{text}");
-    assert!(lint_human(&document, &checks, &[report], false, false, true).contains("Standard: \x1b[31mnon-compliant\x1b[0m"));
+    assert!(
+        text.find("Warning (5.0): [apt/https]").unwrap() < text.find("Standard:").unwrap(),
+        "{text}"
+    );
+    assert!(
+        lint_human(&document, &checks, &[report], false, false, true)
+            .contains("Standard: \x1b[31mnon-compliant\x1b[0m")
+    );
 }
 
 #[test]
@@ -180,17 +334,53 @@ fn machine_formats_carry_each_standard() {
     let (checks, report) = run("fixture-a", &document, Some(&catalog("fixture-a")));
     let compliance = [report];
     let json: Value = serde_json::from_str(&lint_json(&document, &checks, &compliance)).unwrap();
-    assert_eq!((json["compliance"]["fixture-a"]["verdict"].as_str(), json["compliance"]["fixture-a"]["coverage"]["covered"].as_u64()), (Some("non-compliant"), Some(2)));
-    assert!(serde_json::from_str::<Value>(&lint_json(&document, &checks, &[])).unwrap().get("compliance").is_none());
+    assert_eq!(
+        (
+            json["compliance"]["fixture-a"]["verdict"].as_str(),
+            json["compliance"]["fixture-a"]["coverage"]["covered"].as_u64()
+        ),
+        (Some("non-compliant"), Some(2))
+    );
+    assert!(
+        serde_json::from_str::<Value>(&lint_json(&document, &checks, &[]))
+            .unwrap()
+            .get("compliance")
+            .is_none()
+    );
     let sarif: Value = serde_json::from_str(&lint_sarif(&document, &checks, &compliance)).unwrap();
     let run = &sarif["runs"][0];
-    assert_eq!((run["taxonomies"][0]["name"].as_str(), run["taxonomies"][0]["taxa"].as_array().unwrap().len()), (Some("fixture-a"), 4));
-    assert_eq!(run["properties"]["compliance"]["fixture-a"], "non-compliant");
-    let https = run["tool"]["driver"]["rules"].as_array().unwrap().iter().find(|r| r["id"] == "apt/https").unwrap();
-    assert_eq!(https["relationships"], json!([{"target": {"id": "3.1", "toolComponent": {"name": "fixture-a", "index": 0}}, "kinds": ["relevant"]}]));
+    assert_eq!(
+        (
+            run["taxonomies"][0]["name"].as_str(),
+            run["taxonomies"][0]["taxa"].as_array().unwrap().len()
+        ),
+        (Some("fixture-a"), 4)
+    );
+    assert_eq!(
+        run["properties"]["compliance"]["fixture-a"],
+        "non-compliant"
+    );
+    let https = run["tool"]["driver"]["rules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == "apt/https")
+        .unwrap();
+    assert_eq!(
+        https["relationships"],
+        json!([{"target": {"id": "3.1", "toolComponent": {"name": "fixture-a", "index": 0}}, "kinds": ["relevant"]}])
+    );
     let text = lint_textfile(&document, &checks, &compliance);
-    for line in ["systemlint_controls{standard=\"fixture-a\",verdict=\"manual\"} 1", "systemlint_controls{standard=\"fixture-a\",verdict=\"compliant\"} 1", "systemlint_compliance{standard=\"fixture-a\",verdict=\"non-compliant\"} 1", "systemlint_compliance{standard=\"fixture-a\",verdict=\"compliant\"} 0"] {
-        assert!(text.lines().any(|l| l == line), "{line} missing from {text}");
+    for line in [
+        "systemlint_controls{standard=\"fixture-a\",verdict=\"manual\"} 1",
+        "systemlint_controls{standard=\"fixture-a\",verdict=\"compliant\"} 1",
+        "systemlint_compliance{standard=\"fixture-a\",verdict=\"non-compliant\"} 1",
+        "systemlint_compliance{standard=\"fixture-a\",verdict=\"compliant\"} 0",
+    ] {
+        assert!(
+            text.lines().any(|l| l == line),
+            "{line} missing from {text}"
+        );
     }
     assert!(!lint_textfile(&document, &checks, &[]).contains("systemlint_compliance"));
 }
@@ -202,7 +392,10 @@ fn the_plain_report_carries_each_standard_before_the_rating() {
     let text = lint_plain(&document, &checks, std::slice::from_ref(&report), false);
     let rows = "standard\tnon-compliant\tfixture-a\t\t2 of 4\tFixture Benchmark A\ncontrol\tcompliant\tfixture-a\t1.1\t\tRun a supported release.\ncontrol\tnon-compliant\tfixture-a\t3.1\tapt/https /etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”.\tFetch packages over TLS.\ncontrol\tmanual\tfixture-a\t4.2\t\tReview the backup policy.\ncontrol\tindeterminate\tfixture-a\t9.9\tno rule covers it.\tA control no rule covers yet.\nrating\t";
     assert!(text.contains(rows), "{text}");
-    assert!(text.find("\tapt/https\t").unwrap() < text.find("standard\t").unwrap(), "{text}");
+    assert!(
+        text.find("\tapt/https\t").unwrap() < text.find("standard\t").unwrap(),
+        "{text}"
+    );
     assert!(!lint_plain(&document, &checks, &[], false).contains("standard\t"));
 }
 
@@ -212,8 +405,16 @@ fn tree(name: &str, files: &[(&str, &str)]) -> PathBuf {
     for (path, from) in files {
         let path = base.join(path);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::set_permissions(path.parent().unwrap(), std::fs::Permissions::from_mode(0o755)).unwrap();
-        std::fs::write(&path, std::fs::read_to_string(fixtures().join(from)).unwrap()).unwrap();
+        std::fs::set_permissions(
+            path.parent().unwrap(),
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
+        std::fs::write(
+            &path,
+            std::fs::read_to_string(fixtures().join(from)).unwrap(),
+        )
+        .unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
     }
     std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -221,35 +422,79 @@ fn tree(name: &str, files: &[(&str, &str)]) -> PathBuf {
 }
 
 fn trust(top: &Path) -> Trust {
-    Trust { uids: vec![rustix::process::getuid().as_raw()], top: top.to_owned() }
+    Trust {
+        uids: vec![rustix::process::getuid().as_raw()],
+        top: top.to_owned(),
+    }
 }
 
 #[test]
 fn a_catalog_is_found_in_a_rules_directory_or_its_standards_sibling() {
-    let base = tree("comply-sibling", &[("rules/fixture.yaml", "rulesets/fixture.yaml"), ("standards/fixture-a.yaml", "standards/fixture-a.yaml")]);
+    let base = tree(
+        "comply-sibling",
+        &[
+            ("rules/fixture.yaml", "rulesets/fixture.yaml"),
+            ("standards/fixture-a.yaml", "standards/fixture-a.yaml"),
+        ],
+    );
     let dirs = comply::directories(&[base.join("rules")]);
     assert_eq!(dirs, [base.join("rules"), base.join("standards")]);
     let (found, refusals) = comply::catalog(&dirs, &trust(&base), "fixture-a");
     assert!(refusals.is_empty(), "{refusals:?}");
     assert_eq!(found.unwrap().unwrap().controls.len(), 4);
-    assert!(comply::catalog(&dirs, &trust(&base), "fixture-b").0.unwrap().is_none());
+    assert!(
+        comply::catalog(&dirs, &trust(&base), "fixture-b")
+            .0
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
 fn a_catalog_beside_rulesets_is_no_ruleset_and_a_ruleset_is_no_catalog() {
-    let base = tree("comply-beside", &[("rules/fixture.yaml", "rulesets/fixture.yaml"), ("rules/fixture-a.yaml", "standards/fixture-a.yaml"), ("standards/fixture.yaml", "rulesets/fixture.yaml")]);
+    let base = tree(
+        "comply-beside",
+        &[
+            ("rules/fixture.yaml", "rulesets/fixture.yaml"),
+            ("rules/fixture-a.yaml", "standards/fixture-a.yaml"),
+            ("standards/fixture.yaml", "rulesets/fixture.yaml"),
+        ],
+    );
     let rules = [base.join("rules")];
-    let (library, refusals) = Library::load(&rules, &trust(&base), &BTreeMap::new(), &Default::default());
+    let (library, refusals) =
+        Library::load(&rules, &trust(&base), &BTreeMap::new(), &Default::default());
     assert!(refusals.is_empty(), "{refusals:?}");
-    assert_eq!(library.unwrap().rulesets.keys().collect::<Vec<_>>(), ["fixture"]);
-    assert_eq!(comply::catalog(&comply::directories(&rules), &trust(&base), "fixture-a").0.unwrap().unwrap().name.as_deref(), Some("Fixture Benchmark A"));
-    assert!(comply::catalog(&comply::directories(&rules), &trust(&base), "fixture").0.unwrap().is_none());
+    assert_eq!(
+        library.unwrap().rulesets.keys().collect::<Vec<_>>(),
+        ["fixture"]
+    );
+    assert_eq!(
+        comply::catalog(&comply::directories(&rules), &trust(&base), "fixture-a")
+            .0
+            .unwrap()
+            .unwrap()
+            .name
+            .as_deref(),
+        Some("Fixture Benchmark A")
+    );
+    assert!(
+        comply::catalog(&comply::directories(&rules), &trust(&base), "fixture")
+            .0
+            .unwrap()
+            .is_none()
+    );
 }
 
 const APPLICABILITY: &str = "rules:\n  none/bound: {fact: apt.sources.*.uri, expect: {}, tags: ['fixture-c:1']}\n  review/backups: {manual: true, title: Review the backup policy, tags: ['fixture-c:3']}\n";
 
 fn applicability(catalog: Option<&Catalog>) -> (Vec<Check>, Report) {
-    let extra = [("applicability", APPLICABILITY), ("debian", "when: {os.release.ID: debian}\nrules:\n  deb/only: {fact: os.release.ID, expect: {}, tags: ['fixture-c:2']}\n")];
+    let extra = [
+        ("applicability", APPLICABILITY),
+        (
+            "debian",
+            "when: {os.release.ID: debian}\nrules:\n  deb/only: {fact: os.release.ID, expect: {}, tags: ['fixture-c:2']}\n",
+        ),
+    ];
     let rules = rules(&[], &["fixture-c"], &extra);
     let mut document = facts("root");
     document["apt"]["sources"] = json!({});
@@ -260,30 +505,97 @@ fn applicability(catalog: Option<&Catalog>) -> (Vec<Check>, Report) {
 
 #[test]
 fn a_control_nothing_judged_is_not_applicable_and_a_manual_rule_answers_manual() {
-    let catalog: Catalog = systemlint::yaml::from_str("controls:\n  - {id: '1'}\n  - {id: '2'}\n  - {id: '3'}\n").unwrap();
+    let catalog: Catalog =
+        systemlint::yaml::from_str("controls:\n  - {id: '1'}\n  - {id: '2'}\n  - {id: '3'}\n")
+            .unwrap();
     let (checks, report) = applicability(Some(&catalog));
-    assert_eq!(verdicts(&report), [("1", Verdict::NotApplicable), ("2", Verdict::NotApplicable), ("3", Verdict::Manual)]);
-    assert_eq!((report.controls[0].reasons.as_slice(), report.controls[1].reasons.as_slice()), (&["no rule binds a subject".to_owned()][..], &["ruleset debian: when os.release.ID is “ubuntu”".to_owned()][..]));
-    assert_eq!((report.verdict, report.coverage.as_ref().unwrap().covered), (Verdict::Compliant, 1), "coverage never counts a control nothing judged");
-    assert_eq!(report.note.as_deref(), Some("1 control needs a manual check"), "a compliant answer still names the gap");
-    let text = lint_human(&facts("root"), &checks, std::slice::from_ref(&report), false, false, false);
-    assert!(text.contains("- 1  not-applicable.\n"), "the verdict column widens to fit: {text}");
+    assert_eq!(
+        verdicts(&report),
+        [
+            ("1", Verdict::NotApplicable),
+            ("2", Verdict::NotApplicable),
+            ("3", Verdict::Manual)
+        ]
+    );
+    assert_eq!(
+        (
+            report.controls[0].reasons.as_slice(),
+            report.controls[1].reasons.as_slice()
+        ),
+        (
+            &["no rule binds a subject".to_owned()][..],
+            &["ruleset debian: when os.release.ID is “ubuntu”".to_owned()][..]
+        )
+    );
+    assert_eq!(
+        (report.verdict, report.coverage.as_ref().unwrap().covered),
+        (Verdict::Compliant, 1),
+        "coverage never counts a control nothing judged"
+    );
+    assert_eq!(
+        report.note.as_deref(),
+        Some("1 control needs a manual check"),
+        "a compliant answer still names the gap"
+    );
+    let text = lint_human(
+        &facts("root"),
+        &checks,
+        std::slice::from_ref(&report),
+        false,
+        false,
+        false,
+    );
+    assert!(
+        text.contains("- 1  not-applicable.\n"),
+        "the verdict column widens to fit: {text}"
+    );
     assert!(text.contains("- 3  manual.\n"), "{text}");
-    assert!(text.contains("Not applicable: ruleset debian: when os.release.ID is “ubuntu”\n  deb/only\n"), "{text}");
-    assert!(text.contains("Manual: [review/backups] Review the backup policy\n"), "{text}");
-    assert!(text.contains("· 0 pass, 1 not applicable, 1 manual\n"), "{text}");
+    assert!(
+        text.contains(
+            "Not applicable: ruleset debian: when os.release.ID is “ubuntu”\n  deb/only\n"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains("Manual: [review/backups] Review the backup policy\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("· 0 pass, 1 not applicable, 1 manual\n"),
+        "{text}"
+    );
 }
 
 #[test]
 fn a_standard_every_control_of_which_is_not_applicable_is_not_applicable() {
-    let rules = rules(&[], &["fixture-c"], &[("debian", "when: {os.release.ID: debian}\nrules:\n  deb/only: {fact: os.release.ID, expect: {}, tags: ['fixture-c:2']}\n")]);
+    let rules = rules(
+        &[],
+        &["fixture-c"],
+        &[(
+            "debian",
+            "when: {os.release.ID: debian}\nrules:\n  deb/only: {fact: os.release.ID, expect: {}, tags: ['fixture-c:2']}\n",
+        )],
+    );
     let checks = lint(&facts("root"), &rules, &[], "2026-11-11");
     let inapplicable = comply("fixture-c", &rules, &checks, None);
     assert_eq!(inapplicable.verdict, Verdict::NotApplicable);
     let compliant = answer("fixture-b", &facts("root"), None);
-    assert_eq!(overall(std::slice::from_ref(&inapplicable)), Verdict::NotApplicable);
-    assert_eq!(overall(&[inapplicable, compliant]), Verdict::Compliant, "one judged standard outweighs one that does not apply");
-    assert_eq!((Verdict::NotApplicable.code(), serde_json::to_value(Verdict::NotApplicable).unwrap()), (0, json!("not-applicable")));
+    assert_eq!(
+        overall(std::slice::from_ref(&inapplicable)),
+        Verdict::NotApplicable
+    );
+    assert_eq!(
+        overall(&[inapplicable, compliant]),
+        Verdict::Compliant,
+        "one judged standard outweighs one that does not apply"
+    );
+    assert_eq!(
+        (
+            Verdict::NotApplicable.code(),
+            serde_json::to_value(Verdict::NotApplicable).unwrap()
+        ),
+        (0, json!("not-applicable"))
+    );
 }
 
 #[test]
@@ -291,14 +603,47 @@ fn machine_formats_count_and_name_the_new_outcomes() {
     let (checks, report) = applicability(None);
     let document = facts("root");
     let json: Value = serde_json::from_str(&lint_json(&document, &checks, &[])).unwrap();
-    assert_eq!((json["summary"]["not-applicable"].as_u64(), json["summary"]["manual"].as_u64(), json["rating"].clone()), (Some(1), Some(1), Value::Null), "neither outcome is judged, so nothing rates");
+    assert_eq!(
+        (
+            json["summary"]["not-applicable"].as_u64(),
+            json["summary"]["manual"].as_u64(),
+            json["rating"].clone()
+        ),
+        (Some(1), Some(1), Value::Null),
+        "neither outcome is judged, so nothing rates"
+    );
     let sarif: Value = serde_json::from_str(&lint_sarif(&document, &checks, &[])).unwrap();
-    let kinds: Vec<(&str, &str, bool)> = sarif["runs"][0]["results"].as_array().unwrap().iter().map(|r| (r["ruleId"].as_str().unwrap(), r["kind"].as_str().unwrap(), r.get("locations").is_some())).collect();
-    assert_eq!(kinds, [("deb/only", "notApplicable", true), ("review/backups", "review", false)]);
+    let kinds: Vec<(&str, &str, bool)> = sarif["runs"][0]["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            (
+                r["ruleId"].as_str().unwrap(),
+                r["kind"].as_str().unwrap(),
+                r.get("locations").is_some(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            ("deb/only", "notApplicable", true),
+            ("review/backups", "review", false)
+        ]
+    );
     let plain = lint_plain(&document, &checks, &[], true);
-    assert_eq!(plain, "not-applicable\t\tdeb/only\t\truleset debian: when os.release.ID is “ubuntu”.\t\nmanual\t\treview/backups\t\tReview the backup policy.\t\n");
+    assert_eq!(
+        plain,
+        "not-applicable\t\tdeb/only\t\truleset debian: when os.release.ID is “ubuntu”.\t\nmanual\t\treview/backups\t\tReview the backup policy.\t\n"
+    );
     let textfile = lint_textfile(&document, &checks, &[report]);
-    for line in ["systemlint_checks{outcome=\"not-applicable\"} 1", "systemlint_checks{outcome=\"manual\"} 1", "systemlint_rule_checks{rule=\"review/backups\",outcome=\"manual\"} 1", "systemlint_compliance{standard=\"fixture-c\",verdict=\"not-applicable\"} 0"] {
+    for line in [
+        "systemlint_checks{outcome=\"not-applicable\"} 1",
+        "systemlint_checks{outcome=\"manual\"} 1",
+        "systemlint_rule_checks{rule=\"review/backups\",outcome=\"manual\"} 1",
+        "systemlint_compliance{standard=\"fixture-c\",verdict=\"not-applicable\"} 0",
+    ] {
         assert!(textfile.contains(line), "{line} in {textfile}");
     }
 }
@@ -309,17 +654,45 @@ const SKIPPED: &str = "rules:\n  deb/skip: {fact: os.release.ID, when: {os.relea
 fn a_control_its_rules_skip_on_every_subject_is_not_applicable_and_one_pass_makes_it_compliant() {
     let rules = rules(&[], &["fixture-d"], &[("skipped", SKIPPED)]);
     let checks = lint(&facts("root"), &rules, &[], "2026-11-11");
-    let catalog: Catalog = systemlint::yaml::from_str("controls:\n  - {id: '1'}\n  - {id: '2'}\n").unwrap();
+    let catalog: Catalog =
+        systemlint::yaml::from_str("controls:\n  - {id: '1'}\n  - {id: '2'}\n").unwrap();
     let report = comply("fixture-d", &rules, &checks, Some(&catalog));
-    assert_eq!(verdicts(&report), [("1", Verdict::NotApplicable), ("2", Verdict::Compliant)]);
-    assert_eq!(report.controls[0].reasons, ["deb/skip: when os.release.ID is “ubuntu”"]);
-    assert_eq!((report.verdict, report.coverage.as_ref().unwrap().covered, report.note.as_deref()), (Verdict::Compliant, 1, None), "no manual control, no note");
+    assert_eq!(
+        verdicts(&report),
+        [("1", Verdict::NotApplicable), ("2", Verdict::Compliant)]
+    );
+    assert_eq!(
+        report.controls[0].reasons,
+        ["deb/skip: when os.release.ID is “ubuntu”"]
+    );
+    assert_eq!(
+        (
+            report.verdict,
+            report.coverage.as_ref().unwrap().covered,
+            report.note.as_deref()
+        ),
+        (Verdict::Compliant, 1, None),
+        "no manual control, no note"
+    );
 }
 
 #[test]
 fn the_manual_note_counts_every_manual_control_and_joins_the_catalog_note() {
-    let catalog: Catalog = systemlint::yaml::from_str("controls:\n  - {id: '1', manual: true}\n  - {id: '2', manual: true}\n").unwrap();
-    assert_eq!(comply("fixture-x", &[], &[], Some(&catalog)).note.as_deref(), Some("2 controls need a manual check"));
+    let catalog: Catalog = systemlint::yaml::from_str(
+        "controls:\n  - {id: '1', manual: true}\n  - {id: '2', manual: true}\n",
+    )
+    .unwrap();
+    assert_eq!(
+        comply("fixture-x", &[], &[], Some(&catalog))
+            .note
+            .as_deref(),
+        Some("2 controls need a manual check")
+    );
     let (_, report) = applicability(None);
-    assert_eq!(report.note.as_deref(), Some("there is no catalog of fixture-c, so compliant only means no rule tagged fixture-c:* failed; 1 control needs a manual check"));
+    assert_eq!(
+        report.note.as_deref(),
+        Some(
+            "there is no catalog of fixture-c, so compliant only means no rule tagged fixture-c:* failed; 1 control needs a manual check"
+        )
+    );
 }

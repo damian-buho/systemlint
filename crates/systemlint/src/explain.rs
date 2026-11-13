@@ -18,7 +18,14 @@ pub fn io(action: &str, path: &Path, error: &io::Error, fixes: &[(ErrorKind, &st
         ErrorKind::StorageFull => "the disk is full".to_owned(),
         _ => error.to_string(),
     };
-    let fix = fixes.iter().find(|(kind, _)| *kind == error.kind()).map_or(String::new(), |(_, fix)| format!(" {fix}"));
-    log::debug!("explaining {:?} on {action} {}", error.kind(), path.display());
+    let fix = fixes
+        .iter()
+        .find(|(kind, _)| *kind == error.kind())
+        .map_or(String::new(), |(_, fix)| format!(" {fix}"));
+    log::debug!(
+        "explaining {:?} on {action} {}",
+        error.kind(),
+        path.display()
+    );
     format!("Can’t {action} {}: {what}.{fix}", path.display())
 }

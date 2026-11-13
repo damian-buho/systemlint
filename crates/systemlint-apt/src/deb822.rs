@@ -21,7 +21,10 @@ pub struct Stanza {
 impl Stanza {
     /// The first value of field `name`, compared case-insensitively as apt does.
     pub fn get(&self, name: &str) -> Option<&str> {
-        self.fields.iter().find(|f| f.name.eq_ignore_ascii_case(name)).map(|f| f.value.as_str())
+        self.fields
+            .iter()
+            .find(|f| f.name.eq_ignore_ascii_case(name))
+            .map(|f| f.value.as_str())
     }
 }
 
@@ -39,26 +42,42 @@ pub fn parse(text: &str) -> (Vec<Stanza>, Vec<(u64, String)>) {
             continue;
         }
         if line.starts_with([' ', '\t']) {
-            match stanzas.last_mut().filter(|_| open).and_then(|s| s.fields.last_mut()) {
+            match stanzas
+                .last_mut()
+                .filter(|_| open)
+                .and_then(|s| s.fields.last_mut())
+            {
                 Some(field) => {
                     let more = line.trim();
                     field.value.push('\n');
                     field.value.push_str(if more == "." { "" } else { more });
                 }
-                None => problems.push((number, "a continuation line with no field above it".to_owned())),
+                None => problems.push((
+                    number,
+                    "a continuation line with no field above it".to_owned(),
+                )),
             }
             continue;
         }
-        let Some((name, value)) = line.split_once(':').filter(|(n, _)| !n.is_empty() && !n.contains(char::is_whitespace)) else {
+        let Some((name, value)) = line
+            .split_once(':')
+            .filter(|(n, _)| !n.is_empty() && !n.contains(char::is_whitespace))
+        else {
             problems.push((number, format!("no Name: value in {line:?}")));
             continue;
         };
         if !open {
-            stanzas.push(Stanza { line: number, fields: Vec::new() });
+            stanzas.push(Stanza {
+                line: number,
+                fields: Vec::new(),
+            });
             open = true;
         }
         if let Some(stanza) = stanzas.last_mut() {
-            stanza.fields.push(Field { name: name.to_owned(), value: value.trim().to_owned() });
+            stanza.fields.push(Field {
+                name: name.to_owned(),
+                value: value.trim().to_owned(),
+            });
         }
     }
     (stanzas, problems)
@@ -69,9 +88,18 @@ pub fn unsign(text: &str) -> String {
     if !text.starts_with("-----BEGIN PGP SIGNED MESSAGE-----") {
         return text.to_owned();
     }
-    let body = text.split_once("\n\n").or_else(|| text.split_once("\r\n\r\n")).map_or("", |(_, b)| b);
-    let body = body.split("\n-----BEGIN PGP SIGNATURE-----").next().unwrap_or_default();
-    body.lines().map(|l| l.strip_prefix("- ").unwrap_or(l)).collect::<Vec<_>>().join("\n")
+    let body = text
+        .split_once("\n\n")
+        .or_else(|| text.split_once("\r\n\r\n"))
+        .map_or("", |(_, b)| b);
+    let body = body
+        .split("\n-----BEGIN PGP SIGNATURE-----")
+        .next()
+        .unwrap_or_default();
+    body.lines()
+        .map(|l| l.strip_prefix("- ").unwrap_or(l))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// apt’s boolean reading of `value`, or `None` when it is no boolean word.
@@ -89,11 +117,16 @@ mod tests {
 
     #[test]
     fn paragraphs_split_on_blank_lines_and_skip_comments() {
-        let (stanzas, problems) = parse("# head\nTypes: deb\n# inside\nURIs: https://a/\n  \nTypes: deb-src\nSigned-By:\n -----BEGIN PGP PUBLIC KEY BLOCK-----\n .\n abc\n");
+        let (stanzas, problems) = parse(
+            "# head\nTypes: deb\n# inside\nURIs: https://a/\n  \nTypes: deb-src\nSigned-By:\n -----BEGIN PGP PUBLIC KEY BLOCK-----\n .\n abc\n",
+        );
         assert!(problems.is_empty(), "{problems:?}");
         assert_eq!(stanzas.iter().map(|s| s.line).collect::<Vec<_>>(), [2, 6]);
         assert_eq!(stanzas[0].get("uris"), Some("https://a/"));
-        assert_eq!(stanzas[1].get("Signed-By"), Some("\n-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nabc"));
+        assert_eq!(
+            stanzas[1].get("Signed-By"),
+            Some("\n-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nabc")
+        );
     }
 
     #[test]
@@ -112,6 +145,9 @@ mod tests {
 
     #[test]
     fn booleans_follow_apt() {
-        assert_eq!((boolean("Yes"), boolean("no"), boolean("maybe")), (Some(true), Some(false), None));
+        assert_eq!(
+            (boolean("Yes"), boolean("no"), boolean("maybe")),
+            (Some(true), Some(false), None)
+        );
     }
 }

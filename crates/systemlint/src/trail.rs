@@ -100,7 +100,12 @@ pub fn install(verbose: bool, format: LogFormat) {
     let verbose = verbose.then(|| {
         let mut builder = env_logger::Builder::new();
         if format == LogFormat::Json {
-            builder.format(|out, record| std::io::Write::write_all(out, (json(record, std::time::SystemTime::now()) + "\n").as_bytes()));
+            builder.format(|out, record| {
+                std::io::Write::write_all(
+                    out,
+                    (json(record, std::time::SystemTime::now()) + "\n").as_bytes(),
+                )
+            });
         }
         builder.filter_level(LevelFilter::Debug).build()
     });
@@ -121,15 +126,27 @@ pub fn keep(tag: &str, line: String) {
 
 /// Takes the records kept under `tag`, oldest first.
 pub fn take(tag: &str) -> Vec<String> {
-    KEPT.lock().unwrap_or_else(PoisonError::into_inner).remove(tag).map(Vec::from).unwrap_or_default()
+    KEPT.lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(tag)
+        .map(Vec::from)
+        .unwrap_or_default()
 }
 
 /// Every kept record under a heading, each led by its scope, for a crash report; empty when none or the store is busy.
 pub fn dump() -> String {
-    let Ok(kept) = KEPT.try_lock() else { return String::new() };
-    let heading = if kept.is_empty() { String::new() } else { "\nlast debug records:\n".to_owned() };
-    kept.iter().flat_map(|(tag, lines)| lines.iter().map(move |line| (tag, line))).fold(heading, |mut out, (tag, line)| {
-        let _ = writeln!(out, "{tag}: {line}");
-        out
-    })
+    let Ok(kept) = KEPT.try_lock() else {
+        return String::new();
+    };
+    let heading = if kept.is_empty() {
+        String::new()
+    } else {
+        "\nlast debug records:\n".to_owned()
+    };
+    kept.iter()
+        .flat_map(|(tag, lines)| lines.iter().map(move |line| (tag, line)))
+        .fold(heading, |mut out, (tag, line)| {
+            let _ = writeln!(out, "{tag}: {line}");
+            out
+        })
 }

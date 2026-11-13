@@ -30,9 +30,13 @@ impl Remedy {
         match self {
             Self::Chmod(spec) => cleared(spec).map(|_| ()),
             Self::Chown(0) => Ok(()),
-            Self::Chown(uid) => Err(format!("remedy chown {uid}: only chown 0 is allowed, a fix never hands a file to a user")),
+            Self::Chown(uid) => Err(format!(
+                "remedy chown {uid}: only chown 0 is allowed, a fix never hands a file to a user"
+            )),
             Self::Chgrp(0) => Ok(()),
-            Self::Chgrp(gid) => Err(format!("remedy chgrp {gid}: only chgrp 0 is allowed, a fix never hands a file to a group of users")),
+            Self::Chgrp(gid) => Err(format!(
+                "remedy chgrp {gid}: only chgrp 0 is allowed, a fix never hands a file to a group of users"
+            )),
         }
     }
 
@@ -50,7 +54,9 @@ impl Remedy {
 pub fn cleared(spec: &str) -> Result<u32, String> {
     let bad = |why: &str| format!("remedy chmod {spec:?}: {why}; write who-perms like g-w,o-rwx");
     spec.split(',').try_fold(0, |mask, clause| {
-        let (who, perms) = clause.split_once('-').ok_or_else(|| bad("only - is allowed, a fix never adds a permission"))?;
+        let (who, perms) = clause
+            .split_once('-')
+            .ok_or_else(|| bad("only - is allowed, a fix never adds a permission"))?;
         let who = if who == "a" { "ugo" } else { who };
         if who.is_empty() || perms.is_empty() {
             return Err(bad("a clause needs who and perms"));
@@ -78,7 +84,15 @@ pub fn cleared(spec: &str) -> Result<u32, String> {
 
 /// `path` as one shell word, single-quoted unless it holds only safe characters.
 fn quote(path: &str) -> String {
-    if !path.is_empty() && path.chars().all(|c| c.is_ascii_alphanumeric() || "/._-+:@%".contains(c)) { path.to_owned() } else { format!("'{}'", path.replace('\'', r"'\''")) }
+    if !path.is_empty()
+        && path
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "/._-+:@%".contains(c))
+    {
+        path.to_owned()
+    } else {
+        format!("'{}'", path.replace('\'', r"'\''"))
+    }
 }
 
 /// One change to make: the remedy of `rule` on the subject `path`.
@@ -91,11 +105,29 @@ pub struct Change {
 
 /// The changes the failing checks call for, one per path and remedy, in path order.
 pub fn plan(checks: &[Check], rules: &[Rule]) -> Vec<Change> {
-    let remedies: BTreeMap<&str, &Remedy> = rules.iter().filter_map(|r| r.spec.remedy.as_ref().map(|m| (r.id.as_str(), m))).collect();
-    let mut changes: Vec<Change> = checks.iter().filter(|c| c.is_failing()).filter_map(|c| remedies.get(c.rule.as_str()).map(|m| Change { rule: c.rule.clone(), path: c.subject_label(), remedy: (*m).clone() })).filter(|c| c.path.starts_with('/')).collect();
+    let remedies: BTreeMap<&str, &Remedy> = rules
+        .iter()
+        .filter_map(|r| r.spec.remedy.as_ref().map(|m| (r.id.as_str(), m)))
+        .collect();
+    let mut changes: Vec<Change> = checks
+        .iter()
+        .filter(|c| c.is_failing())
+        .filter_map(|c| {
+            remedies.get(c.rule.as_str()).map(|m| Change {
+                rule: c.rule.clone(),
+                path: c.subject_label(),
+                remedy: (*m).clone(),
+            })
+        })
+        .filter(|c| c.path.starts_with('/'))
+        .collect();
     changes.sort_by(|a, b| (&a.path, a.remedy.command("")).cmp(&(&b.path, b.remedy.command(""))));
     changes.dedup_by(|a, b| a.path == b.path && a.remedy == b.remedy);
-    log::debug!("{} changes planned from {} checks", changes.len(), checks.len());
+    log::debug!(
+        "{} changes planned from {} checks",
+        changes.len(),
+        checks.len()
+    );
     changes
 }
 
@@ -105,10 +137,22 @@ pub type Applied = Option<(String, String)>;
 /// Makes `change` on the file it names under `root`, re-read right before, refusing a symlink or a special file.
 pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
     change.remedy.validate().map_err(std::io::Error::other)?;
-    let file = root.open_for_change(&change.path).map_err(|e| if e.raw_os_error() == Some(libc::ELOOP) { std::io::Error::new(std::io::ErrorKind::InvalidInput, "it is a symbolic link now, so lint again before fixing") } else { e })?;
+    let file = root.open_for_change(&change.path).map_err(|e| {
+        if e.raw_os_error() == Some(libc::ELOOP) {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "it is a symbolic link now, so lint again before fixing",
+            )
+        } else {
+            e
+        }
+    })?;
     let meta = file.metadata()?;
     if !meta.is_file() && !meta.is_dir() {
-        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "not a regular file or directory"));
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "not a regular file or directory",
+        ));
     }
     match &change.remedy {
         Remedy::Chmod(spec) => {

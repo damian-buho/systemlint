@@ -72,7 +72,11 @@ impl Read {
 
 /// The literal part of a fact pattern, every segment before the first `*`.
 pub fn prefix(pattern: &str) -> String {
-    pattern.split('.').take_while(|s| *s != "*").collect::<Vec<_>>().join(".")
+    pattern
+        .split('.')
+        .take_while(|s| *s != "*")
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 /// The `parse:` plugin op.
@@ -86,34 +90,70 @@ pub struct Parse {
 impl Collector {
     /// Parses and validates one collector from YAML text.
     pub fn parse(text: &str) -> Result<Self, String> {
-        let collector: Self = crate::yaml::from_str(text).map_err(|e| format!("not a valid collector: {e}"))?;
+        let collector: Self =
+            crate::yaml::from_str(text).map_err(|e| format!("not a valid collector: {e}"))?;
         collector.validate()?;
         Ok(collector)
     }
 
     /// Checks the fields one collector can get wrong on its own.
     pub fn validate(&self) -> Result<(), String> {
-        if self.id.is_empty() || !self.id.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-') {
-            return Err(format!("id {:?} is not a slug of lowercase letters, digits and -", self.id));
+        if self.id.is_empty()
+            || !self
+                .id
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        {
+            return Err(format!(
+                "id {:?} is not a slug of lowercase letters, digits and -",
+                self.id
+            ));
         }
-        if let Some(glob) = self.read.files.iter().chain(&self.read.stat).find(|g| !g.starts_with('/')) {
+        if let Some(glob) = self
+            .read
+            .files
+            .iter()
+            .chain(&self.read.stat)
+            .find(|g| !g.starts_with('/'))
+        {
             return Err(format!("read glob {glob} is not absolute"));
         }
-        if !self.read.hash.is_empty() && self.read.stat.is_empty() && self.read.stat_from.is_empty() {
-            return Err("read.hash adds digests to stats; list the files under read.stat or read.stat-from".to_owned());
+        if !self.read.hash.is_empty() && self.read.stat.is_empty() && self.read.stat_from.is_empty()
+        {
+            return Err(
+                "read.hash adds digests to stats; list the files under read.stat or read.stat-from"
+                    .to_owned(),
+            );
         }
         match self.read.exec.as_deref() {
             Some([]) => return Err("read.exec is empty; give an argv list".to_owned()),
-            Some([program, ..]) if !program.starts_with('/') => return Err(format!("read.exec program {program} is not an absolute path; PATH is never searched")),
+            Some([program, ..]) if !program.starts_with('/') => {
+                return Err(format!(
+                    "read.exec program {program} is not an absolute path; PATH is never searched"
+                ));
+            }
             _ => {}
         }
         for pattern in self.read.named() {
-            if pattern.split('.').any(|s| s.is_empty() || (s.contains('*') && s != "*")) {
-                return Err(format!("read pattern {pattern:?} is not a dotted fact path whose wildcards are whole segments"));
+            if pattern
+                .split('.')
+                .any(|s| s.is_empty() || (s.contains('*') && s != "*"))
+            {
+                return Err(format!(
+                    "read pattern {pattern:?} is not a dotted fact path whose wildcards are whole segments"
+                ));
             }
             match prefix(pattern) {
-                p if p.is_empty() => return Err(format!("read pattern {pattern} starts with a wildcard; name the fact it reads from")),
-                p if overlaps(&p, &self.into) => return Err(format!("read pattern {pattern} reads {p}, which this collector writes")),
+                p if p.is_empty() => {
+                    return Err(format!(
+                        "read pattern {pattern} starts with a wildcard; name the fact it reads from"
+                    ));
+                }
+                p if overlaps(&p, &self.into) => {
+                    return Err(format!(
+                        "read pattern {pattern} reads {p}, which this collector writes"
+                    ));
+                }
                 _ => {}
             }
         }
@@ -122,7 +162,10 @@ impl Collector {
             return Err(format!("into {:?} is not a dotted fact path", self.into));
         }
         if RESERVED.contains(&segments[0]) {
-            return Err(format!("into {} writes into the reserved {}", self.into, segments[0]));
+            return Err(format!(
+                "into {} writes into the reserved {}",
+                self.into, segments[0]
+            ));
         }
         Ok(())
     }
@@ -131,14 +174,23 @@ impl Collector {
 /// Whether one dotted fact path equals the other or lies under it, either way round.
 pub fn overlaps(a: &str, b: &str) -> bool {
     let (short, long) = if a.len() <= b.len() { (a, b) } else { (b, a) };
-    long == short || long.strip_prefix(short).is_some_and(|rest| rest.starts_with('.'))
+    long == short
+        || long
+            .strip_prefix(short)
+            .is_some_and(|rest| rest.starts_with('.'))
 }
 
 /// `collector` when its id and `into` are free among `collectors`.
 pub fn admit(collectors: &[Collector], collector: Collector) -> Result<Collector, String> {
-    match collectors.iter().find(|o| o.id == collector.id || overlaps(&o.into, &collector.into)) {
+    match collectors
+        .iter()
+        .find(|o| o.id == collector.id || overlaps(&o.into, &collector.into))
+    {
         Some(o) if o.id == collector.id => Err(format!("id {} is already taken", collector.id)),
-        Some(o) => Err(format!("into {} overlaps {} of collector {}", collector.into, o.into, o.id)),
+        Some(o) => Err(format!(
+            "into {} overlaps {} of collector {}",
+            collector.into, o.into, o.id
+        )),
         None => Ok(collector),
     }
 }

@@ -21,7 +21,8 @@ pub const VERSION: &str = match option_env!("SYSTEMLINT_VERSION") {
 };
 
 /// Where the protocol is documented, printed in every plugin’s `--help`.
-pub const DOCS: &str = "https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md";
+pub const DOCS: &str =
+    "https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md";
 
 /// Exit code for a request the plugin cannot accept: bad JSON, another protocol, an op it does not list.
 pub const EXIT_BAD_REQUEST: u8 = 3;
@@ -60,7 +61,10 @@ impl Describe {
             protocol: PROTOCOL,
             ops: ops
                 .iter()
-                .map(|(op, needs)| OpSpec { op: (*op).to_owned(), needs: needs.iter().map(|n| (*n).to_owned()).collect() })
+                .map(|(op, needs)| OpSpec {
+                    op: (*op).to_owned(),
+                    needs: needs.iter().map(|n| (*n).to_owned()).collect(),
+                })
                 .collect(),
         }
     }
@@ -106,7 +110,11 @@ pub struct FileInput {
     pub path: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
-    #[serde(default, rename = "content-base64", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "content-base64",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub content_base64: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stat: Option<Stat>,
@@ -182,7 +190,14 @@ pub struct Diagnostic {
 /// The whole `main` of a plugin: `--describe`, `--help`, `--version`, or one request on stdin.
 pub fn run(describe: &Describe, handler: impl FnOnce(Request) -> Result<Reply>) -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
-    let code = execute(describe, handler, &args, &mut std::io::stdin().lock(), &mut std::io::stdout().lock(), &mut std::io::stderr().lock());
+    let code = execute(
+        describe,
+        handler,
+        &args,
+        &mut std::io::stdin().lock(),
+        &mut std::io::stdout().lock(),
+        &mut std::io::stderr().lock(),
+    );
     ExitCode::from(code)
 }
 
@@ -223,16 +238,27 @@ pub fn execute(
     let request: Request = match serde_json::from_str(&body) {
         Ok(request) => request,
         Err(error) => {
-            let _ = writeln!(stderr, "{bin}: the request is not valid protocol JSON: {error}");
+            let _ = writeln!(
+                stderr,
+                "{bin}: the request is not valid protocol JSON: {error}"
+            );
             return EXIT_BAD_REQUEST;
         }
     };
     if request.protocol != PROTOCOL {
-        let _ = writeln!(stderr, "{bin}: speaks protocol {PROTOCOL}, the request asks for {}", request.protocol);
+        let _ = writeln!(
+            stderr,
+            "{bin}: speaks protocol {PROTOCOL}, the request asks for {}",
+            request.protocol
+        );
         return EXIT_BAD_REQUEST;
     }
     if !describe.offers(&request.op) {
-        let _ = writeln!(stderr, "{bin}: no op {}; --describe lists the ops", request.op);
+        let _ = writeln!(
+            stderr,
+            "{bin}: no op {}; --describe lists the ops",
+            request.op
+        );
         return EXIT_BAD_REQUEST;
     }
     let op = request.op.clone();
@@ -246,7 +272,10 @@ pub fn execute(
 }
 
 fn emit(bin: &str, value: &impl Serialize, stdout: &mut impl Write, stderr: &mut impl Write) -> u8 {
-    match serde_json::to_writer(&mut *stdout, value).map_err(std::io::Error::from).and_then(|()| writeln!(stdout)) {
+    match serde_json::to_writer(&mut *stdout, value)
+        .map_err(std::io::Error::from)
+        .and_then(|()| writeln!(stdout))
+    {
         Ok(()) => 0,
         Err(error) => {
             let _ = writeln!(stderr, "{bin}: can’t write the reply: {error}");
@@ -263,11 +292,26 @@ mod tests {
         Describe::new("sample", &[("echo", &[]), ("derive", &["os.release"])])
     }
 
-    fn call(args: &[&str], stdin: &str, handler: impl FnOnce(Request) -> Result<Reply>) -> (u8, String, String) {
+    fn call(
+        args: &[&str],
+        stdin: &str,
+        handler: impl FnOnce(Request) -> Result<Reply>,
+    ) -> (u8, String, String) {
         let args: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        let code = execute(&sample(), handler, &args, &mut stdin.as_bytes(), &mut out, &mut err);
-        (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
+        let code = execute(
+            &sample(),
+            handler,
+            &args,
+            &mut stdin.as_bytes(),
+            &mut out,
+            &mut err,
+        );
+        (
+            code,
+            String::from_utf8(out).unwrap(),
+            String::from_utf8(err).unwrap(),
+        )
     }
 
     fn unused(_: Request) -> Result<Reply> {
@@ -306,10 +350,14 @@ mod tests {
         let request = r#"{"protocol":1,"op":"echo","inputs":[{"path":"/etc/hostname","content":"kiota\n"},{"argv":["uname"],"stdout":"Linux\n","stderr":"","exit":0}]}"#;
         let (code, out, err) = call(&["systemlint-sample"], request, |req| {
             assert_eq!(req.root, "/");
-            assert!(matches!(&req.inputs[0], Input::File(f) if f.content.as_deref() == Some("kiota\n")));
+            assert!(
+                matches!(&req.inputs[0], Input::File(f) if f.content.as_deref() == Some("kiota\n"))
+            );
             assert!(matches!(&req.inputs[1], Input::Exec(e) if e.argv == ["uname"] && e.exit == 0));
             let mut reply = Reply::default();
-            reply.facts.insert("host.name".to_owned(), Value::from("kiota"));
+            reply
+                .facts
+                .insert("host.name".to_owned(), Value::from("kiota"));
             Ok(reply)
         });
         assert_eq!((code, err.as_str()), (0, ""));
@@ -324,7 +372,10 @@ mod tests {
             (r#"{"protocol":2,"op":"echo"}"#, "speaks protocol 1"),
             (r#"{"protocol":0,"op":"echo"}"#, "speaks protocol 1"),
             (r#"{"protocol":1,"op":"missing"}"#, "no op missing"),
-            (r#"{"protocol":1,"op":"echo","extra":true}"#, "unknown field"),
+            (
+                r#"{"protocol":1,"op":"echo","extra":true}"#,
+                "unknown field",
+            ),
         ] {
             let (code, out, err) = call(&["systemlint-sample"], request, unused);
             assert_eq!(code, EXIT_BAD_REQUEST, "{request}");
@@ -335,7 +386,11 @@ mod tests {
 
     #[test]
     fn handler_error_exits_one_naming_the_op() {
-        let (code, out, err) = call(&["systemlint-sample"], r#"{"protocol":1,"op":"derive"}"#, |_| Err("boom".into()));
+        let (code, out, err) = call(
+            &["systemlint-sample"],
+            r#"{"protocol":1,"op":"derive"}"#,
+            |_| Err("boom".into()),
+        );
         assert_eq!(code, 1);
         assert!(out.is_empty());
         assert_eq!(err, "systemlint-sample: op derive: boom\n");
@@ -343,8 +398,24 @@ mod tests {
 
     #[test]
     fn stat_uses_kebab_case() {
-        let stat = Stat { kind: FileKind::File, mode: "0644".into(), uid: 0, gid: 0, size: 3, world_writable: false, group_writable: false, setuid: false, setgid: false, linked_to: None, sha256: None, sha512: None };
+        let stat = Stat {
+            kind: FileKind::File,
+            mode: "0644".into(),
+            uid: 0,
+            gid: 0,
+            size: 3,
+            world_writable: false,
+            group_writable: false,
+            setuid: false,
+            setgid: false,
+            linked_to: None,
+            sha256: None,
+            sha512: None,
+        };
         let json = serde_json::to_string(&stat).unwrap();
-        assert!(json.contains(r#""world-writable":false"#) && json.contains(r#""kind":"file""#), "{json}");
+        assert!(
+            json.contains(r#""world-writable":false"#) && json.contains(r#""kind":"file""#),
+            "{json}"
+        );
     }
 }

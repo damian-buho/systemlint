@@ -28,23 +28,47 @@ fn file(path: &Path, mode: u32) {
 }
 
 fn mine() -> Trust {
-    Trust { top: base(), ..Trust::invoking_user() }
+    Trust {
+        top: base(),
+        ..Trust::invoking_user()
+    }
 }
 
 #[test]
 fn beside_is_lib_next_to_bin() {
-    let dirs = directories(Path::new("/usr/local/bin/systemlint"), BESIDE, &[PathBuf::from("/opt/plugins")]);
-    assert_eq!(dirs, [PathBuf::from("/usr/local/bin/../lib/systemlint/plugins"), PathBuf::from("/opt/plugins")]);
+    let dirs = directories(
+        Path::new("/usr/local/bin/systemlint"),
+        BESIDE,
+        &[PathBuf::from("/opt/plugins")],
+    );
+    assert_eq!(
+        dirs,
+        [
+            PathBuf::from("/usr/local/bin/../lib/systemlint/plugins"),
+            PathBuf::from("/opt/plugins")
+        ]
+    );
 }
 
 #[test]
 fn names_need_the_prefix_and_a_slug() {
     let dir = fixture("names");
-    for name in ["systemlint-apt", "systemlint-dnf-repo2", "systemlint-", "systemlint-apt.d", "systemlint-Apt", "systemlint", "apt"] {
+    for name in [
+        "systemlint-apt",
+        "systemlint-dnf-repo2",
+        "systemlint-",
+        "systemlint-apt.d",
+        "systemlint-Apt",
+        "systemlint",
+        "apt",
+    ] {
         file(&dir.join(name), 0o755);
     }
     let (plugins, _) = discover(&[dir], &mine());
-    assert_eq!(plugins.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["apt", "dnf-repo2"]);
+    assert_eq!(
+        plugins.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),
+        ["apt", "dnf-repo2"]
+    );
 }
 
 #[test]
@@ -55,7 +79,13 @@ fn finds_executables_and_skips_the_rest() {
     file(&dir.join("README"), 0o755);
     std::fs::create_dir(dir.join("systemlint-dir")).unwrap();
     let (plugins, refusals) = discover(std::slice::from_ref(&dir), &mine());
-    assert_eq!(plugins, [Plugin { name: "apt".into(), path: dir.join("systemlint-apt") }]);
+    assert_eq!(
+        plugins,
+        [Plugin {
+            name: "apt".into(),
+            path: dir.join("systemlint-apt")
+        }]
+    );
     assert!(refusals.is_empty(), "{refusals:?}");
 }
 
@@ -66,12 +96,16 @@ fn first_directory_wins_a_name() {
     file(&second.join("systemlint-apt"), 0o700);
     file(&second.join("systemlint-sshd"), 0o700);
     let (plugins, _) = discover(&[first.clone(), second.clone()], &mine());
-    assert_eq!(plugins.iter().map(|p| p.path.clone()).collect::<Vec<_>>(), [first.join("systemlint-apt"), second.join("systemlint-sshd")]);
+    assert_eq!(
+        plugins.iter().map(|p| p.path.clone()).collect::<Vec<_>>(),
+        [first.join("systemlint-apt"), second.join("systemlint-sshd")]
+    );
 }
 
 #[test]
 fn missing_directory_is_skipped_silently() {
-    let (plugins, refusals) = discover(&[PathBuf::from("/nonexistent/systemlint/plugins")], &mine());
+    let (plugins, refusals) =
+        discover(&[PathBuf::from("/nonexistent/systemlint/plugins")], &mine());
     assert!(plugins.is_empty() && refusals.is_empty());
 }
 
@@ -82,7 +116,10 @@ fn group_or_other_writable_is_refused() {
         file(&dir.join("systemlint-apt"), mode);
         let (plugins, refusals) = discover(std::slice::from_ref(&dir), &mine());
         assert!(plugins.is_empty(), "{mode:o}");
-        assert!(refusals[0].reason.contains("chmod go-w"), "{mode:o}: {refusals:?}");
+        assert!(
+            refusals[0].reason.contains("chmod go-w"),
+            "{mode:o}: {refusals:?}"
+        );
     }
 }
 
@@ -106,7 +143,9 @@ fn production_walk_reaches_the_filesystem_root() {
 
 #[test]
 fn production_trust_holds_the_running_core_owner() {
-    let owner = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata(std::env::current_exe().unwrap()).unwrap());
+    let owner = std::os::unix::fs::MetadataExt::uid(
+        &std::fs::metadata(std::env::current_exe().unwrap()).unwrap(),
+    );
     let uids = Trust::invoking_user().uids;
     assert!(uids.contains(&0) && uids.contains(&owner), "{uids:?}");
 }
@@ -115,9 +154,20 @@ fn production_trust_holds_the_running_core_owner() {
 fn stranger_owner_is_refused() {
     let dir = fixture("stranger");
     file(&dir.join("systemlint-apt"), 0o755);
-    let (plugins, refusals) = discover(std::slice::from_ref(&dir), &Trust { uids: vec![u32::MAX - 1], top: base() });
+    let (plugins, refusals) = discover(
+        std::slice::from_ref(&dir),
+        &Trust {
+            uids: vec![u32::MAX - 1],
+            top: base(),
+        },
+    );
     assert!(plugins.is_empty());
-    assert!(refusals[0].reason.contains("not root, you or the core’s owner"), "{refusals:?}");
+    assert!(
+        refusals[0]
+            .reason
+            .contains("not root, you or the core’s owner"),
+        "{refusals:?}"
+    );
 }
 
 #[test]

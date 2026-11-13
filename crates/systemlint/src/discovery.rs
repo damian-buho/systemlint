@@ -38,28 +38,56 @@ impl Trust {
     /// Root, the user running systemlint and the owner of the running core, which a plugin beside it can never out-trust.
     pub fn invoking_user() -> Self {
         let uid = rustix::process::getuid().as_raw();
-        let core = std::env::current_exe().and_then(std::fs::metadata).map_or(uid, |m| m.uid());
+        let core = std::env::current_exe()
+            .and_then(std::fs::metadata)
+            .map_or(uid, |m| m.uid());
         log::debug!("trusting owners uid 0, uid {uid} and the core’s owner uid {core}");
         let mut uids = vec![0, uid, core];
         uids.dedup();
-        Self { uids, top: PathBuf::from("/") }
+        Self {
+            uids,
+            top: PathBuf::from("/"),
+        }
     }
 
     /// Fails unless `path` and every directory above it up to `top`, symlinks resolved, has a trusted owner and no group or other write bit.
     pub fn check(&self, path: &Path) -> Result<PathBuf, Refusal> {
-        let refuse = |reason: String| Refusal { path: path.to_path_buf(), reason };
-        let real = path.canonicalize().map_err(|e| refuse(format!("can’t resolve it: {e}")))?;
+        let refuse = |reason: String| Refusal {
+            path: path.to_path_buf(),
+            reason,
+        };
+        let real = path
+            .canonicalize()
+            .map_err(|e| refuse(format!("can’t resolve it: {e}")))?;
         for ancestor in real.ancestors() {
-            let meta = std::fs::symlink_metadata(ancestor).map_err(|e| refuse(format!("can’t stat {}: {e}", ancestor.display())))?;
+            let meta = std::fs::symlink_metadata(ancestor)
+                .map_err(|e| refuse(format!("can’t stat {}: {e}", ancestor.display())))?;
             let mode = meta.permissions().mode() & 0o7777;
             if !self.uids.contains(&meta.uid()) {
-                return Err(refuse(format!("{} is owned by uid {}, not root, you or the core’s owner. Run sudo chown root {}.", ancestor.display(), meta.uid(), ancestor.display())));
+                return Err(refuse(format!(
+                    "{} is owned by uid {}, not root, you or the core’s owner. Run sudo chown root {}.",
+                    ancestor.display(),
+                    meta.uid(),
+                    ancestor.display()
+                )));
             }
             if mode & 0o022 != 0 {
-                let sudo = if meta.uid() == rustix::process::geteuid().as_raw() { "" } else { "sudo " };
-                return Err(refuse(format!("group or others can write {} (mode {mode:04o}). Run {sudo}chmod go-w {}.", ancestor.display(), ancestor.display())));
+                let sudo = if meta.uid() == rustix::process::geteuid().as_raw() {
+                    ""
+                } else {
+                    "sudo "
+                };
+                return Err(refuse(format!(
+                    "group or others can write {} (mode {mode:04o}). Run {sudo}chmod go-w {}.",
+                    ancestor.display(),
+                    ancestor.display()
+                )));
             }
-            log::trace!("trusted {} uid {} mode {mode:04o}", ancestor.display(), meta.uid());
+            log::trace!(
+                "trusted {} uid {} mode {mode:04o}",
+                ancestor.display(),
+                meta.uid()
+            );
             if ancestor == self.top {
                 break;
             }
@@ -71,7 +99,9 @@ impl Trust {
 /// The directories to search, in order: `beside` relative to the core binary’s directory, then the configured ones.
 pub fn directories(exe: &Path, beside: &str, configured: &[PathBuf]) -> Vec<PathBuf> {
     let beside = exe.parent().unwrap_or(Path::new("/")).join(beside);
-    std::iter::once(beside).chain(configured.iter().cloned()).collect()
+    std::iter::once(beside)
+        .chain(configured.iter().cloned())
+        .collect()
 }
 
 /// Every trusted plugin in `dirs`, the first of a name winning, plus every refusal.
@@ -92,12 +122,19 @@ pub fn discover(dirs: &[PathBuf], trust: &Trust) -> (Vec<Plugin>, Vec<Refusal>) 
         let mut entries: Vec<PathBuf> = match std::fs::read_dir(&dir) {
             Ok(read) => read.filter_map(|e| e.ok().map(|e| e.path())).collect(),
             Err(error) => {
-                refusals.push(Refusal { path: dir.clone(), reason: format!("can’t list it: {error}") });
+                refusals.push(Refusal {
+                    path: dir.clone(),
+                    reason: format!("can’t list it: {error}"),
+                });
                 continue;
             }
         };
         entries.sort();
-        log::debug!("plugin directory {} holds {} entries", dir.display(), entries.len());
+        log::debug!(
+            "plugin directory {} holds {} entries",
+            dir.display(),
+            entries.len()
+        );
         for path in entries {
             let Some(name) = plugin_name(&path) else {
                 log::trace!("{} is not named {PREFIX}<name>, skipped", path.display());
@@ -108,7 +145,11 @@ pub fn discover(dirs: &[PathBuf], trust: &Trust) -> (Vec<Plugin>, Vec<Refusal>) 
                 continue;
             }
             if let Some(first) = plugins.iter().find(|p| p.name == name) {
-                log::info!("plugin {name} at {} is shadowed by {}", path.display(), first.path.display());
+                log::info!(
+                    "plugin {name} at {} is shadowed by {}",
+                    path.display(),
+                    first.path.display()
+                );
                 continue;
             }
             match trust.check(&path) {
@@ -125,14 +166,16 @@ pub fn discover(dirs: &[PathBuf], trust: &Trust) -> (Vec<Plugin>, Vec<Refusal>) 
 
 fn plugin_name(path: &Path) -> Option<String> {
     let name = path.file_name()?.to_str()?.strip_prefix(PREFIX)?;
-    let valid = !name.is_empty() && name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
+    let valid = !name.is_empty()
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
     valid.then(|| name.to_owned())
 }
 
 fn is_executable(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
 }
-
 
 /// The text of every trusted `*.yaml` file in `dirs`, in directory then name order, plus every refusal.
 pub fn yaml_files(dirs: &[PathBuf], trust: &Trust) -> (Vec<(PathBuf, String)>, Vec<Refusal>) {
@@ -150,16 +193,28 @@ pub fn yaml_files(dirs: &[PathBuf], trust: &Trust) -> (Vec<(PathBuf, String)>, V
             }
         };
         let mut files: Vec<PathBuf> = match std::fs::read_dir(&dir) {
-            Ok(read) => read.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|x| x == "yaml")).collect(),
+            Ok(read) => read
+                .filter_map(|e| e.ok().map(|e| e.path()))
+                .filter(|p| p.extension().is_some_and(|x| x == "yaml"))
+                .collect(),
             Err(error) => {
-                refusals.push(Refusal { path: dir.clone(), reason: format!("can’t list it: {error}") });
+                refusals.push(Refusal {
+                    path: dir.clone(),
+                    reason: format!("can’t list it: {error}"),
+                });
                 continue;
             }
         };
         files.sort();
-        log::debug!("directory {} holds {} yaml files", dir.display(), files.len());
+        log::debug!(
+            "directory {} holds {} yaml files",
+            dir.display(),
+            files.len()
+        );
         for path in files {
-            match trust.check(&path).map_err(|r| r.reason).and_then(|real| std::fs::read_to_string(real).map_err(|e| format!("can’t read it: {e}"))) {
+            match trust.check(&path).map_err(|r| r.reason).and_then(|real| {
+                std::fs::read_to_string(real).map_err(|e| format!("can’t read it: {e}"))
+            }) {
                 Ok(text) => texts.push((path, text)),
                 Err(reason) => refusals.push(Refusal { path, reason }),
             }

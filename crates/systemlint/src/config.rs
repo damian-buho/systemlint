@@ -37,12 +37,24 @@ pub enum Layer {
 }
 
 /// The configuration files to read, lowest first, each with its kind; the project file only when `project`.
-pub fn layers(explicit: Option<&Path>, project: bool, var: impl Fn(&str) -> Option<String>, cwd: &Path) -> Vec<(PathBuf, Layer)> {
-    let user = var("XDG_CONFIG_HOME").map(PathBuf::from).filter(|p| p.is_absolute()).or_else(|| var("HOME").map(|home| Path::new(&home).join(".config")));
+pub fn layers(
+    explicit: Option<&Path>,
+    project: bool,
+    var: impl Fn(&str) -> Option<String>,
+    cwd: &Path,
+) -> Vec<(PathBuf, Layer)> {
+    let user = var("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| var("HOME").map(|home| Path::new(&home).join(".config")));
     let mut out = vec![(PathBuf::from(SYSTEM), Layer::Optional)];
     out.extend(user.map(|dir| (dir.join("systemlint/config.yaml"), Layer::Optional)));
     out.extend(project.then(|| (cwd.join(PROJECT), Layer::Project)));
-    out.extend(var(ENV).filter(|p| !p.is_empty()).map(|p| (PathBuf::from(p), Layer::Required)));
+    out.extend(
+        var(ENV)
+            .filter(|p| !p.is_empty())
+            .map(|p| (PathBuf::from(p), Layer::Required)),
+    );
     out.extend(explicit.map(|p| (p.to_path_buf(), Layer::Required)));
     out
 }
@@ -158,30 +170,63 @@ impl Config {
                 continue;
             }
             if *layer == Layer::Project && merged[PROJECT_KEY] == false {
-                log::debug!("config {} skipped: {PROJECT_KEY} is false in {}", path.display(), read.join(", "));
+                log::debug!(
+                    "config {} skipped: {PROJECT_KEY} is false in {}",
+                    path.display(),
+                    read.join(", ")
+                );
                 continue;
             }
             let config = Self::read(path)?;
             if *layer != Layer::Optional && config.get(PROJECT_KEY).is_some() {
-                return Err(format!("{}: {PROJECT_KEY} works only in {SYSTEM} or the user configuration. Pass --no-project-config to skip {PROJECT} on one run.", path.display()));
+                return Err(format!(
+                    "{}: {PROJECT_KEY} works only in {SYSTEM} or the user configuration. Pass --no-project-config to skip {PROJECT} on one run.",
+                    path.display()
+                ));
             }
             Self::check(path, config.clone())?;
             log::debug!("config {} read as layer {}", path.display(), read.len() + 1);
             merge(&mut merged, config);
             read.push(path.display().to_string());
         }
-        let config = serde_json::from_value(merged).map_err(|e| format!("{} merge into an invalid configuration: {e}", read.join(", ")))?;
+        let config = serde_json::from_value(merged).map_err(|e| {
+            format!(
+                "{} merge into an invalid configuration: {e}",
+                read.join(", ")
+            )
+        })?;
         Self::check(Path::new(&read.join(", ")), config)
     }
 
     /// `path` as a JSON tree, its relative directories resolved against its own directory.
     fn read(path: &Path) -> Result<Value, String> {
-        let fixes = [(std::io::ErrorKind::NotFound, "Pass an existing file to --config or SYSTEMLINT_CONFIG, or drop it to use the defaults."), (std::io::ErrorKind::PermissionDenied, "Run with sudo, or name a configuration file you can read.")];
-        let text = std::fs::read_to_string(path).map_err(|e| crate::explain::io("read the configuration", path, &e, &fixes))?;
-        let mut tree: Value = crate::yaml::from_str::<Option<Value>>(&text).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?.unwrap_or_else(|| Value::Object(serde_json::Map::new()));
+        let fixes = [
+            (
+                std::io::ErrorKind::NotFound,
+                "Pass an existing file to --config or SYSTEMLINT_CONFIG, or drop it to use the defaults.",
+            ),
+            (
+                std::io::ErrorKind::PermissionDenied,
+                "Run with sudo, or name a configuration file you can read.",
+            ),
+        ];
+        let text = std::fs::read_to_string(path)
+            .map_err(|e| crate::explain::io("read the configuration", path, &e, &fixes))?;
+        let mut tree: Value = crate::yaml::from_str::<Option<Value>>(&text)
+            .map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?
+            .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
         let base = path.parent().unwrap_or(Path::new("."));
-        for pointer in ["/plugins/directories", "/collect/directories", "/check/directories"] {
-            for dir in tree.pointer_mut(pointer).and_then(Value::as_array_mut).into_iter().flatten() {
+        for pointer in [
+            "/plugins/directories",
+            "/collect/directories",
+            "/check/directories",
+        ] {
+            for dir in tree
+                .pointer_mut(pointer)
+                .and_then(Value::as_array_mut)
+                .into_iter()
+                .flatten()
+            {
                 if let Some(relative) = dir.as_str().filter(|d| Path::new(d).is_relative()) {
                     *dir = Value::from(base.join(relative).display().to_string());
                 }
@@ -192,34 +237,78 @@ impl Config {
 
     /// `tree` as a configuration, refused with `path` named when a value is out of range.
     fn check(path: &Path, tree: Value) -> Result<Self, String> {
-        let mut config: Self = serde_json::from_value(tree).map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?;
-        if config.collect.hash_key.as_deref().is_some_and(|k| k.chars().count() < 16) {
-            return Err(format!("{}: collect.hash-key needs 16 characters or more, or a hash of a short value is guessed", path.display()));
+        let mut config: Self = serde_json::from_value(tree)
+            .map_err(|e| format!("{} is not a valid configuration: {e}", path.display()))?;
+        if config
+            .collect
+            .hash_key
+            .as_deref()
+            .is_some_and(|k| k.chars().count() < 16)
+        {
+            return Err(format!(
+                "{}: collect.hash-key needs 16 characters or more, or a hash of a short value is guessed",
+                path.display()
+            ));
         }
         if config.collect.timeout == Some(0) {
-            return Err(format!("{}: collect.timeout needs 1 second or more, or every plugin call fails", path.display()));
+            return Err(format!(
+                "{}: collect.timeout needs 1 second or more, or every plugin call fails",
+                path.display()
+            ));
         }
-        if config.collect.jobs.is_some_and(|j| !(1..=MAX_CHILDREN as u64).contains(&j)) {
-            return Err(format!("{}: collect.jobs needs 1 to {MAX_CHILDREN}, as many collectors as Ctrl-C can stop", path.display()));
+        if config
+            .collect
+            .jobs
+            .is_some_and(|j| !(1..=MAX_CHILDREN as u64).contains(&j))
+        {
+            return Err(format!(
+                "{}: collect.jobs needs 1 to {MAX_CHILDREN}, as many collectors as Ctrl-C can stop",
+                path.display()
+            ));
         }
         for collector in &mut config.collect.collectors {
             collector.inline = true;
-            collector.validate().map_err(|e| format!("{}: collect.collectors {}: {e}", path.display(), collector.id))?;
+            collector.validate().map_err(|e| {
+                format!(
+                    "{}: collect.collectors {}: {e}",
+                    path.display(),
+                    collector.id
+                )
+            })?;
             if collector.read.exec.is_some() {
-                return Err(format!("{}: collect.collectors {}: an inline collector can’t exec; put it in a collect.directories file", path.display(), collector.id));
+                return Err(format!(
+                    "{}: collect.collectors {}: an inline collector can’t exec; put it in a collect.directories file",
+                    path.display(),
+                    collector.id
+                ));
             }
         }
         if let Some(text) = &config.check.fail_on {
-            text.parse::<FailOn>().map_err(|e| format!("{}: check.{e}", path.display()))?;
+            text.parse::<FailOn>()
+                .map_err(|e| format!("{}: check.{e}", path.display()))?;
         }
-        if let Some(w) = config.check.waivers.iter().find(|w| !valid_day(&w.until) || w.reason.trim().is_empty()) {
-            return Err(format!("{}: the waiver of rule {} needs a reason and an until day as YYYY-MM-DD, got until {:?}", path.display(), w.rule, w.until));
+        if let Some(w) = config
+            .check
+            .waivers
+            .iter()
+            .find(|w| !valid_day(&w.until) || w.reason.trim().is_empty())
+        {
+            return Err(format!(
+                "{}: the waiver of rule {} needs a reason and an until day as YYYY-MM-DD, got until {:?}",
+                path.display(),
+                w.rule,
+                w.until
+            ));
         }
-        log::debug!("config {} names {} plugin and {} collector directories", path.display(), config.plugins.directories.len(), config.collect.directories.len());
+        log::debug!(
+            "config {} names {} plugin and {} collector directories",
+            path.display(),
+            config.plugins.directories.len(),
+            config.collect.directories.len()
+        );
         Ok(config)
     }
 }
-
 
 /// Merges `top` over `base`: maps key by key, any other value replaced whole.
 fn merge(base: &mut Value, top: Value) {

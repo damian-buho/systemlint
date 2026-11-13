@@ -9,16 +9,25 @@ use std::cmp::Ordering;
 /// The epoch, upstream version and revision of a Debian version, or why it is not one.
 pub fn parse_deb(text: &str) -> Result<(u64, &str, &str), String> {
     let (epoch, rest) = match text.split_once(':') {
-        Some((epoch, rest)) => (epoch.parse::<u64>().map_err(|_| format!("“{text}” has an epoch that is not a number"))?, rest),
+        Some((epoch, rest)) => (
+            epoch
+                .parse::<u64>()
+                .map_err(|_| format!("“{text}” has an epoch that is not a number"))?,
+            rest,
+        ),
         None => (0, text),
     };
     let (upstream, revision) = rest.rsplit_once('-').unwrap_or((rest, ""));
     if !upstream.starts_with(|c: char| c.is_ascii_digit()) {
-        return Err(format!("“{text}” is not a Debian version: its upstream part does not start with a digit"));
+        return Err(format!(
+            "“{text}” is not a Debian version: its upstream part does not start with a digit"
+        ));
     }
     let allowed = |c: char| c.is_ascii_alphanumeric() || ".+~-:".contains(c);
     if let Some(bad) = rest.chars().find(|c| !allowed(*c)) {
-        return Err(format!("“{text}” is not a Debian version: it holds “{bad}”"));
+        return Err(format!(
+            "“{text}” is not a Debian version: it holds “{bad}”"
+        ));
     }
     Ok((epoch, upstream, revision))
 }
@@ -26,7 +35,10 @@ pub fn parse_deb(text: &str) -> Result<(u64, &str, &str), String> {
 /// dpkg’s order of `a` against `b`; either failing to parse is an error.
 pub fn compare_deb(a: &str, b: &str) -> Result<Ordering, String> {
     let ((ea, ua, ra), (eb, ub, rb)) = (parse_deb(a)?, parse_deb(b)?);
-    Ok(ea.cmp(&eb).then_with(|| part(ua, ub)).then_with(|| part(ra, rb)))
+    Ok(ea
+        .cmp(&eb)
+        .then_with(|| part(ua, ub))
+        .then_with(|| part(ra, rb)))
 }
 
 fn weight(c: Option<u8>) -> i32 {
@@ -42,12 +54,17 @@ fn weight(c: Option<u8>) -> i32 {
 fn part(a: &str, b: &str) -> Ordering {
     let (mut a, mut b) = (a.as_bytes(), b.as_bytes());
     while !a.is_empty() || !b.is_empty() {
-        while a.first().is_some_and(|c| !c.is_ascii_digit()) || b.first().is_some_and(|c| !c.is_ascii_digit()) {
+        while a.first().is_some_and(|c| !c.is_ascii_digit())
+            || b.first().is_some_and(|c| !c.is_ascii_digit())
+        {
             let (wa, wb) = (weight(a.first().copied()), weight(b.first().copied()));
             if wa != wb {
                 return wa.cmp(&wb);
             }
-            (a, b) = (a.get(1..).unwrap_or_default(), b.get(1..).unwrap_or_default());
+            (a, b) = (
+                a.get(1..).unwrap_or_default(),
+                b.get(1..).unwrap_or_default(),
+            );
         }
         let digits = |s: &[u8]| s.iter().take_while(|c| c.is_ascii_digit()).count();
         let (na, nb) = (digits(a), digits(b));
@@ -74,7 +91,13 @@ pub enum Scheme {
 
 impl Scheme {
     /// Every scheme, in the order an error lists them.
-    pub const ALL: [Scheme; 5] = [Scheme::Deb, Scheme::Semver, Scheme::Rpm, Scheme::Apk, Scheme::Pacman];
+    pub const ALL: [Scheme; 5] = [
+        Scheme::Deb,
+        Scheme::Semver,
+        Scheme::Rpm,
+        Scheme::Apk,
+        Scheme::Pacman,
+    ];
 
     /// The scheme a rule names, or `None`.
     pub fn parse(name: &str) -> Option<Self> {
@@ -121,27 +144,50 @@ impl Scheme {
 
 /// Two digit runs by value, leading zeros ignored, any length.
 fn numeric(a: &[u8], b: &[u8]) -> Ordering {
-    let (a, b) = (&a[a.iter().take_while(|c| **c == b'0').count()..], &b[b.iter().take_while(|c| **c == b'0').count()..]);
+    let (a, b) = (
+        &a[a.iter().take_while(|c| **c == b'0').count()..],
+        &b[b.iter().take_while(|c| **c == b'0').count()..],
+    );
     a.len().cmp(&b.len()).then_with(|| a.cmp(b))
 }
 
 /// The core and pre-release identifiers of a SemVer 2.0.0 version, its build metadata checked and dropped.
 fn parse_semver(text: &str) -> Result<(Vec<&str>, Vec<&str>), String> {
     let bad = |why: &str| format!("“{text}” is not a SemVer version: {why}");
-    let identifiers = |part: &'_ str| -> bool { part.split('.').all(|i| !i.is_empty() && i.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')) };
-    let leading_zero = |i: &str| i.len() > 1 && i.starts_with('0') && i.bytes().all(|c| c.is_ascii_digit());
-    let (rest, build) = text.split_once('+').map_or((text, None), |(r, b)| (r, Some(b)));
+    let identifiers = |part: &'_ str| -> bool {
+        part.split('.')
+            .all(|i| !i.is_empty() && i.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-'))
+    };
+    let leading_zero =
+        |i: &str| i.len() > 1 && i.starts_with('0') && i.bytes().all(|c| c.is_ascii_digit());
+    let (rest, build) = text
+        .split_once('+')
+        .map_or((text, None), |(r, b)| (r, Some(b)));
     if build.is_some_and(|b| !identifiers(b)) {
-        return Err(bad("its build metadata holds an empty identifier or a character outside [0-9A-Za-z-]"));
+        return Err(bad(
+            "its build metadata holds an empty identifier or a character outside [0-9A-Za-z-]",
+        ));
     }
-    let (core, pre) = rest.split_once('-').map_or((rest, None), |(c, p)| (c, Some(p)));
+    let (core, pre) = rest
+        .split_once('-')
+        .map_or((rest, None), |(c, p)| (c, Some(p)));
     let core: Vec<&str> = core.split('.').collect();
-    if core.len() != 3 || core.iter().any(|n| n.is_empty() || !n.bytes().all(|c| c.is_ascii_digit()) || leading_zero(n)) {
-        return Err(bad("it needs MAJOR.MINOR.PATCH, three numbers without leading zeros"));
+    if core.len() != 3
+        || core
+            .iter()
+            .any(|n| n.is_empty() || !n.bytes().all(|c| c.is_ascii_digit()) || leading_zero(n))
+    {
+        return Err(bad(
+            "it needs MAJOR.MINOR.PATCH, three numbers without leading zeros",
+        ));
     }
-    let Some(pre) = pre else { return Ok((core, Vec::new())) };
+    let Some(pre) = pre else {
+        return Ok((core, Vec::new()));
+    };
     if !identifiers(pre) || pre.split('.').any(leading_zero) {
-        return Err(bad("its pre-release holds an empty identifier, a character outside [0-9A-Za-z-] or a number with a leading zero"));
+        return Err(bad(
+            "its pre-release holds an empty identifier, a character outside [0-9A-Za-z-] or a number with a leading zero",
+        ));
     }
     Ok((core, pre.split('.').collect()))
 }
@@ -149,18 +195,28 @@ fn parse_semver(text: &str) -> Result<(Vec<&str>, Vec<&str>), String> {
 /// SemVer 2.0.0 precedence of `a` against `b`, build metadata ignored.
 pub fn compare_semver(a: &str, b: &str) -> Result<Ordering, String> {
     let ((ca, pa), (cb, pb)) = (parse_semver(a)?, parse_semver(b)?);
-    let core = ca.iter().zip(&cb).map(|(x, y)| numeric(x.as_bytes(), y.as_bytes())).find(|o| o.is_ne()).unwrap_or(Ordering::Equal);
+    let core = ca
+        .iter()
+        .zip(&cb)
+        .map(|(x, y)| numeric(x.as_bytes(), y.as_bytes()))
+        .find(|o| o.is_ne())
+        .unwrap_or(Ordering::Equal);
     let is_number = |i: &str| i.bytes().all(|c| c.is_ascii_digit());
     let pre = match (pa.is_empty(), pb.is_empty()) {
         (true, true) => Ordering::Equal,
         (true, false) => Ordering::Greater,
         (false, true) => Ordering::Less,
-        (false, false) => pa.iter().zip(&pb).map(|(x, y)| match (is_number(x), is_number(y)) {
-            (true, true) => numeric(x.as_bytes(), y.as_bytes()),
-            (true, false) => Ordering::Less,
-            (false, true) => Ordering::Greater,
-            (false, false) => x.cmp(y),
-        }).find(|o| o.is_ne()).unwrap_or_else(|| pa.len().cmp(&pb.len())),
+        (false, false) => pa
+            .iter()
+            .zip(&pb)
+            .map(|(x, y)| match (is_number(x), is_number(y)) {
+                (true, true) => numeric(x.as_bytes(), y.as_bytes()),
+                (true, false) => Ordering::Less,
+                (false, true) => Ordering::Greater,
+                (false, false) => x.cmp(y),
+            })
+            .find(|o| o.is_ne())
+            .unwrap_or_else(|| pa.len().cmp(&pb.len())),
     };
     Ok(core.then(pre))
 }
@@ -175,10 +231,12 @@ struct Evr<'a> {
 impl Evr<'_> {
     /// rpm’s `rpmverCmp`: a missing epoch is `0`, a missing release sorts first.
     fn cmp_rpm(&self, other: &Self) -> Ordering {
-        rpmvercmp(self.epoch.unwrap_or("0"), other.epoch.unwrap_or("0")).then_with(|| rpmvercmp(self.version, other.version)).then_with(|| match (self.release, other.release) {
-            (Some(a), Some(b)) => rpmvercmp(a, b),
-            (a, b) => a.is_some().cmp(&b.is_some()),
-        })
+        rpmvercmp(self.epoch.unwrap_or("0"), other.epoch.unwrap_or("0"))
+            .then_with(|| rpmvercmp(self.version, other.version))
+            .then_with(|| match (self.release, other.release) {
+                (Some(a), Some(b)) => rpmvercmp(a, b),
+                (a, b) => a.is_some().cmp(&b.is_some()),
+            })
     }
 
     /// pacman’s `alpm_pkg_vercmp`: a missing epoch is `0`, a release compared only when both carry one.
@@ -187,14 +245,19 @@ impl Evr<'_> {
             (Some(a), Some(b)) => alpm_vercmp(a, b),
             _ => Ordering::Equal,
         };
-        alpm_vercmp(self.epoch.unwrap_or("0"), other.epoch.unwrap_or("0")).then_with(|| alpm_vercmp(self.version, other.version)).then(release)
+        alpm_vercmp(self.epoch.unwrap_or("0"), other.epoch.unwrap_or("0"))
+            .then_with(|| alpm_vercmp(self.version, other.version))
+            .then(release)
     }
 }
 
 /// `text` split into epoch, version and release, or why it is not a version of `scheme`.
 fn evr(scheme: Scheme, text: &str) -> Result<Evr<'_>, String> {
     if text.is_empty() || text.chars().any(|c| c.is_whitespace() || c.is_control()) {
-        return Err(format!("“{text}” is not {}: it is empty or holds a space or control character", scheme.noun()));
+        return Err(format!(
+            "“{text}” is not {}: it is empty or holds a space or control character",
+            scheme.noun()
+        ));
     }
     let digits = text.bytes().take_while(u8::is_ascii_digit).count();
     let (epoch, rest) = match text[digits..].strip_prefix(':') {
@@ -202,10 +265,17 @@ fn evr(scheme: Scheme, text: &str) -> Result<Evr<'_>, String> {
         None => (None, text),
     };
     let (version, release) = match text[digits..].rfind('-').map(|i| digits + i) {
-        Some(dash) => (&rest[..dash - (text.len() - rest.len())], Some(&text[dash + 1..])),
+        Some(dash) => (
+            &rest[..dash - (text.len() - rest.len())],
+            Some(&text[dash + 1..]),
+        ),
         None => (rest, None),
     };
-    Ok(Evr { epoch, version, release })
+    Ok(Evr {
+        epoch,
+        version,
+        release,
+    })
 }
 
 /// The byte at `i`, NUL past the end, as the C loops read a string.
@@ -215,7 +285,16 @@ fn at(s: &[u8], i: usize) -> u8 {
 
 /// The end of the digit or letter run starting at `i`.
 fn run(s: &[u8], i: usize, digit: bool) -> usize {
-    i + s[i..].iter().take_while(|c| if digit { c.is_ascii_digit() } else { c.is_ascii_alphabetic() }).count()
+    i + s[i..]
+        .iter()
+        .take_while(|c| {
+            if digit {
+                c.is_ascii_digit()
+            } else {
+                c.is_ascii_alphabetic()
+            }
+        })
+        .count()
 }
 
 /// rpm’s `rpmvercmp`, `~` sorting before everything and `^` after the end only.
@@ -263,9 +342,17 @@ fn rpmvercmp(a: &str, b: &str) -> Ordering {
         let digit = x.is_ascii_digit();
         let (ei, ej) = (run(a, i, digit), run(b, j, digit));
         if ej == j {
-            return if digit { Ordering::Greater } else { Ordering::Less };
+            return if digit {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            };
         }
-        let order = if digit { numeric(&a[i..ei], &b[j..ej]) } else { a[i..ei].cmp(&b[j..ej]) };
+        let order = if digit {
+            numeric(&a[i..ei], &b[j..ej])
+        } else {
+            a[i..ei].cmp(&b[j..ej])
+        };
         if order.is_ne() {
             return order;
         }
@@ -301,9 +388,17 @@ fn alpm_vercmp(a: &str, b: &str) -> Ordering {
         let digit = at(a, i).is_ascii_digit();
         let (ei, ej) = (run(a, i, digit), run(b, j, digit));
         if ej == j {
-            return if digit { Ordering::Greater } else { Ordering::Less };
+            return if digit {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            };
         }
-        let order = if digit { numeric(&a[i..ei], &b[j..ej]) } else { a[i..ei].cmp(&b[j..ej]) };
+        let order = if digit {
+            numeric(&a[i..ei], &b[j..ej])
+        } else {
+            a[i..ei].cmp(&b[j..ej])
+        };
         if order.is_ne() {
             return order;
         }
@@ -361,7 +456,12 @@ struct Tokens<'a> {
 
 impl<'a> Tokens<'a> {
     fn new(text: &'a [u8]) -> Self {
-        let mut tokens = Tokens { rest: text, token: Token::InitialDigit, suffix: 0, value: &[] };
+        let mut tokens = Tokens {
+            rest: text,
+            token: Token::InitialDigit,
+            suffix: 0,
+            value: &[],
+        };
         tokens.digits();
         tokens
     }
@@ -393,9 +493,21 @@ impl<'a> Tokens<'a> {
                 self.rest = &self.rest[1..];
                 self.token = Token::Letter;
             }
-            b'.' | b'0'..=b'9' if (c == b'.' && token <= Token::Digit) || (c != b'.' && matches!(token, Token::InitialDigit | Token::Digit | Token::Suffix)) => {
-                self.rest = if c == b'.' { &self.rest[1..] } else { self.rest };
-                self.token = if token == Token::Suffix { Token::SuffixNo } else { Token::Digit };
+            b'.' | b'0'..=b'9'
+                if (c == b'.' && token <= Token::Digit)
+                    || (c != b'.'
+                        && matches!(token, Token::InitialDigit | Token::Digit | Token::Suffix)) =>
+            {
+                self.rest = if c == b'.' {
+                    &self.rest[1..]
+                } else {
+                    self.rest
+                };
+                self.token = if token == Token::Suffix {
+                    Token::SuffixNo
+                } else {
+                    Token::Digit
+                };
                 self.digits();
             }
             b'_' if token <= Token::SuffixNo => {
@@ -425,8 +537,12 @@ impl<'a> Tokens<'a> {
     /// apk-tools’ `token_cmp` for two tokens of the same kind.
     fn cmp_value(&self, other: &Self) -> Ordering {
         match self.token {
-            Token::Digit if self.value[0] == b'0' || other.value[0] == b'0' => self.value.cmp(other.value),
-            Token::InitialDigit | Token::Digit | Token::SuffixNo | Token::RevisionNo => numeric(self.value, other.value),
+            Token::Digit if self.value[0] == b'0' || other.value[0] == b'0' => {
+                self.value.cmp(other.value)
+            }
+            Token::InitialDigit | Token::Digit | Token::SuffixNo | Token::RevisionNo => {
+                numeric(self.value, other.value)
+            }
             Token::Suffix => self.suffix.cmp(&other.suffix),
             _ => self.value.cmp(other.value),
         }

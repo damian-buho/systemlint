@@ -9,12 +9,16 @@ use std::time::Duration;
 
 use systemlint::runner::{DESCRIBE_TIMEOUT, OUTPUT_CAP, call, describe};
 
-const GOOD: &str = r#"printf '%s\n' '{"name":"kv","version":"1.2.3","protocol":1,"ops":[{"op":"parse"}]}'"#;
+const GOOD: &str =
+    r#"printf '%s\n' '{"name":"kv","version":"1.2.3","protocol":1,"ops":[{"op":"parse"}]}'"#;
 
 const SCRIPTS: &[(&str, &str)] = &[
     ("good", GOOD),
     ("env", "env"),
-    ("other", r#"printf '%s\n' '{"name":"kv","version":"1","protocol":2,"ops":[]}'"#),
+    (
+        "other",
+        r#"printf '%s\n' '{"name":"kv","version":"1","protocol":2,"ops":[]}'"#,
+    ),
     ("garbage", "echo hello"),
     ("fails", "echo broken >&2; exit 4"),
     ("chatty", "printf 1234567890"),
@@ -41,7 +45,10 @@ fn script(name: &str) -> PathBuf {
 #[test]
 fn reads_a_valid_describe() {
     let describe = describe("kv", &script("good"), DESCRIBE_TIMEOUT).unwrap();
-    assert_eq!((describe.version.as_str(), describe.ops[0].op.as_str()), ("1.2.3", "parse"));
+    assert_eq!(
+        (describe.version.as_str(), describe.ops[0].op.as_str()),
+        ("1.2.3", "parse")
+    );
 }
 
 #[test]
@@ -55,22 +62,47 @@ fn environment_is_empty_but_the_locale() {
 #[test]
 fn refuses_another_protocol_and_a_wrong_name() {
     let other = script("other");
-    assert!(describe("kv", &other, DESCRIBE_TIMEOUT).unwrap_err().contains("protocol 2"));
-    assert!(describe("apt", &script("good"), DESCRIBE_TIMEOUT).unwrap_err().contains("calls itself kv"));
+    assert!(
+        describe("kv", &other, DESCRIBE_TIMEOUT)
+            .unwrap_err()
+            .contains("protocol 2")
+    );
+    assert!(
+        describe("apt", &script("good"), DESCRIBE_TIMEOUT)
+            .unwrap_err()
+            .contains("calls itself kv")
+    );
 }
 
 #[test]
 fn refuses_garbage_and_failure() {
-    assert!(describe("kv", &script("garbage"), DESCRIBE_TIMEOUT).unwrap_err().contains("not valid protocol JSON"));
+    assert!(
+        describe("kv", &script("garbage"), DESCRIBE_TIMEOUT)
+            .unwrap_err()
+            .contains("not valid protocol JSON")
+    );
     let error = describe("kv", &script("fails"), DESCRIBE_TIMEOUT).unwrap_err();
-    assert!(error.contains("exit status: 4") && error.contains("broken"), "{error}");
+    assert!(
+        error.contains("exit status: 4") && error.contains("broken"),
+        "{error}"
+    );
 }
 
 #[test]
 fn output_cap_boundary() {
     let path = script("chatty");
-    assert_eq!(call(&path, &[], None, DESCRIBE_TIMEOUT, 10).unwrap().stdout.len(), 10);
-    assert!(call(&path, &[], None, DESCRIBE_TIMEOUT, 9).unwrap_err().contains("more than 9 bytes"));
+    assert_eq!(
+        call(&path, &[], None, DESCRIBE_TIMEOUT, 10)
+            .unwrap()
+            .stdout
+            .len(),
+        10
+    );
+    assert!(
+        call(&path, &[], None, DESCRIBE_TIMEOUT, 9)
+            .unwrap_err()
+            .contains("more than 9 bytes")
+    );
 }
 
 #[test]

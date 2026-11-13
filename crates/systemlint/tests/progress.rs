@@ -9,23 +9,47 @@ use systemlint::collector::Collector;
 use systemlint::progress::{commands, finished};
 
 fn collector(id: &str, exec: Option<&str>) -> Collector {
-    let read = exec.map_or_else(|| "files: [/etc/x]".to_owned(), |e| format!("exec: [{}]", e.replace(' ', ", ")));
-    systemlint::yaml::from_str(&format!("id: {id}\ninto: {id}\nread: {{{read}}}\nparse: {{plugin: kv, op: parse}}\n")).unwrap()
+    let read = exec.map_or_else(
+        || "files: [/etc/x]".to_owned(),
+        |e| format!("exec: [{}]", e.replace(' ', ", ")),
+    );
+    systemlint::yaml::from_str(&format!(
+        "id: {id}\ninto: {id}\nread: {{{read}}}\nparse: {{plugin: kv, op: parse}}\n"
+    ))
+    .unwrap()
 }
 
 #[test]
 fn a_run_under_one_second_ends_silently() {
     assert_eq!(finished(Duration::from_millis(999), &[]), None);
-    assert_eq!(finished(Duration::from_millis(1000), &[]).as_deref(), Some("Collected in 1.0 s."));
-    assert_eq!(finished(Duration::from_millis(2340), &["sshd -T".to_owned(), "id".to_owned()]).as_deref(), Some("Collected in 2.3 s; ran sshd -T, id."));
+    assert_eq!(
+        finished(Duration::from_millis(1000), &[]).as_deref(),
+        Some("Collected in 1.0 s.")
+    );
+    assert_eq!(
+        finished(
+            Duration::from_millis(2340),
+            &["sshd -T".to_owned(), "id".to_owned()]
+        )
+        .as_deref(),
+        Some("Collected in 2.3 s; ran sshd -T, id.")
+    );
 }
 
 #[test]
 fn only_a_live_collector_that_ended_ok_ran_its_command() {
-    let collectors = [collector("sshd", Some("sshd -T")), collector("broken", Some("false")), collector("files", None)];
-    let outcomes = json!({"sshd": {"status": "ok"}, "broken": {"status": "error"}, "files": {"status": "ok"}});
+    let collectors = [
+        collector("sshd", Some("sshd -T")),
+        collector("broken", Some("false")),
+        collector("files", None),
+    ];
+    let outcomes =
+        json!({"sshd": {"status": "ok"}, "broken": {"status": "error"}, "files": {"status": "ok"}});
     let host = json!({"meta": {"subject": {"kind": "host"}}, "collectors": outcomes});
     assert_eq!(commands(&host, &collectors), ["sshd -T"]);
     let root = json!({"meta": {"subject": {"kind": "root"}}, "collectors": outcomes});
-    assert!(commands(&root, &collectors).is_empty(), "under --root no command runs");
+    assert!(
+        commands(&root, &collectors).is_empty(),
+        "under --root no command runs"
+    );
 }

@@ -15,13 +15,25 @@ pub const SLOW: Duration = Duration::from_secs(1);
 
 /// The commands a live collection ran: each `exec` of a collector that ended `ok` on the host.
 pub fn commands(document: &Value, collectors: &[Collector]) -> Vec<String> {
-    let live = document.pointer("/meta/subject/kind").and_then(Value::as_str) == Some("host");
+    let live = document
+        .pointer("/meta/subject/kind")
+        .and_then(Value::as_str)
+        == Some("host");
     let ok = |c: &&Collector| document["collectors"][&c.id]["status"] == "ok";
-    collectors.iter().filter(|_| live).filter(ok).filter_map(|c| c.read.exec.as_ref().map(|argv| argv.join(" "))).collect()
+    collectors
+        .iter()
+        .filter(|_| live)
+        .filter(ok)
+        .filter_map(|c| c.read.exec.as_ref().map(|argv| argv.join(" ")))
+        .collect()
 }
 
 /// The closing line of a run that took `SLOW` or longer: the time spent, then the commands run.
 pub fn finished(elapsed: Duration, commands: &[String]) -> Option<String> {
-    let ran = if commands.is_empty() { String::new() } else { format!("; ran {}", commands.join(", ")) };
+    let ran = if commands.is_empty() {
+        String::new()
+    } else {
+        format!("; ran {}", commands.join(", "))
+    };
     (elapsed >= SLOW).then(|| format!("Collected in {:.1} s{ran}.", elapsed.as_secs_f64()))
 }

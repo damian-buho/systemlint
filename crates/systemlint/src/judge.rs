@@ -102,7 +102,10 @@ impl Check {
     /// The message without the whole subject label it opens with, or `None` when it opens with none.
     pub fn unsubjected(&self) -> Option<&str> {
         let message = self.message.as_deref()?;
-        message.strip_prefix(&self.subject_label()).and_then(|m| m.strip_prefix(' ')).filter(|_| !self.subject.is_empty())
+        message
+            .strip_prefix(&self.subject_label())
+            .and_then(|m| m.strip_prefix(' '))
+            .filter(|_| !self.subject.is_empty())
     }
 
     /// Whether this check counts against the run: a fail no active waiver covers.
@@ -121,13 +124,25 @@ pub enum Segment {
 /// A dotted path, or a JSON Pointer when it starts with `/`; a `*` segment binds a subject.
 pub fn parse_path(text: &str) -> Result<Vec<Segment>, String> {
     let raw: Vec<String> = match text.strip_prefix('/') {
-        Some(pointer) => pointer.split('/').map(|s| s.replace("~1", "/").replace("~0", "~")).collect(),
+        Some(pointer) => pointer
+            .split('/')
+            .map(|s| s.replace("~1", "/").replace("~0", "~"))
+            .collect(),
         None => text.split('.').map(str::to_owned).collect(),
     };
     if text.is_empty() || raw.iter().any(String::is_empty) {
         return Err(format!("fact path {text:?} has an empty segment"));
     }
-    Ok(raw.into_iter().map(|s| if s == "*" { Segment::Star } else { Segment::Key(s) }).collect())
+    Ok(raw
+        .into_iter()
+        .map(|s| {
+            if s == "*" {
+                Segment::Star
+            } else {
+                Segment::Key(s)
+            }
+        })
+        .collect())
 }
 
 fn stars(path: &[Segment]) -> usize {
@@ -136,10 +151,12 @@ fn stars(path: &[Segment]) -> usize {
 
 fn concrete(path: &[Segment], bound: &[String]) -> Vec<String> {
     let mut keys = bound.iter();
-    path.iter().map(|s| match s {
-        Segment::Key(k) => k.clone(),
-        Segment::Star => keys.next().cloned().unwrap_or_else(|| "*".to_owned()),
-    }).collect()
+    path.iter()
+        .map(|s| match s {
+            Segment::Key(k) => k.clone(),
+            Segment::Star => keys.next().cloned().unwrap_or_else(|| "*".to_owned()),
+        })
+        .collect()
 }
 
 fn child<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
@@ -151,7 +168,8 @@ fn child<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
 }
 
 fn get<'a>(document: &'a Value, keys: &[String]) -> Option<&'a Value> {
-    keys.iter().try_fold(document, |value, key| child(value, key))
+    keys.iter()
+        .try_fold(document, |value, key| child(value, key))
 }
 
 fn children(value: &Value) -> Option<Vec<String>> {
@@ -170,7 +188,14 @@ fn subjects(document: &Value, path: &[Segment]) -> Option<Vec<Vec<String>>> {
     walk(document, document, prefix, &[], Vec::new(), &mut found).then_some(found)
 }
 
-fn walk(document: &Value, value: &Value, path: &[Segment], at: &[String], bound: Vec<String>, found: &mut Vec<Vec<String>>) -> bool {
+fn walk(
+    document: &Value,
+    value: &Value,
+    path: &[Segment],
+    at: &[String],
+    bound: Vec<String>,
+    found: &mut Vec<Vec<String>>,
+) -> bool {
     let Some((segment, rest)) = path.split_first() else {
         found.push(bound);
         return true;
@@ -180,7 +205,11 @@ fn walk(document: &Value, value: &Value, path: &[Segment], at: &[String], bound:
         Segment::Star => children(value).map(|mut keys| {
             for owed in owed(document, at) {
                 if !keys.contains(&owed) {
-                    log::trace!("{} owes key {owed} under {}", owed_by(document, at, &owed), at.join("."));
+                    log::trace!(
+                        "{} owes key {owed} under {}",
+                        owed_by(document, at, &owed),
+                        at.join(".")
+                    );
                     keys.push(owed);
                 }
             }
@@ -197,39 +226,80 @@ fn walk(document: &Value, value: &Value, path: &[Segment], at: &[String], bound:
         return true;
     };
     for key in keys {
-        let next = if *segment == Segment::Star { [bound.clone(), vec![key.clone()]].concat() } else { bound.clone() };
-        walk(document, child(value, &key).unwrap_or(&Value::Null), rest, &[at, std::slice::from_ref(&key)].concat(), next, found);
+        let next = if *segment == Segment::Star {
+            [bound.clone(), vec![key.clone()]].concat()
+        } else {
+            bound.clone()
+        };
+        walk(
+            document,
+            child(value, &key).unwrap_or(&Value::Null),
+            rest,
+            &[at, std::slice::from_ref(&key)].concat(),
+            next,
+            found,
+        );
     }
     true
 }
 
 /// The keys collectors’ `into` places directly under `at`, present or not.
 fn owed<'a>(document: &'a Value, at: &'a [String]) -> impl Iterator<Item = String> + 'a {
-    document["collectors"].as_object().into_iter().flatten().filter_map(move |(_, outcome)| {
-        let into: Vec<&str> = outcome["into"].as_str().unwrap_or_default().split('.').collect();
-        (into.len() == at.len() + 1 && into.iter().zip(at).all(|(a, b)| a == b)).then(|| into[at.len()].to_owned())
-    })
+    document["collectors"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter_map(move |(_, outcome)| {
+            let into: Vec<&str> = outcome["into"]
+                .as_str()
+                .unwrap_or_default()
+                .split('.')
+                .collect();
+            (into.len() == at.len() + 1 && into.iter().zip(at).all(|(a, b)| a == b))
+                .then(|| into[at.len()].to_owned())
+        })
 }
 
 fn owed_by(document: &Value, at: &[String], key: &str) -> String {
-    producer(document, &[at, &[key.to_owned()]].concat()).map_or_else(String::new, |(id, _)| format!("collector {id}"))
+    producer(document, &[at, &[key.to_owned()]].concat())
+        .map_or_else(String::new, |(id, _)| format!("collector {id}"))
 }
 
 /// The collector whose `into` covers `keys`, with its outcome.
 fn producer<'a>(document: &'a Value, keys: &[String]) -> Option<(&'a String, &'a Value)> {
-    document["collectors"].as_object()?.iter().find(|(_, outcome)| {
-        let into: Vec<&str> = outcome["into"].as_str().unwrap_or_default().split('.').collect();
-        into.iter().zip(keys).all(|(a, b)| a == b) && !into[0].is_empty()
-    })
+    document["collectors"]
+        .as_object()?
+        .iter()
+        .find(|(_, outcome)| {
+            let into: Vec<&str> = outcome["into"]
+                .as_str()
+                .unwrap_or_default()
+                .split('.')
+                .collect();
+            into.iter().zip(keys).all(|(a, b)| a == b) && !into[0].is_empty()
+        })
 }
 
 /// Why the fact at `keys` is absent, naming the collector that should have produced it.
 fn absent(document: &Value, keys: &[String]) -> (String, Option<String>) {
     let path = keys.join(".");
     match producer(document, keys) {
-        Some((id, outcome)) if outcome["status"] == "ok" => (format!("{path} is absent from what collector {id} produced"), Some(id.clone())),
-        Some((id, outcome)) => (format!("{path} is absent: collector {id} {}: {}", outcome["status"].as_str().unwrap_or("did not finish"), outcome["reason"].as_str().unwrap_or("no reason given")), Some(id.clone())),
-        None => (format!("{path} is absent, and no collector produces it"), None),
+        Some((id, outcome)) if outcome["status"] == "ok" => (
+            format!("{path} is absent from what collector {id} produced"),
+            Some(id.clone()),
+        ),
+        Some((id, outcome)) => (
+            format!(
+                "{path} is absent: collector {id} {}: {}",
+                outcome["status"].as_str().unwrap_or("did not finish"),
+                outcome["reason"].as_str().unwrap_or("no reason given")
+            ),
+            Some(id.clone()),
+        ),
+        None => (
+            format!("{path} is absent, and no collector produces it"),
+            None,
+        ),
     }
 }
 
@@ -242,9 +312,19 @@ struct XVersion {
 
 impl XVersion {
     fn holds(&self, instance: &Value) -> bool {
-        let Some(version) = instance.as_str() else { return false };
-        let at_least = self.min.as_deref().is_none_or(|min| self.scheme.compare(version, min).is_ok_and(|o| o != Ordering::Less));
-        let under = self.below.as_deref().is_none_or(|below| self.scheme.compare(version, below).is_ok_and(|o| o == Ordering::Less));
+        let Some(version) = instance.as_str() else {
+            return false;
+        };
+        let at_least = self.min.as_deref().is_none_or(|min| {
+            self.scheme
+                .compare(version, min)
+                .is_ok_and(|o| o != Ordering::Less)
+        });
+        let under = self.below.as_deref().is_none_or(|below| {
+            self.scheme
+                .compare(version, below)
+                .is_ok_and(|o| o == Ordering::Less)
+        });
         at_least && under
     }
 }
@@ -254,8 +334,18 @@ impl<'i> Keyword<'i> for XVersion {
         if self.holds(instance) {
             return Ok(());
         }
-        let bounds = [self.min.as_ref().map(|m| format!("at least {m}")), self.below.as_ref().map(|b| format!("below {b}"))].into_iter().flatten().collect::<Vec<_>>().join(" and ");
-        Err(ValidationError::custom(format!("{instance} is not {} {bounds}", self.scheme.noun())))
+        let bounds = [
+            self.min.as_ref().map(|m| format!("at least {m}")),
+            self.below.as_ref().map(|b| format!("below {b}")),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" and ");
+        Err(ValidationError::custom(format!(
+            "{instance} is not {} {bounds}",
+            self.scheme.noun()
+        )))
     }
 
     fn is_valid(&self, instance: &'i Value) -> bool {
@@ -263,28 +353,57 @@ impl<'i> Keyword<'i> for XVersion {
     }
 }
 
-fn x_version<'a>(_parent: &'a Map<String, Value>, value: &'a Value, _path: Location) -> Result<Box<dyn for<'i> Keyword<'i>>, ValidationError<'a>> {
+fn x_version<'a>(
+    _parent: &'a Map<String, Value>,
+    value: &'a Value,
+    _path: Location,
+) -> Result<Box<dyn for<'i> Keyword<'i>>, ValidationError<'a>> {
     let known = Scheme::ALL.map(Scheme::name).join(", ");
     let scheme = match value.get("scheme").and_then(Value::as_str) {
-        Some(name) => Scheme::parse(name).ok_or_else(|| ValidationError::custom(format!("x-version scheme {name} is unknown; the known ones are {known}")))?,
-        None => return Err(ValidationError::custom(format!("x-version needs a scheme: {known}"))),
+        Some(name) => Scheme::parse(name).ok_or_else(|| {
+            ValidationError::custom(format!(
+                "x-version scheme {name} is unknown; the known ones are {known}"
+            ))
+        })?,
+        None => {
+            return Err(ValidationError::custom(format!(
+                "x-version needs a scheme: {known}"
+            )));
+        }
     };
     let bound = |name: &str| -> Result<Option<String>, ValidationError<'a>> {
         match value.get(name) {
             None => Ok(None),
-            Some(Value::String(v)) => scheme.compare(v, v).map(|_| Some(v.clone())).map_err(ValidationError::custom),
-            Some(other) => Err(ValidationError::custom(format!("x-version {name} {other} is not a string"))),
+            Some(Value::String(v)) => scheme
+                .compare(v, v)
+                .map(|_| Some(v.clone()))
+                .map_err(ValidationError::custom),
+            Some(other) => Err(ValidationError::custom(format!(
+                "x-version {name} {other} is not a string"
+            ))),
         }
     };
-    if let Some(extra) = value.as_object().and_then(|o| o.keys().find(|k| !["scheme", "min", "below"].contains(&k.as_str()))) {
-        return Err(ValidationError::custom(format!("x-version has unknown key {extra}")));
+    if let Some(extra) = value.as_object().and_then(|o| {
+        o.keys()
+            .find(|k| !["scheme", "min", "below"].contains(&k.as_str()))
+    }) {
+        return Err(ValidationError::custom(format!(
+            "x-version has unknown key {extra}"
+        )));
     }
-    Ok(Box::new(XVersion { scheme, min: bound("min")?, below: bound("below")? }))
+    Ok(Box::new(XVersion {
+        scheme,
+        min: bound("min")?,
+        below: bound("below")?,
+    }))
 }
 
 /// A validator for `schema`, with the `x-version` keyword.
 pub fn schema(schema: &Map<String, Value>) -> Result<Validator, String> {
-    jsonschema::options().with_keyword("x-version", x_version).build(&Value::Object(schema.clone())).map_err(|e| e.to_string())
+    jsonschema::options()
+        .with_keyword("x-version", x_version)
+        .build(&Value::Object(schema.clone()))
+        .map_err(|e| e.to_string())
 }
 
 /// A `when` entry: a constant to equal, or a schema object to satisfy and the property names it reads.
@@ -295,12 +414,21 @@ enum Test {
 
 /// Adds the property names `schema` reads to `out`, its `anyOf`, `oneOf`, `allOf` and `not` branches included, first seen first.
 fn named(schema: &Value, out: &mut Vec<String>) {
-    for key in schema["properties"].as_object().into_iter().flat_map(|p| p.keys()) {
+    for key in schema["properties"]
+        .as_object()
+        .into_iter()
+        .flat_map(|p| p.keys())
+    {
         if !out.contains(key) {
             out.push(key.clone());
         }
     }
-    for branch in ["anyOf", "oneOf", "allOf"].iter().filter_map(|k| schema[*k].as_array()).flatten().chain(schema.get("not")) {
+    for branch in ["anyOf", "oneOf", "allOf"]
+        .iter()
+        .filter_map(|k| schema[*k].as_array())
+        .flatten()
+        .chain(schema.get("not"))
+    {
         named(branch, out);
     }
 }
@@ -345,7 +473,9 @@ fn guards(when: Option<&When>, most: usize, over: &str) -> Result<Vec<Vec<Guard>
         for (path, expected) in branch {
             let parsed = parse_path(&path)?;
             if stars(&parsed) > most {
-                return Err(format!("when {path} has more * than {over}, so it binds no subject"));
+                return Err(format!(
+                    "when {path} has more * than {over}, so it binds no subject"
+                ));
             }
             let test = match &expected {
                 Value::Object(map) => {
@@ -365,44 +495,119 @@ fn guards(when: Option<&When>, most: usize, over: &str) -> Result<Vec<Vec<Guard>
 /// Compiles one selected rule, refusing a bad path, schema or `when`, its rulesets’ included.
 pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
     let fail = |e: String| format!("rule {id}: {e}");
-    spec.remedy.as_ref().map_or(Ok(()), crate::fix::Remedy::validate).map_err(fail)?;
-    let applies = spec.applies.iter().map(|(name, when)| guards(Some(when), 0, "a ruleset, which has no subject").map(|g| (name.clone(), g)).map_err(|e| fail(format!("ruleset {name}: {e}")))).collect::<Result<Vec<_>, _>>()?;
+    spec.remedy
+        .as_ref()
+        .map_or(Ok(()), crate::fix::Remedy::validate)
+        .map_err(fail)?;
+    let applies = spec
+        .applies
+        .iter()
+        .map(|(name, when)| {
+            guards(Some(when), 0, "a ruleset, which has no subject")
+                .map(|g| (name.clone(), g))
+                .map_err(|e| fail(format!("ruleset {name}: {e}")))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     if spec.manual {
         log::debug!("rule {id} is manual");
-        return Ok(Rule { id: id.to_owned(), spec, fact: vec![], keys: None, suggest: None, applies, when: vec![], members: vec![], combine: Combine::All });
+        return Ok(Rule {
+            id: id.to_owned(),
+            spec,
+            fact: vec![],
+            keys: None,
+            suggest: None,
+            applies,
+            when: vec![],
+            members: vec![],
+            combine: Combine::All,
+        });
     }
     let (combine, written): (Combine, Vec<Member>) = match (&spec.facts, &spec.fact, &spec.expect) {
-        (Some(_), Some(_), _) | (Some(_), _, Some(_)) => return Err(fail("has facts, so it takes no fact or expect of its own".to_owned())),
+        (Some(_), Some(_), _) | (Some(_), _, Some(_)) => {
+            return Err(fail(
+                "has facts, so it takes no fact or expect of its own".to_owned(),
+            ));
+        }
         (Some(Facts::All(m)), ..) => (Combine::All, m.clone()),
         (Some(Facts::Any(m)), ..) => (Combine::Any, m.clone()),
         (Some(Facts::None(m)), ..) => (Combine::None, m.clone()),
-        (None, Some(fact), Some(expect)) => (Combine::All, vec![Member { fact: fact.clone(), expect: expect.clone() }]),
+        (None, Some(fact), Some(expect)) => (
+            Combine::All,
+            vec![Member {
+                fact: fact.clone(),
+                expect: expect.clone(),
+            }],
+        ),
         (None, None, _) => return Err(fail("has no fact".to_owned())),
         (None, Some(_), None) => return Err(fail("has no expect".to_owned())),
     };
-    let Some(fact_text) = written.first().map(|m| m.fact.clone()) else { return Err(fail("facts lists no fact".to_owned())) };
+    let Some(fact_text) = written.first().map(|m| m.fact.clone()) else {
+        return Err(fail("facts lists no fact".to_owned()));
+    };
     let mut members = Vec::new();
     for m in &written {
         let path = parse_path(&m.fact).map_err(fail)?;
-        let validator = schema(&m.expect).map_err(|e| fail(if spec.facts.is_some() { format!("facts {}: expect {e}", m.fact) } else { format!("expect {e}") }))?;
+        let validator = schema(&m.expect).map_err(|e| {
+            fail(if spec.facts.is_some() {
+                format!("facts {}: expect {e}", m.fact)
+            } else {
+                format!("expect {e}")
+            })
+        })?;
         members.push((path, validator));
     }
     let fact = members[0].0.clone();
-    if let Some(m) = written.iter().zip(&members).find(|(_, (p, _))| stars(p) > stars(&fact)).map(|(m, _)| m) {
-        return Err(fail(format!("facts {} has more * than the first fact {fact_text}, so it binds no subject", m.fact)));
+    if let Some(m) = written
+        .iter()
+        .zip(&members)
+        .find(|(_, (p, _))| stars(p) > stars(&fact))
+        .map(|(m, _)| m)
+    {
+        return Err(fail(format!(
+            "facts {} has more * than the first fact {fact_text}, so it binds no subject",
+            m.fact
+        )));
     }
-    let suggest = spec.suggest.as_ref().map(|s| parse_path(&s.fact).map(|p| (p, s.otherwise.clone()))).transpose().map_err(fail)?;
+    let suggest = spec
+        .suggest
+        .as_ref()
+        .map(|s| parse_path(&s.fact).map(|p| (p, s.otherwise.clone())))
+        .transpose()
+        .map_err(fail)?;
     if let Some((path, _)) = suggest.as_ref().filter(|(p, _)| stars(p) > stars(&fact)) {
-        return Err(fail(format!("suggest has {} * where fact {fact_text} has {}, so it binds no subject", stars(path), stars(&fact))));
+        return Err(fail(format!(
+            "suggest has {} * where fact {fact_text} has {}, so it binds no subject",
+            stars(path),
+            stars(&fact)
+        )));
     }
-    let when = guards(spec.when.as_ref(), stars(&fact), &format!("fact {fact_text}")).map_err(fail)?;
+    let when = guards(
+        spec.when.as_ref(),
+        stars(&fact),
+        &format!("fact {fact_text}"),
+    )
+    .map_err(fail)?;
     let keys = match &spec.keys {
-        Some(_) if stars(&fact) == 0 => return Err(fail(format!("keys filters the key a * binds, and fact {fact_text} has no *"))),
+        Some(_) if stars(&fact) == 0 => {
+            return Err(fail(format!(
+                "keys filters the key a * binds, and fact {fact_text} has no *"
+            )));
+        }
         Some(keys) => Some(schema(keys).map_err(|e| fail(format!("keys {e}")))?),
         None => None,
     };
     log::debug!("rule {id} judges {} facts as {combine:?}", members.len());
-    Ok(Rule { id: id.to_owned(), spec, fact, keys, suggest, applies, when, members, combine })
+    Ok(Rule {
+        id: id.to_owned(),
+        spec,
+        fact,
+        keys,
+        suggest,
+        applies,
+        when,
+        members,
+        combine,
+    })
 }
 
 enum Tri {
@@ -435,7 +640,11 @@ fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String]) -> Tri {
             if !holds {
                 let path = keys.join(".");
                 let shown = match (&g.test, actual) {
-                    (Test::Schema(_, names), Value::Object(map)) if !names.is_empty() => names.iter().map(|n| format!("{path}.{n} is {}", describe(map.get(n)))).collect::<Vec<_>>().join(" and "),
+                    (Test::Schema(_, names), Value::Object(map)) if !names.is_empty() => names
+                        .iter()
+                        .map(|n| format!("{path}.{n} is {}", describe(map.get(n))))
+                        .collect::<Vec<_>>()
+                        .join(" and "),
                     _ => format!("{path} is {}", describe(Some(actual))),
                 };
                 log::debug!("when {path} fails: {shown}");
@@ -453,7 +662,12 @@ fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String]) -> Tri {
     unknown.or(first_false).unwrap_or(Tri::True)
 }
 
-const BANDS: [(Severity, f64, f64, f64); 4] = [(Severity::Error, 6.6, 9.9, 8.0), (Severity::Warning, 3.3, 6.5, 5.0), (Severity::Info, 1.0, 3.2, 2.0), (Severity::Hint, 0.0, 0.9, 0.5)];
+const BANDS: [(Severity, f64, f64, f64); 4] = [
+    (Severity::Error, 6.6, 9.9, 8.0),
+    (Severity::Warning, 3.3, 6.5, 5.0),
+    (Severity::Info, 1.0, 3.2, 2.0),
+    (Severity::Hint, 0.0, 0.9, 0.5),
+];
 
 /// A score on the one-decimal grid, 0.0 to 9.9.
 pub fn round(score: f64) -> f64 {
@@ -463,12 +677,18 @@ pub fn round(score: f64) -> f64 {
 /// The level whose band holds the score.
 pub fn level_of(score: f64) -> Severity {
     let tenths = round(score);
-    BANDS.iter().find(|(_, min, _, _)| tenths >= *min).map_or(Severity::Hint, |b| b.0)
+    BANDS
+        .iter()
+        .find(|(_, min, _, _)| tenths >= *min)
+        .map_or(Severity::Hint, |b| b.0)
 }
 
 /// A level’s band: lowest score, highest score, base.
 pub fn band(level: Severity) -> (f64, f64, f64) {
-    BANDS.iter().find(|b| b.0 == level).map_or((3.3, 6.5, 5.0), |b| (b.1, b.2, b.3))
+    BANDS
+        .iter()
+        .find(|b| b.0 == level)
+        .map_or((3.3, 6.5, 5.0), |b| (b.1, b.2, b.3))
 }
 
 /// The score moved into a level’s band.
@@ -481,9 +701,16 @@ pub fn pin(level: Severity, score: f64) -> f64 {
 pub fn interpolate(curve: &[(f64, f64)], value: f64) -> f64 {
     let mut points = curve.to_vec();
     points.sort_by(|a, b| a.0.total_cmp(&b.0));
-    let (Some(first), Some(last)) = (points.first(), points.last()) else { return 0.0 };
+    let (Some(first), Some(last)) = (points.first(), points.last()) else {
+        return 0.0;
+    };
     let at = value.clamp(first.0, last.0);
-    let index = points.iter().position(|p| p.0 >= at).unwrap_or(0).max(1).min(points.len() - 1);
+    let index = points
+        .iter()
+        .position(|p| p.0 >= at)
+        .unwrap_or(0)
+        .max(1)
+        .min(points.len() - 1);
     let ((x0, y0), (x1, y1)) = (points[index - 1], points[index]);
     if points.len() == 1 || x1 == x0 {
         return round(y1);
@@ -499,7 +726,11 @@ pub fn score(spec: &Spec, value: Option<&Value>) -> f64 {
         (Some(Score::Curve(curve)), Some(v)) => interpolate(curve, v),
         _ => band(level).2,
     };
-    if spec.pinned { pin(level, raw) } else { round(raw) }
+    if spec.pinned {
+        pin(level, raw)
+    } else {
+        round(raw)
+    }
 }
 
 fn elide(text: &str) -> String {
@@ -507,7 +738,11 @@ fn elide(text: &str) -> String {
     if chars.len() <= 200 {
         return text.to_owned();
     }
-    format!("{}…{}", chars[..100].iter().collect::<String>(), chars[chars.len() - 99..].iter().collect::<String>())
+    format!(
+        "{}…{}",
+        chars[..100].iter().collect::<String>(),
+        chars[chars.len() - 99..].iter().collect::<String>()
+    )
 }
 
 /// An offending value as a finding shows it: a string quoted, a list of scalars as words, absent or empty as none.
@@ -516,17 +751,31 @@ pub fn describe(value: Option<&Value>) -> String {
         None => "none".to_owned(),
         Some(Value::String(s)) => format!("“{}”", elide(s)),
         Some(Value::Array(items)) if items.is_empty() => "none".to_owned(),
-        Some(Value::Array(items)) if items.iter().all(|i| i.is_string() || i.is_number()) => elide(&items.iter().map(|i| describe(Some(i))).collect::<Vec<_>>().join(", ")),
+        Some(Value::Array(items)) if items.iter().all(|i| i.is_string() || i.is_number()) => elide(
+            &items
+                .iter()
+                .map(|i| describe(Some(i)))
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
         Some(Value::Array(items)) => format!("{} items", items.len()),
         Some(other) => {
             let json = other.to_string();
-            if json.chars().count() > 80 { format!("{}…", json.chars().take(77).collect::<String>()) } else { json }
+            if json.chars().count() > 80 {
+                format!("{}…", json.chars().take(77).collect::<String>())
+            } else {
+                json
+            }
         }
     }
 }
 
 fn fill(template: &str, variables: &BTreeMap<String, String>) -> String {
-    variables.iter().fold(template.to_owned(), |text, (name, value)| text.replace(&format!("{{{name}}}"), value))
+    variables
+        .iter()
+        .fold(template.to_owned(), |text, (name, value)| {
+            text.replace(&format!("{{{name}}}"), value)
+        })
 }
 
 fn base(rule: &Rule, outcome: Outcome, bound: &[String]) -> Check {
@@ -575,7 +824,12 @@ impl Judged<'_> {
     }
 }
 
-fn member<'a>(document: &'a Value, path: &[Segment], expect: &Validator, bound: &[String]) -> Judged<'a> {
+fn member<'a>(
+    document: &'a Value,
+    path: &[Segment],
+    expect: &Validator,
+    bound: &[String],
+) -> Judged<'a> {
     let keys = concrete(path, bound);
     let Some(value) = get(document, &keys) else {
         let (reason, collector) = absent(document, &keys);
@@ -583,7 +837,12 @@ fn member<'a>(document: &'a Value, path: &[Segment], expect: &Validator, bound: 
     };
     match expect.validate(value) {
         Ok(()) => Judged::Holds(keys, value),
-        Err(error) => Judged::Fails(keys, value, error.instance_path().as_str().to_owned(), error.to_string()),
+        Err(error) => Judged::Fails(
+            keys,
+            value,
+            error.instance_path().as_str().to_owned(),
+            error.to_string(),
+        ),
     }
 }
 
@@ -598,7 +857,12 @@ fn verdict<'a>(combine: Combine, mut judged: Vec<Judged<'a>>) -> Option<Judged<'
         Combine::Any if judged.iter().any(holds) => None,
         Combine::Any => take(&mut judged, unknown).or_else(|| take(&mut judged, fails)),
         Combine::None => match take(&mut judged, holds) {
-            Some(Judged::Holds(keys, value)) => Some(Judged::Fails(keys, value, String::new(), "satisfies its expect, which none of the facts may".to_owned())),
+            Some(Judged::Holds(keys, value)) => Some(Judged::Fails(
+                keys,
+                value,
+                String::new(),
+                "satisfies its expect, which none of the facts may".to_owned(),
+            )),
             _ => take(&mut judged, unknown),
         },
     }
@@ -607,26 +871,77 @@ fn verdict<'a>(combine: Combine, mut judged: Vec<Judged<'a>>) -> Option<Judged<'
 /// One check of `rule` on `bound`; `unbound` stands for the first fact when its collection is absent, and then only the facts without `*` are judged beside it.
 fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged<'_>>) -> Check {
     match guard(&rule.when, document, bound) {
-        Tri::False(reason) => return Check { reason: Some(reason), ..base(rule, Outcome::Skip, bound) },
-        Tri::Unknown(reason, collector) => return Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, bound) },
+        Tri::False(reason) => {
+            return Check {
+                reason: Some(reason),
+                ..base(rule, Outcome::Skip, bound)
+            };
+        }
+        Tri::Unknown(reason, collector) => {
+            return Check {
+                reason: Some(reason),
+                collector,
+                ..base(rule, Outcome::Unknown, bound)
+            };
+        }
         Tri::True => {}
     }
     let judged = match unbound {
-        None => rule.members.iter().map(|(path, expect)| member(document, path, expect, bound)).collect(),
-        Some(first) => std::iter::once(first).chain(rule.members[1..].iter().filter(|(path, _)| stars(path) == 0).map(|(path, expect)| member(document, path, expect, bound))).collect(),
+        None => rule
+            .members
+            .iter()
+            .map(|(path, expect)| member(document, path, expect, bound))
+            .collect(),
+        Some(first) => std::iter::once(first)
+            .chain(
+                rule.members[1..]
+                    .iter()
+                    .filter(|(path, _)| stars(path) == 0)
+                    .map(|(path, expect)| member(document, path, expect, bound)),
+            )
+            .collect(),
     };
     let (keys, value, pointer, error) = match verdict(rule.combine, judged) {
         None => return base(rule, Outcome::Pass, bound),
-        Some(Judged::Unknown(reason, collector)) => return Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, bound) },
+        Some(Judged::Unknown(reason, collector)) => {
+            return Check {
+                reason: Some(reason),
+                collector,
+                ..base(rule, Outcome::Unknown, bound)
+            };
+        }
         Some(Judged::Fails(keys, value, pointer, error)) => (keys, value, pointer, error),
         Some(Judged::Holds(..)) => unreachable!("a verdict is never a holding fact"),
     };
     let got = describe(value.pointer(&pointer));
-    let field = pointer.rsplit('/').next().filter(|f| !f.is_empty()).map_or_else(|| keys.last().cloned().unwrap_or_default(), str::to_owned);
+    let field = pointer
+        .rsplit('/')
+        .next()
+        .filter(|f| !f.is_empty())
+        .map_or_else(|| keys.last().cloned().unwrap_or_default(), str::to_owned);
     let subject = bound.last().cloned().unwrap_or_default();
-    let mut variables: BTreeMap<String, String> = [("got", got), ("field", field), ("fact", keys.join(".")), ("subject", if subject.is_empty() { "<subject>".to_owned() } else { subject })].into_iter().map(|(k, v)| (k.to_owned(), v)).collect();
+    let mut variables: BTreeMap<String, String> = [
+        ("got", got),
+        ("field", field),
+        ("fact", keys.join(".")),
+        (
+            "subject",
+            if subject.is_empty() {
+                "<subject>".to_owned()
+            } else {
+                subject
+            },
+        ),
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.to_owned(), v))
+    .collect();
     if let Some((path, otherwise)) = &rule.suggest {
-        let value = get(document, &concrete(path, bound)).filter(|v| !matches!(v, Value::Null) && v.as_array().is_none_or(|a| !a.is_empty()) && v.as_str().is_none_or(|s| !s.is_empty()));
+        let value = get(document, &concrete(path, bound)).filter(|v| {
+            !matches!(v, Value::Null)
+                && v.as_array().is_none_or(|a| !a.is_empty())
+                && v.as_str().is_none_or(|s| !s.is_empty())
+        });
         let suggested = value.map_or_else(|| otherwise.clone(), |v| describe(Some(v)));
         log::debug!("rule {} suggests {suggested} for {:?}", rule.id, bound);
         variables.insert("suggested".to_owned(), suggested);
@@ -642,9 +957,18 @@ fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged
         score: Some(score),
         message: Some(message),
         fix: rule.spec.fix.as_ref().map(|f| fill(f, &variables)),
-        remedy: rule.spec.remedy.as_ref().zip(bound.last().filter(|p| p.starts_with('/'))).map(|(r, path)| r.command(path)),
+        remedy: rule
+            .spec
+            .remedy
+            .as_ref()
+            .zip(bound.last().filter(|p| p.starts_with('/')))
+            .map(|(r, path)| r.command(path)),
         text: rule.spec.message.clone(),
-        variables: if rule.spec.message.is_some() { variables } else { BTreeMap::new() },
+        variables: if rule.spec.message.is_some() {
+            variables
+        } else {
+            BTreeMap::new()
+        },
         value: Some(value.clone()),
         fact: keys.join("."),
         ..base(rule, Outcome::Fail, bound)
@@ -657,12 +981,25 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
         match guard(when, document, &[]) {
             Tri::True => {}
             Tri::False(reason) => {
-                log::debug!("rule {} is not applicable: ruleset {name} {reason}", rule.id);
-                return vec![Check { reason: Some(format!("ruleset {name}: {reason}")), ..base(rule, Outcome::NotApplicable, &[]) }];
+                log::debug!(
+                    "rule {} is not applicable: ruleset {name} {reason}",
+                    rule.id
+                );
+                return vec![Check {
+                    reason: Some(format!("ruleset {name}: {reason}")),
+                    ..base(rule, Outcome::NotApplicable, &[])
+                }];
             }
             Tri::Unknown(reason, collector) => {
-                log::debug!("rule {} applicability is unknown: ruleset {name} {reason}", rule.id);
-                return vec![Check { reason: Some(format!("ruleset {name}: {reason}")), collector, ..base(rule, Outcome::Unknown, &[]) }];
+                log::debug!(
+                    "rule {} applicability is unknown: ruleset {name} {reason}",
+                    rule.id
+                );
+                return vec![Check {
+                    reason: Some(format!("ruleset {name}: {reason}")),
+                    collector,
+                    ..base(rule, Outcome::Unknown, &[])
+                }];
             }
         }
     }
@@ -670,40 +1007,80 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
         return vec![base(rule, Outcome::Manual, &[])];
     }
     let Some(bindings) = subjects(document, &rule.fact) else {
-        let last = rule.fact.iter().position(|s| *s == Segment::Star).unwrap_or(rule.fact.len());
+        let last = rule
+            .fact
+            .iter()
+            .position(|s| *s == Segment::Star)
+            .unwrap_or(rule.fact.len());
         let keys = concrete(&rule.fact[..last], &[]);
         let (reason, collector) = absent(document, &keys);
         log::debug!("rule {} has no subjects: {reason}", rule.id);
         if rule.members.len() > 1 {
-            return vec![check(rule, document, &[], Some(Judged::Unknown(reason, collector)))];
+            return vec![check(
+                rule,
+                document,
+                &[],
+                Some(Judged::Unknown(reason, collector)),
+            )];
         }
-        return vec![Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, &[]) }];
+        return vec![Check {
+            reason: Some(reason),
+            collector,
+            ..base(rule, Outcome::Unknown, &[])
+        }];
     };
-    let bindings: Vec<Vec<String>> = bindings.into_iter().filter(|bound| kept(rule, bound)).collect();
+    let bindings: Vec<Vec<String>> = bindings
+        .into_iter()
+        .filter(|bound| kept(rule, bound))
+        .collect();
     log::debug!("rule {} judges {} subjects", rule.id, bindings.len());
-    bindings.iter().map(|bound| check(rule, document, bound, None)).collect()
+    bindings
+        .iter()
+        .map(|bound| check(rule, document, bound, None))
+        .collect()
 }
 
 /// Whether `keys` admits the key of the fact’s last `*`; a binding cut short by an absent fact is kept.
 fn kept(rule: &Rule, bound: &[String]) -> bool {
     let Some(keys) = &rule.keys else { return true };
-    let Some(key) = bound.last().filter(|_| bound.len() == stars(&rule.fact)) else { return true };
+    let Some(key) = bound.last().filter(|_| bound.len() == stars(&rule.fact)) else {
+        return true;
+    };
     let admitted = keys.is_valid(&Value::from(key.as_str()));
     if !admitted {
-        log::debug!("rule {} leaves out subject {key}: keys does not admit it", rule.id);
+        log::debug!(
+            "rule {} leaves out subject {key}: keys does not admit it",
+            rule.id
+        );
     }
     admitted
 }
 
 /// Every check of every rule, with the first matching waiver attached to each failure, active through its `until` day.
 pub fn lint(document: &Value, rules: &[Rule], waivers: &[Waiver], today: &str) -> Vec<Check> {
-    let mut checks: Vec<Check> = rules.iter().flat_map(|rule| judge(rule, document)).collect();
+    let mut checks: Vec<Check> = rules
+        .iter()
+        .flat_map(|rule| judge(rule, document))
+        .collect();
     for check in checks.iter_mut().filter(|c| c.outcome == Outcome::Fail) {
         let (subject, label) = (check.subject_text(), check.subject_label());
-        if let Some(waiver) = waivers.iter().find(|w| glob(&w.rule, &check.rule) && w.subject.as_deref().is_none_or(|s| glob(s, &subject) || glob(s, &label))) {
+        if let Some(waiver) = waivers.iter().find(|w| {
+            glob(&w.rule, &check.rule)
+                && w.subject
+                    .as_deref()
+                    .is_none_or(|s| glob(s, &subject) || glob(s, &label))
+        }) {
             let active = today <= waiver.until.as_str();
-            log::debug!("rule {} on {subject:?} waived until {} (active {active})", check.rule, waiver.until);
-            check.waiver = Some(Waived { reason: waiver.reason.clone(), until: waiver.until.clone(), active });
+            log::debug!(
+                "rule {} on {subject:?} waived until {} (active {active})",
+                check.rule,
+                waiver.until
+            );
+            check.waiver = Some(Waived {
+                reason: waiver.reason.clone(),
+                until: waiver.until.clone(),
+                active,
+            });
         }
     }
     checks
@@ -712,5 +1089,10 @@ pub fn lint(document: &Value, rules: &[Rule], waivers: &[Waiver], today: &str) -
 /// Checks a waiver’s `until` is a `YYYY-MM-DD` day.
 pub fn valid_day(day: &str) -> bool {
     let b = day.as_bytes();
-    b.len() == 10 && b[4] == b'-' && b[7] == b'-' && b.iter().enumerate().all(|(i, c)| i == 4 || i == 7 || c.is_ascii_digit())
+    b.len() == 10
+        && b[4] == b'-'
+        && b[7] == b'-'
+        && b.iter()
+            .enumerate()
+            .all(|(i, c)| i == 4 || i == 7 || c.is_ascii_digit())
 }

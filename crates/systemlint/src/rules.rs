@@ -177,11 +177,21 @@ pub fn glob(pattern: &str, text: &str) -> bool {
 /// An entry as a spec: a number is a score, a level pins the score to its band, a map is a spec.
 fn entry(raw: &Value) -> Result<Spec, String> {
     match raw {
-        Value::Number(n) => Ok(Spec { score: n.as_f64().map(Score::Fixed), ..Spec::default() }),
-        Value::String(_) => Ok(Spec { severity: Some(serde_json::from_value(raw.clone()).map_err(|e| e.to_string())?), pinned: true, ..Spec::default() }),
+        Value::Number(n) => Ok(Spec {
+            score: n.as_f64().map(Score::Fixed),
+            ..Spec::default()
+        }),
+        Value::String(_) => Ok(Spec {
+            severity: Some(serde_json::from_value(raw.clone()).map_err(|e| e.to_string())?),
+            pinned: true,
+            ..Spec::default()
+        }),
         _ => {
             let spec: Spec = serde_json::from_value(raw.clone()).map_err(|e| e.to_string())?;
-            let pinned = spec.fact.is_none() && spec.facts.is_none() && spec.severity.is_some() && spec.score.is_none();
+            let pinned = spec.fact.is_none()
+                && spec.facts.is_none()
+                && spec.severity.is_some()
+                && spec.score.is_none();
             Ok(Spec { pinned, ..spec })
         }
     }
@@ -200,11 +210,26 @@ fn merge(base: Spec, over: Spec) -> Spec {
     };
     let score_set = over.score.is_some();
     let mut tags = base.tags;
-    tags.extend(over.tags.into_iter().filter(|t| !tags.contains(t)).collect::<Vec<_>>());
+    tags.extend(
+        over.tags
+            .into_iter()
+            .filter(|t| !tags.contains(t))
+            .collect::<Vec<_>>(),
+    );
     let mut references = base.references;
-    references.extend(over.references.into_iter().filter(|r| !references.contains(r)).collect::<Vec<_>>());
+    references.extend(
+        over.references
+            .into_iter()
+            .filter(|r| !references.contains(r))
+            .collect::<Vec<_>>(),
+    );
     let mut applies = base.applies;
-    applies.extend(over.applies.into_iter().filter(|(n, _)| !applies.iter().any(|(m, _)| m == n)).collect::<Vec<_>>());
+    applies.extend(
+        over.applies
+            .into_iter()
+            .filter(|(n, _)| !applies.iter().any(|(m, _)| m == n))
+            .collect::<Vec<_>>(),
+    );
     Spec {
         title: over.title.or(base.title),
         fact: over.fact.or(base.fact),
@@ -212,11 +237,21 @@ fn merge(base: Spec, over: Spec) -> Spec {
         facts: over.facts.or(base.facts),
         keys: over.keys.or(base.keys),
         when: over.when.or(base.when),
-        severity: if score_set && over.severity.is_none() { None } else { over.severity.or(base.severity) },
+        severity: if score_set && over.severity.is_none() {
+            None
+        } else {
+            over.severity.or(base.severity)
+        },
         score: over.score.or(base.score),
-        message: over.message.or(if expect_changed { None } else { base.message }),
+        message: over
+            .message
+            .or(if expect_changed { None } else { base.message }),
         fix: over.fix.or(base.fix),
-        remedy: if subject_changed { over.remedy } else { over.remedy.or(base.remedy) },
+        remedy: if subject_changed {
+            over.remedy
+        } else {
+            over.remedy.or(base.remedy)
+        },
         suggest: over.suggest.or(base.suggest),
         docs: over.docs.or(base.docs),
         rationale: over.rationale.or(base.rationale),
@@ -240,10 +275,16 @@ impl Library {
                     continue;
                 }
                 if let Some(first) = owner.get(id) {
-                    return Err(format!("ruleset {name}: rule {id} is already defined in ruleset {first}"));
+                    return Err(format!(
+                        "ruleset {name}: rule {id} is already defined in ruleset {first}"
+                    ));
                 }
-                if spec.manual && (spec.fact.is_some() || spec.expect.is_some() || spec.facts.is_some()) {
-                    return Err(format!("ruleset {name}: rule {id} is manual, so it takes no fact, expect or facts"));
+                if spec.manual
+                    && (spec.fact.is_some() || spec.expect.is_some() || spec.facts.is_some())
+                {
+                    return Err(format!(
+                        "ruleset {name}: rule {id} is manual, so it takes no fact, expect or facts"
+                    ));
                 }
                 if !spec.manual && spec.facts.is_none() && spec.expect.is_none() {
                     return Err(format!("ruleset {name}: rule {id} has fact but no expect"));
@@ -254,31 +295,63 @@ impl Library {
                 definitions.insert(id.clone(), spec);
             }
         }
-        Ok(Self { rulesets, definitions })
+        Ok(Self {
+            rulesets,
+            definitions,
+        })
     }
 
     /// Every trusted ruleset file in `dirs` by file stem, then `inline` ones, their vars filled from `vars`; a name given twice is refused.
-    pub fn load(dirs: &[PathBuf], trust: &Trust, inline: &BTreeMap<String, Ruleset>, vars: &crate::vars::Supplied) -> (Result<Self, String>, Vec<Refusal>) {
+    pub fn load(
+        dirs: &[PathBuf],
+        trust: &Trust,
+        inline: &BTreeMap<String, Ruleset>,
+        vars: &crate::vars::Supplied,
+    ) -> (Result<Self, String>, Vec<Refusal>) {
         let (texts, mut refusals) = crate::discovery::yaml_files(dirs, trust);
         let mut rulesets = BTreeMap::new();
         for (path, text) in texts {
-            let name = path.file_stem().unwrap_or_default().to_string_lossy().into_owned();
+            let name = path
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
             match crate::yaml::from_str::<Ruleset>(&text) {
-                Ok(_) if rulesets.contains_key(&name) => refusals.push(Refusal { path, reason: format!("ruleset {name} is already defined") }),
+                Ok(_) if rulesets.contains_key(&name) => refusals.push(Refusal {
+                    path,
+                    reason: format!("ruleset {name} is already defined"),
+                }),
                 Ok(ruleset) => {
-                    log::debug!("ruleset {name} from {} with {} rules", path.display(), ruleset.rules.len());
+                    log::debug!(
+                        "ruleset {name} from {} with {} rules",
+                        path.display(),
+                        ruleset.rules.len()
+                    );
                     rulesets.insert(name, ruleset);
                 }
-                Err(_) if crate::yaml::from_str::<crate::comply::Catalog>(&text).is_ok() => log::debug!("{} is a standards catalog, not a ruleset", path.display()),
-                Err(e) => refusals.push(Refusal { path, reason: format!("not a valid ruleset: {e}") }),
+                Err(_) if crate::yaml::from_str::<crate::comply::Catalog>(&text).is_ok() => {
+                    log::debug!("{} is a standards catalog, not a ruleset", path.display())
+                }
+                Err(e) => refusals.push(Refusal {
+                    path,
+                    reason: format!("not a valid ruleset: {e}"),
+                }),
             }
         }
         for (name, ruleset) in inline {
             if rulesets.insert(name.clone(), ruleset.clone()).is_some() {
-                return (Err(format!("ruleset {name} in the config is also a file; give it another name")), refusals);
+                return (
+                    Err(format!(
+                        "ruleset {name} in the config is also a file; give it another name"
+                    )),
+                    refusals,
+                );
             }
         }
-        (crate::vars::apply(&mut rulesets, vars).and_then(|()| Self::new(rulesets)), refusals)
+        (
+            crate::vars::apply(&mut rulesets, vars).and_then(|()| Self::new(rulesets)),
+            refusals,
+        )
     }
 
     /// Every rule `name` holds: a ruleset flattened through `extends`, else the rules whose ID or a tag matches it as a glob.
@@ -286,9 +359,16 @@ impl Library {
         self.resolve_in(name, &mut Vec::new())
     }
 
-    fn resolve_in(&self, name: &str, seen: &mut Vec<String>) -> Result<BTreeMap<String, Spec>, String> {
+    fn resolve_in(
+        &self,
+        name: &str,
+        seen: &mut Vec<String>,
+    ) -> Result<BTreeMap<String, Spec>, String> {
         if seen.iter().any(|s| s == name) {
-            return Err(format!("ruleset {name} extends itself through {}", seen.join(" → ")));
+            return Err(format!(
+                "ruleset {name} extends itself through {}",
+                seen.join(" → ")
+            ));
         }
         let Some(ruleset) = self.rulesets.get(name) else {
             return self.matching(name);
@@ -301,11 +381,21 @@ impl Library {
         seen.pop();
         for (id, raw) in &ruleset.rules {
             let spec = entry(raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
-            let base = merged.remove(id).or_else(|| if spec.defines() { None } else { self.definitions.get(id).cloned() });
+            let base = merged.remove(id).or_else(|| {
+                if spec.defines() {
+                    None
+                } else {
+                    self.definitions.get(id).cloned()
+                }
+            });
             let spec = match base {
                 Some(base) => merge(base, spec),
                 None if spec.defines() => spec,
-                None => return Err(format!("ruleset {name}: rule {id} overrides a rule no ruleset defines")),
+                None => {
+                    return Err(format!(
+                        "ruleset {name}: rule {id} overrides a rule no ruleset defines"
+                    ));
+                }
             };
             merged.insert(id.clone(), spec);
         }
@@ -317,10 +407,20 @@ impl Library {
     }
 
     fn matching(&self, pattern: &str) -> Result<BTreeMap<String, Spec>, String> {
-        let picked: BTreeMap<String, Spec> = self.definitions.iter().filter(|(id, spec)| glob(pattern, id) || spec.tags.iter().any(|t| glob(pattern, t))).map(|(id, spec)| (id.clone(), spec.clone())).collect();
-        log::debug!("selector {pattern} matches {} rules by ID or tag", picked.len());
+        let picked: BTreeMap<String, Spec> = self
+            .definitions
+            .iter()
+            .filter(|(id, spec)| glob(pattern, id) || spec.tags.iter().any(|t| glob(pattern, t)))
+            .map(|(id, spec)| (id.clone(), spec.clone()))
+            .collect();
+        log::debug!(
+            "selector {pattern} matches {} rules by ID or tag",
+            picked.len()
+        );
         if picked.is_empty() {
-            return Err(format!("{pattern} is no ruleset, and no rule ID or tag matches it"));
+            return Err(format!(
+                "{pattern} is no ruleset, and no rule ID or tag matches it"
+            ));
         }
         Ok(picked)
     }
@@ -361,11 +461,19 @@ impl Library {
     }
 
     /// The rules `base` picks plus every rule tagged `<standard>:*`; standards with nothing else to pick select nothing, never every rule.
-    pub fn select_for(&self, base: &[String], standards: &[String]) -> Result<BTreeMap<String, Spec>, String> {
+    pub fn select_for(
+        &self,
+        base: &[String],
+        standards: &[String],
+    ) -> Result<BTreeMap<String, Spec>, String> {
         let mut selectors = base.to_vec();
         for standard in standards {
             let prefix = format!("{standard}:");
-            if self.definitions.values().any(|spec| spec.tags.iter().any(|t| t.starts_with(&prefix))) {
+            if self
+                .definitions
+                .values()
+                .any(|spec| spec.tags.iter().any(|t| t.starts_with(&prefix)))
+            {
                 selectors.push(format!("{standard}:*"));
             } else {
                 log::debug!("no rule is tagged {prefix}*, so standard {standard} adds no rule");

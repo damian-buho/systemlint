@@ -7,23 +7,67 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
-use systemlint_protocol::{Describe, Diagnostic, FileInput, FileKind, Input, Reply, Request, Result};
+use systemlint_protocol::{
+    Describe, Diagnostic, FileInput, FileKind, Input, Reply, Request, Result,
+};
 
 /// The sysctl.d directories systemd-sysctl reads, highest precedence first; `/etc/sysctl.conf` applies after them all.
-pub const SYSCTL_DIRS: [&str; 5] = ["/etc/sysctl.d", "/run/sysctl.d", "/usr/local/lib/sysctl.d", "/usr/lib/sysctl.d", "/lib/sysctl.d"];
+pub const SYSCTL_DIRS: [&str; 5] = [
+    "/etc/sysctl.d",
+    "/run/sysctl.d",
+    "/usr/local/lib/sysctl.d",
+    "/usr/lib/sysctl.d",
+    "/lib/sysctl.d",
+];
 
 /// The unit directories systemd reads, highest precedence first.
-pub const UNIT_DIRS: [&str; 8] = ["/run/systemd/generator.early", "/etc/systemd/system", "/run/systemd/system", "/run/systemd/generator", "/usr/local/lib/systemd/system", "/usr/lib/systemd/system", "/lib/systemd/system", "/run/systemd/generator.late"];
+pub const UNIT_DIRS: [&str; 8] = [
+    "/run/systemd/generator.early",
+    "/etc/systemd/system",
+    "/run/systemd/system",
+    "/run/systemd/generator",
+    "/usr/local/lib/systemd/system",
+    "/usr/lib/systemd/system",
+    "/lib/systemd/system",
+    "/run/systemd/generator.late",
+];
 
 /// The unit types systemd loads.
-pub const UNIT_TYPES: [&str; 11] = ["service", "socket", "device", "mount", "automount", "swap", "target", "path", "timer", "slice", "scope"];
+pub const UNIT_TYPES: [&str; 11] = [
+    "service",
+    "socket",
+    "device",
+    "mount",
+    "automount",
+    "swap",
+    "target",
+    "path",
+    "timer",
+    "slice",
+    "scope",
+];
 
 /// One INI file: every value of every key, by section; keys before the first section sit under `""`.
 pub type Sections = BTreeMap<String, BTreeMap<String, Vec<String>>>;
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
-    Describe::new("formats", &[("csv", &[]), ("exec", &[]), ("ini", &[]), ("json", &[]), ("kv", &[]), ("lines", &[]), ("stat", &[]), ("sysctl", &[]), ("systemd", &[]), ("toml", &[]), ("yaml", &[])])
+    Describe::new(
+        "formats",
+        &[
+            ("csv", &[]),
+            ("exec", &[]),
+            ("ini", &[]),
+            ("json", &[]),
+            ("kv", &[]),
+            ("lines", &[]),
+            ("stat", &[]),
+            ("sysctl", &[]),
+            ("systemd", &[]),
+            ("toml", &[]),
+            ("yaml", &[]),
+        ],
+    )
 }
 
 /// Runs one op.
@@ -52,7 +96,13 @@ pub fn kv(inputs: &[Input]) -> Reply {
             Input::File(file) => (file.path.clone(), file.content.as_deref()),
             Input::Exec(exec) => (exec.argv.join(" "), Some(exec.stdout.as_str())),
         };
-        let mut diagnose = |line: Option<u64>, message: String| reply.diagnostics.push(Diagnostic { path: path.clone(), line, message });
+        let mut diagnose = |line: Option<u64>, message: String| {
+            reply.diagnostics.push(Diagnostic {
+                path: path.clone(),
+                line,
+                message,
+            })
+        };
         let Some(text) = text else {
             diagnose(None, "not UTF-8 text, skipped".to_owned());
             continue;
@@ -74,7 +124,10 @@ pub fn kv(inputs: &[Input]) -> Reply {
             }
             match unquote(value.trim()) {
                 Ok(value) => {
-                    reply.facts.entry(key.to_owned()).or_insert(Value::from(value));
+                    reply
+                        .facts
+                        .entry(key.to_owned())
+                        .or_insert(Value::from(value));
                 }
                 Err(message) => diagnose(number, format!("{key}: {message}")),
             }
@@ -88,16 +141,32 @@ pub fn stat(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
     for input in inputs {
         match input {
-            Input::File(FileInput { path, stat: Some(stat), .. }) => {
+            Input::File(FileInput {
+                path,
+                stat: Some(stat),
+                ..
+            }) => {
                 let mut fact = serde_json::to_value(stat).unwrap_or_default();
                 fact["exists"] = Value::Bool(true);
                 reply.facts.insert(path.clone(), fact);
             }
-            Input::File(FileInput { path, absent: true, .. }) => {
-                reply.facts.insert(path.clone(), serde_json::json!({"exists": false}));
+            Input::File(FileInput {
+                path, absent: true, ..
+            }) => {
+                reply
+                    .facts
+                    .insert(path.clone(), serde_json::json!({"exists": false}));
             }
-            Input::File(FileInput { path, .. }) => reply.diagnostics.push(Diagnostic { path: path.clone(), line: None, message: "no stat; list it under read.stat".to_owned() }),
-            Input::Exec(exec) => reply.diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: "a command has no stat".to_owned() }),
+            Input::File(FileInput { path, .. }) => reply.diagnostics.push(Diagnostic {
+                path: path.clone(),
+                line: None,
+                message: "no stat; list it under read.stat".to_owned(),
+            }),
+            Input::Exec(exec) => reply.diagnostics.push(Diagnostic {
+                path: exec.argv.join(" "),
+                line: None,
+                message: "a command has no stat".to_owned(),
+            }),
         }
     }
     reply
@@ -109,13 +178,30 @@ pub fn exec(inputs: &[Input]) -> Reply {
     for input in inputs {
         match input {
             Input::Exec(run) if reply.facts.is_empty() => {
-                reply.facts.insert("exit-status".to_owned(), Value::from(run.exit));
-                reply.facts.insert("stdout".to_owned(), Value::from(run.stdout.as_str()));
-                reply.facts.insert("stderr".to_owned(), Value::from(run.stderr.as_str()));
-                reply.facts.insert("stdout-lines".to_owned(), Value::from(run.stdout.lines().collect::<Vec<_>>()));
+                reply
+                    .facts
+                    .insert("exit-status".to_owned(), Value::from(run.exit));
+                reply
+                    .facts
+                    .insert("stdout".to_owned(), Value::from(run.stdout.as_str()));
+                reply
+                    .facts
+                    .insert("stderr".to_owned(), Value::from(run.stderr.as_str()));
+                reply.facts.insert(
+                    "stdout-lines".to_owned(),
+                    Value::from(run.stdout.lines().collect::<Vec<_>>()),
+                );
             }
-            Input::Exec(run) => reply.diagnostics.push(Diagnostic { path: run.argv.join(" "), line: None, message: "a second command, skipped".to_owned() }),
-            Input::File(file) => reply.diagnostics.push(Diagnostic { path: file.path.clone(), line: None, message: "a file is not a command, skipped".to_owned() }),
+            Input::Exec(run) => reply.diagnostics.push(Diagnostic {
+                path: run.argv.join(" "),
+                line: None,
+                message: "a second command, skipped".to_owned(),
+            }),
+            Input::File(file) => reply.diagnostics.push(Diagnostic {
+                path: file.path.clone(),
+                line: None,
+                message: "a file is not a command, skipped".to_owned(),
+            }),
         }
     }
     reply
@@ -124,8 +210,14 @@ pub fn exec(inputs: &[Input]) -> Reply {
 /// Every text input as its list of lines, keyed by its path.
 pub fn lines(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
-    for (path, text) in inputs.iter().filter_map(|i| text(i, &mut reply.diagnostics)) {
-        reply.facts.insert(path.to_owned(), Value::from(text.lines().collect::<Vec<_>>()));
+    for (path, text) in inputs
+        .iter()
+        .filter_map(|i| text(i, &mut reply.diagnostics))
+    {
+        reply.facts.insert(
+            path.to_owned(),
+            Value::from(text.lines().collect::<Vec<_>>()),
+        );
     }
     reply
 }
@@ -133,13 +225,25 @@ pub fn lines(inputs: &[Input]) -> Reply {
 /// The text of a file input, or a diagnostic when it is missing or not UTF-8.
 pub fn text<'a>(input: &'a Input, diagnostics: &mut Vec<Diagnostic>) -> Option<(&'a str, &'a str)> {
     match input {
-        Input::File(FileInput { path, content: Some(text), .. }) => Some((path, text)),
+        Input::File(FileInput {
+            path,
+            content: Some(text),
+            ..
+        }) => Some((path, text)),
         Input::File(FileInput { path, .. }) => {
-            diagnostics.push(Diagnostic { path: path.clone(), line: None, message: "not UTF-8 text, skipped".to_owned() });
+            diagnostics.push(Diagnostic {
+                path: path.clone(),
+                line: None,
+                message: "not UTF-8 text, skipped".to_owned(),
+            });
             None
         }
         Input::Exec(exec) => {
-            diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: "a command is not a file, skipped".to_owned() });
+            diagnostics.push(Diagnostic {
+                path: exec.argv.join(" "),
+                line: None,
+                message: "a command is not a file, skipped".to_owned(),
+            });
             None
         }
     }
@@ -149,16 +253,28 @@ pub fn text<'a>(input: &'a Input, diagnostics: &mut Vec<Diagnostic>) -> Option<(
 pub fn ini(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
     for input in inputs {
-        let Some((path, text)) = text(input, &mut reply.diagnostics) else { continue };
-        let sections = parse_ini(text, |line, message| reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: Some(line), message }));
-        reply.facts.insert(path.to_owned(), serde_json::to_value(sections).unwrap_or_default());
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
+        let sections = parse_ini(text, |line, message| {
+            reply.diagnostics.push(Diagnostic {
+                path: path.to_owned(),
+                line: Some(line),
+                message,
+            })
+        });
+        reply.facts.insert(
+            path.to_owned(),
+            serde_json::to_value(sections).unwrap_or_default(),
+        );
     }
     reply
 }
 
 /// The sections of one INI text, systemd’s flavour: a key repeats into a list, `\` at a line end continues it.
 pub fn parse_ini(text: &str, mut diagnose: impl FnMut(u64, String)) -> Sections {
-    let (mut sections, mut section, mut pending) = (Sections::new(), String::new(), None::<(u64, String)>);
+    let (mut sections, mut section, mut pending) =
+        (Sections::new(), String::new(), None::<(u64, String)>);
     for (index, raw) in text.lines().enumerate() {
         let (number, line) = match pending.take() {
             Some((start, head)) => (start, format!("{head} {}", raw.trim())),
@@ -178,12 +294,20 @@ pub fn parse_ini(text: &str, mut diagnose: impl FnMut(u64, String)) -> Sections 
             continue;
         }
         match line.split_once('=') {
-            Some((key, value)) if !key.trim().is_empty() => sections.entry(section.clone()).or_default().entry(key.trim().to_owned()).or_default().push(value.trim().to_owned()),
+            Some((key, value)) if !key.trim().is_empty() => sections
+                .entry(section.clone())
+                .or_default()
+                .entry(key.trim().to_owned())
+                .or_default()
+                .push(value.trim().to_owned()),
             _ => diagnose(number, format!("no key=value in {line:?}")),
         }
     }
     if let Some((number, line)) = pending {
-        diagnose(number, format!("{line:?} continues past the end of the file"));
+        diagnose(
+            number,
+            format!("{line:?} continues past the end of the file"),
+        );
     }
     sections
 }
@@ -192,15 +316,25 @@ pub fn parse_ini(text: &str, mut diagnose: impl FnMut(u64, String)) -> Sections 
 pub fn json(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
     for input in inputs {
-        let Some((path, text)) = text(input, &mut reply.diagnostics) else { continue };
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
         match serde_json::from_str::<Value>(text) {
             Ok(Value::Object(map)) => {
                 for (key, value) in map {
                     reply.facts.entry(key).or_insert(value);
                 }
             }
-            Ok(other) => reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: None, message: format!("holds a {}, not an object", kind(&other)) }),
-            Err(e) => reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: Some(e.line() as u64), message: format!("not valid JSON: {e}") }),
+            Ok(other) => reply.diagnostics.push(Diagnostic {
+                path: path.to_owned(),
+                line: None,
+                message: format!("holds a {}, not an object", kind(&other)),
+            }),
+            Err(e) => reply.diagnostics.push(Diagnostic {
+                path: path.to_owned(),
+                line: Some(e.line() as u64),
+                message: format!("not valid JSON: {e}"),
+            }),
         }
     }
     reply
@@ -210,12 +344,21 @@ pub fn json(inputs: &[Input]) -> Reply {
 pub fn yaml(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
     for input in inputs {
-        let Some((path, text)) = text(input, &mut reply.diagnostics) else { continue };
-        match serde_saphyr::from_str_with_options::<Value>(text, serde_saphyr::options! { strict_booleans: true }) {
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
+        match serde_saphyr::from_str_with_options::<Value>(
+            text,
+            serde_saphyr::options! { strict_booleans: true },
+        ) {
             Ok(value) => {
                 reply.facts.insert(path.to_owned(), value);
             }
-            Err(e) => reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: None, message: format!("not valid YAML: {e}") }),
+            Err(e) => reply.diagnostics.push(Diagnostic {
+                path: path.to_owned(),
+                line: None,
+                message: format!("not valid YAML: {e}"),
+            }),
         }
     }
     reply
@@ -225,12 +368,20 @@ pub fn yaml(inputs: &[Input]) -> Reply {
 pub fn toml(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
     for input in inputs {
-        let Some((path, text)) = text(input, &mut reply.diagnostics) else { continue };
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
         match text.parse::<toml::Table>() {
             Ok(table) => {
-                reply.facts.insert(path.to_owned(), from_toml(toml::Value::Table(table)));
+                reply
+                    .facts
+                    .insert(path.to_owned(), from_toml(toml::Value::Table(table)));
             }
-            Err(e) => reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: None, message: format!("not valid TOML: {}", e.message()) }),
+            Err(e) => reply.diagnostics.push(Diagnostic {
+                path: path.to_owned(),
+                line: None,
+                message: format!("not valid TOML: {}", e.message()),
+            }),
         }
     }
     reply
@@ -244,7 +395,9 @@ fn from_toml(value: toml::Value) -> Value {
         toml::Value::Boolean(b) => Value::from(b),
         toml::Value::Datetime(d) => Value::from(d.to_string()),
         toml::Value::Array(items) => Value::Array(items.into_iter().map(from_toml).collect()),
-        toml::Value::Table(table) => Value::Object(table.into_iter().map(|(k, v)| (k, from_toml(v))).collect()),
+        toml::Value::Table(table) => {
+            Value::Object(table.into_iter().map(|(k, v)| (k, from_toml(v))).collect())
+        }
     }
 }
 
@@ -252,11 +405,17 @@ fn from_toml(value: toml::Value) -> Value {
 pub fn csv(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
     for input in inputs {
-        let Some((path, text)) = text(input, &mut reply.diagnostics) else { continue };
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
         let mut rows = match records(text) {
             Ok(rows) => rows.into_iter(),
             Err(line) => {
-                reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: Some(line), message: "a quoted field never ends".to_owned() });
+                reply.diagnostics.push(Diagnostic {
+                    path: path.to_owned(),
+                    line: Some(line),
+                    message: "a quoted field never ends".to_owned(),
+                });
                 continue;
             }
         };
@@ -264,9 +423,24 @@ pub fn csv(inputs: &[Input]) -> Reply {
         let mut objects = Vec::new();
         for (index, row) in rows.enumerate() {
             if row.len() != header.len() {
-                reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: None, message: format!("row {} has {} fields, the header {}", index + 2, row.len(), header.len()) });
+                reply.diagnostics.push(Diagnostic {
+                    path: path.to_owned(),
+                    line: None,
+                    message: format!(
+                        "row {} has {} fields, the header {}",
+                        index + 2,
+                        row.len(),
+                        header.len()
+                    ),
+                });
             }
-            objects.push(Value::Object(header.iter().cloned().zip(row.into_iter().map(Value::from)).collect()));
+            objects.push(Value::Object(
+                header
+                    .iter()
+                    .cloned()
+                    .zip(row.into_iter().map(Value::from))
+                    .collect(),
+            ));
         }
         reply.facts.insert(path.to_owned(), Value::Array(objects));
     }
@@ -329,7 +503,15 @@ pub fn sysctl(inputs: &[Input]) -> Reply {
     let effective = inputs.iter().find_map(|i| match i {
         Input::Exec(e) if e.exit == 0 => Some(e),
         Input::Exec(e) if e.exit != 127 => {
-            reply.diagnostics.push(Diagnostic { path: e.argv.join(" "), line: None, message: format!("exited {}, read from the files: {}", e.exit, e.stderr.trim()) });
+            reply.diagnostics.push(Diagnostic {
+                path: e.argv.join(" "),
+                line: None,
+                message: format!(
+                    "exited {}, read from the files: {}",
+                    e.exit,
+                    e.stderr.trim()
+                ),
+            });
             None
         }
         _ => None,
@@ -337,13 +519,23 @@ pub fn sysctl(inputs: &[Input]) -> Reply {
     let source = if let Some(exec) = effective {
         for line in exec.stdout.lines().filter(|l| !l.trim().is_empty()) {
             match line.split_once(" = ") {
-                Some((key, value)) => drop(flat.insert(key.trim().to_owned(), value.trim().to_owned())),
-                None => reply.diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: format!("no “key = value” in {line:?}") }),
+                Some((key, value)) => {
+                    drop(flat.insert(key.trim().to_owned(), value.trim().to_owned()))
+                }
+                None => reply.diagnostics.push(Diagnostic {
+                    path: exec.argv.join(" "),
+                    line: None,
+                    message: format!("no “key = value” in {line:?}"),
+                }),
             }
         }
         "effective"
     } else {
-        let files: Vec<(&str, &str)> = inputs.iter().filter(|i| matches!(i, Input::File(_))).filter_map(|i| text(i, &mut reply.diagnostics)).collect();
+        let files: Vec<(&str, &str)> = inputs
+            .iter()
+            .filter(|i| matches!(i, Input::File(_)))
+            .filter_map(|i| text(i, &mut reply.diagnostics))
+            .collect();
         for (path, text) in sysctl_order(&files) {
             for (index, line) in text.lines().enumerate() {
                 let line = line.trim();
@@ -351,8 +543,14 @@ pub fn sysctl(inputs: &[Input]) -> Reply {
                     continue;
                 }
                 match line.trim_start_matches('-').split_once('=') {
-                    Some((key, value)) if !key.trim().is_empty() => drop(flat.insert(sysctl_key(key.trim()), value.trim().to_owned())),
-                    _ => reply.diagnostics.push(Diagnostic { path: path.to_owned(), line: Some(index as u64 + 1), message: format!("no key = value in {line:?}") }),
+                    Some((key, value)) if !key.trim().is_empty() => {
+                        drop(flat.insert(sysctl_key(key.trim()), value.trim().to_owned()))
+                    }
+                    _ => reply.diagnostics.push(Diagnostic {
+                        path: path.to_owned(),
+                        line: Some(index as u64 + 1),
+                        message: format!("no key = value in {line:?}"),
+                    }),
                 }
             }
         }
@@ -360,13 +558,21 @@ pub fn sysctl(inputs: &[Input]) -> Reply {
     };
     let mut settings = Map::new();
     for (key, value) in flat {
-        let value = value.parse::<i64>().map_or_else(|_| Value::from(value.clone()), Value::from);
+        let value = value
+            .parse::<i64>()
+            .map_or_else(|_| Value::from(value.clone()), Value::from);
         if let Err(message) = nest(&mut settings, &key, value) {
-            reply.diagnostics.push(Diagnostic { path: key, line: None, message });
+            reply.diagnostics.push(Diagnostic {
+                path: key,
+                line: None,
+                message,
+            });
         }
     }
     reply.facts.insert("source".to_owned(), Value::from(source));
-    reply.facts.insert("settings".to_owned(), Value::Object(settings));
+    reply
+        .facts
+        .insert("settings".to_owned(), Value::Object(settings));
     reply
 }
 
@@ -379,34 +585,53 @@ pub fn sysctl_order<'a>(files: &[(&'a str, &'a str)]) -> Vec<(&'a str, &'a str)>
             conf = Some((*path, *text));
             continue;
         }
-        let Some((dir, name)) = path.rsplit_once('/') else { continue };
-        let Some(rank) = SYSCTL_DIRS.iter().position(|d| *d == dir) else { continue };
+        let Some((dir, name)) = path.rsplit_once('/') else {
+            continue;
+        };
+        let Some(rank) = SYSCTL_DIRS.iter().position(|d| *d == dir) else {
+            continue;
+        };
         if chosen.get(name).is_none_or(|(r, _, _)| rank < *r) {
             chosen.insert(name, (rank, path, text));
         }
     }
-    chosen.into_values().map(|(_, p, t)| (p, t)).chain(conf).collect()
+    chosen
+        .into_values()
+        .map(|(_, p, t)| (p, t))
+        .chain(conf)
+        .collect()
 }
 
 /// A sysctl key with `.` separators, swapping `/` and `.` when `/` comes first as systemd does.
 pub fn sysctl_key(key: &str) -> String {
     match key.find(['.', '/']) {
-        Some(i) if key.as_bytes()[i] == b'/' => key.chars().map(|c| match c {
-            '/' => '.',
-            '.' => '/',
-            c => c,
-        }).collect(),
+        Some(i) if key.as_bytes()[i] == b'/' => key
+            .chars()
+            .map(|c| match c {
+                '/' => '.',
+                '.' => '/',
+                c => c,
+            })
+            .collect(),
         _ => key.to_owned(),
     }
 }
 
 /// Places `value` at the dotted `key` in `map`, refusing a key that crosses a value.
-pub fn nest(map: &mut Map<String, Value>, key: &str, value: Value) -> std::result::Result<(), String> {
+pub fn nest(
+    map: &mut Map<String, Value>,
+    key: &str,
+    value: Value,
+) -> std::result::Result<(), String> {
     let segments: Vec<&str> = key.split('.').collect();
     let (last, parents) = segments.split_last().ok_or("empty key")?;
     let mut at = map;
     for segment in parents {
-        at = at.entry((*segment).to_owned()).or_insert_with(|| Value::Object(Map::new())).as_object_mut().ok_or_else(|| format!("{key} crosses {segment}, which holds a value"))?;
+        at = at
+            .entry((*segment).to_owned())
+            .or_insert_with(|| Value::Object(Map::new()))
+            .as_object_mut()
+            .ok_or_else(|| format!("{key} crosses {segment}, which holds a value"))?;
     }
     if at.get(*last).is_some_and(Value::is_object) {
         return Err(format!("{key} holds both a value and keys below it"));
@@ -423,28 +648,58 @@ pub fn systemd(inputs: &[Input]) -> Reply {
     let mut live = None;
     for input in inputs {
         let (path, stat) = match input {
-            Input::File(FileInput { path, stat: Some(stat), .. }) => (path, stat),
+            Input::File(FileInput {
+                path,
+                stat: Some(stat),
+                ..
+            }) => (path, stat),
             Input::File(_) => continue,
             Input::Exec(e) if e.exit == 0 => {
                 live = Some(e);
                 continue;
             }
             Input::Exec(e) if e.exit != 127 => {
-                reply.diagnostics.push(Diagnostic { path: e.argv.join(" "), line: None, message: format!("exited {}, no active state: {}", e.exit, e.stderr.trim()) });
+                reply.diagnostics.push(Diagnostic {
+                    path: e.argv.join(" "),
+                    line: None,
+                    message: format!("exited {}, no active state: {}", e.exit, e.stderr.trim()),
+                });
                 continue;
             }
             Input::Exec(_) => continue,
         };
-        let Some((dir, name)) = path.rsplit_once('/').filter(|(_, n)| unit_name(n)) else { continue };
-        let fresh = || Map::from_iter([("enabled".to_owned(), Value::Bool(false)), ("masked".to_owned(), Value::Bool(false))]);
-        if let Some(rank) = UNIT_DIRS.iter().position(|d| *d == dir).filter(|_| stat.kind != FileKind::Directory) {
+        let Some((dir, name)) = path.rsplit_once('/').filter(|(_, n)| unit_name(n)) else {
+            continue;
+        };
+        let fresh = || {
+            Map::from_iter([
+                ("enabled".to_owned(), Value::Bool(false)),
+                ("masked".to_owned(), Value::Bool(false)),
+            ])
+        };
+        if let Some(rank) = UNIT_DIRS
+            .iter()
+            .position(|d| *d == dir)
+            .filter(|_| stat.kind != FileKind::Directory)
+        {
             let unit = units.entry(name.to_owned()).or_insert_with(fresh);
             if highest.get(name).is_none_or(|r| rank < *r) {
                 highest.insert(name.to_owned(), rank);
-                unit.insert("masked".to_owned(), Value::Bool(stat.linked_to.as_deref() == Some("/dev/null") || (stat.kind == FileKind::File && stat.size == 0)));
+                unit.insert(
+                    "masked".to_owned(),
+                    Value::Bool(
+                        stat.linked_to.as_deref() == Some("/dev/null")
+                            || (stat.kind == FileKind::File && stat.size == 0),
+                    ),
+                );
             }
-        } else if dir.rsplit_once('/').is_some_and(|(parent, link)| UNIT_DIRS.contains(&parent) && (link.ends_with(".wants") || link.ends_with(".requires"))) {
-            units.entry(name.to_owned()).or_insert_with(fresh).insert("enabled".to_owned(), Value::Bool(true));
+        } else if dir.rsplit_once('/').is_some_and(|(parent, link)| {
+            UNIT_DIRS.contains(&parent) && (link.ends_with(".wants") || link.ends_with(".requires"))
+        }) {
+            units
+                .entry(name.to_owned())
+                .or_insert_with(fresh)
+                .insert("enabled".to_owned(), Value::Bool(true));
         }
     }
     if let Some(exec) = live {
@@ -457,7 +712,11 @@ pub fn systemd(inputs: &[Input]) -> Reply {
                     unit.insert("sub".to_owned(), Value::from(sub));
                     seen.insert(name.to_owned());
                 }
-                _ => reply.diagnostics.push(Diagnostic { path: exec.argv.join(" "), line: None, message: format!("no “unit load active sub” in {line:?}") }),
+                _ => reply.diagnostics.push(Diagnostic {
+                    path: exec.argv.join(" "),
+                    line: None,
+                    message: format!("no “unit load active sub” in {line:?}"),
+                }),
             }
         }
         for (_, unit) in units.iter_mut().filter(|(name, _)| !seen.contains(*name)) {
@@ -465,21 +724,34 @@ pub fn systemd(inputs: &[Input]) -> Reply {
             unit.insert("sub".to_owned(), Value::from("dead"));
         }
     }
-    reply.facts.extend(units.into_iter().map(|(name, unit)| (name, Value::Object(unit))));
+    reply.facts.extend(
+        units
+            .into_iter()
+            .map(|(name, unit)| (name, Value::Object(unit))),
+    );
     reply
 }
 
 /// Whether `name` ends in a unit type systemd loads.
 fn unit_name(name: &str) -> bool {
-    name.rsplit_once('.').is_some_and(|(stem, kind)| !stem.is_empty() && UNIT_TYPES.contains(&kind))
+    name.rsplit_once('.')
+        .is_some_and(|(stem, kind)| !stem.is_empty() && UNIT_TYPES.contains(&kind))
 }
 
 /// `uri` with its password replaced, so no credential reaches the facts.
 pub fn mask(uri: &str) -> String {
-    let Some((scheme, rest)) = uri.split_once("://") else { return uri.to_owned() };
+    let Some((scheme, rest)) = uri.split_once("://") else {
+        return uri.to_owned();
+    };
     let authority = rest.split('/').next().unwrap_or_default();
-    match authority.rsplit_once('@').and_then(|(info, host)| info.split_once(':').map(|(user, _)| (user, host))) {
-        Some((user, host)) => format!("{scheme}://{user}:[redacted]@{host}{}", &rest[authority.len()..]),
+    match authority
+        .rsplit_once('@')
+        .and_then(|(info, host)| info.split_once(':').map(|(user, _)| (user, host)))
+    {
+        Some((user, host)) => format!(
+            "{scheme}://{user}:[redacted]@{host}{}",
+            &rest[authority.len()..]
+        ),
         None => uri.to_owned(),
     }
 }
@@ -489,7 +761,11 @@ pub fn unquote(raw: &str) -> std::result::Result<String, String> {
     let Some(quote) = raw.chars().next().filter(|c| *c == '"' || *c == '\'') else {
         return Ok(raw.to_owned());
     };
-    let inner = raw.strip_prefix(quote).and_then(|r| r.strip_suffix(quote)).filter(|_| raw.len() >= 2).ok_or_else(|| format!("unterminated {quote} quote"))?;
+    let inner = raw
+        .strip_prefix(quote)
+        .and_then(|r| r.strip_suffix(quote))
+        .filter(|_| raw.len() >= 2)
+        .ok_or_else(|| format!("unterminated {quote} quote"))?;
     if quote == '\'' {
         return Ok(inner.to_owned());
     }
@@ -514,20 +790,39 @@ mod tests {
     use systemlint_protocol::{ExecInput, FileKind, Stat};
 
     fn file(path: &str, content: &str) -> Input {
-        Input::File(FileInput { path: path.to_owned(), content: Some(content.to_owned()), content_base64: None, stat: None, absent: false })
+        Input::File(FileInput {
+            path: path.to_owned(),
+            content: Some(content.to_owned()),
+            content_base64: None,
+            stat: None,
+            absent: false,
+        })
     }
 
     #[test]
     fn describe_lists_the_generic_parsers() {
         let describe = describe();
         assert_eq!(describe.name, "formats");
-        assert_eq!(describe.ops.iter().map(|o| o.op.as_str()).collect::<Vec<_>>(), ["csv", "exec", "ini", "json", "kv", "lines", "stat", "sysctl", "systemd", "toml", "yaml"]);
+        assert_eq!(
+            describe
+                .ops
+                .iter()
+                .map(|o| o.op.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "csv", "exec", "ini", "json", "kv", "lines", "stat", "sysctl", "systemd", "toml",
+                "yaml"
+            ]
+        );
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
     }
 
     #[test]
     fn kv_reads_the_fixture_os_release() {
-        let reply = kv(&[file("/usr/lib/os-release", include_str!("../../../fixtures/ubuntu-26.04/usr/lib/os-release"))]);
+        let reply = kv(&[file(
+            "/usr/lib/os-release",
+            include_str!("../../../fixtures/ubuntu-26.04/usr/lib/os-release"),
+        )]);
         assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
         assert_eq!(reply.facts["VERSION_CODENAME"], "resolute");
         assert_eq!(reply.facts["PRETTY_NAME"], "Ubuntu 26.04.1 LTS");
@@ -536,23 +831,55 @@ mod tests {
 
     #[test]
     fn kv_first_input_wins_and_exec_stdout_counts() {
-        let exec = Input::Exec(ExecInput { argv: vec!["/bin/env".into()], stdout: "A=exec\nB=exec\n".into(), stderr: String::new(), exit: 0 });
+        let exec = Input::Exec(ExecInput {
+            argv: vec!["/bin/env".into()],
+            stdout: "A=exec\nB=exec\n".into(),
+            stderr: String::new(),
+            exit: 0,
+        });
         let reply = kv(&[file("/etc/a", "A=file\n"), exec]);
-        assert_eq!((reply.facts["A"].as_str(), reply.facts["B"].as_str()), (Some("file"), Some("exec")));
+        assert_eq!(
+            (reply.facts["A"].as_str(), reply.facts["B"].as_str()),
+            (Some("file"), Some("exec"))
+        );
     }
 
     #[test]
     fn kv_names_each_bad_line() {
-        let reply = kv(&[file("/etc/x", "# comment\n\nGOOD = spaced \nno equals\n=orphan\nOPEN=\"half\n")]);
+        let reply = kv(&[file(
+            "/etc/x",
+            "# comment\n\nGOOD = spaced \nno equals\n=orphan\nOPEN=\"half\n",
+        )]);
         assert_eq!(reply.facts["GOOD"], "spaced");
-        let lines: Vec<_> = reply.diagnostics.iter().map(|d| (d.path.as_str(), d.line)).collect();
-        assert_eq!(lines, [("/etc/x", Some(4)), ("/etc/x", Some(5)), ("/etc/x", Some(6))]);
-        assert!(reply.diagnostics[2].message.contains("OPEN: unterminated"), "{:?}", reply.diagnostics);
+        let lines: Vec<_> = reply
+            .diagnostics
+            .iter()
+            .map(|d| (d.path.as_str(), d.line))
+            .collect();
+        assert_eq!(
+            lines,
+            [
+                ("/etc/x", Some(4)),
+                ("/etc/x", Some(5)),
+                ("/etc/x", Some(6))
+            ]
+        );
+        assert!(
+            reply.diagnostics[2].message.contains("OPEN: unterminated"),
+            "{:?}",
+            reply.diagnostics
+        );
     }
 
     #[test]
     fn kv_skips_binary_input_with_a_diagnostic() {
-        let input = Input::File(FileInput { path: "/bin".into(), content: None, content_base64: Some("AA==".into()), stat: None, absent: false });
+        let input = Input::File(FileInput {
+            path: "/bin".into(),
+            content: None,
+            content_base64: Some("AA==".into()),
+            stat: None,
+            absent: false,
+        });
         let reply = kv(&[input]);
         assert!(reply.facts.is_empty());
         assert_eq!(reply.diagnostics[0].line, None);
@@ -560,7 +887,10 @@ mod tests {
 
     #[test]
     fn unquote_follows_the_shell() {
-        assert_eq!(unquote(r#""a \"b\" \\ \$c \`d\` \n""#).unwrap(), r#"a "b" \ $c `d` \n"#);
+        assert_eq!(
+            unquote(r#""a \"b\" \\ \$c \`d\` \n""#).unwrap(),
+            r#"a "b" \ $c `d` \n"#
+        );
         assert_eq!(unquote(r#"'it \n "x"'"#).unwrap(), r#"it \n "x""#);
         assert_eq!(unquote("bare").unwrap(), "bare");
         assert_eq!(unquote("").unwrap(), "");
@@ -572,71 +902,213 @@ mod tests {
 
     #[test]
     fn yaml_keeps_no_and_off_as_strings_and_names_a_bad_file() {
-        let reply = super::yaml(&[file("/etc/netplan/a.yaml", "network:\n  dhcp4: no\n  up: true\n"), file("/etc/bad.yaml", "a: [1\n")]);
-        assert_eq!(reply.facts["/etc/netplan/a.yaml"], serde_json::json!({"network": {"dhcp4": "no", "up": true}}));
-        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/bad.yaml"]);
+        let reply = super::yaml(&[
+            file("/etc/netplan/a.yaml", "network:\n  dhcp4: no\n  up: true\n"),
+            file("/etc/bad.yaml", "a: [1\n"),
+        ]);
+        assert_eq!(
+            reply.facts["/etc/netplan/a.yaml"],
+            serde_json::json!({"network": {"dhcp4": "no", "up": true}})
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| d.path.as_str())
+                .collect::<Vec<_>>(),
+            ["/etc/bad.yaml"]
+        );
     }
 
     #[test]
     fn toml_turns_tables_and_dates_into_json_and_names_a_bad_file() {
-        let reply = super::toml(&[file("/etc/containerd/config.toml", "version = 3\n[plugins.cri]\nsandbox = \"pause\"\nratio = 0.5\nat = 2026-11-12T10:00:00Z\n"), file("/etc/bad.toml", "a = \n")]);
-        assert_eq!(reply.facts["/etc/containerd/config.toml"], serde_json::json!({"version": 3, "plugins": {"cri": {"sandbox": "pause", "ratio": 0.5, "at": "2026-11-12T10:00:00Z"}}}));
-        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/bad.toml"]);
+        let reply = super::toml(&[
+            file(
+                "/etc/containerd/config.toml",
+                "version = 3\n[plugins.cri]\nsandbox = \"pause\"\nratio = 0.5\nat = 2026-11-12T10:00:00Z\n",
+            ),
+            file("/etc/bad.toml", "a = \n"),
+        ]);
+        assert_eq!(
+            reply.facts["/etc/containerd/config.toml"],
+            serde_json::json!({"version": 3, "plugins": {"cri": {"sandbox": "pause", "ratio": 0.5, "at": "2026-11-12T10:00:00Z"}}})
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| d.path.as_str())
+                .collect::<Vec<_>>(),
+            ["/etc/bad.toml"]
+        );
     }
 
     #[test]
     fn csv_keys_rows_by_the_header_with_rfc_4180_quotes() {
-        let reply = super::csv(&[file("/etc/a.csv", "name,note\r\nroot,\"a, \"\"b\"\"\"\r\n\nbin,\"two\nlines\"\nshort\n")]);
-        assert_eq!(reply.facts["/etc/a.csv"], serde_json::json!([{"name": "root", "note": "a, \"b\""}, {"name": "bin", "note": "two\nlines"}, {"name": "short"}]));
-        assert_eq!(reply.diagnostics.iter().map(|d| d.message.as_str()).collect::<Vec<_>>(), ["row 4 has 1 fields, the header 2"]);
+        let reply = super::csv(&[file(
+            "/etc/a.csv",
+            "name,note\r\nroot,\"a, \"\"b\"\"\"\r\n\nbin,\"two\nlines\"\nshort\n",
+        )]);
+        assert_eq!(
+            reply.facts["/etc/a.csv"],
+            serde_json::json!([{"name": "root", "note": "a, \"b\""}, {"name": "bin", "note": "two\nlines"}, {"name": "short"}])
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| d.message.as_str())
+                .collect::<Vec<_>>(),
+            ["row 4 has 1 fields, the header 2"]
+        );
         let open = super::csv(&[file("/etc/b.csv", "a\n\"x\n")]);
         assert_eq!((open.facts.len(), open.diagnostics[0].line), (0, Some(2)));
     }
 
     #[test]
     fn exec_returns_the_first_command_and_names_the_rest() {
-        let run = |argv: &str, exit| Input::Exec(ExecInput { argv: vec![argv.into()], stdout: "a\nb\n".into(), stderr: "warn".into(), exit });
-        let reply = super::exec(&[run("/bin/first", 3), file("/etc/a", "x"), run("/bin/second", 0)]);
-        assert_eq!(Value::Object(reply.facts.into_iter().collect()), serde_json::json!({"exit-status": 3, "stdout": "a\nb\n", "stderr": "warn", "stdout-lines": ["a", "b"]}));
-        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/a", "/bin/second"]);
+        let run = |argv: &str, exit| {
+            Input::Exec(ExecInput {
+                argv: vec![argv.into()],
+                stdout: "a\nb\n".into(),
+                stderr: "warn".into(),
+                exit,
+            })
+        };
+        let reply = super::exec(&[
+            run("/bin/first", 3),
+            file("/etc/a", "x"),
+            run("/bin/second", 0),
+        ]);
+        assert_eq!(
+            Value::Object(reply.facts.into_iter().collect()),
+            serde_json::json!({"exit-status": 3, "stdout": "a\nb\n", "stderr": "warn", "stdout-lines": ["a", "b"]})
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| d.path.as_str())
+                .collect::<Vec<_>>(),
+            ["/etc/a", "/bin/second"]
+        );
     }
 
     #[test]
     fn lines_keys_each_file_by_path_and_skips_a_command() {
-        let exec = Input::Exec(ExecInput { argv: vec!["/bin/true".into()], stdout: "x".into(), stderr: String::new(), exit: 0 });
+        let exec = Input::Exec(ExecInput {
+            argv: vec!["/bin/true".into()],
+            stdout: "x".into(),
+            stderr: String::new(),
+            exit: 0,
+        });
         let reply = super::lines(&[file("/etc/a", "one\r\n\ntwo"), file("/etc/empty", ""), exec]);
         assert_eq!(reply.facts["/etc/a"], serde_json::json!(["one", "", "two"]));
         assert_eq!(reply.facts["/etc/empty"], serde_json::json!([]));
-        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/bin/true"]);
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| d.path.as_str())
+                .collect::<Vec<_>>(),
+            ["/bin/true"]
+        );
     }
 
     #[test]
     fn stat_keys_each_stat_by_path_and_names_inputs_without_one() {
-        let stat = Stat { kind: FileKind::File, mode: "0666".into(), uid: 0, gid: 0, size: 3, world_writable: true, group_writable: true, setuid: false, setgid: false, linked_to: None, sha256: None, sha512: None };
-        let with = Input::File(FileInput { path: "/etc/sudoers.d/x".into(), content: None, content_base64: None, stat: Some(stat), absent: false });
-        let exec = Input::Exec(ExecInput { argv: vec!["/bin/true".into()], stdout: String::new(), stderr: String::new(), exit: 0 });
-        let absent = Input::File(FileInput { path: "/etc/gone".into(), content: None, content_base64: None, stat: None, absent: true });
+        let stat = Stat {
+            kind: FileKind::File,
+            mode: "0666".into(),
+            uid: 0,
+            gid: 0,
+            size: 3,
+            world_writable: true,
+            group_writable: true,
+            setuid: false,
+            setgid: false,
+            linked_to: None,
+            sha256: None,
+            sha512: None,
+        };
+        let with = Input::File(FileInput {
+            path: "/etc/sudoers.d/x".into(),
+            content: None,
+            content_base64: None,
+            stat: Some(stat),
+            absent: false,
+        });
+        let exec = Input::Exec(ExecInput {
+            argv: vec!["/bin/true".into()],
+            stdout: String::new(),
+            stderr: String::new(),
+            exit: 0,
+        });
+        let absent = Input::File(FileInput {
+            path: "/etc/gone".into(),
+            content: None,
+            content_base64: None,
+            stat: None,
+            absent: true,
+        });
         let reply = super::stat(&[with, file("/etc/a", "x"), exec, absent]);
         assert_eq!(reply.facts["/etc/sudoers.d/x"]["mode"], "0666");
         assert_eq!(reply.facts["/etc/sudoers.d/x"]["world-writable"], true);
         assert_eq!(reply.facts["/etc/sudoers.d/x"]["exists"], true);
-        assert_eq!(reply.facts["/etc/gone"], serde_json::json!({"exists": false}));
+        assert_eq!(
+            reply.facts["/etc/gone"],
+            serde_json::json!({"exists": false})
+        );
         assert_eq!(reply.facts.len(), 2);
-        assert_eq!(reply.diagnostics.iter().map(|d| d.path.as_str()).collect::<Vec<_>>(), ["/etc/a", "/bin/true"]);
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| d.path.as_str())
+                .collect::<Vec<_>>(),
+            ["/etc/a", "/bin/true"]
+        );
     }
 
     // A unit-directory entry with its stat: a regular file of `size` bytes, or a symlink to `to`.
     fn unit(path: &str, size: u64, to: Option<&str>) -> Input {
-        let kind = if to.is_some() { FileKind::Symlink } else { FileKind::File };
-        let stat = Stat { kind, mode: "0644".into(), uid: 0, gid: 0, size, world_writable: false, group_writable: false, setuid: false, setgid: false, linked_to: to.map(str::to_owned), sha256: None, sha512: None };
-        Input::File(FileInput { path: path.into(), content: None, content_base64: None, stat: Some(stat), absent: false })
+        let kind = if to.is_some() {
+            FileKind::Symlink
+        } else {
+            FileKind::File
+        };
+        let stat = Stat {
+            kind,
+            mode: "0644".into(),
+            uid: 0,
+            gid: 0,
+            size,
+            world_writable: false,
+            group_writable: false,
+            setuid: false,
+            setgid: false,
+            linked_to: to.map(str::to_owned),
+            sha256: None,
+            sha512: None,
+        };
+        Input::File(FileInput {
+            path: path.into(),
+            content: None,
+            content_base64: None,
+            stat: Some(stat),
+            absent: false,
+        })
     }
 
     #[test]
     fn systemd_reads_enablement_and_masks_by_precedence() {
         let reply = super::systemd(&[
             unit("/usr/lib/systemd/system/ufw.service", 341, None),
-            unit("/etc/systemd/system/multi-user.target.wants/ufw.service", 35, Some("/usr/lib/systemd/system/ufw.service")),
+            unit(
+                "/etc/systemd/system/multi-user.target.wants/ufw.service",
+                35,
+                Some("/usr/lib/systemd/system/ufw.service"),
+            ),
             unit("/usr/lib/systemd/system/cups.socket", 200, None),
             unit("/run/systemd/system/cups.socket", 9, Some("/dev/null")),
             unit("/etc/systemd/system/cups.socket", 120, None),
@@ -650,40 +1122,92 @@ mod tests {
             unit("/etc/systemd/system/app.conf", 1, None),
         ]);
         let facts = Value::Object(reply.facts.into_iter().collect());
-        assert_eq!(facts, serde_json::json!({
-            "ufw.service": {"enabled": true, "masked": false},
-            "cups.socket": {"enabled": false, "masked": false},
-            "empty.service": {"enabled": false, "masked": true},
-            "db.service": {"enabled": false, "masked": true},
-        }), "/etc beats a /run mask, an empty file masks, a stray path or name is no unit");
+        assert_eq!(
+            facts,
+            serde_json::json!({
+                "ufw.service": {"enabled": true, "masked": false},
+                "cups.socket": {"enabled": false, "masked": false},
+                "empty.service": {"enabled": false, "masked": true},
+                "db.service": {"enabled": false, "masked": true},
+            }),
+            "/etc beats a /run mask, an empty file masks, a stray path or name is no unit"
+        );
         assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
     }
 
     #[test]
     fn systemd_adds_the_live_state_and_marks_unloaded_units_inactive() {
         let listed = "ufw.service loaded active exited Uncomplicated firewall\nhome.mount not-found inactive dead home.mount\n\nbroken\n";
-        let reply = super::systemd(&[unit("/usr/lib/systemd/system/ufw.service", 341, None), unit("/usr/lib/systemd/system/clean.timer", 30, None), exec("/bin/systemctl list-units", listed, 0)]);
-        assert_eq!(reply.facts["ufw.service"], serde_json::json!({"enabled": false, "masked": false, "active": "active", "sub": "exited"}));
-        assert_eq!(reply.facts["clean.timer"], serde_json::json!({"enabled": false, "masked": false, "active": "inactive", "sub": "dead"}));
-        assert_eq!(reply.facts["home.mount"], serde_json::json!({"active": "inactive", "sub": "dead"}), "a live-only unit claims nothing about its files");
-        assert_eq!(reply.diagnostics.iter().map(|d| d.message.as_str()).collect::<Vec<_>>(), ["no “unit load active sub” in \"broken\""]);
+        let reply = super::systemd(&[
+            unit("/usr/lib/systemd/system/ufw.service", 341, None),
+            unit("/usr/lib/systemd/system/clean.timer", 30, None),
+            exec("/bin/systemctl list-units", listed, 0),
+        ]);
+        assert_eq!(
+            reply.facts["ufw.service"],
+            serde_json::json!({"enabled": false, "masked": false, "active": "active", "sub": "exited"})
+        );
+        assert_eq!(
+            reply.facts["clean.timer"],
+            serde_json::json!({"enabled": false, "masked": false, "active": "inactive", "sub": "dead"})
+        );
+        assert_eq!(
+            reply.facts["home.mount"],
+            serde_json::json!({"active": "inactive", "sub": "dead"}),
+            "a live-only unit claims nothing about its files"
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| d.message.as_str())
+                .collect::<Vec<_>>(),
+            ["no “unit load active sub” in \"broken\""]
+        );
     }
 
     #[test]
     fn systemd_without_a_manager_keeps_the_files_and_says_why() {
-        let reply = super::systemd(&[unit("/usr/lib/systemd/system/ufw.service", 341, None), exec("/bin/systemctl list-units", "", 1), exec("/bin/systemctl list-units", "", 127)]);
-        assert_eq!(reply.facts["ufw.service"], serde_json::json!({"enabled": false, "masked": false}));
-        assert_eq!(reply.diagnostics.iter().map(|d| d.message.as_str()).collect::<Vec<_>>(), ["exited 1, no active state: denied"], "exit 127 is an absent systemctl, no diagnostic");
+        let reply = super::systemd(&[
+            unit("/usr/lib/systemd/system/ufw.service", 341, None),
+            exec("/bin/systemctl list-units", "", 1),
+            exec("/bin/systemctl list-units", "", 127),
+        ]);
+        assert_eq!(
+            reply.facts["ufw.service"],
+            serde_json::json!({"enabled": false, "masked": false})
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| d.message.as_str())
+                .collect::<Vec<_>>(),
+            ["exited 1, no active state: denied"],
+            "exit 127 is an absent systemctl, no diagnostic"
+        );
     }
 
     #[test]
     fn an_unknown_op_is_refused_by_name() {
-        let request = Request { protocol: 1, op: "regex".into(), root: "/".into(), now: None, inputs: vec![], facts: Default::default() };
+        let request = Request {
+            protocol: 1,
+            op: "regex".into(),
+            root: "/".into(),
+            now: None,
+            inputs: vec![],
+            facts: Default::default(),
+        };
         assert!(op(request).unwrap_err().to_string().contains("regex"));
     }
 
     fn exec(argv: &str, stdout: &str, exit: i32) -> Input {
-        Input::Exec(ExecInput { argv: argv.split(' ').map(str::to_owned).collect(), stdout: stdout.to_owned(), stderr: "denied\n".to_owned(), exit })
+        Input::Exec(ExecInput {
+            argv: argv.split(' ').map(str::to_owned).collect(),
+            stdout: stdout.to_owned(),
+            stderr: "denied\n".to_owned(),
+            exit,
+        })
     }
 
     #[test]
@@ -692,37 +1216,90 @@ mod tests {
         let reply = ini(&[file("/etc/systemd/system/app.service", unit)]);
         let sections = &reply.facts["/etc/systemd/system/app.service"];
         assert_eq!(sections[""]["Top"], json!(["1"]));
-        assert_eq!(sections["Service"]["Environment"], json!(["A=1", "", "B=2 C=3"]));
+        assert_eq!(
+            sections["Service"]["Environment"],
+            json!(["A=1", "", "B=2 C=3"])
+        );
         assert_eq!(sections["Service"]["ExecStart"], json!(["/bin/app"]));
-        assert_eq!(reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(), [Some(11)]);
+        assert_eq!(
+            reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(),
+            [Some(11)]
+        );
         let open = ini(&[file("/x", "[S]\nA=1 \\\n")]);
-        assert!(open.diagnostics[0].message.contains("past the end"), "{:?}", open.diagnostics);
+        assert!(
+            open.diagnostics[0].message.contains("past the end"),
+            "{:?}",
+            open.diagnostics
+        );
     }
 
     #[test]
     fn json_merges_objects_and_names_the_rest() {
-        let reply = json(&[file("/etc/docker/daemon.json", r#"{"icc": false, "hosts": ["unix:///run/docker.sock"]}"#), file("/b", r#"{"icc": true, "live-restore": true}"#), file("/c", "[1]"), file("/d", "{\n  \"x\": ,\n}")]);
-        assert_eq!((reply.facts["icc"].clone(), reply.facts["live-restore"].clone()), (json!(false), json!(true)));
-        assert_eq!(reply.diagnostics.iter().map(|d| (d.path.as_str(), d.line)).collect::<Vec<_>>(), [("/c", None), ("/d", Some(2))]);
+        let reply = json(&[
+            file(
+                "/etc/docker/daemon.json",
+                r#"{"icc": false, "hosts": ["unix:///run/docker.sock"]}"#,
+            ),
+            file("/b", r#"{"icc": true, "live-restore": true}"#),
+            file("/c", "[1]"),
+            file("/d", "{\n  \"x\": ,\n}"),
+        ]);
+        assert_eq!(
+            (
+                reply.facts["icc"].clone(),
+                reply.facts["live-restore"].clone()
+            ),
+            (json!(false), json!(true))
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| (d.path.as_str(), d.line))
+                .collect::<Vec<_>>(),
+            [("/c", None), ("/d", Some(2))]
+        );
         assert!(reply.diagnostics[0].message.contains("list"));
     }
 
     #[test]
     fn sysctl_takes_sysctl_a_when_it_ran() {
         let files = file("/etc/sysctl.d/10-x.conf", "kernel.kptr_restrict = 0\n");
-        let reply = sysctl(&[files.clone(), exec("/usr/sbin/sysctl -a", "kernel.kptr_restrict = 2\nnet.ipv4.conf.eth0/100.rp_filter = 1\nnet.ipv4.ip_local_port_range = 32768\t60999\n", 0)]);
+        let reply = sysctl(&[
+            files.clone(),
+            exec(
+                "/usr/sbin/sysctl -a",
+                "kernel.kptr_restrict = 2\nnet.ipv4.conf.eth0/100.rp_filter = 1\nnet.ipv4.ip_local_port_range = 32768\t60999\n",
+                0,
+            ),
+        ]);
         assert_eq!(reply.facts["source"], "effective");
         let settings = &reply.facts["settings"];
         assert_eq!(settings["kernel"]["kptr_restrict"], 2);
         assert_eq!(settings["net"]["ipv4"]["conf"]["eth0/100"]["rp_filter"], 1);
-        assert_eq!(settings["net"]["ipv4"]["ip_local_port_range"], "32768\t60999");
+        assert_eq!(
+            settings["net"]["ipv4"]["ip_local_port_range"],
+            "32768\t60999"
+        );
         assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
         let absent = sysctl(&[files.clone(), exec("/usr/sbin/sysctl -a", "", 127)]);
-        assert_eq!((absent.facts["source"].as_str(), absent.facts["settings"]["kernel"]["kptr_restrict"].as_i64()), (Some("files"), Some(0)));
+        assert_eq!(
+            (
+                absent.facts["source"].as_str(),
+                absent.facts["settings"]["kernel"]["kptr_restrict"].as_i64()
+            ),
+            (Some("files"), Some(0))
+        );
         assert!(absent.diagnostics.is_empty());
         let failed = sysctl(&[exec("/usr/sbin/sysctl -a", "", 1)]);
         assert_eq!(failed.facts["source"], "none");
-        assert!(failed.diagnostics[0].message.contains("exited 1, read from the files: denied"), "{:?}", failed.diagnostics);
+        assert!(
+            failed.diagnostics[0]
+                .message
+                .contains("exited 1, read from the files: denied"),
+            "{:?}",
+            failed.diagnostics
+        );
     }
 
     #[test]
@@ -730,27 +1307,59 @@ mod tests {
         let reply = sysctl(&[
             file("/etc/sysctl.conf", "kernel.c = conf\n"),
             file("/etc/sysctl.d/50-same.conf", "kernel.a = etc\n"),
-            file("/usr/lib/sysctl.d/50-same.conf", "kernel.a = usr\nkernel.b = usr\n"),
-            file("/usr/lib/sysctl.d/10-early.conf", "kernel.b = early\nkernel/c = early\n-net/ipv4/conf/eth0.100/rp_filter=2\n; c\nbad line\n"),
+            file(
+                "/usr/lib/sysctl.d/50-same.conf",
+                "kernel.a = usr\nkernel.b = usr\n",
+            ),
+            file(
+                "/usr/lib/sysctl.d/10-early.conf",
+                "kernel.b = early\nkernel/c = early\n-net/ipv4/conf/eth0.100/rp_filter=2\n; c\nbad line\n",
+            ),
             file("/usr/lib/sysctl.d/99-late.conf", "kernel.a.deeper = 1\n"),
             file("/opt/sysctl.d/00-ignored.conf", "kernel.a = ignored\n"),
         ]);
         let settings = &reply.facts["settings"];
-        assert_eq!((settings["kernel"]["a"].as_str(), settings["kernel"]["b"].as_str(), settings["kernel"]["c"].as_str()), (Some("etc"), Some("early"), Some("conf")));
+        assert_eq!(
+            (
+                settings["kernel"]["a"].as_str(),
+                settings["kernel"]["b"].as_str(),
+                settings["kernel"]["c"].as_str()
+            ),
+            (Some("etc"), Some("early"), Some("conf"))
+        );
         assert_eq!(settings["net"]["ipv4"]["conf"]["eth0/100"]["rp_filter"], 2);
-        assert_eq!(reply.diagnostics.iter().map(|d| (d.path.as_str(), d.line)).collect::<Vec<_>>(), [("/usr/lib/sysctl.d/10-early.conf", Some(5)), ("kernel.a.deeper", None)]);
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| (d.path.as_str(), d.line))
+                .collect::<Vec<_>>(),
+            [
+                ("/usr/lib/sysctl.d/10-early.conf", Some(5)),
+                ("kernel.a.deeper", None)
+            ]
+        );
     }
 
     #[test]
     fn sysctl_keys_swap_only_when_a_slash_comes_first() {
-        assert_eq!(sysctl_key("net/ipv4/conf/eth0.100/rp_filter"), "net.ipv4.conf.eth0/100.rp_filter");
-        assert_eq!(sysctl_key("net.ipv4.conf.eth0/100.rp_filter"), "net.ipv4.conf.eth0/100.rp_filter");
+        assert_eq!(
+            sysctl_key("net/ipv4/conf/eth0.100/rp_filter"),
+            "net.ipv4.conf.eth0/100.rp_filter"
+        );
+        assert_eq!(
+            sysctl_key("net.ipv4.conf.eth0/100.rp_filter"),
+            "net.ipv4.conf.eth0/100.rp_filter"
+        );
         assert_eq!(sysctl_key("kernel"), "kernel");
     }
 
     #[test]
     fn mask_hides_a_password_only() {
-        assert_eq!(mask("http://u:p@proxy:3128/"), "http://u:[redacted]@proxy:3128/");
+        assert_eq!(
+            mask("http://u:p@proxy:3128/"),
+            "http://u:[redacted]@proxy:3128/"
+        );
         assert_eq!(mask("http://proxy:3128"), "http://proxy:3128");
     }
 }

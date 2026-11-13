@@ -30,13 +30,27 @@ impl Root {
     /// Opens `path` as the root; on a live host that is `/`.
     pub fn open(path: &Path) -> Result<Self, String> {
         let fixes = [
-            (io::ErrorKind::NotFound, "Pass the directory an image is unpacked or mounted at."),
-            (io::ErrorKind::NotADirectory, "Pass a directory, such as an unpacked image’s root."),
-            (io::ErrorKind::PermissionDenied, "Run with sudo, or pick a root you can read."),
+            (
+                io::ErrorKind::NotFound,
+                "Pass the directory an image is unpacked or mounted at.",
+            ),
+            (
+                io::ErrorKind::NotADirectory,
+                "Pass a directory, such as an unpacked image’s root.",
+            ),
+            (
+                io::ErrorKind::PermissionDenied,
+                "Run with sudo, or pick a root you can read.",
+            ),
         ];
         let explain = |e: &io::Error| crate::explain::io("open root", path, e, &fixes);
         let path = path.canonicalize().map_err(|e| explain(&e))?;
-        let fd = rustix::fs::open(&path, OFlags::PATH | OFlags::DIRECTORY | OFlags::CLOEXEC, Mode::empty()).map_err(|e| explain(&e.into()))?;
+        let fd = rustix::fs::open(
+            &path,
+            OFlags::PATH | OFlags::DIRECTORY | OFlags::CLOEXEC,
+            Mode::empty(),
+        )
+        .map_err(|e| explain(&e.into()))?;
         log::debug!("root {} opened", path.display());
         Ok(Self { fd, path })
     }
@@ -50,12 +64,22 @@ impl Root {
         let resolve = ResolveFlags::IN_ROOT | ResolveFlags::NO_MAGICLINKS;
         let mut tries = 0;
         loop {
-            match openat2(&self.fd, path, flags | OFlags::CLOEXEC, Mode::empty(), resolve) {
+            match openat2(
+                &self.fd,
+                path,
+                flags | OFlags::CLOEXEC,
+                Mode::empty(),
+                resolve,
+            ) {
                 Err(rustix::io::Errno::AGAIN) if tries < RETRIES => {
                     tries += 1;
                     log::debug!("openat2 {path} raced a rename, try {tries} of {RETRIES}");
                 }
-                Err(rustix::io::Errno::NOSYS) => return Err(io::Error::other("openat2 is missing; systemlint needs Linux 5.6 or later")),
+                Err(rustix::io::Errno::NOSYS) => {
+                    return Err(io::Error::other(
+                        "openat2 is missing; systemlint needs Linux 5.6 or later",
+                    ));
+                }
                 result => return result.map_err(io::Error::from),
             }
         }
@@ -75,7 +99,12 @@ impl Root {
                 let dir = if base.is_empty() { "/" } else { base };
                 let fd = match self.open_at(dir, OFlags::RDONLY | OFlags::DIRECTORY) {
                     Ok(fd) => fd,
-                    Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::NotADirectory) => {
+                    Err(e)
+                        if matches!(
+                            e.kind(),
+                            io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+                        ) =>
+                    {
                         log::trace!("glob {pattern}: {dir} is absent, no match under it");
                         continue;
                     }
@@ -99,9 +128,13 @@ impl Root {
 
     /// The bytes of the regular file at `path`, failing above `cap` bytes.
     pub fn read(&self, path: &str, cap: u64) -> io::Result<Vec<u8>> {
-        let file = File::from(self.open_at(path, OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOCTTY)?);
+        let file =
+            File::from(self.open_at(path, OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOCTTY)?);
         if !file.metadata()?.is_file() {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "not a regular file"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "not a regular file",
+            ));
         }
         let mut bytes = Vec::new();
         file.take(cap + 1).read_to_end(&mut bytes)?;
@@ -113,12 +146,23 @@ impl Root {
     }
 
     /// The lowercase hex digests of the regular file at `path`, read in one pass.
-    pub fn digests(&self, path: &str, digests: &[Digest]) -> io::Result<(Option<String>, Option<String>)> {
-        let mut file = File::from(self.open_at(path, OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOCTTY)?);
+    pub fn digests(
+        &self,
+        path: &str,
+        digests: &[Digest],
+    ) -> io::Result<(Option<String>, Option<String>)> {
+        let mut file =
+            File::from(self.open_at(path, OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOCTTY)?);
         if !file.metadata()?.is_file() {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "not a regular file"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "not a regular file",
+            ));
         }
-        let (mut sha256, mut sha512) = (digests.contains(&Digest::Sha256).then(Sha256::new), digests.contains(&Digest::Sha512).then(Sha512::new));
+        let (mut sha256, mut sha512) = (
+            digests.contains(&Digest::Sha256).then(Sha256::new),
+            digests.contains(&Digest::Sha512).then(Sha512::new),
+        );
         let (mut buffer, mut total) = (vec![0u8; 64 * 1024], 0u64);
         loop {
             let n = match file.read(&mut buffer) {
@@ -132,12 +176,19 @@ impl Root {
             sha512.iter_mut().for_each(|h| h.update(&buffer[..n]));
         }
         log::trace!("digests {path}: {total} bytes");
-        Ok((sha256.map(|h| hex(&h.finalize())), sha512.map(|h| hex(&h.finalize()))))
+        Ok((
+            sha256.map(|h| hex(&h.finalize())),
+            sha512.map(|h| hex(&h.finalize())),
+        ))
     }
 
     /// `path` opened to change its mode or owner, refusing a final symlink, never blocking on a FIFO.
     pub fn open_for_change(&self, path: &str) -> io::Result<File> {
-        self.open_at(path, OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::NOCTTY).map(File::from)
+        self.open_at(
+            path,
+            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::NOCTTY,
+        )
+        .map(File::from)
     }
 
     /// The metadata of `path` itself, a final symlink not followed.
@@ -188,14 +239,17 @@ pub fn wildcard(pattern: &str, name: &str) -> bool {
     if name.starts_with('.') && !pattern.starts_with('.') {
         return false;
     }
-    let (pattern, name): (Vec<char>, Vec<char>) = (pattern.chars().collect(), name.chars().collect());
+    let (pattern, name): (Vec<char>, Vec<char>) =
+        (pattern.chars().collect(), name.chars().collect());
     matches(&pattern, &name)
 }
 
 fn matches(pattern: &[char], name: &[char]) -> bool {
     match (pattern.first(), name.first()) {
         (None, None) => true,
-        (Some('*'), _) => matches(&pattern[1..], name) || (!name.is_empty() && matches(pattern, &name[1..])),
+        (Some('*'), _) => {
+            matches(&pattern[1..], name) || (!name.is_empty() && matches(pattern, &name[1..]))
+        }
         (Some('?'), Some(_)) => matches(&pattern[1..], &name[1..]),
         (Some(p), Some(n)) if p == n => matches(&pattern[1..], &name[1..]),
         _ => false,
