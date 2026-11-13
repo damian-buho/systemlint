@@ -221,6 +221,14 @@ fn human_puts_a_fix_under_each_location_when_the_fixes_differ() {
 }
 
 #[test]
+fn human_prints_the_whole_message_of_a_subjectless_check_that_names_no_value() {
+    let rule = compile("x/host", systemlint::yaml::from_str("title: Host lacks it\nfact: v\nexpect: {const: 0}\nmessage: Nothing provides it, so it never arrives\n").unwrap()).unwrap();
+    let document = json!({"v": 1});
+    let text = lint_human(&document, &lint(&document, &[rule], &[], "2026-11-11"), &[], true, false, false);
+    assert_eq!(text, "Warning (5.0): [x/host] Host lacks it\n- Nothing provides it, so it never arrives.\n\n");
+}
+
+#[test]
 fn human_puts_each_remedy_command_under_its_location_unstopped_so_it_pastes() {
     let rule = compile("x/mode", systemlint::yaml::from_str("fact: files.*\nexpect: {const: 0}\nfix: clear it\nremedy: {chmod: o-w}\n").unwrap()).unwrap();
     let document = json!({"files": {"/etc/a": 1, "/etc/b b": 2, "/etc/c": 0}});

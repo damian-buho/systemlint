@@ -220,6 +220,7 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     for problem in &problems {
         for check in problem {
             let (subject, said) = (check.subject_label(), if problem.len() > 1 { None } else { detail(check) });
+            let said = if subject.is_empty() { said.or_else(|| check.message.clone()) } else { said };
             let named = check.title.is_none() && said.as_deref().is_some_and(|m| m.contains(&subject));
             let mut line = location(if named { "" } else { &subject }, said.as_deref());
             if let Some(w) = &check.waiver {
