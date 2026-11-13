@@ -302,9 +302,50 @@ fn ufw_service(enabled: &str, state: Value) -> Vec<(String, Outcome)> {
     document["systemd"]["state"] = state;
     judge("ufw", &document)
         .into_iter()
-        .filter(|(rule, _, _)| rule != "ufw/disabled")
+        .filter(|(rule, _, _)| rule != "ufw/disabled" && rule != "ufw/service-failed")
         .map(|(rule, _, o)| (rule, o))
         .collect()
+}
+
+// The outcomes of ufw/service-failed for ufw.conf's ENABLED and the systemd state of every unit.
+fn ufw_failed(enabled: &str, state: Value) -> Vec<Outcome> {
+    let mut document = ufw(&["/usr/sbin/ufw"], Some(json!({"ENABLED": enabled})));
+    document["systemd"]["state"] = state;
+    judge("ufw", &document)
+        .into_iter()
+        .filter(|(rule, _, _)| rule == "ufw/service-failed")
+        .map(|(_, _, o)| o)
+        .collect()
+}
+
+#[test]
+fn ufw_service_fails_when_failed_and_stays_quiet_without_a_manager() {
+    let unit = |active: &str| json!({"ufw.service": {"enabled": true, "masked": false, "active": active, "sub": "x"}, "ssh.service": {"enabled": true, "masked": false, "active": "failed"}});
+    assert_eq!(ufw_failed("yes", unit("failed")), [Outcome::Fail]);
+    assert_eq!(ufw_failed("yes", unit("active")), [Outcome::Pass]);
+    assert_eq!(
+        ufw_failed("yes", unit("inactive")),
+        [Outcome::Pass],
+        "not started yet is ufw/service-disabled’s case"
+    );
+    assert_eq!(
+        ufw_failed("no", unit("failed")),
+        [Outcome::Skip],
+        "ufw/disabled already reports it"
+    );
+    assert_eq!(
+        ufw_failed(
+            "yes",
+            json!({"ufw.service": {"enabled": true, "masked": false}})
+        ),
+        [Outcome::Pass],
+        "--root has no active state: quiet, not unknown"
+    );
+    assert_eq!(
+        ufw_failed("yes", json!({})),
+        [],
+        "no ufw.service unit: nothing to start"
+    );
 }
 
 #[test]

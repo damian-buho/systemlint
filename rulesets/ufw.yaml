@@ -31,6 +31,20 @@ rules:
     references:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
     tags: [ufw, firewall, systemd, lynis]
+  ufw/service-failed:
+    title: ufw switched on but its service failed
+    fact: systemd.state.*
+    keys: {const: ufw.service}
+    when: {ufw.conf.ENABLED: "yes"}
+    expect: {properties: {active: {not: {const: failed}}}}
+    severity: error
+    score: 7.0
+    message: "ufw.service failed, so the rules /etc/ufw/ufw.conf enables are not loaded and the host runs without its firewall"
+    fix: read journalctl --unit ufw.service for the error, fix the rules it names, then run systemctl restart ufw.service
+    docs: https://www.freedesktop.org/software/systemd/man/latest/journalctl.html
+    references:
+      - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
+    tags: [ufw, firewall, systemd, lynis]
   ufw/service-disabled:
     title: ufw switched on but its service disabled
     fact: systemd.state.*.enabled

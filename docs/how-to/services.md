@@ -108,3 +108,6 @@ program exists, which makes the `ufw` ruleset `not-applicable`, whatever
 installed it. Once `ENABLED=yes`, `ufw/service-masked` fails a masked
 `ufw.service` and `ufw/service-disabled` one that nothing links, since systemd
 then never starts ufw at boot; a host with no `ufw.service` unit has no check.
+`ufw/service-failed` fails a `ufw.service` whose `active` state is `failed`,
+which loaded no rules either; under `--root`, where no unit carries `active`,
+it passes rather than answering `unknown`.
