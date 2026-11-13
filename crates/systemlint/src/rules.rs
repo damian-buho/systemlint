@@ -142,6 +142,8 @@ pub struct Ruleset {
     #[serde(default)]
     pub when: Option<When>,
     #[serde(default)]
+    pub vars: BTreeMap<String, crate::vars::Var>,
+    #[serde(default)]
     pub rules: Map<String, Value>,
 }
 
@@ -252,8 +254,8 @@ impl Library {
         Ok(Self { rulesets, definitions })
     }
 
-    /// Every trusted ruleset file in `dirs` by file stem, then `inline` ones; a name given twice is refused.
-    pub fn load(dirs: &[PathBuf], trust: &Trust, inline: &BTreeMap<String, Ruleset>) -> (Result<Self, String>, Vec<Refusal>) {
+    /// Every trusted ruleset file in `dirs` by file stem, then `inline` ones, their vars filled from `vars`; a name given twice is refused.
+    pub fn load(dirs: &[PathBuf], trust: &Trust, inline: &BTreeMap<String, Ruleset>, vars: &crate::vars::Supplied) -> (Result<Self, String>, Vec<Refusal>) {
         let (texts, mut refusals) = crate::discovery::yaml_files(dirs, trust);
         let mut rulesets = BTreeMap::new();
         for (path, text) in texts {
@@ -273,7 +275,7 @@ impl Library {
                 return (Err(format!("ruleset {name} in the config is also a file; give it another name")), refusals);
             }
         }
-        (Self::new(rulesets), refusals)
+        (crate::vars::apply(&mut rulesets, vars).and_then(|()| Self::new(rulesets)), refusals)
     }
 
     /// Every rule `name` holds: a ruleset flattened through `extends`, else the rules whose ID or a tag matches it as a glob.

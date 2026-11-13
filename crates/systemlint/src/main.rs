@@ -104,6 +104,8 @@ enum Command {
         #[arg(long, value_name = "LEVEL")]
         fail_on: Option<FailOn>,
         #[command(flatten)]
+        vars: Vars,
+        #[command(flatten)]
         look: Look,
         /// Write the report to PATH atomically, mode 0644, instead of stdout, - for stdout
         #[arg(short, long, value_name = "PATH")]
@@ -119,6 +121,8 @@ enum Command {
         /// Rules to fix, as for lint [default: lint.tags, else every rule]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
+        #[command(flatten)]
+        vars: Vars,
         /// Print each change as its command and make none
         #[arg(short = 'n', long)]
         dry_run: bool,
@@ -159,6 +163,21 @@ struct Input {
     /// Also read this OCI image config or docker inspect JSON, for the image’s environment
     #[arg(long, value_name = "PATH", conflicts_with = "facts")]
     image_config: Option<PathBuf>,
+}
+
+/// Values for the vars rulesets declare.
+#[derive(clap::Args)]
+struct Vars {
+    /// Set a ruleset var, over --vars, its from-env variable, lint.vars and its default; repeatable
+    #[arg(long = "var", value_name = "NAME=VALUE", value_parser = var)]
+    var: Vec<(String, String)>,
+    /// Read ruleset vars from this YAML map of name: value pairs, under --var
+    #[arg(long = "vars", value_name = "FILE")]
+    vars: Option<PathBuf>,
+}
+
+fn var(text: &str) -> Result<(String, String), String> {
+    text.split_once('=').filter(|(name, _)| !name.is_empty()).map(|(n, v)| (n.to_owned(), v.to_owned())).ok_or_else(|| format!("{text} is not NAME=VALUE"))
 }
 
 /// How `lint` lays out its report.
@@ -222,8 +241,8 @@ fn main() -> ExitCode {
     };
     match command {
         Command::Facts { root, image_config, output, format } => ExitCode::from(facts(&config, root.as_deref(), image_config, output.as_deref(), format.or(config.collect.format), cli.quiet)),
-        Command::Lint { input, tags, standard, fail_on, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
-        Command::Fix { root, tags, dry_run, force, no_input } => ExitCode::from(fix(&config, root.as_deref(), &Selection { tags, standards: vec![] }, Ask { dry_run, force, no_input }, cli.quiet)),
+        Command::Lint { input, tags, standard, fail_on, vars, look, output } => ExitCode::from(lint(&config, &input, &Selection { tags, standards: standard, vars }, fail_on, &Look { verbose: cli.verbose, ..look }, output.as_deref(), cli.quiet)),
+        Command::Fix { root, tags, vars, dry_run, force, no_input } => ExitCode::from(fix(&config, root.as_deref(), &Selection { tags, standards: vec![], vars }, Ask { dry_run, force, no_input }, cli.quiet)),
         Command::Plugin(PluginCommand::List { format }) => ExitCode::from(plugin_list(&config, format.or(config.plugins.format) == Some(ListFormat::Json), cli.quiet)),
     }
 }
@@ -326,9 +345,14 @@ fn facts_for(config: &Config, input: &Input, quiet: bool) -> Result<(Value, bool
     }
 }
 
-fn library(config: &Config) -> Result<Library, u8> {
+fn library(config: &Config, vars: &Vars) -> Result<Library, u8> {
     let dirs = rules::directories(&exe(), &config.lint.directories);
-    let (library, refusals) = trail::scoped(trail::CONFIG, || Library::load(&dirs, &Trust::invoking_user(), &config.lint.rulesets));
+    let mut flags = vec![("--var".to_owned(), vars.var.iter().map(|(n, v)| (n.clone(), Value::from(v.as_str()))).collect())];
+    if let Some(path) = &vars.vars {
+        flags.push((format!("--vars {}", path.display()), trail::scoped(trail::CONFIG, || systemlint::vars::file(path)).map_err(fail(trail::CONFIG, EXIT_CONFIG))?));
+    }
+    let supplied = systemlint::vars::Supplied { flags, config: config.lint.vars.clone(), ..Default::default() };
+    let (library, refusals) = trail::scoped(trail::CONFIG, || Library::load(&dirs, &Trust::invoking_user(), &config.lint.rulesets, &supplied));
     print_refusals(trail::CONFIG, &refusals);
     let library = library.map_err(fail(trail::CONFIG, EXIT_CONFIG))?;
     log::debug!("{} rulesets define {} rules, searched {}", library.rulesets.len(), library.definitions.len(), dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "));
@@ -375,10 +399,11 @@ fn today() -> String {
     collect::rfc3339(SystemTime::now())[..10].to_owned()
 }
 
-/// What `lint` runs: the `--tags` selectors and the standards to answer.
+/// What `lint` runs: the `--tags` selectors, the standards to answer and the ruleset var values.
 struct Selection {
     tags: Vec<String>,
     standards: Vec<String>,
+    vars: Vars,
 }
 
 /// The catalog of each standard, from the rules directories or their `standards` siblings.
@@ -400,7 +425,7 @@ fn catalogs(config: &Config, standards: &[String]) -> Result<Vec<Option<comply::
 
 fn lint(config: &Config, input: &Input, selection: &Selection, fail_on: Option<FailOn>, look: &Look, output: Option<&Path>, quiet: bool) -> u8 {
     let run = || -> Result<u8, u8> {
-        let library = library(config)?;
+        let library = library(config, &selection.vars)?;
         let rules = if library.definitions.is_empty() { Vec::new() } else { compiled(&library, selection, config)? };
         let catalogs = catalogs(config, &selection.standards)?;
         let fail_on = fail_on.or_else(|| config.lint.fail_on.as_deref().and_then(|t| t.parse().ok())).unwrap_or(FailOn::Level(rules::Severity::Error));
@@ -463,7 +488,7 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
         return EXIT_CONFIG;
     }
     let run = || -> Result<u8, u8> {
-        let library = library(config)?;
+        let library = library(config, &selection.vars)?;
         let rules = if library.definitions.is_empty() { Vec::new() } else { compiled(&library, selection, config)? };
         let (document, trusted) = gather(config, root, None, quiet)?;
         let changes = systemlint::fix::plan(&judge::lint(&document, &rules, &config.lint.waivers, &today()), &rules);

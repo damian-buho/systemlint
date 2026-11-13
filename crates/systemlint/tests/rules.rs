@@ -115,11 +115,11 @@ fn load_reads_trusted_files_by_stem_and_refuses_a_clash_with_the_config() {
     std::fs::set_permissions(dir.join("fixture.yaml"), std::fs::Permissions::from_mode(0o644)).unwrap();
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
     let trust = Trust { uids: vec![rustix::process::getuid().as_raw()], top: dir.clone() };
-    let (lib, refusals) = Library::load(std::slice::from_ref(&dir), &trust, &BTreeMap::new());
+    let (lib, refusals) = Library::load(std::slice::from_ref(&dir), &trust, &BTreeMap::new(), &Default::default());
     assert!(refusals.is_empty(), "{refusals:?}");
     assert_eq!(lib.unwrap().definitions.len(), 4);
     let inline = BTreeMap::from([("fixture".to_owned(), Ruleset::default())]);
-    assert!(Library::load(&[dir], &trust, &inline).0.unwrap_err().contains("in the config is also a file"));
+    assert!(Library::load(&[dir], &trust, &inline, &Default::default()).0.unwrap_err().contains("in the config is also a file"));
 }
 
 #[test]

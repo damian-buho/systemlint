@@ -71,7 +71,7 @@ pub struct Fix {
     pub enabled: Option<bool>,
 }
 
-/// The `lint:` section: where rulesets live, inline ones, the default selectors, the threshold and waivers.
+/// The `lint:` section: where rulesets live, inline ones, the default selectors, var values, the threshold and waivers.
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Lint {
@@ -81,6 +81,8 @@ pub struct Lint {
     pub rulesets: BTreeMap<String, Ruleset>,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub vars: serde_json::Map<String, serde_json::Value>,
     #[serde(default, rename = "fail-on")]
     pub fail_on: Option<String>,
     #[serde(default)]

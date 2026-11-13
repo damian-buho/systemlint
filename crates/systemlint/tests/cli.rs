@@ -267,6 +267,25 @@ fn an_output_counts_its_findings_one_in_the_singular() {
 }
 
 #[test]
+fn ruleset_vars_come_from_var_then_vars_then_config_then_default() {
+    let dir = base("vars");
+    let path = dir.join("facts.yaml");
+    std::fs::write(&path, format!("meta: {{schema: {}}}\nx: 1\n", systemlint::collect::SCHEMA)).unwrap();
+    let file = dir.join("vars.yaml");
+    std::fs::write(&file, "want: 1\n").unwrap();
+    let (facts, file) = (path.display().to_string(), file.display().to_string());
+    let config = "lint:\n  rulesets:\n    t: {vars: {want: {default: 2}}, rules: {t/x: {fact: x, expect: {const: '${want}'}, severity: error}}}\n";
+    assert_eq!(run(&dir, config, &["lint", &facts]).0, 1, "the default 2 fails x: 1");
+    assert_eq!(run(&dir, &format!("{config}  vars: {{want: 1}}\n"), &["lint", &facts]).0, 0, "lint.vars beats the default");
+    assert_eq!(run(&dir, config, &["lint", "--vars", &file, &facts]).0, 0, "--vars beats the default");
+    assert_eq!(run(&dir, config, &["lint", "--vars", &file, "--var", "want=3", &facts]).0, 1, "--var beats --vars");
+    assert_eq!(run(&dir, config, &["lint", "--var", "want=1", &facts]).0, 0, "a --var text takes the number type of its default");
+    let (code, stderr) = run(&dir, config, &["lint", "--var", "wnat=1", &facts]);
+    assert_eq!((code, stderr.lines().next()), (5, Some("--var sets var wnat, which no ruleset declares")), "{stderr}");
+    assert_eq!(run(&dir, config, &["lint", "--var", "=1", &facts]).0, 2);
+}
+
+#[test]
 fn a_closed_stdout_ends_the_run_on_sigpipe_with_no_message() {
     use std::os::unix::process::ExitStatusExt;
     let dir = base("sigpipe");

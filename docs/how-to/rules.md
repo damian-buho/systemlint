@@ -188,6 +188,30 @@ every rule it brings through `extends` or overrides; a rule answers
 A false schema over an object names in its reason only the properties the
 schema reads (`when os.release.ID is “fedora” and os.release.ID_LIKE is none`).
 
+### Variables
+
+A ruleset declares `vars`, and `${name}` fills the strings of its own entries’
+`expect`, `when` and `message`, and of its ruleset `when`, as it loads:
+
+```yaml
+vars:
+  ntp: {default: pool.ntp.org, from-env: NTP_SERVER}
+  max-days: {default: 90}
+rules:
+  time/server: {fact: ntp.server, expect: {const: "${ntp}"}, message: "use ${ntp}"}
+  login/max-days: {fact: login.max-days, expect: {maximum: "${max-days}"}}
+```
+
+A value comes from the first that sets it: `--var NAME=VALUE`, `--vars FILE` (a
+YAML map), the environment variable `from-env` names, `lint.vars`, then
+`default`. A string that is only `${name}` takes the value with its type, so
+`maximum` above gets the number 90; a text value from a flag or the environment
+takes the type of a number or boolean default, and fails when it is not one.
+`$${` writes a literal `${`. Substitution is static: no expressions, and no
+environment read unless `from-env` names it. The load fails, naming the var and
+the ruleset, when a var has no value and no default, when an entry names a var
+its ruleset does not declare, or when a value names a var no ruleset declares.
+
 ## Selecting rules
 
 `--tags`, or `lint.tags` in the config, is one comma list of selectors. Each

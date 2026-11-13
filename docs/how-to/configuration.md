@@ -63,6 +63,7 @@ collect:
 lint:
   directories: [rulesets]
   tags: [apt, sshd]    # the default --tags
+  vars: {ntp: time.example}  # ruleset var values, under --var, --vars and from-env
   fail-on: warning     # the default --fail-on
   format: sarif        # the default --format: human, json, sarif or textfile
   color: never         # the default --color: auto, always or never

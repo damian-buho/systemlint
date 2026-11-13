@@ -239,7 +239,7 @@ fn a_catalog_is_found_in_a_rules_directory_or_its_standards_sibling() {
 fn a_catalog_beside_rulesets_is_no_ruleset_and_a_ruleset_is_no_catalog() {
     let base = tree("comply-beside", &[("rules/fixture.yaml", "rulesets/fixture.yaml"), ("rules/fixture-a.yaml", "standards/fixture-a.yaml"), ("standards/fixture.yaml", "rulesets/fixture.yaml")]);
     let rules = [base.join("rules")];
-    let (library, refusals) = Library::load(&rules, &trust(&base), &BTreeMap::new());
+    let (library, refusals) = Library::load(&rules, &trust(&base), &BTreeMap::new(), &Default::default());
     assert!(refusals.is_empty(), "{refusals:?}");
     assert_eq!(library.unwrap().rulesets.keys().collect::<Vec<_>>(), ["fixture"]);
     assert_eq!(comply::catalog(&comply::directories(&rules), &trust(&base), "fixture-a").0.unwrap().unwrap().name.as_deref(), Some("Fixture Benchmark A"));
