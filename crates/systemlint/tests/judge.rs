@@ -148,6 +148,26 @@ fn an_absent_fact_is_unknown_and_names_the_collector() {
         [(String::new(), Outcome::Unknown)],
         "an absent collection is one unknown, never zero checks"
     );
+    let sibling = json!({"systemd": {"units": {}}, "collectors": {"systemd-state": {"status": "error", "into": "systemd.state", "reason": "x"}, "systemd-units": {"status": "ok", "into": "systemd.units"}}});
+    let nested = run(
+        "fact: systemd.state.*.active\nkeys: {const: ufw.service}\nexpect: {const: active}\n",
+        &sibling,
+    );
+    assert_eq!(
+        outcomes(&nested),
+        [(String::new(), Outcome::Unknown)],
+        "a collection absent under a parent its sibling filled is still one unknown"
+    );
+    assert_eq!(nested[0].collector.as_deref(), Some("systemd-state"));
+    let empty = run(
+        "fact: systemd.units.*.active\nexpect: {const: active}\n",
+        &sibling,
+    );
+    assert_eq!(
+        outcomes(&empty),
+        [],
+        "a present but empty collection has no check"
+    );
 }
 
 #[test]

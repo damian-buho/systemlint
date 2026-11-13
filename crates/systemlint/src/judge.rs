@@ -231,7 +231,7 @@ fn walk(
         } else {
             bound.clone()
         };
-        walk(
+        let present = walk(
             document,
             child(value, &key).unwrap_or(&Value::Null),
             rest,
@@ -239,6 +239,10 @@ fn walk(
             next,
             found,
         );
+        // A key below a present parent may still be absent before the first `*`.
+        if !present && *segment != Segment::Star {
+            return false;
+        }
     }
     true
 }
