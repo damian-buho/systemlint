@@ -8,4 +8,4 @@ read:
   files-from: [env.units.*.environment-files]
 parse: {plugin: env, op: files}
 into: env.defaults
-privileged: true
+partial: true

@@ -30,7 +30,7 @@ Each collector passes its `read.stat` globs to the `stat` op of
 | `files-sshd` | `/etc/ssh/sshd_config`, `sshd_config.d` and its files, the public host keys | `files.sshd.<path>` |
 | `files-ssh-host-keys` | the private host keys, `/etc/ssh/ssh_host_*_key` | `files.ssh-host-keys.<path>` |
 | `files-apt-keyrings` | `/etc/apt/trusted.gpg`, `trusted.gpg.d`, `/etc/apt/keyrings`, `/usr/share/keyrings` and their files | `files.apt-keyrings.<path>` |
-| `files-path` | `/usr`, `/usr/local`, the directories of Debian’s default `PATH`, `/snap/bin` included, and every absolute `PATH` entry of a system file or a unit | `files.path.<path>` |
+| `files-path` | `/usr`, `/usr/local`, the directories of Debian’s default `PATH`, `/snap/bin` included, and every absolute `PATH` entry of a system file, a `/etc/default` or `EnvironmentFile=` file, or a unit | `files.path.<path>` |
 
 A stat holds `kind` (`file`, `directory`, `symlink`, `other`), `mode` as four
 octal digits, `uid`, `gid`, `size`, and the `world-writable`,

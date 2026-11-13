@@ -38,9 +38,10 @@ All five use `systemlint-env` and land under `env.<source>.<environment>`.
   empty value resetting the list. `systemctl show` gives the loaded units the
   same way; `env-defaults` reads the contents of every `EnvironmentFile=`
   beside `/etc/default/*`, each file once.
-- **Defaults**: a separate collector, so one file only root may read, such as
-  a 0600 `/etc/default/cacerts`, fails `env-defaults` alone in an
-  unprivileged run and leaves the other system files judged.
+- **Defaults**: a file only root may read, such as a 0600
+  `/etc/default/cacerts`, becomes its own `env.defaults.<path>` subject in an
+  unprivileged run, and its rules answer `unknown`, while every readable file
+  is judged.
 - **Running services**: the environment of the top process of each system
   service and each container, the lowest PID whose parent sits outside its
   cgroup, so a forking daemon’s worker never stands in for it. A container is
