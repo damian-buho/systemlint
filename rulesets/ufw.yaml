@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-description: An installed ufw firewall left switched off
+description: An installed ufw firewall left switched off, or never started at boot
 when: {ufw.binary: {minProperties: 1}}
 rules:
   ufw/disabled:
@@ -17,3 +17,31 @@ rules:
     references:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
     tags: [ufw, firewall, lynis]
+  ufw/service-masked:
+    title: ufw switched on but its service masked
+    fact: systemd.state.*.masked
+    keys: {const: ufw.service}
+    when: {ufw.conf.ENABLED: "yes"}
+    expect: {const: false}
+    severity: error
+    score: 7.0
+    message: "ufw.service is masked, so systemd never starts it and the rules /etc/ufw/ufw.conf enables are never loaded at boot"
+    fix: run systemctl unmask ufw.service, then systemctl enable --now ufw.service
+    docs: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#mask%20UNIT%E2%80%A6
+    references:
+      - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
+    tags: [ufw, firewall, systemd, lynis]
+  ufw/service-disabled:
+    title: ufw switched on but its service disabled
+    fact: systemd.state.*.enabled
+    keys: {const: ufw.service}
+    when: {ufw.conf.ENABLED: "yes", systemd.state.*.masked: false}
+    expect: {const: true}
+    severity: error
+    score: 7.0
+    message: "no .wants or .requires link pulls in ufw.service, so systemd never starts it and the rules /etc/ufw/ufw.conf enables are never loaded at boot"
+    fix: run systemctl enable --now ufw.service
+    docs: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#enable%20UNIT%E2%80%A6
+    references:
+      - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
+    tags: [ufw, firewall, systemd, lynis]

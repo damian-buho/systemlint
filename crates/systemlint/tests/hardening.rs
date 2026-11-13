@@ -94,10 +94,10 @@ fn ipv4_source_routing_fails_an_interface_only_when_all_allows_it_too() {
     assert_eq!(route(1, 1), [("eth0".to_owned(), Outcome::Fail)]);
 }
 
-// A document with the ufw collectors' facts: the binary paths found and ufw.conf, absent with None.
+// A document with the ufw collectors' facts: the binary paths found and ufw.conf, absent with None, and no unit state.
 fn ufw(binaries: &[&str], conf: Option<Value>) -> Value {
     let binary: serde_json::Map<String, Value> = binaries.iter().map(|p| ((*p).to_owned(), json!({"exists": true, "type": "file"}))).collect();
-    let mut document = json!({"ufw": {"binary": binary}, "collectors": {"ufw-binary": {"status": "ok", "into": "ufw.binary"}, "ufw": {"status": "ok", "into": "ufw.conf"}}});
+    let mut document = json!({"ufw": {"binary": binary}, "systemd": {"state": {}}, "collectors": {"ufw-binary": {"status": "ok", "into": "ufw.binary"}, "ufw": {"status": "ok", "into": "ufw.conf"}, "systemd-state": {"status": "ok", "into": "systemd.state"}}});
     if let Some(conf) = conf {
         document["ufw"]["conf"] = conf;
     }
@@ -106,11 +106,29 @@ fn ufw(binaries: &[&str], conf: Option<Value>) -> Value {
 
 #[test]
 fn ufw_switched_off_fails_only_where_its_program_exists() {
-    let outcome = |document: &Value| judge("ufw", document).into_iter().map(|(_, _, o)| o).collect::<Vec<_>>();
+    let outcome = |document: &Value| judge("ufw", document).into_iter().filter(|(rule, _, _)| rule == "ufw/disabled").map(|(_, _, o)| o).collect::<Vec<_>>();
     assert_eq!(outcome(&ufw(&[], Some(json!({"ENABLED": "no"})))), [Outcome::NotApplicable], "a leftover ufw.conf without the program");
     assert_eq!(outcome(&ufw(&["/usr/sbin/ufw"], Some(json!({"ENABLED": "yes"})))), [Outcome::Pass]);
     assert_eq!(outcome(&ufw(&["/usr/sbin/ufw"], Some(json!({"ENABLED": "no"})))), [Outcome::Fail]);
     assert_eq!(outcome(&ufw(&["/usr/sbin/ufw"], None)), [Outcome::Unknown], "the program without its configuration");
+}
+
+// The ufw service rules' outcomes, by rule, for ufw.conf's ENABLED and the systemd state of every unit.
+fn ufw_service(enabled: &str, state: Value) -> Vec<(String, Outcome)> {
+    let mut document = ufw(&["/usr/sbin/ufw"], Some(json!({"ENABLED": enabled})));
+    document["systemd"]["state"] = state;
+    judge("ufw", &document).into_iter().filter(|(rule, _, _)| rule != "ufw/disabled").map(|(rule, _, o)| (rule, o)).collect()
+}
+
+#[test]
+fn ufw_service_fails_masked_or_without_a_link_only_once_ufw_is_switched_on() {
+    let unit = |enabled: bool, masked: bool| json!({"ufw.service": {"enabled": enabled, "masked": masked}, "ssh.service": {"enabled": false, "masked": true}});
+    let (masked, disabled) = ("ufw/service-masked".to_owned(), "ufw/service-disabled".to_owned());
+    assert_eq!(ufw_service("yes", unit(true, false)), [(disabled.clone(), Outcome::Pass), (masked.clone(), Outcome::Pass)]);
+    assert_eq!(ufw_service("yes", unit(false, false)), [(disabled.clone(), Outcome::Fail), (masked.clone(), Outcome::Pass)]);
+    assert_eq!(ufw_service("yes", unit(true, true)), [(disabled.clone(), Outcome::Skip), (masked.clone(), Outcome::Fail)], "a mask is one finding, not two");
+    assert_eq!(ufw_service("no", unit(false, true)), [(disabled.clone(), Outcome::Skip), (masked.clone(), Outcome::Skip)], "ufw/disabled already reports it");
+    assert_eq!(ufw_service("yes", json!({"ssh.service": {"enabled": false, "masked": true}})), [], "no ufw.service unit: nothing to start");
 }
 
 // The outcome of tmp/sticky on one directory's stat, or with no tmp.dirs at all on None.
