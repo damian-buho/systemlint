@@ -121,3 +121,21 @@ rules:
     fix: run sudo apt update and fix the error it reports for the source
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt]
+  apt/security-suite:
+    title: No source for security updates
+    fact: apt.sources
+    when: {os.release: {required: [ID, VERSION_ID], properties: {ID: {enum: [debian, ubuntu]}}}}
+    expect:
+      not:
+        additionalProperties:
+          not:
+            required: [enabled, types, suites]
+            properties: {enabled: {const: true}, types: {contains: {const: deb}}, suites: {contains: {pattern: "-security$"}}}
+    severity: warning
+    score: 6.5
+    message: "No enabled apt source fetches a -security suite, so this release’s security fixes never reach the host"
+    fix: add the release’s security suite, such as noble-security from security.ubuntu.com or trixie-security from security.debian.org
+    docs: https://wiki.debian.org/SourcesList
+    references:
+      - {title: Lynis PKGS-7388, url: "https://cisofy.com/lynis/controls/PKGS-7388/"}
+    tags: [apt, lynis]

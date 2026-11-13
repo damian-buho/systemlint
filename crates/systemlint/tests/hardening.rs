@@ -133,6 +133,30 @@ fn a_world_writable_temporary_directory_fails_only_without_the_sticky_bit() {
     assert_eq!(tmp(None), [Outcome::Unknown]);
 }
 
+// The outcome of apt/security-suite for an os-release and the given sources, absent on None.
+fn security(release: Value, sources: Option<Value>) -> Outcome {
+    let mut document = json!({"os": {"release": release}, "collectors": {"os-release": {"status": "ok", "into": "os.release"}, "apt-sources": {"status": "ok", "into": "apt.sources"}}});
+    if let Some(sources) = sources {
+        document["apt"] = json!({"sources": sources});
+    }
+    judge("apt", &document).into_iter().find(|(r, _, _)| r == "apt/security-suite").unwrap().2
+}
+
+#[test]
+fn a_stable_release_without_an_enabled_binary_security_suite_fails() {
+    let noble = json!({"ID": "ubuntu", "VERSION_ID": "24.04"});
+    let source = |enabled: bool, types: &[&str], suites: &[&str]| json!({"enabled": enabled, "types": types, "suites": suites});
+    let with = |s: Value| Some(json!({"/etc/apt/sources.list.d/ubuntu.sources:1": source(true, &["deb"], &["noble", "noble-updates"]), "/etc/apt/sources.list.d/ubuntu.sources:7": s}));
+    assert_eq!(security(noble.clone(), with(source(true, &["deb"], &["noble-security"]))), Outcome::Pass);
+    assert_eq!(security(noble.clone(), with(source(false, &["deb"], &["noble-security"]))), Outcome::Fail, "disabled");
+    assert_eq!(security(noble.clone(), with(source(true, &["deb-src"], &["noble-security"]))), Outcome::Fail, "source packages only");
+    assert_eq!(security(noble.clone(), with(source(true, &["deb"], &["noble-backports"]))), Outcome::Fail);
+    assert_eq!(security(noble.clone(), Some(json!({}))), Outcome::Fail, "no source at all");
+    assert_eq!(security(noble, None), Outcome::Unknown);
+    assert_eq!(security(json!({"ID": "debian", "VERSION_CODENAME": "forky"}), Some(json!({}))), Outcome::Skip, "testing and unstable carry no VERSION_ID");
+    assert_eq!(security(json!({"ID": "kali", "ID_LIKE": "debian", "VERSION_ID": "2026.3"}), Some(json!({}))), Outcome::Skip, "a rolling derivative");
+}
+
 #[test]
 fn every_rule_carrying_a_lynis_reference_is_tagged_lynis_and_back() {
     for entry in std::fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets")).unwrap() {

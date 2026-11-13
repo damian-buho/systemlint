@@ -79,6 +79,12 @@ rule answers `not-applicable`.
 | `apt/key-conflict` | error | shares a repository with a source of another `Signed-By` |
 | `apt/stale-release` | error | has a cached Release past its `Valid-Until` |
 
+`apt/security-suite` (warning) judges the sources together: it fails when no
+enabled `deb` source names a suite ending in `-security`, so the release’s
+security fixes never arrive. It judges only Debian and Ubuntu releases that
+carry a `VERSION_ID`; testing, unstable and rolling derivatives such as Kali
+have no security suite and answer `skip`.
+
 A vendor that publishes one suite for every release, such as `xenial` for
 all Ubuntu versions, fails `apt/stale-suite` by design; waive it:
 

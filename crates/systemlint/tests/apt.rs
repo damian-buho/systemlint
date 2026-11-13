@@ -50,7 +50,7 @@ fn checks(document: &Value) -> Vec<Check> {
     let ruleset = systemlint::yaml::from_str(&std::fs::read_to_string(repository().join("rulesets/apt.yaml")).unwrap()).unwrap();
     let library = Library::new(BTreeMap::from([("apt".to_owned(), ruleset)])).unwrap();
     let rules: Vec<_> = library.select(&["apt".to_owned()]).unwrap().into_iter().map(|(id, spec)| compile(&id, spec).unwrap()).collect();
-    assert_eq!(rules.len(), 10);
+    assert_eq!(rules.len(), 11);
     lint(document, &rules, &[], "2026-11-11")
 }
 
@@ -63,7 +63,7 @@ fn failures(document: &Value) -> Vec<Check> {
 #[test]
 fn the_apt_rules_apply_to_debian_ubuntu_and_their_derivatives_alone() {
     let mut document = document("apt-misconfigured");
-    let judged = failures(&document).len();
+    let judged = failures(&document).iter().filter(|c| c.rule != "apt/security-suite").count();
     for (release, applies) in [
         (json!({"ID": "debian"}), true),
         (json!({"ID": "linuxmint", "ID_LIKE": "ubuntu debian"}), true),
@@ -78,8 +78,8 @@ fn the_apt_rules_apply_to_debian_ubuntu_and_their_derivatives_alone() {
         let checks = checks(&document);
         let outcomes: Vec<Outcome> = checks.iter().map(|c| c.outcome).collect();
         match applies {
-            true => assert_eq!(checks.iter().filter(|c| c.is_failing()).count(), judged, "{release}: {outcomes:?}"),
-            false => assert!(checks.len() == 10 && outcomes.iter().all(|o| *o == Outcome::NotApplicable), "{release}: {outcomes:?}"),
+            true => assert_eq!(checks.iter().filter(|c| c.is_failing() && c.rule != "apt/security-suite").count(), judged, "{release}: {outcomes:?}"),
+            false => assert!(checks.len() == 11 && outcomes.iter().all(|o| *o == Outcome::NotApplicable), "{release}: {outcomes:?}"),
         }
     }
     document["os"]["release"] = json!({"ANSI_COLOR": "0;38;2;60;110;180", "ID": "rocky", "ID_LIKE": "rhel centos fedora", "NAME": "Rocky Linux"});
@@ -115,6 +115,7 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
         ("apt/key-conflict", format!("{list}:7")),
         ("apt/key-conflict", mirror.to_owned()),
         ("apt/shared-keyring", format!("{list}:6")),
+        ("apt/security-suite", String::new()),
         ("apt/signed-by", format!("{list}:5")),
         ("apt/stale-release", "/etc/apt/sources.list.d/expired.sources:5".to_owned()),
         ("apt/stale-suite", format!("{list}:9")),
