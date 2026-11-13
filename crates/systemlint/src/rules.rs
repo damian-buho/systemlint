@@ -88,6 +88,8 @@ pub struct Spec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub facts: Option<Facts>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub keys: Option<Map<String, Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<When>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub severity: Option<Severity>,
@@ -208,6 +210,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         fact: over.fact.or(base.fact),
         expect,
         facts: over.facts.or(base.facts),
+        keys: over.keys.or(base.keys),
         when: over.when.or(base.when),
         severity: if score_set && over.severity.is_none() { None } else { over.severity.or(base.severity) },
         score: over.score.or(base.score),

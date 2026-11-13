@@ -315,6 +315,7 @@ pub struct Rule {
     pub id: String,
     pub spec: Spec,
     fact: Vec<Segment>,
+    keys: Option<Validator>,
     suggest: Option<(Vec<Segment>, String)>,
     applies: Vec<(String, Vec<Vec<Guard>>)>,
     when: Vec<Vec<Guard>>,
@@ -368,7 +369,7 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
     let applies = spec.applies.iter().map(|(name, when)| guards(Some(when), 0, "a ruleset, which has no subject").map(|g| (name.clone(), g)).map_err(|e| fail(format!("ruleset {name}: {e}")))).collect::<Result<Vec<_>, _>>()?;
     if spec.manual {
         log::debug!("rule {id} is manual");
-        return Ok(Rule { id: id.to_owned(), spec, fact: vec![], suggest: None, applies, when: vec![], members: vec![], combine: Combine::All });
+        return Ok(Rule { id: id.to_owned(), spec, fact: vec![], keys: None, suggest: None, applies, when: vec![], members: vec![], combine: Combine::All });
     }
     let (combine, written): (Combine, Vec<Member>) = match (&spec.facts, &spec.fact, &spec.expect) {
         (Some(_), Some(_), _) | (Some(_), _, Some(_)) => return Err(fail("has facts, so it takes no fact or expect of its own".to_owned())),
@@ -395,8 +396,13 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         return Err(fail(format!("suggest has {} * where fact {fact_text} has {}, so it binds no subject", stars(path), stars(&fact))));
     }
     let when = guards(spec.when.as_ref(), stars(&fact), &format!("fact {fact_text}")).map_err(fail)?;
+    let keys = match &spec.keys {
+        Some(_) if stars(&fact) == 0 => return Err(fail(format!("keys filters the key a * binds, and fact {fact_text} has no *"))),
+        Some(keys) => Some(schema(keys).map_err(|e| fail(format!("keys {e}")))?),
+        None => None,
+    };
     log::debug!("rule {id} judges {} facts as {combine:?}", members.len());
-    Ok(Rule { id: id.to_owned(), spec, fact, suggest, applies, when, members, combine })
+    Ok(Rule { id: id.to_owned(), spec, fact, keys, suggest, applies, when, members, combine })
 }
 
 enum Tri {
@@ -673,8 +679,20 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
         }
         return vec![Check { reason: Some(reason), collector, ..base(rule, Outcome::Unknown, &[]) }];
     };
+    let bindings: Vec<Vec<String>> = bindings.into_iter().filter(|bound| kept(rule, bound)).collect();
     log::debug!("rule {} judges {} subjects", rule.id, bindings.len());
     bindings.iter().map(|bound| check(rule, document, bound, None)).collect()
+}
+
+/// Whether `keys` admits the key of the fact’s last `*`; a binding cut short by an absent fact is kept.
+fn kept(rule: &Rule, bound: &[String]) -> bool {
+    let Some(keys) = &rule.keys else { return true };
+    let Some(key) = bound.last().filter(|_| bound.len() == stars(&rule.fact)) else { return true };
+    let admitted = keys.is_valid(&Value::from(key.as_str()));
+    if !admitted {
+        log::debug!("rule {} leaves out subject {key}: keys does not admit it", rule.id);
+    }
+    admitted
 }
 
 /// Every check of every rule, with the first matching waiver attached to each failure, active through its `until` day.

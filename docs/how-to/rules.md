@@ -38,6 +38,7 @@ apt/https:
 | `fact` | the fact path; a `*` segment binds one subject per key or array index |
 | `expect` | the JSON Schema the fact must satisfy, `x-version` included |
 | `facts` | instead of `fact` and `expect`: `all`, `any` or `none` over a list of `{fact, expect}`, see [Several facts](#several-facts) |
+| `keys` | a JSON Schema the key of the fact’s last `*` must satisfy, or it is no subject, see [Subjects](#subjects) |
 | `when` | a guard: a map is AND, a list of maps is OR; each entry is a constant to equal or a schema to satisfy |
 | `severity` | `error`, `warning`, `info`, `hint` or `off`; `warning` when absent |
 | `score` | a number from 0.0 to 9.9, or a curve of `[value, score]` points read against the fact’s number |
@@ -64,6 +65,20 @@ joined by a comma and a space (`path, /usr` for `files.*.*.uid`). The reports
 and `{subject}` show only its last key (`/usr`), the one that names the thing;
 `--format json` and `sarif` keep every key, and a waiver’s `subject` matches
 either form.
+
+`keys` filters subjects by the key of the fact’s last `*`, the one `{subject}`
+shows, judged as a JSON Schema over that string:
+
+```yaml
+fact: files.ssh-user.*.mode
+keys: {not: {pattern: "\\.pub$|^known_hosts$"}}
+expect: {pattern: "^0[0-7]00$"}
+```
+
+A key it refuses binds no subject at all, so no check, not `skip`, and no
+`when` reads it; when it admits no key, the rule has no checks. A subject cut
+short by an absent fact keeps its `unknown` check, since its last key belongs
+to an earlier `*`.
 
 ### Several facts
 

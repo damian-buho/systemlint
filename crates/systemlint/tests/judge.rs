@@ -176,6 +176,20 @@ fn x_version_compares_in_the_named_scheme() {
 }
 
 #[test]
+fn keys_leave_out_subjects_by_the_key_of_the_last_star() {
+    let document = json!({"meta": {}, "collectors": {}, "files": {"ssh": {"id_ed25519": {"mode": "0644"}, "id_ed25519.pub": {"mode": "0644"}, "known_hosts": {"mode": "0644"}}}});
+    let rule = "fact: files.ssh.*.mode\nkeys: {not: {pattern: '\\.pub$|^known_hosts$'}}\nwhen: {files.ssh.*.mode: {type: string}}\nexpect: {const: '0600'}\nmessage: '{subject} is {got}'\n";
+    let checks = run(rule, &document);
+    assert_eq!(outcomes(&checks), [("id_ed25519".into(), Outcome::Fail)], "filtered keys are no subject at all, not skip");
+    assert!(checks[0].message.as_deref().unwrap().starts_with("id_ed25519 is"), "{:?}", checks[0].message);
+    assert!(run("fact: files.ssh.*.mode\nkeys: {const: nothing}\nexpect: {const: '0600'}\n", &document).is_empty(), "a key that matches nothing binds no subject");
+    let nested = json!({"meta": {}, "collectors": {}, "users": {"root": {}, "ann": {"keys": {"a.pub": 1, "b": 1}}}});
+    assert_eq!(outcomes(&run("fact: users.*.keys.*\nkeys: {not: {pattern: '\\.pub$'}}\nexpect: {const: 2}\n", &nested)), [("ann, b".into(), Outcome::Fail), ("root".into(), Outcome::Unknown)], "a binding cut short by an absent fact stays");
+    assert!(compile("x", spec("fact: a.b\nkeys: {pattern: x}\nexpect: {}\n")).err().unwrap().contains("keys filters the key a * binds, and fact a.b has no *"));
+    assert!(compile("x", spec("fact: a.*\nkeys: {type: nope}\nexpect: {}\n")).err().unwrap().contains("rule x: keys "));
+}
+
+#[test]
 fn paths_are_dotted_or_json_pointers() {
     let document = json!({"meta": {}, "collectors": {}, "files": {"/etc/ssh/sshd_config.d/a.conf": {"mode": "0644"}}});
     let pointer = run("fact: /files/~1etc~1ssh~1sshd_config.d~1a.conf/mode\nexpect: {const: '0600'}\n", &document);
