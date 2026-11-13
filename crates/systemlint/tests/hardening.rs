@@ -719,3 +719,51 @@ fn an_empty_password_fails_where_the_system_reads_it() {
         "an unprivileged run never reads as a pass"
     );
 }
+
+// A facts document holding the given mount tables, `active` skipped as under --root unless given.
+fn mounts(active: Option<Value>, fstab: Value) -> Vec<(String, String, Outcome)> {
+    let mut document = json!({"mounts": {"fstab": fstab}, "collectors": {"mounts-fstab": {"status": "ok", "into": "mounts.fstab"}, "mounts-active": {"status": "skipped", "reason": "live", "into": "mounts.active"}}});
+    if let Some(active) = active {
+        document["mounts"]["active"] = active;
+        document["collectors"]["mounts-active"] = json!({"status": "ok", "into": "mounts.active"});
+    }
+    let mut checks = judge("mounts", &document);
+    checks.sort();
+    checks
+}
+
+#[test]
+fn a_world_writable_mount_without_nosuid_or_nodev_fails() {
+    let at = |options: &[&str]| json!({"/tmp": {"options": options}, "/dev/shm": {"options": ["rw", "nosuid", "nodev"]}, "/home": {"options": ["rw"]}});
+    let row = |rule: &str, subject: &str, outcome| (rule.to_owned(), subject.to_owned(), outcome);
+    assert_eq!(
+        mounts(Some(at(&["rw", "nodev"])), at(&["rw"])),
+        [
+            row("mounts/fstab-nodev", "/dev/shm", Outcome::Skip),
+            row("mounts/fstab-nodev", "/tmp", Outcome::Skip),
+            row("mounts/fstab-nosuid", "/dev/shm", Outcome::Skip),
+            row("mounts/fstab-nosuid", "/tmp", Outcome::Skip),
+            row("mounts/nodev", "/dev/shm", Outcome::Pass),
+            row("mounts/nodev", "/tmp", Outcome::Pass),
+            row("mounts/nosuid", "/dev/shm", Outcome::Pass),
+            row("mounts/nosuid", "/tmp", Outcome::Fail),
+        ],
+        "a live run judges the active table alone and skips fstab, never /home"
+    );
+    assert_eq!(
+        mounts(None, at(&["nosuid", "noexec"])),
+        [
+            row("mounts/fstab-nodev", "/dev/shm", Outcome::Pass),
+            row("mounts/fstab-nodev", "/tmp", Outcome::Fail),
+            row("mounts/fstab-nosuid", "/dev/shm", Outcome::Pass),
+            row("mounts/fstab-nosuid", "/tmp", Outcome::Pass),
+            row("mounts/nodev", "", Outcome::Skip),
+            row("mounts/nosuid", "", Outcome::Skip),
+        ],
+        "a root run judges the declared table and skips the live one"
+    );
+    assert!(
+        mounts(Some(json!({"/": {"options": ["rw"]}})), json!({})).is_empty(),
+        "no separate /tmp mount, no check"
+    );
+}

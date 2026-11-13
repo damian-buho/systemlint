@@ -57,11 +57,13 @@ pub fn describe() -> Describe {
         &[
             ("csv", &[]),
             ("exec", &[]),
+            ("fstab", &[]),
             ("group", &[]),
             ("ini", &[]),
             ("json", &[]),
             ("kv", &[]),
             ("lines", &[]),
+            ("mountinfo", &[]),
             ("passwd", &[]),
             ("shadow", &[]),
             ("stat", &[]),
@@ -78,11 +80,13 @@ pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
         "csv" => Ok(csv(&request.inputs)),
         "exec" => Ok(exec(&request.inputs)),
+        "fstab" => Ok(fstab(&request.inputs)),
         "group" => Ok(group(&request.inputs)),
         "ini" => Ok(ini(&request.inputs)),
         "json" => Ok(json(&request.inputs)),
         "kv" => Ok(kv(&request.inputs)),
         "lines" => Ok(lines(&request.inputs)),
+        "mountinfo" => Ok(mountinfo(&request.inputs)),
         "passwd" => Ok(passwd(&request.inputs)),
         "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
@@ -337,6 +341,117 @@ pub fn group(inputs: &[Input]) -> Reply {
 /// Every account of shadow(5) files by name, with no hash.
 pub fn shadow(inputs: &[Input]) -> Reply {
     accounts(inputs, 9, shadow_entry)
+}
+
+/// A mount table field with its `\040`-style octal escapes decoded.
+fn unoctal(field: &str) -> String {
+    let (bytes, mut out, mut i) = (field.as_bytes(), Vec::with_capacity(field.len()), 0);
+    while i < bytes.len() {
+        let code = bytes.get(i + 1..i + 4).filter(|_| bytes[i] == b'\\');
+        match code.and_then(|c| u8::from_str_radix(std::str::from_utf8(c).ok()?, 8).ok()) {
+            Some(byte) => (out.push(byte), i += 4),
+            None => (out.push(bytes[i]), i += 1),
+        };
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// The fstab(5) options as mount(8) applies them: `user`, `users`, `owner` and `group` add what they imply, and a later `dev`, `suid` or `exec` drops its `no` form.
+fn fstab_options(written: &str) -> Vec<String> {
+    let mut options: Vec<String> = Vec::new();
+    for option in written.split(',').filter(|o| !o.is_empty()) {
+        let implied: &[&str] = match option {
+            "user" | "users" => &["noexec", "nosuid", "nodev"],
+            "owner" | "group" => &["nosuid", "nodev"],
+            _ => &[],
+        };
+        for o in std::iter::once(option).chain(implied.iter().copied()) {
+            let opposite = o.strip_prefix("no").map_or(format!("no{o}"), str::to_owned);
+            options.retain(|kept| *kept != opposite && kept != o);
+            options.push(o.to_owned());
+        }
+    }
+    options
+}
+
+/// One mount table line’s mount point and facts, `None` to skip it, or the message naming the bad field.
+type MountEntry = fn(&[&str]) -> std::result::Result<Option<(String, Map<String, Value>)>, String>;
+
+/// Every mount of mount table inputs keyed by mount point, a later line over the same point winning as the kernel stacks it; `entry` gives a line’s mount point and facts, or `None` to skip it.
+fn mount_table(inputs: &[Input], entry: MountEntry) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
+        for (index, raw) in text.lines().enumerate() {
+            let fields: Vec<&str> = raw.split_whitespace().collect();
+            if fields.first().is_none_or(|f| f.starts_with('#')) {
+                continue;
+            }
+            match entry(&fields) {
+                Ok(Some((point, mut facts))) => {
+                    facts.insert("line".to_owned(), Value::from(index as u64 + 1));
+                    reply.facts.insert(point, Value::Object(facts));
+                }
+                Ok(None) => {}
+                Err(message) => reply.diagnostics.push(Diagnostic {
+                    path: path.to_owned(),
+                    line: Some(index as u64 + 1),
+                    message,
+                }),
+            }
+        }
+    }
+    reply
+}
+
+/// Every mount of `/proc/*/mountinfo` by mount point: `source`, `filesystem`, the per-mount `options` and the filesystem’s `super-options`.
+pub fn mountinfo(inputs: &[Input]) -> Reply {
+    mount_table(inputs, |fields| {
+        let dash = fields
+            .iter()
+            .position(|f| *f == "-")
+            .filter(|d| *d >= 6 && d + 3 < fields.len());
+        let Some(dash) = dash else {
+            return Err(
+                "not a mountinfo line: no ` - ` after six fields with three after it".to_owned(),
+            );
+        };
+        let list = |s: &str| Value::from(s.split(',').map(unoctal).collect::<Vec<_>>());
+        Ok(Some((
+            unoctal(fields[4]),
+            Map::from_iter([
+                ("source".to_owned(), Value::from(unoctal(fields[dash + 2]))),
+                ("filesystem".to_owned(), Value::from(fields[dash + 1])),
+                ("options".to_owned(), list(fields[5])),
+                ("super-options".to_owned(), list(fields[dash + 3])),
+            ]),
+        )))
+    })
+}
+
+/// Every mount of fstab(5) files by mount point, swap left out: `source`, `filesystem` and the effective `options`.
+pub fn fstab(inputs: &[Input]) -> Reply {
+    mount_table(inputs, |fields| {
+        if !(3..=6).contains(&fields.len()) {
+            return Err(format!("{} fields where 3 to 6 are expected", fields.len()));
+        }
+        if fields[2] == "swap" {
+            return Ok(None);
+        }
+        Ok(Some((
+            unoctal(fields[1]),
+            Map::from_iter([
+                ("source".to_owned(), Value::from(unoctal(fields[0]))),
+                ("filesystem".to_owned(), Value::from(fields[2])),
+                (
+                    "options".to_owned(),
+                    Value::from(fstab_options(fields.get(3).copied().unwrap_or("defaults"))),
+                ),
+            ]),
+        )))
+    })
 }
 
 /// The text of a file input, or a diagnostic when it is missing or not UTF-8.
@@ -927,8 +1042,22 @@ mod tests {
                 .map(|o| o.op.as_str())
                 .collect::<Vec<_>>(),
             [
-                "csv", "exec", "group", "ini", "json", "kv", "lines", "passwd", "shadow", "stat",
-                "sysctl", "systemd", "toml", "yaml"
+                "csv",
+                "exec",
+                "fstab",
+                "group",
+                "ini",
+                "json",
+                "kv",
+                "lines",
+                "mountinfo",
+                "passwd",
+                "shadow",
+                "stat",
+                "sysctl",
+                "systemd",
+                "toml",
+                "yaml"
             ]
         );
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
@@ -1536,5 +1665,64 @@ mod tests {
                 ("root", "hash")
             ]
         );
+    }
+
+    #[test]
+    fn mountinfo_keys_mounts_by_point_the_top_of_a_stack_winning() {
+        let reply = mountinfo(&[file(
+            "/proc/self/mountinfo",
+            "22 1 0:21 / / rw,relatime shared:1 - ext4 /dev/sda1 rw\n\
+             30 22 0:30 / /tmp rw,nosuid,nodev shared:5 - tmpfs tmpfs rw,size=50%\n\
+             31 30 0:31 / /tmp rw - tmpfs tmpfs rw\n\
+             32 22 0:32 / /mnt/my\\040disk rw,noexec - vfat /dev/sd\\134b rw\n\
+             33 22 0:33 / /bad rw shared:1 - tmpfs\n",
+        )]);
+        assert_eq!(
+            json!(reply.facts),
+            json!({
+                "/": {"source": "/dev/sda1", "filesystem": "ext4", "options": ["rw", "relatime"], "super-options": ["rw"], "line": 1},
+                "/tmp": {"source": "tmpfs", "filesystem": "tmpfs", "options": ["rw"], "super-options": ["rw"], "line": 3},
+                "/mnt/my disk": {"source": "/dev/sd\\b", "filesystem": "vfat", "options": ["rw", "noexec"], "super-options": ["rw"], "line": 4},
+            })
+        );
+        assert_eq!(
+            reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(),
+            [Some(5)]
+        );
+    }
+
+    #[test]
+    fn fstab_applies_implied_and_later_options_and_skips_swap() {
+        let reply = fstab(&[file(
+            "/etc/fstab",
+            "# comment\n\
+             UUID=1 / ext4 defaults 0 1\n\
+             tmpfs /tmp tmpfs nosuid,nodev,noexec,dev 0 0\n\
+             /dev/sdb /media/usb vfat users,exec\n\
+             /dev/sdc /srv/a\\040b xfs\n\
+             /swapfile none swap sw 0 0\n\
+             /dev/sdd /x ext4 defaults 0 0 extra\n",
+        )]);
+        assert_eq!(
+            json!(reply.facts),
+            json!({
+                "/": {"source": "UUID=1", "filesystem": "ext4", "options": ["defaults"], "line": 2},
+                "/tmp": {"source": "tmpfs", "filesystem": "tmpfs", "options": ["nosuid", "noexec", "dev"], "line": 3},
+                "/media/usb": {"source": "/dev/sdb", "filesystem": "vfat", "options": ["users", "nosuid", "nodev", "exec"], "line": 4},
+                "/srv/a b": {"source": "/dev/sdc", "filesystem": "xfs", "options": ["defaults"], "line": 5},
+            })
+        );
+        assert_eq!(
+            reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(),
+            [Some(7)]
+        );
+    }
+
+    #[test]
+    fn unoctal_decodes_three_octal_digits_only() {
+        assert_eq!(unoctal("a\\040b\\011c\\134"), "a b\tc\\");
+        assert_eq!(unoctal("\\04"), "\\04");
+        assert_eq!(unoctal("\\777x"), "\\777x");
+        assert_eq!(unoctal("\\08a"), "\\08a");
     }
 }

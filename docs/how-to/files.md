@@ -79,3 +79,25 @@ world-writable by design. The `tmp` ruleset judges them:
 | `tmp/sticky` | error | a world-writable one lacks the sticky bit, so any user can delete or replace another user’s files in it |
 
 A directory no other user can write, or an absent one, passes.
+
+## Mounts
+
+Two collectors read the mount table, each keyed by mount point with its
+`source`, `filesystem`, `options` and `line`:
+
+| Collector | Into | Reads |
+| --- | --- | --- |
+| `mounts-active` | `mounts.active` | `/proc/self/mountinfo` on a live host, the top of a stacked mount point winning, plus each filesystem’s `super-options` |
+| `mounts-fstab` | `mounts.fstab` | `/etc/fstab`, swap left out; `options` as `mount` applies them, so `users` adds `noexec,nosuid,nodev` and a later `dev` drops `nodev` |
+
+The `mounts` ruleset judges `/tmp`, `/var/tmp` and `/dev/shm` when each is a
+mount of its own; one that is part of `/` has no check. A live run judges the
+active table, a `--root` run the declared one:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `mounts/nosuid`, `mounts/fstab-nosuid` | warning | the mount lacks `nosuid`, so a set-user-ID file left there runs with its owner’s rights |
+| `mounts/nodev`, `mounts/fstab-nodev` | warning | the mount lacks `nodev`, so a device file unpacked there opens the device it names |
+
+`noexec` is no rule: stock Debian and Ubuntu mount `/tmp` and `/dev/shm`
+without it, and any interpreter runs a script from there anyway.
