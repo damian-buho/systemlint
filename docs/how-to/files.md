@@ -90,6 +90,13 @@ Two collectors read the mount table, each keyed by mount point with its
 | `mounts-active` | `mounts.active` | `/proc/self/mountinfo` on a live host, the top of a stacked mount point winning, plus each filesystem’s `super-options` |
 | `mounts-fstab` | `mounts.fstab` | `/etc/fstab`, swap left out; `options` as `mount` applies them, so `users` adds `noexec,nosuid,nodev` and a later `dev` drops `nodev` |
 
+A third, `mounts-usage`, statfs each active mount point on a live host into
+`mounts.usage.<point>`: `blocks` and `inodes` used, in whole percent rounded up
+as `df` does, each left out when the filesystem counts none (`proc`, `sysfs`),
+and `read-only`. A mount point the run may not reach, such as another user’s
+FUSE mount, is left out; a `statfs` that gives no answer within the collector
+timeout, as a dead network mount does, fails the collector.
+
 The `mounts` ruleset judges `/tmp`, `/var/tmp` and `/dev/shm` when each is a
 mount of its own; one that is part of `/` has no check. A live run judges the
 active table, a `--root` run the declared one:
@@ -101,3 +108,16 @@ active table, a `--root` run the declared one:
 
 `noexec` is no rule: stock Debian and Ubuntu mount `/tmp` and `/dev/shm`
 without it, and any interpreter runs a script from there anyway.
+
+The `disk` ruleset judges `mounts.usage` on a live run, scored on a curve from
+warning at 90 % to error from 98 %. It leaves out read-only filesystems, which
+always read full (squashfs snaps, ISO images), and `overlay` mounts, which
+repeat the disk under them once per container:
+
+| Rule | Fails when |
+| --- | --- |
+| `disk/full` | 90 % or more of the blocks a user may fill are used, so writes fail soon |
+| `disk/inodes` | 90 % or more of the inodes are used, so creating a file fails while space is still free |
+
+Both guard on `collectors.mounts-usage.status`, so a `--root` run skips them and
+a failed collector answers `unknown`.

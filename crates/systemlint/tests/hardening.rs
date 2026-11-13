@@ -11,6 +11,14 @@ use systemlint::rules::Library;
 
 // Every check of one shipped ruleset over a document, as (rule, subject, outcome).
 fn judge(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome)> {
+    scored(ruleset, document)
+        .into_iter()
+        .map(|(rule, subject, outcome, _)| (rule, subject, outcome))
+        .collect()
+}
+
+// Like judge, with each check’s score.
+fn scored(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome, Option<f64>)> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../rulesets/{ruleset}.yaml"));
     let parsed = systemlint::yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
     let library = Library::new(BTreeMap::from([(ruleset.to_owned(), parsed)])).unwrap();
@@ -22,7 +30,7 @@ fn judge(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome)> {
         .collect();
     lint(document, &rules, &[], "2026-11-12")
         .into_iter()
-        .map(|c| (c.rule.clone(), c.subject_label(), c.outcome))
+        .map(|c| (c.rule.clone(), c.subject_label(), c.outcome, c.score))
         .collect()
 }
 
@@ -765,5 +773,95 @@ fn a_world_writable_mount_without_nosuid_or_nodev_fails() {
     assert!(
         mounts(Some(json!({"/": {"options": ["rw"]}})), json!({})).is_empty(),
         "no separate /tmp mount, no check"
+    );
+}
+
+// The disk checks of one mount, its usage given or its collector failed when None.
+fn disk(usage: Option<Value>, filesystem: &str) -> Vec<(String, String, Outcome, Option<f64>)> {
+    let mut document = json!({"mounts": {"active": {"/srv": {"filesystem": filesystem}}}, "collectors": {"mounts-active": {"status": "ok", "into": "mounts.active"}, "mounts-usage": {"status": "error", "reason": "can’t statfs /srv", "into": "mounts.usage"}}});
+    if let Some(usage) = usage {
+        document["mounts"]["usage"] = json!({"/srv": usage});
+        document["collectors"]["mounts-usage"] = json!({"status": "ok", "into": "mounts.usage"});
+    }
+    let mut checks = scored("disk", &document);
+    checks.sort_by(|a, b| a.0.cmp(&b.0));
+    checks
+}
+
+#[test]
+fn a_filesystem_fails_from_90_percent_used_scored_on_a_curve() {
+    let outcome = |blocks: u64, inodes: u64| {
+        disk(
+            Some(json!({"blocks": blocks, "inodes": inodes, "read-only": false})),
+            "ext4",
+        )
+        .into_iter()
+        .map(|(rule, _, outcome, score)| (rule, outcome, score.map(|s| (s * 10.0).round() / 10.0)))
+        .collect::<Vec<_>>()
+    };
+    let row = |rule: &str, outcome, score: Option<f64>| (rule.to_owned(), outcome, score);
+    assert_eq!(
+        outcome(89, 89),
+        [
+            row("disk/full", Outcome::Pass, None),
+            row("disk/inodes", Outcome::Pass, None)
+        ]
+    );
+    assert_eq!(
+        outcome(90, 98),
+        [
+            row("disk/full", Outcome::Fail, Some(3.3)),
+            row("disk/inodes", Outcome::Fail, Some(6.6))
+        ],
+        "90 % is a warning, 98 % an error"
+    );
+}
+
+#[test]
+fn a_disk_rule_skips_read_only_overlay_and_uncounted_filesystems_and_never_passes_unread() {
+    let outcomes = |usage: Option<Value>, filesystem: &str| {
+        disk(usage, filesystem)
+            .into_iter()
+            .map(|(rule, _, outcome, _)| (rule, outcome))
+            .collect::<Vec<_>>()
+    };
+    let both = |outcome| {
+        vec![
+            ("disk/full".to_owned(), outcome),
+            ("disk/inodes".to_owned(), outcome),
+        ]
+    };
+    let full = json!({"blocks": 100, "inodes": 100, "read-only": false});
+    assert_eq!(
+        outcomes(
+            Some(json!({"blocks": 100, "inodes": 100, "read-only": true})),
+            "squashfs"
+        ),
+        both(Outcome::Skip),
+        "a read-only image is always full"
+    );
+    assert_eq!(
+        outcomes(Some(full.clone()), "overlay"),
+        both(Outcome::Skip),
+        "an overlay repeats the disk under it"
+    );
+    assert_eq!(
+        outcomes(Some(json!({"read-only": false})), "proc"),
+        both(Outcome::Skip),
+        "proc counts no blocks"
+    );
+    assert_eq!(
+        outcomes(None, "ext4"),
+        both(Outcome::Unknown),
+        "a failed statfs never passes"
+    );
+    let root = json!({"collectors": {"mounts-active": {"status": "skipped", "reason": "live", "into": "mounts.active"}, "mounts-usage": {"status": "skipped", "reason": "live", "into": "mounts.usage"}}});
+    assert_eq!(
+        judge("disk", &root),
+        [
+            ("disk/full".to_owned(), String::new(), Outcome::Skip),
+            ("disk/inodes".to_owned(), String::new(), Outcome::Skip)
+        ],
+        "a --root run skips what it never collects"
     );
 }
