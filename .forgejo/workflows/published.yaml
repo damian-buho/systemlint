@@ -866,6 +866,13 @@ jobs:
           version: ${{ env.M6E_TAG }}
           run: cargo clippy --all-targets -- -D warnings
           mounts: /app/data/ci-cache/cargo-build:/app/.cache/.cargo-build:rw /app/data/ci-cache/cargo-git:/app/.cargo/git:rw /app/data/ci-cache/cargo-registry:/app/.cargo/registry:rw
+      - name: cargo-fmt
+        if: vars.CI_SKIP_SOURCE_PASSES_LINT != 'true' && vars.CI_SKIP_CARGO_FMT != 'true'
+        uses: projectfile/actions/run-tool@b0da59497e5cc94a601334e6b4d9e376000012b7 # v1
+        with:
+          image: ${{ vars.RUST_TOOL_IMAGE || format('{0}/b19/rust', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          version: ${{ vars.M6E_BASE_IMAGE_VARIANT_PREFIX }}musl
+          run: cargo fmt --check
       - name: cargo-sort
         if: vars.CI_SKIP_SOURCE_PASSES_LINT != 'true' && vars.CI_SKIP_CARGO_SORT != 'true'
         uses: projectfile/actions/run-tool@b0da59497e5cc94a601334e6b4d9e376000012b7 # v1
