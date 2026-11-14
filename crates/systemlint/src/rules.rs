@@ -15,6 +15,9 @@ use crate::discovery::{Refusal, Trust};
 /// The ruleset directory relative to the core binary’s own directory.
 pub const BESIDE: &str = "../share/systemlint/rulesets";
 
+/// Rules by ID, as a selector picks them.
+type Picks = BTreeMap<String, Spec>;
+
 /// How bad a failed check is; `off` drops the rule.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -428,6 +431,20 @@ impl Library {
         Ok(picked)
     }
 
+    /// A selector’s rules as (overrides, plain picks): a ruleset’s own plus the rules its name matches by ID or tag, else the glob’s.
+    fn named(&self, selector: &str) -> Result<(Picks, Picks), String> {
+        let found = self.resolve(selector)?;
+        if !self.rulesets.contains_key(selector) {
+            return Ok((BTreeMap::new(), found));
+        }
+        let tagged = self.matching(selector).unwrap_or_default();
+        log::debug!(
+            "ruleset {selector} also picks {} rules matching its name",
+            tagged.len()
+        );
+        Ok((found, tagged))
+    }
+
     /// The rules a selector list picks: a union in order (every rule when only `!` entries), a ruleset’s overrides beating a plain ID or tag pick, `!` removing, `off` dropped.
     pub fn select(&self, selectors: &[String]) -> Result<BTreeMap<String, Spec>, String> {
         let mut picked: BTreeMap<String, Spec> = BTreeMap::new();
@@ -438,20 +455,19 @@ impl Library {
             includes.extend(&every);
         }
         for selector in includes {
-            let found = self.resolve(selector)?;
-            let is_ruleset = self.rulesets.contains_key(selector.as_str());
-            for (id, spec) in found {
-                if is_ruleset {
-                    picked.insert(id, spec);
-                } else {
-                    picked.entry(id).or_insert(spec);
-                }
+            let (overrides, plain) = self.named(selector)?;
+            picked.extend(overrides);
+            for (id, spec) in plain {
+                picked.entry(id).or_insert(spec);
             }
         }
         for selector in selectors.iter().filter_map(|s| s.strip_prefix('!')) {
-            let removed = self.resolve(selector)?;
-            log::debug!("selector !{selector} removes {} rules", removed.len());
-            picked.retain(|id, _| !removed.contains_key(id));
+            let (overrides, plain) = self.named(selector)?;
+            log::debug!(
+                "selector !{selector} removes {} rules",
+                overrides.len() + plain.len()
+            );
+            picked.retain(|id, _| !overrides.contains_key(id) && !plain.contains_key(id));
         }
         picked.retain(|id, spec| {
             let off = spec.severity == Some(Severity::Off);

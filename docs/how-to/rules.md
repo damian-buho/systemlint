@@ -254,8 +254,9 @@ its ruleset does not declare, or when a value names a var no ruleset declares.
 ## Selecting rules
 
 `--tags`, or `check.tags` in the config, is one comma list of selectors. Each
-names a ruleset, or is a glob (`*` any run of characters, `/` and `:`
-included; `?` one) over rule IDs and tags. The list is a union: a ruleset
+is a glob (`*` any run of characters, `/` and `:` included; `?` one) over rule
+IDs and tags; a selector naming a ruleset also picks that ruleset’s rules, so
+`ssh` brings the `ssh` ruleset and every rule tagged `ssh`. The list is a union: a ruleset
 brings its overrides, an ID or tag pick brings the plain rule unless a ruleset
 already brought it. `!x` removes what `x` names; `off` rules drop out. With no
 selector every rule runs. A selector matching nothing is an error.

@@ -204,6 +204,30 @@ fn excludes_and_overrides_by_id_or_glob() {
 }
 
 #[test]
+fn a_ruleset_name_also_picks_its_tag() {
+    let lib = library(&[
+        ("s", "rules:\n  s/a: {fact: a, expect: {minLength: 3}}\n"),
+        (
+            "k",
+            "rules:\n  k/b: {fact: b, expect: {minLength: 3}, tags: [s]}\n  k/c: {fact: c, expect: {minLength: 3}}\n",
+        ),
+        ("o", "extends: [k]\nrules:\n  k/b: info\n"),
+    ]);
+    assert_eq!(ids(&lib.select(&["s".into()]).unwrap()), ["k/b", "s/a"]);
+    assert_eq!(
+        ids(&lib.select(&["k".into(), "!s".into()]).unwrap()),
+        ["k/c"],
+        "!s removes the tagged rule too"
+    );
+    let picked = lib.select(&["o".into(), "s".into()]).unwrap();
+    assert_eq!(
+        picked["k/b"].severity,
+        Some(Severity::Info),
+        "the tag pick keeps the override"
+    );
+}
+
+#[test]
 fn a_rule_defined_twice_an_unknown_override_and_a_cycle_are_refused() {
     let twice = BTreeMap::from([
         ("fixture".to_owned(), fixture()),
