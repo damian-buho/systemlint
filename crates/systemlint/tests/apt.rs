@@ -72,6 +72,7 @@ fn document(root: &str) -> Value {
             now: Some(rfc3339(options.now)),
             inputs: inputs(&c, &options).unwrap(),
             facts: given,
+            with: Default::default(),
         };
         let reply = op(request).unwrap();
         assert!(

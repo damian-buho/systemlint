@@ -110,6 +110,7 @@ mod tests {
             now: now.map(str::to_owned),
             inputs: vec![],
             facts: Default::default(),
+            with: Default::default(),
         }
     }
 

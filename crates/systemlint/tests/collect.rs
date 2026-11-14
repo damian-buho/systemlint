@@ -526,6 +526,7 @@ fn exec_is_skipped_under_root_and_runs_live() {
         parse: systemlint::collector::Parse {
             plugin: "live".into(),
             op: "parse".into(),
+            with: Default::default(),
         },
         into: "exec2".into(),
         ..c

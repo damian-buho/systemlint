@@ -47,6 +47,7 @@ into: apt.sources
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
+| `parse.with` | options passed to the op in the request’s `with`; only `formats match` takes any |
 | `into` | the dotted fact path the reply’s facts are placed at; never under `meta` or `collectors`, never overlapping another collector’s |
 
 `files`, `stat` and `exec` sit side by side under `read`; a collector uses
@@ -309,6 +310,22 @@ id: mounts-json
 read: {exec: [/usr/bin/findmnt, --json]}
 parse: {plugin: formats, op: json}
 into: commands.mounts
+```
+
+`op: match` turns lines into keyed facts: `with.pattern` is a regular expression with named
+captures, each line it matches one fact keyed by its `key` capture, the other
+captures that matched its fields; lines it does not match are dropped, and a
+key seen again is a diagnostic, the first kept. One package per pending
+upgrade:
+
+```yaml
+id: apt-upgrades
+read: {exec: [/usr/bin/apt-get, --simulate, dist-upgrade]}
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^Inst (?P<key>\S+) (?:\[(?P<installed>[^\]]+)\] )?\((?P<candidate>\S+)'}
+into: apt.upgrades
 ```
 
 ## Derived facts

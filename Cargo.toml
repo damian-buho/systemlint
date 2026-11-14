@@ -21,6 +21,7 @@ jsonschema = { version = "=0.61.1", default-features = false }
 libc = "=0.2.191"
 log = "=0.4.35"
 rcgen = { version = "=0.14.10", default-features = false, features = ["crypto", "pem", "ring"] }
+regex = { version = "=1.13.1", default-features = false, features = ["std", "unicode"] }
 rustix = { version = "=1.1.6", features = ["fs", "process", "rand", "system"] }
 rustls = { version = "=0.23.46", default-features = false, features = ["logging", "ring", "std", "tls12"] }
 rustls-native-certs = "=0.8.5"

@@ -562,6 +562,7 @@ fn run(
         now: Some(now.to_owned()),
         inputs,
         facts,
+        with: collector.parse.with.clone(),
     };
     log::debug!(
         "collector {} sends {} inputs to {} {}",

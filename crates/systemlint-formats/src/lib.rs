@@ -73,6 +73,7 @@ pub fn describe() -> Describe {
             ("limits", &[]),
             ("lines", &[]),
             ("login-defs", &[]),
+            ("match", &[]),
             ("modprobe", &[]),
             ("mountinfo", &[]),
             ("pam", &[]),
@@ -93,6 +94,12 @@ pub fn describe() -> Describe {
 
 /// Runs one op.
 pub fn op(request: Request) -> Result<Reply> {
+    if request.op != "match" && !request.with.is_empty() {
+        return Err(format!("op {} takes no with", request.op).into());
+    }
+    if TEXT_OPS.contains(&request.op.as_str()) {
+        ran(&request.inputs)?;
+    }
     match request.op.as_str() {
         "audit-rules" => Ok(audit_rules(&request.inputs)),
         "csv" => Ok(csv(&request.inputs)),
@@ -105,6 +112,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "limits" => Ok(limits(&request.inputs)),
         "lines" => Ok(lines(&request.inputs)),
         "login-defs" => Ok(login_defs(&request.inputs)),
+        "match" => r#match(&request.inputs, &request.with),
         "modprobe" => Ok(modprobe(&request.inputs)),
         "mountinfo" => Ok(mountinfo(&request.inputs)),
         "pam" => Ok(pam(&request.inputs)),
@@ -121,6 +129,77 @@ pub fn op(request: Request) -> Result<Reply> {
         "yaml" => Ok(yaml(&request.inputs)),
         other => Err(format!("unknown op {other}").into()),
     }
+}
+
+/// The generic ops that read a command’s stdout as text, so a failed command fails them.
+const TEXT_OPS: [&str; 8] = ["csv", "ini", "json", "kv", "lines", "match", "toml", "yaml"];
+
+/// An error naming the first command that exited non-zero, so its collector fails rather than reading as empty.
+fn ran(inputs: &[Input]) -> Result<()> {
+    match inputs.iter().find_map(|i| match i {
+        Input::Exec(run) if run.exit != 0 => Some(run),
+        _ => None,
+    }) {
+        Some(run) => Err(format!(
+            "{} exited {}: {}",
+            run.argv.join(" "),
+            run.exit,
+            run.stderr.lines().next().unwrap_or("")
+        )
+        .into()),
+        None => Ok(()),
+    }
+}
+
+/// Every line matching `with.pattern` keyed by its `key` capture, the other named captures its fields; the first line holding a key wins.
+pub fn r#match(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
+    if let Some(other) = with.keys().find(|k| *k != "pattern") {
+        return Err(format!("with.{other} is unknown to match").into());
+    }
+    let pattern = with
+        .get("pattern")
+        .and_then(Value::as_str)
+        .ok_or("match needs with.pattern, a regex")?;
+    let regex = regex::Regex::new(pattern).map_err(|e| format!("with.pattern: {e}"))?;
+    if !regex.capture_names().any(|n| n == Some("key")) {
+        return Err("with.pattern has no (?P<key>…) capture".into());
+    }
+    let mut reply = Reply::default();
+    for input in inputs {
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
+        for (index, line) in text.lines().enumerate() {
+            let Some(captures) = regex.captures(line) else {
+                continue;
+            };
+            let key = captures.name("key").map_or("", |m| m.as_str());
+            let clash = match key {
+                "" => "an empty key, skipped".to_owned(),
+                k if reply.facts.contains_key(k) => format!("key {k} again, the first kept"),
+                _ => {
+                    let fields = regex
+                        .capture_names()
+                        .flatten()
+                        .filter(|n| *n != "key")
+                        .filter_map(|n| {
+                            captures
+                                .name(n)
+                                .map(|m| (n.to_owned(), Value::from(m.as_str())))
+                        })
+                        .collect();
+                    reply.facts.insert(key.to_owned(), Value::Object(fields));
+                    continue;
+                }
+            };
+            reply.diagnostics.push(Diagnostic {
+                path: path.to_owned(),
+                line: Some(index as u64 + 1),
+                message: clash,
+            });
+        }
+    }
+    Ok(reply)
 }
 
 /// Every `key=value` line of every input in one object, the first input holding a key winning; values unquoted as a shell would.
@@ -1311,6 +1390,7 @@ mod tests {
                 "limits",
                 "lines",
                 "login-defs",
+                "match",
                 "modprobe",
                 "mountinfo",
                 "pam",
@@ -1723,8 +1803,110 @@ mod tests {
             now: None,
             inputs: vec![],
             facts: Default::default(),
+            with: Default::default(),
         };
         assert!(op(request).unwrap_err().to_string().contains("regex"));
+    }
+
+    fn request(op_name: &str, inputs: Vec<Input>, with: Value) -> Request {
+        Request {
+            protocol: 1,
+            op: op_name.into(),
+            root: "/".into(),
+            now: None,
+            inputs,
+            facts: Default::default(),
+            with: serde_json::from_value(with).unwrap(),
+        }
+    }
+
+    const INST: &str = r"^Inst (?P<key>\S+) (?:\[(?P<installed>[^\]]+)\] )?\((?P<candidate>\S+) (?P<origins>.*) \[(?P<arch>[^\]]+)\]\)";
+
+    #[test]
+    fn match_keys_each_matching_line_by_its_key_capture() {
+        let stdout = "NOTE: simulation\nInst libc6 [2.41-1] (2.41-2 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])\nInst newpkg (1.0 Ubuntu:26.04/resolute [all])\nConf libc6 (2.41-2 Ubuntu:26.04/resolute-updates [amd64])\nInst libc6 [2.41-1] (9 other [amd64])\n";
+        let reply = op(request(
+            "match",
+            vec![exec("/usr/bin/apt-get --simulate", stdout, 0)],
+            json!({"pattern": INST}),
+        ))
+        .unwrap();
+        assert_eq!(
+            Value::Object(reply.facts.into_iter().collect()),
+            json!({
+                "libc6": {"installed": "2.41-1", "candidate": "2.41-2", "origins": "Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security", "arch": "amd64"},
+                "newpkg": {"candidate": "1.0", "origins": "Ubuntu:26.04/resolute", "arch": "all"}
+            })
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| (d.path.as_str(), d.line, d.message.as_str()))
+                .collect::<Vec<_>>(),
+            [(
+                "/usr/bin/apt-get",
+                Some(5),
+                "key libc6 again, the first kept"
+            )]
+        );
+    }
+
+    #[test]
+    fn match_skips_an_empty_key_and_reads_files_too() {
+        let reply = op(request(
+            "match",
+            vec![file("/etc/a", "=x\nk=v\n")],
+            json!({"pattern": "^(?P<key>[^=]*)=(?P<value>.*)$"}),
+        ))
+        .unwrap();
+        assert_eq!(reply.facts["k"], json!({"value": "v"}));
+        assert_eq!(
+            (
+                reply.diagnostics[0].line,
+                reply.diagnostics[0].message.as_str()
+            ),
+            (Some(1), "an empty key, skipped")
+        );
+    }
+
+    #[test]
+    fn match_refuses_a_pattern_it_cannot_use() {
+        let refused = |with: Value| op(request("match", vec![], with)).unwrap_err().to_string();
+        assert_eq!(refused(json!({})), "match needs with.pattern, a regex");
+        assert_eq!(
+            refused(json!({"pattern": "(?P<k>x)"})),
+            "with.pattern has no (?P<key>…) capture"
+        );
+        assert!(refused(json!({"pattern": "(?P<key>"})).starts_with("with.pattern: "));
+        assert_eq!(
+            refused(json!({"pattern": "(?P<key>x)", "flags": "i"})),
+            "with.flags is unknown to match"
+        );
+    }
+
+    #[test]
+    fn an_op_other_than_match_refuses_with() {
+        let error = op(request("lines", vec![], json!({"pattern": "x"}))).unwrap_err();
+        assert_eq!(error.to_string(), "op lines takes no with");
+    }
+
+    #[test]
+    fn a_text_op_fails_on_a_command_that_exited_non_zero_and_exec_keeps_it() {
+        let lines = |exit| {
+            op(request(
+                "lines",
+                vec![exec("/bin/cmd -a", "x\n", exit)],
+                json!({}),
+            ))
+        };
+        assert_eq!(lines(0).unwrap().facts["/bin/cmd"], json!(["x"]));
+        assert_eq!(
+            lines(1).unwrap_err().to_string(),
+            "/bin/cmd -a exited 1: denied"
+        );
+        let kept = op(request("exec", vec![exec("/bin/cmd", "", 1)], json!({}))).unwrap();
+        assert_eq!(kept.facts["exit-status"], 1);
     }
 
     fn exec(argv: &str, stdout: &str, exit: i32) -> Input {

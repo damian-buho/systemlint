@@ -62,6 +62,7 @@ fn document() -> Value {
             now: None,
             inputs: inputs(&c, &options).unwrap(),
             facts: BTreeMap::new(),
+            with: Default::default(),
         };
         let reply = systemlint_env::op(request).unwrap();
         assert!(

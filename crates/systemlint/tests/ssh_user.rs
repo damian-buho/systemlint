@@ -73,6 +73,7 @@ fn run(id: &str, options: &Options, named: &Named) -> Map<String, Value> {
         now: None,
         inputs: read(&c, options, named).unwrap(),
         facts: BTreeMap::new(),
+        with: Default::default(),
     };
     systemlint_formats::op(request)
         .unwrap()

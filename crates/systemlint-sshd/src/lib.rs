@@ -331,7 +331,8 @@ mod tests {
                 root: "/".into(),
                 now: None,
                 inputs: vec![],
-                facts: Default::default()
+                facts: Default::default(),
+                with: Default::default(),
             })
             .is_err()
         );

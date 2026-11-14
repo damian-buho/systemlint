@@ -103,6 +103,7 @@ $ systemlint-formats --describe
 | `now` | the collection time, RFC 3339; a plugin computes every age against it, never its own clock |
 | `inputs[]` | a file `{path, content \| content-base64, stat, statfs, absent}`, a command `{argv, stdout, stderr, exit}` or a network probe `{probe, target, facts, error}` |
 | `facts` | the facts the op `needs`, by path |
+| `with` | the collector’s `parse.with` options, omitted when empty; an op that takes none refuses them |
 
 A file carries `content` when it is valid UTF-8 and `content-base64`
 otherwise; `stat` is present when the collector asked for it. `stat.mode` is

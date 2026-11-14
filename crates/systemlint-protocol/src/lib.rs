@@ -89,6 +89,8 @@ pub struct Request {
     pub inputs: Vec<Input>,
     #[serde(default)]
     pub facts: BTreeMap<String, Value>,
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    pub with: serde_json::Map<String, Value>,
 }
 
 fn live_root() -> String {

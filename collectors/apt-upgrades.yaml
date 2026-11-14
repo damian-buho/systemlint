@@ -5,5 +5,9 @@
 id: apt-upgrades
 read:
   exec: [/usr/bin/apt-get, --simulate, --quiet, --quiet, dist-upgrade, -o, Debug::NoLocking=true]
-parse: {plugin: formats, op: exec}
+parse:
+  plugin: formats
+  op: match
+  with:
+    pattern: '^Inst (?P<key>\S+) (?:\[(?P<installed>[^\]]+)\] )?\((?P<candidate>\S+) (?P<origins>.*) \[(?P<arch>[^\]]+)\]\)'
 into: apt.upgrades

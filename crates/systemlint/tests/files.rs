@@ -100,6 +100,7 @@ fn document() -> Value {
             now: None,
             inputs: inputs(&c, &options).unwrap(),
             facts: BTreeMap::new(),
+            with: Default::default(),
         };
         let reply = systemlint_formats::op(request).unwrap();
         assert!(
@@ -232,6 +233,7 @@ fn a_writable_library_or_python_path_entry_fails_the_files_rules_and_a_relative_
         now: None,
         inputs: read(&c, &options, &paths).unwrap(),
         facts: BTreeMap::new(),
+        with: Default::default(),
     };
     let reply = systemlint_formats::op(request).unwrap();
     assert_eq!(

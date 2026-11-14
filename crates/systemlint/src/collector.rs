@@ -213,6 +213,8 @@ pub fn prefix(pattern: &str) -> String {
 pub struct Parse {
     pub plugin: String,
     pub op: String,
+    #[serde(default)]
+    pub with: serde_json::Map<String, serde_json::Value>,
 }
 
 impl Collector {

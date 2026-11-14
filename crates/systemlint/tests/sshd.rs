@@ -64,6 +64,7 @@ fn document(effective: bool) -> Value {
             "apt.installed".to_owned(),
             json!({"openssh-server": {"version": "1:10.2p1-2ubuntu3.8"}}),
         )]),
+        with: Default::default(),
     })
     .unwrap();
     assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
