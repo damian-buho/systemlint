@@ -1208,3 +1208,170 @@ fn the_resolv_rules_do_not_apply_without_their_collector_and_are_unknown_offline
         "a resolv.conf naming no nameserver leaves nothing to judge"
     );
 }
+
+// A document with the auth collectors’ facts: login.defs keys, pam_limits entries and PAM files by path.
+fn auth(defs: Value, limits: Value, pam: Value) -> Value {
+    json!({"auth": {"login-defs": defs, "limits": {"entries": limits}, "pam": pam}, "collectors": {
+        "auth-login-defs": {"status": "ok", "into": "auth.login-defs"},
+        "auth-limits": {"status": "ok", "into": "auth.limits"},
+        "auth-pam": {"status": "ok", "into": "auth.pam"}}})
+}
+
+// The outcomes one rule of one ruleset gives over a document.
+fn outcomes(ruleset: &str, rule: &str, document: &Value) -> Vec<Outcome> {
+    judge(ruleset, document)
+        .into_iter()
+        .filter(|(r, _, _)| r == rule)
+        .map(|(_, _, outcome)| outcome)
+        .collect()
+}
+
+#[test]
+fn the_login_umask_passes_from_027_and_fails_at_022_or_unset() {
+    let umask = |defs: Value| {
+        outcomes(
+            "login-defs",
+            "login-defs/umask",
+            &auth(defs, json!([]), json!({})),
+        )
+    };
+    for strict in ["027", "0027", "077", "037"] {
+        assert_eq!(umask(json!({"UMASK": strict})), [Outcome::Pass], "{strict}");
+    }
+    for loose in ["022", "026", "007", "27"] {
+        assert_eq!(umask(json!({"UMASK": loose})), [Outcome::Fail], "{loose}");
+    }
+    assert_eq!(
+        umask(json!({"PASS_MAX_DAYS": "99999"})),
+        [Outcome::Fail],
+        "unset is 022"
+    );
+    assert_eq!(umask(json!({})), [Outcome::NotApplicable], "no login.defs");
+}
+
+// A PAM entry as the formats pam op writes it.
+fn entry(kind: &str, control: &str, module: &str, arguments: &[&str]) -> Value {
+    json!({"line": 1, "type": kind, "control": control, "module": module, "arguments": arguments, "silent": false})
+}
+
+#[test]
+fn pam_permit_fails_only_where_it_settles_the_auth_stack() {
+    let permit = |control: &str, kind: &str| {
+        let pam = json!({"/etc/pam.d/x": [entry(kind, control, "pam_permit.so", &[])]});
+        outcomes(
+            "pam",
+            "pam/permit-sufficient",
+            &auth(json!({}), json!([]), pam),
+        )
+    };
+    assert_eq!(permit("sufficient", "auth"), [Outcome::Fail]);
+    assert_eq!(
+        permit("[success=done default=ignore]", "auth"),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        permit("[default=ignore success=done]", "auth"),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        permit("required", "auth"),
+        [Outcome::Pass],
+        "Debian’s common-auth tail"
+    );
+    assert_eq!(
+        permit("[success=1 default=ignore]", "auth"),
+        [Outcome::Pass]
+    );
+    assert_eq!(permit("sufficient", "session"), [Outcome::Pass]);
+}
+
+#[test]
+fn pam_unix_nullok_fails_on_its_auth_line_only() {
+    let nullok = |kind: &str, arguments: &[&str]| {
+        let pam =
+            json!({"/etc/pam.d/common-auth": [entry(kind, "required", "pam_unix.so", arguments)]});
+        outcomes("pam", "pam/nullok", &auth(json!({}), json!([]), pam))
+    };
+    assert_eq!(nullok("auth", &["nullok"]), [Outcome::Fail]);
+    assert_eq!(nullok("auth", &["nullok_secure"]), [Outcome::Fail]);
+    assert_eq!(nullok("auth", &["try_first_pass"]), [Outcome::Pass]);
+    assert_eq!(nullok("password", &["nullok"]), [Outcome::Pass]);
+}
+
+#[test]
+fn a_password_stack_without_faillock_fails_and_one_without_pam_unix_is_not_judged() {
+    let lockout = |entries: Value| {
+        outcomes(
+            "pam",
+            "pam/no-lockout",
+            &auth(
+                json!({}),
+                json!([]),
+                json!({"/etc/pam.d/common-auth": entries}),
+            ),
+        )
+    };
+    let unix = entry("auth", "required", "pam_unix.so", &[]);
+    let faillock = entry("auth", "required", "pam_faillock.so", &["preauth"]);
+    assert_eq!(lockout(json!([unix])), [Outcome::Fail]);
+    assert_eq!(lockout(json!([faillock, unix])), [Outcome::Pass]);
+    assert_eq!(
+        lockout(json!([entry("auth", "required", "pam_sss.so", &[])])),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        outcomes(
+            "pam",
+            "pam/no-lockout",
+            &auth(json!({}), json!([]), json!({}))
+        ),
+        [Outcome::NotApplicable],
+        "no /etc/pam.d"
+    );
+}
+
+// A pam_limits core entry.
+fn core(domain: &str, kind: &str, value: &str) -> Value {
+    json!({"domain": domain, "type": kind, "item": "core", "value": value, "path": "/etc/security/limits.conf", "line": 1})
+}
+
+#[test]
+fn core_dumps_pass_only_with_a_hard_zero_for_everyone_and_none_raised() {
+    let pam = json!({"/etc/pam.d/login": []});
+    let limit = |entries: Value| {
+        outcomes(
+            "coredump",
+            "coredump/no-hard-limit",
+            &auth(json!({}), entries, pam.clone()),
+        )
+    };
+    assert_eq!(limit(json!([core("*", "hard", "0")])), [Outcome::Pass]);
+    assert_eq!(limit(json!([core("*", "-", "0")])), [Outcome::Pass]);
+    assert_eq!(
+        limit(json!([core("*", "soft", "0")])),
+        [Outcome::Fail],
+        "soft is raised at will"
+    );
+    assert_eq!(
+        limit(json!([core("root", "hard", "0")])),
+        [Outcome::Fail],
+        "not every user"
+    );
+    assert_eq!(
+        limit(json!([
+            core("*", "hard", "0"),
+            core("@dev", "hard", "unlimited")
+        ])),
+        [Outcome::Fail]
+    );
+    assert_eq!(limit(json!([])), [Outcome::Fail]);
+    assert_eq!(
+        outcomes(
+            "coredump",
+            "coredump/no-hard-limit",
+            &auth(json!({}), json!([]), json!({}))
+        ),
+        [Outcome::Skip],
+        "no PAM, so no pam_limits"
+    );
+}

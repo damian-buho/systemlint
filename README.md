@@ -79,6 +79,7 @@ Clone the repository and run `make` — every build step, target and entry point
 
 - [Local accounts and groups](docs/how-to/accounts.md)
 - [apt sources](docs/how-to/apt.md)
+- [Authentication configuration](docs/how-to/auth.md)
 - [Linting images in CI](docs/how-to/ci.md)
 - [Collectors](docs/how-to/collectors.md)
 - [Configuration: files, layers and precedence](docs/how-to/configuration.md)

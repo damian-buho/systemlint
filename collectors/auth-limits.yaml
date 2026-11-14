@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: auth-limits
+read:
+  files: [/etc/security/limits.conf, /etc/security/limits.d/*.conf]
+parse: {plugin: formats, op: limits}
+into: auth.limits

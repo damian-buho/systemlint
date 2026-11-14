@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: PAM authentication stacks that let a login through without a password or without limit
+when: {auth.pam: {minProperties: 1}}
+rules:
+  pam/permit-sufficient:
+    title: pam_permit alone authenticates
+    fact: auth.pam.*
+    expect:
+      not:
+        contains:
+          required: [type, module, control]
+          properties:
+            type: {const: auth}
+            module: {const: pam_permit.so}
+            control: {anyOf: [{const: sufficient}, {pattern: "[\\[ ]success=done[ \\]]"}]}
+    severity: error
+    score: 9.0
+    message: "{subject} lets pam_permit, which always succeeds, settle its auth stack, so anyone who reaches a service using it logs in without a password"
+    fix: remove the pam_permit auth line from {subject}, or make it required behind a module that checks a credential
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_permit.8.html
+    tags: [auth, pam]
+  pam/nullok:
+    title: pam_unix accepts an empty password
+    fact: auth.pam.*
+    expect:
+      not:
+        contains:
+          required: [type, module, arguments]
+          properties:
+            type: {const: auth}
+            module: {const: pam_unix.so}
+            arguments: {contains: {enum: [nullok, nullok_secure]}}
+    severity: warning
+    score: 5.0
+    message: "{subject} passes nullok to pam_unix, so an account whose password is empty logs in by pressing Enter"
+    fix: remove nullok from the pam_unix auth line in {subject}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
+    tags: [auth, pam]
+  pam/no-lockout:
+    title: Password logins are never locked out
+    fact: auth.pam.*
+    expect:
+      if: {contains: {required: [type, module], properties: {type: {const: auth}, module: {const: pam_unix.so}}}}
+      then: {contains: {required: [type, module], properties: {type: {const: auth}, module: {const: pam_faillock.so}}}}
+    severity: warning
+    score: 5.0
+    message: "{subject} checks passwords with pam_unix but never calls pam_faillock, so an attacker may guess passwords without limit"
+    fix: add pam_faillock to the auth stack of {subject}, preauth before pam_unix and authfail after it, and to its account stack
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_faillock.8.html
+    tags: [auth, pam]

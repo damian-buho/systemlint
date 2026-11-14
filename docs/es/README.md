@@ -81,6 +81,7 @@ Clona el repositorio y ejecuta `make`: cada paso de compilación, destino y punt
 
 - [Local accounts and groups](../how-to/accounts.md)
 - [apt sources](../how-to/apt.md)
+- [Authentication configuration](../how-to/auth.md)
 - [Linting images in CI](../how-to/ci.md)
 - [Collectors](../how-to/collectors.md)
 - [Configuration: files, layers and precedence](../how-to/configuration.md)

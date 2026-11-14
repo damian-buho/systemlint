@@ -16,3 +16,23 @@ rules:
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [coredump, sysctl, lynis]
+  coredump/no-hard-limit:
+    title: Login sessions may dump core
+    fact: auth.limits.entries
+    when: {auth.pam: {minProperties: 1}}
+    expect:
+      contains:
+        required: [domain, type, item, value]
+        properties: {domain: {const: "*"}, type: {enum: [hard, "-"]}, item: {const: core}, value: {const: "0"}}
+      not:
+        contains:
+          required: [type, item, value]
+          properties: {type: {enum: [hard, "-"]}, item: {const: core}, value: {not: {const: "0"}}}
+    severity: warning
+    score: 3.0
+    message: "pam_limits sets no hard core limit of 0 for every user, or raises it for some, so a program that crashes in a login session can write its memory, secrets included, to a core file"
+    fix: "add * hard core 0 to /etc/security/limits.conf and remove any hard or - core line with another value from it and limits.d"
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/limits.conf.5.html
+    references:
+      - {title: Lynis KRNL-5820, url: "https://cisofy.com/lynis/controls/KRNL-5820/"}
+    tags: [coredump, auth, lynis]

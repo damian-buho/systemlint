@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Account defaults in /etc/login.defs that hand new files to other users
+when: {auth.login-defs: {minProperties: 1}}
+rules:
+  login-defs/umask:
+    title: The login umask leaves new files open to other users
+    fact: auth.login-defs
+    expect: {required: [UMASK], properties: {UMASK: {pattern: "^0[0-7]?[2367]7$"}}}
+    severity: warning
+    score: 4.0
+    message: "UMASK in /etc/login.defs is unset (022) or keeps group write or any other-user bit open, so every user’s new files are readable, or writable, by users who should not see them"
+    fix: set UMASK 027 in /etc/login.defs, written in octal with its leading 0
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
+    references:
+      - {title: Lynis AUTH-9328, url: "https://cisofy.com/lynis/controls/AUTH-9328/"}
+    tags: [auth, lynis]
