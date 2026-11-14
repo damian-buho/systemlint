@@ -7,8 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 # apt sources
 
 The `systemlint-apt` plugin and its three collectors read apt’s configuration
-and cache, and the `apt` ruleset judges them. Nothing runs `apt`: every input
-is a file, so a live host and `--root` give the same facts.
+and cache, and the `apt` ruleset judges them; every input is a file, so a live
+host and `--root` give the same facts. A fourth collector asks apt itself for
+the pending upgrades, on a live host only.
 
 ```sh
 systemlint check --tags apt
@@ -22,6 +23,7 @@ systemlint check --root /mnt/image --tags apt
 | `apt-lists` | `/var/lib/apt/lists/*_InRelease`, `*_Release` | `apt.lists.<path>` |
 | `apt-sources` | `/etc/apt/sources.list`, `sources.list.d/*.sources` and `*.list` | `apt.sources.<path>:<line>` |
 | `apt-installed` | `/var/lib/dpkg/status` | `apt.installed.<package>` |
+| `apt-upgrades` | `apt-get --simulate dist-upgrade`, live only, `formats exec` | `apt.upgrades` |
 
 `apt-sources` needs `os.release` and `apt.lists`, so it runs after both.
 
@@ -56,6 +58,13 @@ A cached list carries `origin`, `label`, `suite`, `codename`, `version`,
 true for an `InRelease` file. A package carries `version`, `architecture` and
 `status`, the last word of dpkg’s `Status:` (`installed`, `config-files`, …);
 a package installed for several architectures is keyed `name:arch`.
+
+The upgrades are the command’s `exit-status`, `stdout`, `stderr` and
+`stdout-lines`, as apt prints them after pins, holds and phased updates: an
+upgrade is a line `Inst <package> [<current>] (<candidate> <Label>:<Version>/<Archive>, … [<arch>])`,
+so a rule matches a pending security fix with `contains: {pattern: …}` on
+`-security`. apt resolves against the cached lists, so the answer is as fresh
+as the last `apt update`.
 
 `release-age-days` is no fetch time: apt records none, and a stable release’s
 base suite keeps the `Date:` it shipped with. A Release is stale for apt only

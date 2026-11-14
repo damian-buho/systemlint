@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: apt-upgrades
+read:
+  exec: [/usr/bin/apt-get, --simulate, --quiet, --quiet, dist-upgrade, -o, Debug::NoLocking=true]
+parse: {plugin: formats, op: exec}
+into: apt.upgrades
