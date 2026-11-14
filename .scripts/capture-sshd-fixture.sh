@@ -13,22 +13,20 @@ fixture="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../fixtures/sshd" && pwd)"
 image="$1"
 shift
 mkdir --parents "${fixture}/accounts"
-
-capture() {
-  echo "capturing sshd $* in ${image}" >&2
-  timeout --kill-after=30s 900s docker run --rm --cpus 2 --memory 1g --env DEBIAN_FRONTEND=noninteractive \
-    --mount "type=bind,source=${fixture}/etc/ssh,target=/fixture,readonly" "${image}" bash -c '
-    set -e
-    apt-get update --quiet=2 >/dev/null
-    apt-get install --yes --quiet=2 --no-install-recommends openssh-server >/dev/null
-    cp --recursive /fixture/. /etc/ssh/
-    ssh-keygen -A >/dev/null
-    mkdir --parents /run/sshd
-    /usr/sbin/sshd "$@"' sshd "$@"
-}
-
-capture -T > "${fixture}/sshd-T.txt"
-for account in "$@"; do
-  capture -T -C "user=${account},host=client.invalid,addr=192.0.2.1" > "${fixture}/accounts/${account}.txt"
-  echo "${account}: $(wc --lines < "${fixture}/accounts/${account}.txt") keywords" >&2
-done
+echo "capturing sshd -T and $# accounts in ${image}" >&2
+# shellcheck disable=SC2016 # the script expands inside the container
+timeout --kill-after=30s 900s docker run --rm --cpus 2 --memory 1g --user 0 --env DEBIAN_FRONTEND=noninteractive \
+  --env "OWNER=$(id --user):$(id --group)" \
+  --mount "type=bind,source=${fixture},target=/fixture" "${image}" bash -c '
+  set -e
+  apt-get update --quiet=2 >/dev/null
+  apt-get install --yes --quiet=2 --no-install-recommends openssh-server >/dev/null
+  cp --recursive /fixture/etc/ssh/. /etc/ssh/
+  ssh-keygen -A >/dev/null
+  mkdir --parents /run/sshd
+  /usr/sbin/sshd -T > /fixture/sshd-T.txt
+  for account in "$@"; do
+    /usr/sbin/sshd -T -C "user=${account},host=client.invalid,addr=192.0.2.1" > "/fixture/accounts/${account}.txt"
+    echo "${account}: $(wc --lines < "/fixture/accounts/${account}.txt") keywords" >&2
+  done
+  chown --recursive "${OWNER}" /fixture/sshd-T.txt /fixture/accounts' sshd "$@"

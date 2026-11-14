@@ -4,66 +4,56 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, UNIX_EPOCH};
 
 use serde_json::{Value, json};
-use systemlint::collect::{HashKey, Options, inputs};
 use systemlint::collector::Collector;
-use systemlint::judge::{Check, Outcome, compile, lint};
+use systemlint::judge::{Check, Outcome, compile, lint, schema};
 use systemlint::rules::Library;
-use systemlint::source::Root;
 use systemlint_protocol::{ExecInput, Input, PROTOCOL, Request};
 
 const MAIN: &str = "/etc/ssh/sshd_config";
-const MATCH: &str = "/etc/ssh/sshd_config:19";
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-// The fixture read by the shipped collector under --root, with the captured `sshd -T` added when `effective` is set.
-fn document(effective: bool) -> Value {
-    let collector = Collector::parse(
-        &std::fs::read_to_string(repository().join("collectors/sshd.yaml")).unwrap(),
-    )
-    .unwrap();
-    let options = Options {
-        privileged: true,
-        root: Root::open(&repository().join("fixtures/sshd")).unwrap(),
-        live: false,
-        now: UNIX_EPOCH + Duration::from_secs(1_794_398_400),
-        timeout: Duration::from_secs(60),
-        hash_key: HashKey::configured("a fixture hash key"),
-        image_config: None,
-        jobs: 1,
-        network: None,
-        containers: false,
-    };
-    let mut given = inputs(&collector, &options).unwrap();
-    assert!(
-        given.iter().all(|i| matches!(i, Input::File(_))),
-        "exec never runs under --root"
-    );
-    if effective {
-        let stdout =
-            std::fs::read_to_string(repository().join("fixtures/sshd/sshd-T.txt")).unwrap();
-        given.push(Input::Exec(ExecInput {
-            argv: collector.read.exec.clone().unwrap(),
-            stdout,
+fn shipped() -> Collector {
+    Collector::parse(&std::fs::read_to_string(repository().join("collectors/sshd.yaml")).unwrap())
+        .unwrap()
+}
+
+// The shipped collector’s commands answered by `.scripts/capture-sshd-fixture.sh ubuntu:26.04 root backup alice`.
+fn document() -> Value {
+    let collector = shipped();
+    let fixture = repository().join("fixtures/sshd");
+    let exec = |argv: Vec<String>, path: PathBuf| {
+        Input::Exec(ExecInput {
+            argv,
+            stdout: std::fs::read_to_string(path).unwrap(),
             stderr: String::new(),
             exit: 0,
-        }));
+        })
+    };
+    let from = collector.read.exec_from.clone().unwrap();
+    let mut inputs = vec![exec(
+        collector.read.exec.clone().unwrap(),
+        fixture.join("sshd-T.txt"),
+    )];
+    for account in ["root", "backup", "alice"] {
+        let argv = from
+            .argv
+            .iter()
+            .map(|a| a.replace("{key}", account))
+            .collect();
+        inputs.push(exec(argv, fixture.join(format!("accounts/{account}.txt"))));
     }
     let reply = systemlint_sshd::op(Request {
         protocol: PROTOCOL,
         op: collector.parse.op.clone(),
         root: "/".into(),
         now: None,
-        inputs: given,
-        facts: BTreeMap::from([(
-            "apt.installed".to_owned(),
-            json!({"openssh-server": {"version": "1:10.2p1-2ubuntu3.8"}}),
-        )]),
+        inputs,
+        facts: BTreeMap::new(),
         with: Default::default(),
     })
     .unwrap();
@@ -95,70 +85,86 @@ fn outcomes(document: &Value) -> Vec<(String, String, Outcome)> {
 }
 
 #[test]
-fn files_and_sshd_t_give_the_same_global_config_but_listen_addresses() {
-    let (mut files, mut effective) = (document(false), document(true));
-    assert_eq!(
-        (
-            files["sshd"]["source"].as_str(),
-            effective["sshd"]["source"].as_str()
-        ),
-        (Some("files"), Some("effective"))
-    );
-    for document in [&mut files, &mut effective] {
-        document["sshd"]["global"][MAIN]
-            .as_object_mut()
-            .unwrap()
-            .remove("listenaddress");
+fn the_collector_runs_sshd_for_root_and_every_login_shell_only() {
+    let from = shipped().read.exec_from.unwrap();
+    let keep = schema(from.keep.as_ref().unwrap()).unwrap();
+    for (entry, kept) in [
+        (json!({"uid": 0, "shell": "/usr/sbin/nologin"}), true),
+        (json!({"uid": 1000, "shell": "/bin/bash"}), true),
+        (json!({"uid": 1000, "shell": ""}), true),
+        (json!({"uid": 1, "shell": "/usr/sbin/nologin"}), false),
+        (json!({"uid": 1, "shell": "/sbin/nologin"}), false),
+        (json!({"uid": 1, "shell": "/bin/false"}), false),
+        (json!({"uid": 1, "shell": "/usr/bin/false"}), false),
+    ] {
+        assert_eq!(keep.is_valid(&entry), kept, "{entry}");
     }
-    assert_eq!(files["sshd"]["global"], effective["sshd"]["global"]);
     assert_eq!(
-        files["sshd"]["contexts"][MAIN],
-        effective["sshd"]["contexts"][MAIN]
+        from.argv[3],
+        "user={key},host=client.invalid,addr=192.0.2.1"
     );
-    let global = &files["sshd"]["global"][MAIN];
+    assert!(shipped().privileged, "sshd -T reads the host keys");
+}
+
+#[test]
+fn each_account_gets_what_its_own_run_settled() {
+    let document = document();
+    let sshd = &document["sshd"];
+    assert_eq!(
+        sshd["client"],
+        json!({"host": "client.invalid", "addr": "192.0.2.1"})
+    );
+    assert_eq!(sshd["global"][MAIN]["port"], json!([2222, 22]));
+    assert_eq!(
+        sshd["global"][MAIN]["logingracetime"], 90,
+        "the drop-in’s value wins"
+    );
+    let backup = &sshd["accounts"]["backup"];
     assert_eq!(
         (
-            files["sshd"]["contexts"][MAIN]["permitrootlogin"].as_str(),
-            global["logingracetime"].as_u64()
+            &backup["passwordauthentication"],
+            &backup["permitrootlogin"],
+            &backup["x11forwarding"]
         ),
-        (Some("prohibit-password"), Some(90))
+        (&json!("yes"), &json!("forced-commands-only"), &json!("no")),
+        "Match User backup Address 192.0.2.0/24 holds the reserved client address"
     );
-    assert_eq!(global["port"], json!([2222, 22]));
-    assert_eq!(
-        files["sshd"]["contexts"][MATCH]["match"],
-        "User backup Address 192.0.2.0/24"
+    assert_eq!(sshd["accounts"]["alice"]["passwordauthentication"], "no");
+    assert!(
+        sshd["accounts"]["alice"].get("logingracetime").is_none(),
+        "a keyword Match refuses lives only under global"
     );
 }
 
 #[test]
-fn every_ssh_rule_answers_alike_on_files_and_on_sshd_t() {
-    let (files, effective) = (outcomes(&document(false)), outcomes(&document(true)));
+fn every_ssh_rule_answers_and_the_failures_are_per_account() {
+    let outcomes = outcomes(&document());
     assert!(
-        files.iter().all(|(_, _, o)| *o != Outcome::Unknown),
-        "{files:?}"
+        outcomes.iter().all(|(_, _, o)| *o != Outcome::Unknown),
+        "{outcomes:?}"
     );
-    assert_eq!(files, effective);
-    let failing: Vec<(&str, &str)> = files
+    let failing: Vec<(&str, &str)> = outcomes
         .iter()
         .filter(|(_, _, o)| *o == Outcome::Fail)
         .map(|(r, s, _)| (r.as_str(), s.as_str()))
         .collect();
-    assert_eq!(
-        failing,
-        [
-            ("ssh/ciphers", MAIN),
-            ("ssh/gateway-ports", MAIN),
-            ("ssh/gateway-ports", MATCH),
-            ("ssh/login-grace-time", MAIN),
-            ("ssh/password-authentication", MATCH),
-            ("ssh/x11-forwarding", MAIN),
-        ]
-    );
+    assert_eq!(failing, FAILING);
 }
+
+const FAILING: &[(&str, &str)] = &[
+    ("ssh/ciphers", MAIN),
+    ("ssh/gateway-ports", "alice"),
+    ("ssh/gateway-ports", "backup"),
+    ("ssh/gateway-ports", "root"),
+    ("ssh/login-grace-time", MAIN),
+    ("ssh/password-authentication", "backup"),
+    ("ssh/x11-forwarding", "alice"),
+    ("ssh/x11-forwarding", "root"),
+];
 
 #[test]
 fn a_weak_cipher_is_named_in_the_message() {
-    let checks = checks(&document(true));
+    let checks = checks(&document());
     let cipher = checks
         .iter()
         .find(|c| c.rule == "ssh/ciphers" && c.outcome == Outcome::Fail)
@@ -172,6 +178,6 @@ fn a_weak_cipher_is_named_in_the_message() {
 
 #[test]
 fn a_host_without_sshd_gives_no_check() {
-    let document = json!({"sshd": {"source": "none", "global": {}, "contexts": {}}, "collectors": {"sshd": {"status": "ok", "into": "sshd"}}});
+    let document = json!({"sshd": {"global": {}, "accounts": {}}, "collectors": {"sshd": {"status": "ok", "into": "sshd"}}});
     assert!(checks(&document).is_empty());
 }

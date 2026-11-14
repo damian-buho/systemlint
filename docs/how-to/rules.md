@@ -89,7 +89,7 @@ ssh/root-login:
   title: Root may log in over SSH
   facts:
     any:
-      - {fact: sshd.contexts.*.permitrootlogin, expect: {const: "no"}}
+      - {fact: sshd.accounts.*.permitrootlogin, expect: {const: "no"}}
       - {fact: apt.installed, expect: {not: {required: [openssh-server]}}}
 ```
 

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! sshd: the server configuration, from `sshd -T` when it ran, else from the files with `Include` expanded, plus every `Match` block.
+//! sshd: the server configuration as `sshd -T` prints it, globally and per account through `sshd -T -C`.
 
 use std::collections::BTreeMap;
 
@@ -13,44 +13,17 @@ pub mod authorized;
 pub mod config;
 pub mod keys;
 
-use config::{MAIN, Raw};
-
-/// `sshd -T -f /dev/null` per upstream version, oldest first, with the package `.scripts/capture-sshd-defaults.sh` read it from.
-pub const DEFAULTS: [(&str, &str, &str); 4] = [
-    (
-        "9.2p1",
-        "openssh-server 1:9.2p1-2+deb12u10",
-        include_str!("defaults/9.2p1.txt"),
-    ),
-    (
-        "9.6p1",
-        "openssh-server 1:9.6p1-3ubuntu13.20",
-        include_str!("defaults/9.6p1.txt"),
-    ),
-    (
-        "10.0p1",
-        "openssh-server 1:10.0p1-7+deb13u4",
-        include_str!("defaults/10.0p1.txt"),
-    ),
-    (
-        "10.2p1",
-        "openssh-server 1:10.2p1-2ubuntu3.8",
-        include_str!("defaults/10.2p1.txt"),
-    ),
-];
-
-/// The package whose sshd sets the defaults.
-const PACKAGE: &str = "openssh-server";
+use config::MAIN;
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
     Describe::new(
         "sshd",
         &[
-            ("config", &["apt.installed"]),
+            ("config", &[]),
             (
                 "authorized-key-files",
-                &["apt.installed", "accounts.passwd", "accounts.group"],
+                &[authorized::ACCOUNTS, "accounts.passwd"],
             ),
             ("authorized-keys", &[keys::NAMED]),
         ],
@@ -60,205 +33,96 @@ pub fn describe() -> Describe {
 /// Runs one op.
 pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
-        "config" => server(&request.inputs, &request.facts).map_err(Into::into),
-        "authorized-key-files" => {
-            authorized::files(&request.inputs, &request.facts).map_err(Into::into)
-        }
+        "config" => server(&request.inputs).map_err(Into::into),
+        "authorized-key-files" => authorized::files(&request.facts).map_err(Into::into),
         "authorized-keys" => keys::authorized(&request.inputs, &request.facts).map_err(Into::into),
         other => Err(format!("op {other} is not implemented").into()),
     }
 }
 
-/// `source`, `global` (keywords `Match` refuses) keyed by the main file, the `contexts` keyed by it and by each `Match` line, and `defaults` when read from the files.
-pub fn server(
-    inputs: &[Input],
-    facts: &BTreeMap<String, Value>,
-) -> std::result::Result<Reply, String> {
-    let Loaded {
-        mut reply,
-        source,
-        global,
-        blocks,
-        from,
-        guessed,
-    } = load(inputs, facts)?;
-    let (mut fixed, mut contexts) = (Map::new(), Map::new());
-    if source != "none" {
-        let (shared, rest): (Map<String, Value>, Map<String, Value>) = config::facts(&global)
-            .into_iter()
-            .partition(|(k, _)| config::MATCH.contains(&k.as_str()));
-        fixed.insert(MAIN.to_owned(), Value::Object(rest));
-        contexts.insert(MAIN.to_owned(), Value::Object(shared));
-        for block in blocks {
-            let mut merged: Map<String, Value> = config::facts(&overlay(&global, &block.raw))
-                .into_iter()
-                .filter(|(k, _)| config::MATCH.contains(&k.as_str()))
-                .collect();
-            merged.insert("match".to_owned(), Value::from(block.criteria));
-            contexts.insert(block.key, Value::Object(merged));
-        }
-    }
-    reply.facts.insert("source".to_owned(), Value::from(source));
-    reply
-        .facts
-        .insert("global".to_owned(), Value::Object(fixed));
-    reply
-        .facts
-        .insert("contexts".to_owned(), Value::Object(contexts));
-    if source == "files" {
-        reply.facts.insert("defaults".to_owned(), Value::from(from));
-        if guessed {
-            reply.diagnostics.push(Diagnostic { path: "apt.installed".to_owned(), line: None, message: format!("no {PACKAGE} version installed, so the files are read against the newest defaults, {from}") });
-        }
-    }
-    Ok(reply)
-}
-
-/// The configuration the inputs give, with the diagnostics reading it raised.
-pub struct Loaded {
-    pub reply: Reply,
-    pub source: &'static str,
-    pub global: Raw,
-    pub blocks: Vec<config::Block>,
-    pub from: &'static str,
-    pub guessed: bool,
-}
-
-/// Reads the files and `sshd -T` output: `source`, the global settings over the defaults, and the `Match` blocks in file order.
-pub fn load(
-    inputs: &[Input],
-    facts: &BTreeMap<String, Value>,
-) -> std::result::Result<Loaded, String> {
+/// `global` (plain `sshd -T`, keyed by the main file), `accounts` (each `-T -C` run’s `Match`-able keywords, keyed by its `user`) and the `client` those runs named.
+pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
     let mut reply = Reply::default();
-    let mut files = BTreeMap::new();
-    let (mut effective, mut failed) = (None, Vec::new());
+    let (mut global, mut accounts, mut client) = (Map::new(), Map::new(), Map::new());
     for input in inputs {
-        match input {
-            Input::File(file) => match &file.content {
-                Some(text) => drop(files.insert(file.path.clone(), text.clone())),
-                None => reply.diagnostics.push(Diagnostic {
-                    path: file.path.clone(),
-                    line: None,
-                    message: "not UTF-8 text, skipped".to_owned(),
-                }),
-            },
-            Input::Exec(exec) if exec.exit == 0 && !exec.stdout.trim().is_empty() => {
-                effective = Some(config::dump(&exec.stdout))
+        let Input::Exec(exec) = input else {
+            reply.diagnostics.push(Diagnostic {
+                path: input_path(input),
+                line: None,
+                message: "not sshd -T output, skipped".to_owned(),
+            });
+            continue;
+        };
+        let connection = connection(&exec.argv);
+        let command = exec.argv.join(" ");
+        match exec.exit {
+            127 if connection.is_none() => reply.diagnostics.push(Diagnostic {
+                path: command,
+                line: None,
+                message: "no sshd here, so no settings were read".to_owned(),
+            }),
+            127 => {}
+            0 if !exec.stdout.trim().is_empty() => {
+                let settings = config::facts(&config::dump(&exec.stdout));
+                let Some(mut connection) = connection else {
+                    global = settings;
+                    continue;
+                };
+                let user = connection
+                    .remove("user")
+                    .ok_or(format!("{command} names no user"))?;
+                client.extend(connection.into_iter().map(|(k, v)| (k, Value::from(v))));
+                let kept = settings
+                    .into_iter()
+                    .filter(|(k, _)| config::MATCH.contains(&k.as_str()));
+                accounts.insert(user, Value::Object(kept.collect()));
             }
-            Input::Exec(exec) => {
+            exit => {
                 let reason = exec
                     .stderr
                     .lines()
                     .find(|l| !l.trim().is_empty())
                     .unwrap_or("no output");
-                failed.push((
-                    exec.argv.join(" "),
-                    format!("exited {}: {reason}", exec.exit),
-                ));
+                return Err(format!("{command} exited {exit}: {reason}"));
             }
-            Input::Probe(probe) => reply.diagnostics.push(Diagnostic {
-                path: probe.target.clone(),
-                line: None,
-                message: "a probe is not an sshd config, skipped".to_owned(),
-            }),
         }
     }
-    let fallback = if files.contains_key(MAIN) {
-        "read from the files".to_owned()
-    } else {
-        format!("no {MAIN} either, so nothing was read")
+    let global = match global.is_empty() {
+        true => Map::new(),
+        false => Map::from_iter([(MAIN.to_owned(), Value::Object(global))]),
     };
     reply
-        .diagnostics
-        .extend(failed.into_iter().map(|(path, message)| Diagnostic {
-            path,
-            line: None,
-            message: format!("{message}; {fallback}"),
-        }));
-    let installed = installed(facts);
-    let (_, from, table) = defaults_for(installed.as_deref());
-    let defaults = config::dump(table);
-    let mut lines = Vec::new();
-    config::expand(MAIN, &files, 0, &mut lines)?;
-    let parsed = config::settle(&lines, &defaults);
-    reply.diagnostics.extend(
-        parsed
-            .problems
-            .into_iter()
-            .map(|(path, line, message)| Diagnostic {
-                path,
-                line,
-                message,
-            }),
-    );
-    let source = match (&effective, files.contains_key(MAIN)) {
-        (Some(_), _) => "effective",
-        (None, true) => "files",
-        (None, false) => "none",
-    };
-    let global = match &effective {
-        Some(raw) => raw.clone(),
-        None => overlay(&defaults, &parsed.global),
-    };
-    Ok(Loaded {
-        reply,
-        source,
-        global,
-        blocks: parsed.blocks,
-        from,
-        guessed: installed.is_none(),
-    })
+        .facts
+        .insert("global".to_owned(), Value::Object(global));
+    reply
+        .facts
+        .insert("accounts".to_owned(), Value::Object(accounts));
+    if !client.is_empty() {
+        reply
+            .facts
+            .insert("client".to_owned(), Value::Object(client));
+    }
+    Ok(reply)
 }
 
-// The installed `openssh-server` version, keyed by name or `name:arch`.
-fn installed(facts: &BTreeMap<String, Value>) -> Option<String> {
-    let packages = facts.get("apt.installed")?.as_object()?;
-    let version = packages
-        .iter()
-        .find(|(name, _)| name.split(':').next() == Some(PACKAGE))
-        .and_then(|(_, p)| p["version"].as_str());
-    version.map(str::to_owned)
+/// The `-C` connection spec of an argv as `key=value` pairs, `None` without one.
+pub fn connection(argv: &[String]) -> Option<BTreeMap<String, String>> {
+    let spec = argv.iter().skip_while(|a| *a != "-C").nth(1)?;
+    Some(
+        spec.split(',')
+            .filter_map(|pair| pair.split_once('='))
+            .map(|(k, v)| (k.to_owned(), v.to_owned()))
+            .collect(),
+    )
 }
 
-/// `(major, minor, portable)` of a Debian version such as `1:9.2p1-2+deb12u10`, epoch and revision dropped.
-pub fn upstream(version: &str) -> Option<(u32, u32, u32)> {
-    let version = version.split_once(':').map_or(version, |(_, v)| v);
-    let version = version.rsplit_once('-').map_or(version, |(v, _)| v);
-    let (major, rest) = version.split_once('.')?;
-    let minor_end = rest
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(rest.len());
-    let portable = rest[minor_end..]
-        .strip_prefix('p')
-        .and_then(|p| p.split(|c: char| !c.is_ascii_digit()).next())
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(0);
-    Some((
-        major.parse().ok()?,
-        rest[..minor_end].parse().ok()?,
-        portable,
-    ))
-}
-
-/// The newest table no newer than `installed`, the oldest when it predates them all, the newest when unknown.
-pub fn defaults_for(installed: Option<&str>) -> (&'static str, &'static str, &'static str) {
-    let newest = DEFAULTS[DEFAULTS.len() - 1];
-    let Some(wanted) = installed.and_then(upstream) else {
-        return newest;
-    };
-    DEFAULTS
-        .iter()
-        .rev()
-        .find(|(v, _, _)| upstream(v).is_some_and(|t| t <= wanted))
-        .copied()
-        .unwrap_or(DEFAULTS[0])
-}
-
-// `base` with every keyword `over` sets replacing its value.
-fn overlay(base: &Raw, over: &Raw) -> Raw {
-    let mut raw = base.clone();
-    raw.extend(over.iter().map(|(k, v)| (k.clone(), v.clone())));
-    raw
+// The path or target an input names.
+fn input_path(input: &Input) -> String {
+    match input {
+        Input::File(file) => file.path.clone(),
+        Input::Probe(probe) => probe.target.clone(),
+        Input::Exec(exec) => exec.argv.join(" "),
+    }
 }
 
 #[cfg(test)]
@@ -267,36 +131,26 @@ mod tests {
     use serde_json::json;
     use systemlint_protocol::{ExecInput, FileInput};
 
-    fn file(path: &str, text: &str) -> Input {
-        Input::File(FileInput {
-            path: path.into(),
-            content: Some(text.into()),
-            content_base64: None,
-            stat: None,
-            statfs: None,
-            absent: false,
-        })
-    }
-
-    fn exec(exit: i32, stdout: &str, stderr: &str) -> Input {
+    fn exec(argv: &[&str], exit: i32, stdout: &str, stderr: &str) -> Input {
         Input::Exec(ExecInput {
-            argv: vec!["/usr/sbin/sshd".into(), "-T".into()],
+            argv: argv.iter().map(|a| (*a).to_owned()).collect(),
             stdout: stdout.into(),
             stderr: stderr.into(),
             exit,
         })
     }
 
-    fn collected(inputs: &[Input]) -> (Value, Vec<Diagnostic>) {
-        collected_on(inputs, json!({PACKAGE: {"version": "1:10.2p1-2ubuntu3.8"}}))
+    fn plain(exit: i32, stdout: &str, stderr: &str) -> Input {
+        exec(&["/usr/sbin/sshd", "-T"], exit, stdout, stderr)
     }
 
-    fn collected_on(inputs: &[Input], installed: Value) -> (Value, Vec<Diagnostic>) {
-        let reply = server(
-            inputs,
-            &BTreeMap::from([("apt.installed".to_owned(), installed)]),
-        )
-        .unwrap();
+    fn account(user: &str, exit: i32, stdout: &str) -> Input {
+        let spec = format!("user={user},host=client.invalid,addr=192.0.2.1");
+        exec(&["/usr/sbin/sshd", "-T", "-C", &spec], exit, stdout, "")
+    }
+
+    fn collected(inputs: &[Input]) -> (Value, Vec<Diagnostic>) {
+        let reply = server(inputs).unwrap();
         (
             Value::Object(reply.facts.into_iter().collect()),
             reply.diagnostics,
@@ -304,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn describe_lists_config() {
+    fn describe_lists_the_ops_and_their_needs() {
         let describe = describe();
         assert_eq!(describe.name, "sshd");
         assert_eq!(
@@ -314,12 +168,13 @@ mod tests {
                 .map(|o| (o.op.as_str(), o.needs.clone()))
                 .collect::<Vec<_>>(),
             [
-                ("config", vec!["apt.installed".to_owned()]),
+                ("config", vec![]),
                 (
                     "authorized-key-files",
-                    ["apt.installed", "accounts.passwd", "accounts.group"]
-                        .map(str::to_owned)
-                        .to_vec()
+                    vec![
+                        authorized::ACCOUNTS.to_owned(),
+                        "accounts.passwd".to_owned()
+                    ]
                 ),
                 ("authorized-keys", vec![keys::NAMED.to_owned()])
             ]
@@ -339,194 +194,115 @@ mod tests {
     }
 
     #[test]
-    fn the_defaults_fill_what_the_files_leave_unset() {
-        let (facts, diagnostics) = collected(&[file(MAIN, "PermitRootLogin no\n")]);
-        assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        assert_eq!(
-            (facts["source"].as_str(), facts["defaults"].as_str()),
-            (Some("files"), Some("openssh-server 1:10.2p1-2ubuntu3.8"))
-        );
-        let global = &facts["contexts"][MAIN];
-        assert_eq!(global["permitrootlogin"], "no");
-        assert_eq!(global["passwordauthentication"], "yes");
-        assert_eq!(facts["global"][MAIN]["logingracetime"], 120);
-        assert_eq!(facts["global"][MAIN]["port"], json!([22]));
-        assert!(
-            global.get("logingracetime").is_none(),
-            "a keyword Match refuses lives only under global"
-        );
-    }
-
-    #[test]
-    fn a_successful_sshd_t_wins_and_match_blocks_still_come_from_the_files() {
+    fn global_comes_from_plain_t_and_each_account_from_its_own_run() {
         let (facts, diagnostics) = collected(&[
-            file(
-                MAIN,
-                "PermitRootLogin yes\nMatch Group sftp\n  X11Forwarding yes\n",
-            ),
-            exec(
+            plain(
                 0,
                 "permitrootlogin no\nx11forwarding no\nciphers aes128-ctr\n",
                 "",
             ),
+            account(
+                "root",
+                0,
+                "permitrootlogin no\nx11forwarding no\nciphers aes128-ctr\n",
+            ),
+            account(
+                "sftp",
+                0,
+                "permitrootlogin no\nx11forwarding yes\nciphers aes128-ctr\n",
+            ),
         ]);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        assert_eq!(facts["source"], "effective");
-        assert!(facts.get("defaults").is_none());
-        assert_eq!(facts["global"], json!({MAIN: {"ciphers": ["aes128-ctr"]}}));
         assert_eq!(
-            facts["contexts"][MAIN],
-            json!({"permitrootlogin": "no", "x11forwarding": "no"})
+            facts["global"],
+            json!({MAIN: {"permitrootlogin": "no", "x11forwarding": "no", "ciphers": ["aes128-ctr"]}})
         );
         assert_eq!(
-            facts["contexts"]["/etc/ssh/sshd_config:2"],
-            json!({"match": "Group sftp", "permitrootlogin": "no", "x11forwarding": "yes"})
+            facts["accounts"]["sftp"],
+            json!({"permitrootlogin": "no", "x11forwarding": "yes"}),
+            "a keyword Match refuses stays under global only"
+        );
+        assert_eq!(facts["accounts"]["root"]["x11forwarding"], "no");
+        assert_eq!(
+            facts["client"],
+            json!({"host": "client.invalid", "addr": "192.0.2.1"})
         );
     }
 
     #[test]
-    fn a_failed_sshd_t_falls_back_to_the_files_and_says_why() {
-        let (facts, diagnostics) = collected(&[
-            file(MAIN, "PermitRootLogin yes\n"),
-            exec(1, "", "\nsshd: no hostkeys available -- exiting.\n"),
-        ]);
-        assert_eq!(facts["source"], "files");
-        assert_eq!(facts["contexts"][MAIN]["permitrootlogin"], "yes");
+    fn a_failed_run_fails_the_op_naming_the_command() {
+        let error =
+            server(&[plain(1, "", "\nsshd: no hostkeys available -- exiting.\n")]).unwrap_err();
         assert_eq!(
-            diagnostics[0].message,
-            "exited 1: sshd: no hostkeys available -- exiting.; read from the files"
+            error,
+            "/usr/sbin/sshd -T exited 1: sshd: no hostkeys available -- exiting."
         );
-        assert_eq!(diagnostics[0].path, "/usr/sbin/sshd -T");
-    }
-
-    #[test]
-    fn no_server_gives_no_contexts() {
-        let (facts, diagnostics) = collected(&[exec(127, "", "/usr/sbin/sshd: not found\n")]);
-        assert_eq!(
-            facts,
-            json!({"source": "none", "global": {}, "contexts": {}})
-        );
-        assert_eq!(
-            diagnostics[0].message,
-            "exited 127: /usr/sbin/sshd: not found; no /etc/ssh/sshd_config either, so nothing was read"
-        );
-        let (facts, _) = collected(&[]);
-        assert_eq!(facts["source"], "none");
-    }
-
-    #[test]
-    fn a_keyword_match_refuses_is_reported_and_left_out_of_the_block() {
-        let (facts, diagnostics) =
-            collected(&[file(MAIN, "Match User backup\n  Ciphers aes128-cbc\n")]);
-        assert_eq!(
-            (diagnostics[0].line, diagnostics[0].message.as_str()),
-            (
-                Some(2),
-                "ciphers is not allowed in a Match block, so sshd refuses to start"
-            )
+        let error = server(&[account("alice", 255, "")]).unwrap_err();
+        assert!(
+            error.starts_with("/usr/sbin/sshd -T -C user=alice"),
+            "{error}"
         );
         assert!(
-            facts["contexts"]["/etc/ssh/sshd_config:1"]
-                .get("ciphers")
-                .is_none()
-        );
-        assert!(
-            facts["global"][MAIN]["ciphers"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .all(|c| c != "aes128-cbc")
-        );
-    }
-
-    #[test]
-    fn upstream_drops_epoch_and_revision() {
-        assert_eq!(upstream("1:9.2p1-2+deb12u10"), Some((9, 2, 1)));
-        assert_eq!(upstream("10.2p1-2ubuntu3.8"), Some((10, 2, 1)));
-        assert_eq!(upstream("1:10.0"), Some((10, 0, 0)));
-        assert_eq!(upstream("garbage"), None);
-    }
-
-    #[test]
-    fn defaults_follow_the_installed_version_at_every_edge() {
-        let picked = |v: Option<&str>| defaults_for(v).0;
-        assert_eq!(
-            picked(Some("1:9.2p1-2+deb12u10")),
-            "9.2p1",
-            "an exact match"
-        );
-        assert_eq!(
-            picked(Some("1:9.5p1-1")),
-            "9.2p1",
-            "between two tables, the older"
-        );
-        assert_eq!(
-            picked(Some("1:10.0p2-1")),
-            "10.0p1",
-            "a later portable release of one version"
-        );
-        assert_eq!(
-            picked(Some("1:9.1p1-1")),
-            "9.2p1",
-            "older than every table, the oldest"
-        );
-        assert_eq!(
-            picked(Some("1:99.0p1-1")),
-            "10.2p1",
-            "newer than every table, the newest"
-        );
-        assert_eq!(picked(None), "10.2p1", "unknown, the newest");
-        assert!(
-            DEFAULTS
-                .windows(2)
-                .all(|w| upstream(w[0].0) < upstream(w[1].0)),
-            "tables oldest first"
-        );
-    }
-
-    #[test]
-    fn an_older_server_reads_its_own_defaults_and_an_unknown_one_says_so() {
-        let (facts, diagnostics) = collected_on(
-            &[file(MAIN, "Port 22\n")],
-            json!({"openssh-server:amd64": {"version": "1:9.2p1-2+deb12u10"}}),
-        );
-        assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        assert_eq!(facts["defaults"], "openssh-server 1:9.2p1-2+deb12u10");
-        assert!(
-            !facts["global"][MAIN]["kexalgorithms"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|k| k == "mlkem768x25519-sha256"),
-            "9.2 offers no ML-KEM"
-        );
-        let (facts, diagnostics) = collected_on(&[file(MAIN, "Port 22\n")], json!({}));
-        assert_eq!(facts["defaults"], "openssh-server 1:10.2p1-2ubuntu3.8");
-        assert_eq!(
-            diagnostics[0].message,
-            "no openssh-server version installed, so the files are read against the newest defaults, openssh-server 1:10.2p1-2ubuntu3.8"
-        );
-    }
-
-    #[test]
-    fn a_bad_include_fails_the_op_and_binary_files_are_reported() {
-        assert!(
-            server(&[file(MAIN, "Include /srv/ssh.conf\n")], &BTreeMap::new())
+            server(&[plain(0, " \n", "")])
                 .unwrap_err()
-                .contains("/srv/ssh.conf")
+                .ends_with("exited 0: no output")
         );
-        let binary = Input::File(FileInput {
-            path: "/etc/ssh/sshd_config.d/x.conf".into(),
-            content: None,
-            content_base64: Some("AA==".into()),
+    }
+
+    #[test]
+    fn no_server_gives_empty_settings_and_says_so_once() {
+        let absent = "/usr/sbin/sshd: not found\n";
+        let (facts, diagnostics) = collected(&[
+            plain(127, "", absent),
+            exec(
+                &["/usr/sbin/sshd", "-T", "-C", "user=root"],
+                127,
+                "",
+                absent,
+            ),
+        ]);
+        assert_eq!(facts, json!({"global": {}, "accounts": {}}));
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].path, "/usr/sbin/sshd -T");
+        let (facts, _) = collected(&[]);
+        assert_eq!(facts, json!({"global": {}, "accounts": {}}));
+    }
+
+    #[test]
+    fn a_run_without_a_user_fails_and_a_file_is_skipped() {
+        assert_eq!(
+            server(&[exec(
+                &["/usr/sbin/sshd", "-T", "-C", "host=h"],
+                0,
+                "port 22\n",
+                ""
+            )])
+            .unwrap_err(),
+            "/usr/sbin/sshd -T -C host=h names no user"
+        );
+        let file = Input::File(FileInput {
+            path: MAIN.into(),
+            content: Some("Port 22\n".into()),
+            content_base64: None,
             stat: None,
             statfs: None,
             absent: false,
         });
-        let (_, diagnostics) = collected(&[
-            file(MAIN, "Include /etc/ssh/sshd_config.d/*.conf\n"),
-            binary,
-        ]);
-        assert_eq!(diagnostics[0].message, "not UTF-8 text, skipped");
+        let (_, diagnostics) = collected(&[file]);
+        assert_eq!(diagnostics[0].message, "not sshd -T output, skipped");
+    }
+
+    #[test]
+    fn connection_reads_the_spec_after_c() {
+        let argv = |a: &[&str]| a.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        assert_eq!(connection(&argv(&["sshd", "-T"])), None);
+        assert_eq!(connection(&argv(&["sshd", "-T", "-C"])), None);
+        assert_eq!(
+            connection(&argv(&["sshd", "-T", "-C", "user=a,addr=192.0.2.1,junk"])),
+            Some(BTreeMap::from([
+                ("user".to_owned(), "a".to_owned()),
+                ("addr".to_owned(), "192.0.2.1".to_owned())
+            ]))
+        );
     }
 }

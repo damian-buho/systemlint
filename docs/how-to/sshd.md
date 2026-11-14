@@ -6,88 +6,66 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # OpenSSH server
 
-The `sshd` collector reads the OpenSSH server configuration, and the `ssh`
-ruleset judges the settings that weaken authentication, forwarding or
-cryptography. The rules give the same answer whether the configuration came
-from `sshd -T` or from the files.
+The `sshd` collector asks the OpenSSH server for its effective
+configuration, globally and for each account, and the `ssh` ruleset judges the
+settings that weaken authentication, forwarding or cryptography.
 
 ```sh
 sudo systemlint check --tags ssh
-systemlint check --root /mnt/image --tags ssh
 ```
 
 ## Collector
 
-| Collector | Reads | Facts at |
+| Collector | Runs | Facts at |
 | --- | --- | --- |
-| `sshd` | `/etc/ssh/sshd_config`, every file in `/etc/ssh/sshd_config.d`, and `/usr/sbin/sshd -T` on a live host | `sshd` |
+| `sshd` | `/usr/sbin/sshd -T`, then `/usr/sbin/sshd -T -C user=<account>,host=client.invalid,addr=192.0.2.1` for root and every account whose shell is not `nologin` or `false` | `sshd` |
 
-`systemlint-sshd` takes the global settings from `sshd -T`, the effective
-configuration, when it exits 0, which needs root and the host keys. Otherwise,
-in an unprivileged run, under `--root`, or when sshd refuses its config, it
-reads the files the way sshd does:
+`sshd -T` reads the host keys, so the collector needs root, and it runs only
+on a live host: an unprivileged run or one under `--root` prints every `ssh`
+rule as `Not run`. sshd itself expands `Include`, applies its compiled defaults
+and settles every `Match` block for the connection `-C` describes, so the
+facts are what sshd would use, never a reading of the files. A command that
+fails, as sshd does when it refuses its config, fails the collector naming its
+exit code and first line of stderr; a host without sshd gives empty facts and
+so no check.
 
-- `Include` is expanded in place, each pattern’s files in name order, nested at
-  most 16 deep; a relative pattern is under `/etc/ssh/`. An `Include` that
-  matches nothing outside `/etc/ssh/sshd_config.d/` fails the collector, as the
-  collector never read what it names.
-- The FIRST value of a keyword wins, unlike most formats. `Port`,
-  `ListenAddress`, `HostKey`, `HostCertificate`, `Subsystem`, `AcceptEnv` and
-  the `Allow`/`Deny` `Users`/`Groups` lists accumulate instead.
-- A keyword the files leave unset takes the compiled default of the installed
-  OpenSSH, read from `apt.installed`: `sshd -T -f /dev/null` captured from
-  openssh-server 9.2p1 (Debian 12), 9.6p1 (Ubuntu 24.04), 10.0p1 (Debian 13)
-  and 10.2p1 (Ubuntu 26.04). The newest table no newer than the installed
-  version wins, the oldest when it predates them all; with no
-  `openssh-server` installed, the newest, and a diagnostic says so.
-  `defaults` names the build. `.scripts/capture-sshd-defaults.sh IMAGE…`
-  captures a table in a container.
-- Values are shaped as `sshd -T` prints them: keywords and caseless values in
-  lowercase, `without-password` as `prohibit-password`, times such as `1m30s`
-  in seconds, a `+`, `-` or `^` algorithm list resolved against the default
-  list, lists as arrays and whole numbers as numbers.
+A `Match` on `Address` or `Host` describes the client, not the account, so
+every run names the same client: `client.invalid`, a name that never resolves
+([RFC 6761](https://www.rfc-editor.org/rfc/rfc6761)), and `192.0.2.1`, an
+address reserved for documentation
+([RFC 5737](https://www.rfc-editor.org/rfc/rfc5737)). A block for `Address *`
+or `0.0.0.0/0` applies; a block for one network the reserved address is
+outside of does not, and its settings are not judged.
 
-A keyword that `sshd -T` does not print, such as the obsolete `Protocol`, is
-kept and reported as a diagnostic. `ListenAddress` is the one setting that can
-differ between the two sources: sshd derives it from `Port`, and the files do
-not.
+Values are shaped as `sshd -T` prints them: caseless values in lowercase,
+`without-password` as `prohibit-password`, lists as arrays and whole numbers
+as numbers.
 
 ## Facts
 
 ```yaml
 sshd:
-  source: files
-  defaults: openssh-server 1:10.2p1-2ubuntu3.8
   global:
     /etc/ssh/sshd_config:
       logingracetime: 90
       port: [2222, 22]
       ciphers: [chacha20-poly1305@openssh.com, aes128-ctr]
-  contexts:
-    /etc/ssh/sshd_config:
       permitrootlogin: prohibit-password
-    /etc/ssh/sshd_config:19:
-      match: User backup Address 192.0.2.0/24
+  accounts:
+    root:
+      permitrootlogin: prohibit-password
+    backup:
       passwordauthentication: "yes"
+  client: {host: client.invalid, addr: 192.0.2.1}
 ```
 
-`source` is `effective` (from `sshd -T`), `files` or `none` when the host has
-neither sshd nor its config, which gives no context and so no check. A failed
-`sshd -T` is a diagnostic naming its exit code and first line of stderr.
-
-`global` holds, under the main file’s path, the keywords a `Match` block
-refuses (`Ciphers`, `LoginGraceTime`, `Port` …), which no connection can
-change. `contexts` holds the keywords `Match` accepts: the global ones under
-the main file’s path, and each `Match` block under the path and line that
-opens it. `sshd -T` without a connection ignores `Match`, so a block always
-comes from the files, merged over whichever global configuration won: every
-such key a connection matching it would get, with its criteria under `match`.
-A rule over `sshd.contexts.*` therefore judges the global settings and each
-block; a global finding repeats on a block that leaves the setting alone,
-since that connection gets it too, and the fix may go in either. A rule over
-`sshd.global.*` judges the main file alone. A keyword `Match` refuses inside a
-block is a diagnostic, since sshd will not start with it, and left out of the
-block.
+`global` holds every keyword of plain `sshd -T`, under the main file’s path.
+`accounts` holds, per account, the keywords a `Match` block accepts as that
+account’s own `sshd -T -C` run printed them; a keyword `Match` refuses
+(`Ciphers`, `LoginGraceTime`, `Port` …) lives under `global` only. A rule over
+`sshd.accounts.*` names the account the setting applies to, so a global
+setting fails once per account that gets it, and a rule over `sshd.global.*`
+names the main file. `client` is the connection every account’s run named.
 
 ## Rules
 
@@ -128,13 +106,13 @@ under `/etc/ssh` are the [files](files.md) ruleset’s.
 
 | Collector | Reads | Facts at |
 | --- | --- | --- |
-| `ssh-authorized-key-files` | the same as `sshd`, plus `accounts.passwd` and `accounts.group` | `ssh.authorized-key-files.<account>` |
+| `ssh-authorized-key-files` | `sshd.accounts` and `accounts.passwd` | `ssh.authorized-key-files.<account>` |
 | `ssh-authorized-keys` | every file the previous facts name, root only | `ssh.authorized-keys.<account>` |
 
 ```yaml
 ssh:
   authorized-key-files:
-    alice: [/etc/ssh/ops/1000, /home/alice/.ssh/authorized_keys]
+    alice: [/home/alice/.ssh/authorized_keys, /etc/ssh/keys/alice]
   authorized-keys:
     alice:
       files:
@@ -148,12 +126,9 @@ ssh:
           options: {restrict: true, from: ["192.0.2.0/24"]}
 ```
 
-`authorized-key-files` lists, per local account, every path sshd may read its
-keys from, in sshd’s order. It walks the `Match` blocks in file order: one
-whose `User` and `Group` criteria rule the account out is skipped, one that
-also names a connection criterion (`Address`, `Host`, `LocalPort` …) may apply
-and adds its `AuthorizedKeysFile`, and the first that always applies adds its
-own and ends the list; otherwise the global value comes last. `%%`, `%h`, `%u`
+`authorized-key-files` lists, per account in `sshd.accounts`, every path sshd
+reads its keys from, in sshd’s order, taken from the `AuthorizedKeysFile` its
+own run printed. `%%`, `%h`, `%u`
 and `%U` are expanded and a relative path lands below the home directory; a
 path with another token is left out with a diagnostic, as sshd refuses it.
 `none` names no file.
@@ -173,5 +148,5 @@ entry.
 | `authorized-keys/rsa-size` | an RSA key of 1024 to 2047 bits, while `RequiredRSASize` is at its 1024 floor and `PubkeyAcceptedAlgorithms` takes RSA |
 | `authorized-keys/dsa` | a DSA key, while `PubkeyAcceptedAlgorithms` still takes `ssh-dss`; OpenSSH 10 dropped DSA, so there the rule is a skip |
 
-Both guards read the main file’s context, so a `Match` block that changes
-either setting for some connections is not judged.
+Both guards read `sshd.global`, so a `Match` block that changes either
+setting for some accounts is not judged.

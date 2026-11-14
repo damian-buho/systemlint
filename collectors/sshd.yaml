@@ -4,7 +4,11 @@
 
 id: sshd
 read:
-  files: [/etc/ssh/sshd_config, /etc/ssh/sshd_config.d/*]
   exec: [/usr/sbin/sshd, -T]
+  exec-from:
+    each: accounts.passwd
+    keep: {anyOf: [{properties: {uid: {const: 0}}}, {properties: {shell: {not: {pattern: "/(nologin|false)$"}}}}]}
+    argv: [/usr/sbin/sshd, -T, -C, "user={key},host=client.invalid,addr=192.0.2.1"]
 parse: {plugin: sshd, op: config}
 into: sshd
+privileged: true

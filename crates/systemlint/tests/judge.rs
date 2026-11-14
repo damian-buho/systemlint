@@ -1026,7 +1026,7 @@ fn several_facts_refuse_an_empty_list_a_bad_schema_and_an_unbound_star() {
 fn an_absent_first_collection_is_one_unknown_fact_the_others_can_still_decide() {
     let rule = |how: &str| {
         format!(
-            "facts: {{{how}: [{{fact: sshd.contexts.*.permitrootlogin, expect: {{const: 'no'}}}}, {{fact: apt.installed, expect: {{not: {{required: [openssh-server]}}}}}}, {{fact: x.*.y, expect: {{}}}}]}}\n"
+            "facts: {{{how}: [{{fact: sshd.accounts.*.permitrootlogin, expect: {{const: 'no'}}}}, {{fact: apt.installed, expect: {{not: {{required: [openssh-server]}}}}}}, {{fact: x.*.y, expect: {{}}}}]}}\n"
         )
     };
     let without = json!({"apt": {"installed": {"bash": {}}}});

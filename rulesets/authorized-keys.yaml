@@ -10,8 +10,8 @@ rules:
     fact: ssh.authorized-keys.*.keys.*.bits
     when:
       ssh.authorized-keys.*.keys.*.type: {pattern: "^ssh-rsa"}
-      /sshd/contexts/~1etc~1ssh~1sshd_config/requiredrsasize: {maximum: 1024}
-      /sshd/contexts/~1etc~1ssh~1sshd_config/pubkeyacceptedalgorithms: {contains: {pattern: "^(rsa-sha2-|ssh-rsa)"}}
+      /sshd/global/~1etc~1ssh~1sshd_config/requiredrsasize: {maximum: 1024}
+      /sshd/global/~1etc~1ssh~1sshd_config/pubkeyacceptedalgorithms: {contains: {pattern: "^(rsa-sha2-|ssh-rsa)"}}
     expect: {not: {minimum: 1024, maximum: 2047}}
     severity: warning
     score: 5.0
@@ -24,7 +24,7 @@ rules:
     title: DSA key authorized
     fact: ssh.authorized-keys.*.keys.*.type
     when:
-      /sshd/contexts/~1etc~1ssh~1sshd_config/pubkeyacceptedalgorithms: {contains: {pattern: "^ssh-dss"}}
+      /sshd/global/~1etc~1ssh~1sshd_config/pubkeyacceptedalgorithms: {contains: {pattern: "^ssh-dss"}}
     expect: {not: {pattern: "^ssh-dss"}}
     severity: warning
     score: 5.0

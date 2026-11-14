@@ -3,8 +3,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: ssh-authorized-key-files
-read:
-  files: [/etc/ssh/sshd_config, /etc/ssh/sshd_config.d/*]
-  exec: [/usr/sbin/sshd, -T]
 parse: {plugin: sshd, op: authorized-key-files}
 into: ssh.authorized-key-files
