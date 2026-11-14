@@ -283,7 +283,7 @@ files/world-writable:
 | `chmod` | clears the permission bits a symbolic `who-perms` list names, such as `g-wx,o-rwx`; `+` and `=` are refused |
 | `chown` | `0` only: gives the file to root, leaving its group |
 | `chgrp` | `0` only: gives the file to the root group, leaving its owner |
-| `disable-line` | `authorized-keys` only: comments out the subject line, named `path:line`, of a syntax where every line grants access |
+| `disable-line` | `authorized-keys` or `apt-list` (one-line sources, never a deb822 paragraph): comments out the subject line, named `path:line`, of a syntax where every line grants access |
 
 A remedy only takes access away, so a ruleset from an untrusted
 `.systemlint.yaml` can never hand a file to a user. A line is changed only

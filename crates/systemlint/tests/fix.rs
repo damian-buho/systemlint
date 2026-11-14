@@ -329,10 +329,63 @@ fn a_line_remedy_refuses_a_changed_line_and_plans_nothing_without_a_hash() {
 }
 
 #[test]
+fn an_apt_line_remedy_disables_a_one_line_source_never_a_paragraph_nor_the_only_source() {
+    let rules = [compile(
+        "apt/insecure-options",
+        systemlint::yaml::from_str(
+            "fact: apt.sources.*.insecure-options\nexpect: {maxItems: 0}\nremedy: {disable-line: apt-list}\n",
+        )
+        .unwrap(),
+    )
+    .unwrap()];
+    let one = json!({"insecure-options": ["trusted"], "line-sha256": line_sha256("deb [trusted=yes] https://c.example/ /")});
+    let document = json!({"apt": {"sources": {
+        "/e/c.list:1": one,
+        "/e/a.sources:1": {"insecure-options": ["trusted"]},
+        "/e/b.list:1": {"insecure-options": []},
+    }}});
+    let checks = lint(&document, &rules, &[], "2026-11-13");
+    let run = |s: &str| {
+        checks
+            .iter()
+            .find(|c| c.subject_label() == s)
+            .unwrap()
+            .remedy
+            .clone()
+    };
+    assert_eq!(
+        run("/e/c.list:1").as_deref(),
+        Some("sed -i '1s/^/#/' /e/c.list")
+    );
+    assert_eq!(
+        run("/e/a.sources:1"),
+        None,
+        "a deb822 paragraph spans lines, so no Run line"
+    );
+    let changes = plan(&checks, &rules, &document).changes;
+    assert_eq!(
+        changes.iter().map(Change::subject).collect::<Vec<_>>(),
+        ["/e/c.list:1"]
+    );
+    let only = json!({"apt": {"sources": {"/e/c.list:1": one}}});
+    let kept = plan(&lint(&only, &rules, &[], "2026-11-13"), &rules, &only).kept;
+    assert_eq!(
+        kept.iter()
+            .map(|(c, why)| format!("{} {why}", c.subject()))
+            .collect::<Vec<_>>(),
+        ["/e/c.list:1 it is the last line left for this host"]
+    );
+}
+
+#[test]
 fn a_line_remedy_names_a_syntax_whose_every_line_grants() {
     assert_eq!(
         serde_json::from_value::<Remedy>(json!({"disable-line": "authorized-keys"})).unwrap(),
         Remedy::DisableLine(Lines::AuthorizedKeys)
+    );
+    assert_eq!(
+        serde_json::from_value::<Remedy>(json!({"disable-line": "apt-list"})).unwrap(),
+        Remedy::DisableLine(Lines::AptList)
     );
     assert!(serde_json::from_value::<Remedy>(json!({"disable-line": "sudoers"})).is_err());
 }

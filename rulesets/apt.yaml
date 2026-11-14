@@ -86,6 +86,7 @@ rules:
     score: 9.5
     message: "{subject} sets {got}, which switches off apt’s signature checks"
     fix: remove {got} from the source and give it a Signed-By key
+    remedy: {disable-line: apt-list}
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/duplicate:

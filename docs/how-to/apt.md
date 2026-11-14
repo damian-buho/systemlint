@@ -38,6 +38,7 @@ the line it starts on, such as `/etc/apt/sources.list.d/docker.sources:5`.
 | `signed-by` | keyring paths or fingerprints, `(inline)` for an embedded key, empty when absent |
 | `insecure-options` | which of `trusted`, `allow-insecure`, `allow-weak`, `allow-downgrade-to-insecure` are set |
 | `options` | every other field or option, lowercase name to raw value |
+| `line-sha256` | a one-line source’s SHA-256, which `disable-line` checks before commenting it out; absent on a deb822 paragraph and on a line whose URI holds a user or token |
 | `codenames` | the Ubuntu or Debian releases its suites name, read inside the suite (`llvm-toolchain-questing-22`) or, for `stable`, from the cached Release |
 | `stale-suites` | the suites whose release is not the host’s `VERSION_CODENAME`, `UBUNTU_CODENAME` or `DEBIAN_CODENAME`; absent when `os-release` names none |
 | `suggested-suites` | each stale suite with its codename word replaced by the host’s, `llvm-toolchain-resolute-22` for `llvm-toolchain-questing-22` |

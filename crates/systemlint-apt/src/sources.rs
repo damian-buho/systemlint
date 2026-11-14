@@ -7,6 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Map, Value, json};
+use sha2::{Digest, Sha256};
 use systemlint_protocol::{Diagnostic, Input, Reply};
 
 use crate::deb822::{self, Stanza};
@@ -46,6 +47,7 @@ struct Source {
     signed_by: Vec<String>,
     insecure: Vec<String>,
     options: Map<String, Value>,
+    line_sha256: Option<String>,
 }
 
 fn words(text: &str) -> Vec<String> {
@@ -276,6 +278,16 @@ fn one_line_source(
         return None;
     };
     (source.uris, source.suites, source.components) = (vec![uri], vec![suite], fields.collect());
+    let userinfo = source.uris.iter().any(|u| {
+        u.split_once("://")
+            .is_some_and(|(_, rest)| rest.split('/').next().unwrap_or_default().contains('@'))
+    });
+    source.line_sha256 = (!userinfo).then(|| {
+        Sha256::digest(raw.as_bytes())
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect()
+    });
     Some(source)
 }
 
@@ -413,6 +425,9 @@ pub fn sources(inputs: &[Input], facts: &BTreeMap<String, Value>) -> Reply {
         });
         if !source.architectures.is_empty() {
             fact["architectures"] = json!(source.architectures);
+        }
+        if let Some(sha) = &source.line_sha256 {
+            fact["line-sha256"] = json!(sha);
         }
         if !source.options.is_empty() {
             fact["options"] = Value::Object(source.options.clone());
@@ -718,6 +733,35 @@ mod tests {
                 json!(["allow-insecure"])
             )
         );
+    }
+
+    #[test]
+    fn only_a_one_line_source_without_userinfo_carries_its_line_hash() {
+        let list = "deb [trusted=yes] https://c.example/ / \r\ndeb https://u:p@d.example/ /\ndeb https://token@e.example/ /\n";
+        let reply = sources(
+            &[
+                file("/e/c.list", list),
+                file(
+                    "/e/a.sources",
+                    "Types: deb\nURIs: https://a.example/\nSuites: /\n",
+                ),
+            ],
+            &host("resolute"),
+        );
+        let sha = |line: &str| -> String {
+            Sha256::digest(line.as_bytes())
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect()
+        };
+        assert_eq!(
+            reply.facts["/e/c.list:1"]["line-sha256"],
+            json!(sha("deb [trusted=yes] https://c.example/ / ")),
+            "the hash covers the line as fix reads it, CR stripped"
+        );
+        for key in ["/e/c.list:2", "/e/c.list:3", "/e/a.sources:1"] {
+            assert!(reply.facts[key].get("line-sha256").is_none(), "{key}");
+        }
     }
 
     #[test]

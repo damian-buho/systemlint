@@ -35,6 +35,8 @@ pub enum Remedy {
 pub enum Lines {
     /// `authorized_keys`, where each line lets one more key log in.
     AuthorizedKeys,
+    /// One-line apt sources (`.list`), where each line trusts one more repository.
+    AptList,
 }
 
 /// `subject` split into its path and 1-based line number, as `path:line` keys name a line.
@@ -179,7 +181,10 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> P
                         .and_then(serde_json::Value::as_object)
                         .map(|m| m.keys().cloned().collect())
                         .unwrap_or_default();
-                    let owner = c.subject[..c.subject.len().saturating_sub(1)].join(", ");
+                    let owner = match c.subject[..c.subject.len().saturating_sub(1)].join(", ") {
+                        owner if owner.is_empty() => "this host".to_owned(),
+                        owner => owner,
+                    };
                     owners
                         .entry(subject.clone())
                         .or_default()

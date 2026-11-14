@@ -1650,6 +1650,7 @@ name = "systemlint-apt"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "sha2",
  "systemlint-formats",
  "systemlint-protocol",
 ]

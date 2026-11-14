@@ -1038,6 +1038,12 @@ fn failure(
             .remedy
             .as_ref()
             .zip(bound.last().filter(|p| p.starts_with('/')))
+            .filter(|(r, _)| {
+                !matches!(r, crate::fix::Remedy::DisableLine(_))
+                    || rule
+                        .subject_value(document, bound, 1)
+                        .is_some_and(|v| v.get("line-sha256").is_some())
+            })
             .map(|(r, path)| r.command(path)),
         text: rule.spec.message.clone(),
         variables: if rule.spec.message.is_some() {
