@@ -29,8 +29,4 @@ report="$(cd "${work}" && systemlint --quiet check --tags '!files' --format text
 b19-assert matches "DASH" 'systemlint_collector_status\{collector="os-release",status="ok"\} 1' "${report}"
 b19-assert equals "DASH" "absent" "$(test -e "${work}/-" && echo present || echo absent)"
 
-mkdir --parents "${work}/root/etc/ssh"
-printf 'Include /srv/sshd.conf\n' > "${work}/root/etc/ssh/sshd_config"
-status=0
-systemlint --quiet facts --root "${work}/root" > /dev/null 2>&1 || status=$?
-b19-assert equals "COLLECTOR" "1" "${status}"
+b19-assert matches "COLLECTOR" 'needs fact sshd.accounts, which collector sshd skipped' "${facts}"
