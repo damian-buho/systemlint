@@ -4,6 +4,6 @@
 
 id: accounts-passwd
 read:
-  files: [/etc/passwd]
-parse: {plugin: formats, op: passwd}
+  files: [/etc/passwd, /etc/shells]
+parse: {plugin: formats, op: passwd, with: {shells: /etc/shells}}
 into: accounts.passwd

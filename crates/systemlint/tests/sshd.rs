@@ -89,13 +89,10 @@ fn the_collector_runs_sshd_for_root_and_every_login_shell_only() {
     let from = shipped().read.exec_from.unwrap();
     let keep = schema(from.keep.as_ref().unwrap()).unwrap();
     for (entry, kept) in [
-        (json!({"uid": 0, "shell": "/usr/sbin/nologin"}), true),
-        (json!({"uid": 1000, "shell": "/bin/bash"}), true),
-        (json!({"uid": 1000, "shell": ""}), true),
-        (json!({"uid": 1, "shell": "/usr/sbin/nologin"}), false),
-        (json!({"uid": 1, "shell": "/sbin/nologin"}), false),
-        (json!({"uid": 1, "shell": "/bin/false"}), false),
-        (json!({"uid": 1, "shell": "/usr/bin/false"}), false),
+        (json!({"uid": 0, "login-shell": false}), true),
+        (json!({"uid": 1000, "login-shell": true}), true),
+        (json!({"uid": 1, "login-shell": false}), false),
+        (json!({"uid": 1}), false),
     ] {
         assert_eq!(keep.is_valid(&entry), kept, "{entry}");
     }

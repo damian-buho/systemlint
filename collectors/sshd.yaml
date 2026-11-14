@@ -7,7 +7,7 @@ read:
   exec: [/usr/sbin/sshd, -T]
   exec-from:
     each: accounts.passwd
-    keep: {anyOf: [{properties: {uid: {const: 0}}}, {properties: {shell: {not: {pattern: "/(nologin|false)$"}}}}]}
+    keep: {anyOf: [{properties: {uid: {const: 0}}}, {required: [login-shell], properties: {login-shell: {const: true}}}]}
     argv: [/usr/sbin/sshd, -T, -C, "user={key},host=client.invalid,addr=192.0.2.1"]
 parse: {plugin: sshd, op: config}
 into: sshd
