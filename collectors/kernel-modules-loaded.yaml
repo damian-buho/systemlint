@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: kernel-modules-loaded
+live: true
+read:
+  files: [/proc/modules]
+parse: {plugin: formats, op: proc-modules}
+into: kernel.loaded

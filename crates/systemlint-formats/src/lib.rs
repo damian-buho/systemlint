@@ -8,6 +8,8 @@ use std::collections::BTreeMap;
 
 mod auth;
 pub use auth::{limits, login_defs, pam};
+mod modules;
+pub use modules::{modprobe, proc_modules};
 
 use serde_json::{Map, Value};
 use systemlint_protocol::{
@@ -68,10 +70,12 @@ pub fn describe() -> Describe {
             ("limits", &[]),
             ("lines", &[]),
             ("login-defs", &[]),
+            ("modprobe", &[]),
             ("mountinfo", &[]),
             ("pam", &[]),
             ("passwd", &[]),
             ("probes", &[]),
+            ("proc-modules", &[]),
             ("resolv", &[]),
             ("shadow", &[]),
             ("stat", &[]),
@@ -97,10 +101,12 @@ pub fn op(request: Request) -> Result<Reply> {
         "limits" => Ok(limits(&request.inputs)),
         "lines" => Ok(lines(&request.inputs)),
         "login-defs" => Ok(login_defs(&request.inputs)),
+        "modprobe" => Ok(modprobe(&request.inputs)),
         "mountinfo" => Ok(mountinfo(&request.inputs)),
         "pam" => Ok(pam(&request.inputs)),
         "passwd" => Ok(passwd(&request.inputs)),
         "probes" => Ok(probes(&request.inputs)),
+        "proc-modules" => Ok(proc_modules(&request.inputs)),
         "resolv" => Ok(resolv(&request.inputs)),
         "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
@@ -953,28 +959,31 @@ pub fn sysctl(inputs: &[Input]) -> Reply {
 
 /// The sysctl files in the order systemd-sysctl applies them: one file per name from the highest directory, by name, `/etc/sysctl.conf` last.
 pub fn sysctl_order<'a>(files: &[(&'a str, &'a str)]) -> Vec<(&'a str, &'a str)> {
+    let conf = files
+        .iter()
+        .find(|(p, _)| *p == "/etc/sysctl.conf")
+        .copied();
+    conf_order(&SYSCTL_DIRS, files)
+        .into_iter()
+        .chain(conf)
+        .collect()
+}
+
+/// The files of a drop-in directory set as systemd and kmod read them: one per name from the highest of `dirs`, by name; a file outside `dirs` is left out.
+pub fn conf_order<'a>(dirs: &[&str], files: &[(&'a str, &'a str)]) -> Vec<(&'a str, &'a str)> {
     let mut chosen: BTreeMap<&str, (usize, &str, &str)> = BTreeMap::new();
-    let mut conf = None;
     for (path, text) in files {
-        if *path == "/etc/sysctl.conf" {
-            conf = Some((*path, *text));
-            continue;
-        }
         let Some((dir, name)) = path.rsplit_once('/') else {
             continue;
         };
-        let Some(rank) = SYSCTL_DIRS.iter().position(|d| *d == dir) else {
+        let Some(rank) = dirs.iter().position(|d| *d == dir) else {
             continue;
         };
         if chosen.get(name).is_none_or(|(r, _, _)| rank < *r) {
             chosen.insert(name, (rank, path, text));
         }
     }
-    chosen
-        .into_values()
-        .map(|(_, p, t)| (p, t))
-        .chain(conf)
-        .collect()
+    chosen.into_values().map(|(_, p, t)| (p, t)).collect()
 }
 
 /// A sysctl key with `.` separators, swapping `/` and `.` when `/` comes first as systemd does.
@@ -1288,10 +1297,12 @@ mod tests {
                 "limits",
                 "lines",
                 "login-defs",
+                "modprobe",
                 "mountinfo",
                 "pam",
                 "passwd",
                 "probes",
+                "proc-modules",
                 "resolv",
                 "shadow",
                 "stat",

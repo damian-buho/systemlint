@@ -4,18 +4,20 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Kernel parameters, Docker, systemd units and ufw
+# Kernel parameters and modules, Docker, systemd units and ufw
 
-Six collectors record service configuration as facts, `systemd-units` on
+Eight collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
 `ufw.service`, and `services` judges the sandbox of each unit; no shipped rule
-reads the Docker facts yet.
+reads the Docker or kernel module facts yet.
 
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
 | `sysctl` | `/usr/sbin/sysctl -a` on a live host, else `/etc/sysctl.conf` and the `sysctl.d` directories | `sysctl` | `sysctl` |
+| `kernel-modules` | the `modprobe.d` directories, and `modules.order` and `modules.builtin` of every kernel in `/lib/modules` | `modprobe` | `kernel.modules.<module>` |
+| `kernel-modules-loaded` | `/proc/modules` on a live host | `proc-modules` | `kernel.loaded.<module>` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
 | `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system`, with its `stat` | `units` | `systemd.units.<unit>` |
 | `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all` on a live host | `systemd` | `systemd.state.<unit>` |
@@ -44,6 +46,36 @@ the highest of `/etc/sysctl.d`, `/run/sysctl.d`, `/usr/local/lib/sysctl.d`,
 (`net/ipv4/ip_forward`) is read as dotted, a leading `-` is dropped, and a
 glob key (`net.ipv4.conf.*.rp_filter`) stays as written, with `*` as its
 segment.
+
+## Kernel modules
+
+`kernel.modules` keys each module by its name, `-` read as `_` as kmod does,
+with what `modprobe` would do with it:
+
+```yaml
+kernel:
+  modules:
+    cramfs: {loadable: true, builtin: false, blacklist: false, install: /bin/false}
+```
+
+- `loadable`: some kernel in `/lib/modules` lists it in `modules.order`; a
+  module only `depmod` added (DKMS, `updates/`) is not counted.
+- `builtin`: some kernel lists it in `modules.builtin`, so no `modprobe.d`
+  line can keep it out of that kernel.
+- `blacklist`: a `blacklist` line names it, which stops loading by alias only;
+  an explicit `modprobe` still loads it.
+- `install`: the command of the first `install` line matching it, as an
+  fnmatch(3) pattern, or `null`; `/bin/false` makes `modprobe` refuse it.
+
+The files are read as kmod reads them: one file per name, from the highest of
+`/etc/modprobe.d`, `/run/modprobe.d`, `/usr/local/lib/modprobe.d`,
+`/usr/lib/modprobe.d` and `/lib/modprobe.d`, in name order; a trailing `\`
+joins the next line. A module named only by a `modprobe.d` line is listed with
+`loadable` and `builtin` false.
+
+`kernel.loaded` keys each module in `/proc/modules` by name with `size` in
+bytes, `instances`, `used-by` and `state` (`live`, `loading`, `unloading`).
+It is a live fact, absent under `--root`.
 
 ## Docker daemon
 
