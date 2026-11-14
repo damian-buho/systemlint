@@ -50,7 +50,7 @@ into: apt.sources
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
-| `parse.with` | the typed options of a family op (`kv`, `words`, `match`), passed in the request’s `with`; see [Family ops](#family-ops) |
+| `parse.with` | the typed options of a family op (`kv`, `words`, `options`, `match`), passed in the request’s `with`; see [Family ops](#family-ops) |
 | `into` | the dotted fact path the reply’s facts are placed at; never under `meta` or `collectors`, never overlapping another collector’s |
 
 `files`, `stat` and `exec` sit side by side under `read`; a collector uses
@@ -303,7 +303,7 @@ parse: {plugin: formats, op: exec}
 into: commands.nginx-test
 ```
 
-The text ops (`lines`, `kv`, `words`, `match`, `ini`, `json`, `yaml`, `toml`, `csv`) read a
+The text ops (`lines`, `kv`, `words`, `options`, `match`, `ini`, `json`, `yaml`, `toml`, `csv`) read a
 command’s `stdout` as they read a file when it exits 0, its program path
 standing in for a file path; any other exit is a diagnostic naming the status
 and the first line of `stderr`:
@@ -395,6 +395,29 @@ parse:
   op: kv
   with: {comments: ["#", ";"], repeat: last, nest: ".", swap: /, strip: "-"}
 into: sysctl.settings
+```
+
+`op: options` reads getopt lines, as `auditctl -l` and `iptables-save` print
+them, one record per line in order under each input path. Each flag keeps its
+dashes as its key (`-F`, `--dport`), holding the list of every value it was
+given on the line; a flag followed by another flag, or by nothing, holds `[]`.
+`--name=value` is its own value, a `!` before a flag negates it into the key
+`! -s`, a quoted word is always a value, and words before any flag sit in
+`args`. Values are typed as `words` types them, and a `#` word ends the line.
+
+| Option | Meaning |
+| --- | --- |
+| `split` | flags whose values split on `,` into separate items, as `-S execve,execveat` |
+| `comments` | the markers that open a comment [default: `["#"]`] |
+
+The audit rules the kernel runs:
+
+```yaml
+id: audit-rules-loaded
+privileged: true
+read: {exec: [/usr/sbin/auditctl, -l]}
+parse: {plugin: formats, op: options, with: {split: [-a, -S]}}
+into: audit.loaded
 ```
 
 `op: match` is for the one line shape no family covers, such as a module’s

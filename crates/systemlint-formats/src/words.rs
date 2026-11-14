@@ -207,7 +207,7 @@ fn unoctal(word: &str) -> String {
 }
 
 /// A word as a fact: quoted text stays text, a bare one is typed.
-fn typed((word, quoted): &Word) -> Value {
+pub(crate) fn typed((word, quoted): &Word) -> Value {
     match quoted {
         true => Value::from(word.as_str()),
         false => scalar(word),

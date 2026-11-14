@@ -8,9 +8,11 @@ use std::collections::BTreeMap;
 
 mod auth;
 mod kv;
+mod options;
 mod words;
 pub use auth::pam;
 pub use kv::kv;
+pub use options::flags;
 pub use words::words;
 
 use serde_json::{Map, Value};
@@ -60,6 +62,7 @@ pub fn describe() -> Describe {
             ("kv", &[]),
             ("lines", &[]),
             ("match", &[]),
+            ("options", &[]),
             ("pam", &[]),
             ("passwd", &[]),
             ("probes", &[]),
@@ -90,6 +93,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "kv" => kv(&request.inputs, &request.with),
         "lines" => Ok(lines(&request.inputs)),
         "match" => r#match(&request.inputs, &request.with),
+        "options" => flags(&request.inputs, &request.with),
         "pam" => Ok(pam(&request.inputs)),
         "passwd" => passwd_with(&request.inputs, &request.with),
         "probes" => Ok(probes(&request.inputs)),
@@ -105,12 +109,12 @@ pub fn op(request: Request) -> Result<Reply> {
 }
 
 /// The generic ops that read a command’s stdout as text, so a failed command fails them.
-const TEXT_OPS: [&str; 9] = [
-    "csv", "ini", "json", "kv", "lines", "match", "toml", "words", "yaml",
+const TEXT_OPS: [&str; 10] = [
+    "csv", "ini", "json", "kv", "lines", "match", "options", "toml", "words", "yaml",
 ];
 
 /// The family ops that take typed options under `with`.
-const WITH_OPS: [&str; 4] = ["kv", "match", "passwd", "words"];
+const WITH_OPS: [&str; 5] = ["kv", "match", "options", "passwd", "words"];
 
 /// The typed options of `op` from `with`, or an error naming what is wrong.
 pub fn options<T: serde::de::DeserializeOwned>(op: &str, with: &Map<String, Value>) -> Result<T> {
@@ -1068,8 +1072,8 @@ mod tests {
                 .map(|o| o.op.as_str())
                 .collect::<Vec<_>>(),
             [
-                "csv", "exec", "ini", "json", "kv", "lines", "match", "pam", "passwd", "probes",
-                "shadow", "stat", "statfs", "systemd", "toml", "words", "yaml"
+                "csv", "exec", "ini", "json", "kv", "lines", "match", "options", "pam", "passwd",
+                "probes", "shadow", "stat", "statfs", "systemd", "toml", "words", "yaml"
             ]
         );
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
