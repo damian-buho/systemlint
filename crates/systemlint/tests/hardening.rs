@@ -1134,3 +1134,77 @@ fn the_tls_rules_do_not_apply_without_a_probe_and_are_unknown_offline() {
         "an offline run never passes"
     );
 }
+
+// The resolv checks of one probed nameserver, its collector into `resolv.probes`, sorted by rule.
+fn resolv(probe: Value) -> Vec<(String, Outcome)> {
+    let document = json!({"resolv": {"probes": {"nameserver": {"192.0.2.1": probe}}}, "collectors": {"resolv-nameservers": {"status": "ok", "into": "resolv.probes"}}});
+    let mut checks: Vec<_> = judge("resolv", &document)
+        .into_iter()
+        .map(|(rule, _, outcome)| (rule, outcome))
+        .collect();
+    checks.sort();
+    checks
+}
+
+#[test]
+fn a_nameserver_fails_silent_or_refusing_and_never_passes_unasked() {
+    let row = |rule: &str, outcome| (rule.to_owned(), outcome);
+    assert_eq!(
+        resolv(json!({"answered": true, "codes": ["NOERROR", "SERVFAIL"]})),
+        [
+            row("resolv/nameserver-refuses", Outcome::Pass),
+            row("resolv/nameserver-silent", Outcome::Pass)
+        ]
+    );
+    assert_eq!(
+        resolv(json!({"answered": true, "codes": ["NOERROR", "REFUSED"]})),
+        [
+            row("resolv/nameserver-refuses", Outcome::Fail),
+            row("resolv/nameserver-silent", Outcome::Pass)
+        ]
+    );
+    assert_eq!(
+        resolv(json!({"answered": false})),
+        [
+            row("resolv/nameserver-refuses", Outcome::Skip),
+            row("resolv/nameserver-silent", Outcome::Fail)
+        ],
+        "a silent nameserver is one finding, not two"
+    );
+    assert_eq!(
+        resolv(json!({"error": "answered 1 of 2 queries"})),
+        [
+            row("resolv/nameserver-refuses", Outcome::Unknown),
+            row("resolv/nameserver-silent", Outcome::Unknown)
+        ],
+        "a nameserver answering some queries is never judged"
+    );
+}
+
+#[test]
+fn the_resolv_rules_do_not_apply_without_their_collector_and_are_unknown_offline() {
+    let outcomes = |document: Value| {
+        judge("resolv", &document)
+            .into_iter()
+            .map(|(_, _, outcome)| outcome)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        outcomes(json!({"collectors": {"sysctl": {"status": "ok", "into": "sysctl"}}})),
+        [Outcome::NotApplicable; 2]
+    );
+    assert_eq!(
+        outcomes(
+            json!({"collectors": {"resolv-nameservers": {"status": "skipped", "reason": "network", "into": "resolv.probes"}}})
+        ),
+        [Outcome::Unknown; 2],
+        "an offline run never passes"
+    );
+    assert_eq!(
+        outcomes(
+            json!({"resolv": {"probes": {}}, "collectors": {"resolv-nameservers": {"status": "ok", "into": "resolv.probes"}}})
+        ),
+        [Outcome::NotApplicable; 2],
+        "a resolv.conf naming no nameserver leaves nothing to judge"
+    );
+}

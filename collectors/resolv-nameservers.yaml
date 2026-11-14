@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: resolv-nameservers
+network: true
+read:
+  dns: ["."]
+  dns-types: [NS]
+  dns-server-from: [resolv.conf.*.nameservers]
+parse: {plugin: formats, op: probes}
+into: resolv.probes

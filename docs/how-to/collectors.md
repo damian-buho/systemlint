@@ -41,6 +41,7 @@ into: apt.sources
 | `read.dns` | hostnames the core queries, each taken as fully qualified |
 | `read.dns-types` | the record types asked for each name: `A`, `AAAA`, `CAA`, `CNAME`, `MX`, `NS`, `PTR`, `SOA`, `SRV`, `TXT` [default: `A`, `AAAA`] |
 | `read.dns-server` | the IP, or `IP:port`, every query goes to [default: the `nameserver` lines of this host’s `/etc/resolv.conf`] |
+| `read.dns-server-from` | dotted fact paths, `*` a whole segment, whose strings name servers, IPv6 `%zone` dropped; each server is asked the `read.dns` names on its own, as a `nameserver` probe, instead of resolving them; never beside `dns-server` |
 | `read.http` | URLs the core sends one GET to, or maps `{url, username, password-file, ca-file, body: json}` |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
@@ -131,6 +132,8 @@ into: probes.web
 | `addr.<target>.reachable` | `true` when a connection opened; `false` once every address refused, or timed out on every attempt |
 | `dns.<name>.<type>` | the record data, sorted, one string per record (`10 mail.example.`); empty for NXDOMAIN or no record of that type |
 | `dns.<name>.resolvable` | `true` when any asked type returned a record |
+| `nameserver.<server>.answered` | `true` when the server answered every query, `false` when it answered none, after 3 tries each; answering only some is an `error` |
+| `nameserver.<server>.codes` | the response codes it answered, sorted, as IANA names them (`NOERROR`, `NXDOMAIN`, `REFUSED`, `SERVFAIL`) |
 | `http.<url>.status` | the status code; a redirect is never followed, its `location` header says where |
 | `http.<url>.headers` | each header by its lowercase name, repeated ones joined by a comma and a space; `set-cookie` reads `[redacted]` |
 | `http.<url>.body-sha256` | the lowercase hex SHA-256 of the decoded body |
@@ -159,6 +162,16 @@ whatever the lifetime, and `tls/untrusted` one this host would not trust while
 it is still valid. With no
 collector into `probes` the ruleset is `not-applicable`; with one skipped, its
 rules are `not run`.
+
+The shipped `resolv-conf` collector reads `/etc/resolv.conf` with `formats
+resolv` into `resolv.conf.<path>`, as glibc reads it: the first 3 valid
+`nameservers`, the `search` list of the last `search` or `domain` line, and
+every `options` word. The shipped `resolv-nameservers` collector asks each of
+those nameservers for the root zone’s `NS` records into `resolv.probes`, and
+the `resolv` ruleset fails one that answers no query
+(`resolv/nameserver-silent`) or answers `REFUSED`
+(`resolv/nameserver-refuses`), both covering Lynis NETW-2704. A
+`resolv.conf` naming no nameserver leaves the ruleset `not-applicable`.
 
 An inline collector under `collect.collectors` may not set `network`, as it
 may not `exec`: a `.systemlint.yaml` arrives with whatever directory

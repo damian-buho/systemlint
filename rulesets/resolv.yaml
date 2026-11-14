@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Nameservers in /etc/resolv.conf that do not resolve for this host
+when: {resolv.probes: {required: [nameserver]}}
+rules:
+  resolv/nameserver-silent:
+    title: Nameserver that answers no query
+    fact: resolv.probes.nameserver.*.answered
+    expect: {const: true}
+    score: 4.0
+    message: "{subject} in /etc/resolv.conf answers no query, so every lookup waits out its timeout before the next nameserver, and fails when none is left"
+    fix: "remove nameserver {subject} from /etc/resolv.conf or from what writes it (systemd-resolved, NetworkManager, netplan, DHCP), or let this host reach it on UDP and TCP port 53"
+    docs: https://man7.org/linux/man-pages/man5/resolv.conf.5.html
+    references:
+      - {title: Lynis NETW-2704, url: "https://cisofy.com/lynis/controls/NETW-2704/"}
+    tags: [dns, lynis]
+  resolv/nameserver-refuses:
+    title: Nameserver that refuses to resolve for this host
+    fact: resolv.probes.nameserver.*.codes
+    when: {resolv.probes.nameserver.*.answered: true}
+    expect: {not: {contains: {const: REFUSED}}}
+    score: 4.0
+    message: "{subject} in /etc/resolv.conf answers REFUSED, so it serves no recursion to this host and every lookup it gets fails or falls through to the next nameserver"
+    fix: "point /etc/resolv.conf, or what writes it, at a resolver that serves this host, or allow this host’s address in {subject}’s recursion ACL (allow-recursion in BIND, access-control in Unbound)"
+    docs: https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
+    references:
+      - {title: Lynis NETW-2704, url: "https://cisofy.com/lynis/controls/NETW-2704/"}
+    tags: [dns, lynis]
