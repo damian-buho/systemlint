@@ -744,7 +744,7 @@ fn dechunk(mut rest: &[u8]) -> Result<Vec<u8>, Failure> {
     }
 }
 
-/// The `tls` facts of a finished handshake: `verified`, `error`, `version` and the leaf certificate’s dates, `days-left`, issuer and subject.
+/// The `tls` facts of a finished handshake: `verified`, `error`, `version` and the leaf certificate’s dates, `days-left`, `percent-left`, issuer and subject.
 fn tls_facts(
     client: &ClientConnection,
     checked: Option<&Result<(), String>>,
@@ -786,6 +786,13 @@ fn tls_facts(
                 "days-left".to_owned(),
                 Value::from((after - now).div_euclid(86_400)),
             );
+            // Whole percent of the validity period still ahead, absent for an empty period.
+            if after > before {
+                let percent =
+                    (i128::from(after - now) * 100).div_euclid(i128::from(after - before));
+                log::debug!("leaf certificate has {percent}% of its validity left");
+                tls.insert("percent-left".to_owned(), Value::from(percent as i64));
+            }
             tls.insert("issuer".to_owned(), Value::from(cert.issuer().to_string()));
             tls.insert(
                 "subject".to_owned(),

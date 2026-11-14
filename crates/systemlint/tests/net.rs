@@ -26,6 +26,8 @@ use systemlint_protocol::ProbeInput;
 
 /// 2030-01-01T00:00:00Z, the test leaf certificate’s not-after.
 const NOT_AFTER: u64 = 1_893_456_000;
+/// Seconds from the test leaf’s `not_before`, 2026-01-01, to [`NOT_AFTER`].
+const LIFETIME: u64 = 1_461 * 86_400;
 
 fn settings(now: u64) -> Settings {
     Settings {
@@ -399,7 +401,7 @@ fn https_server(pki: &Pki, response: &'static [u8]) -> (u16, mpsc::Receiver<Stri
 }
 
 #[test]
-fn https_with_its_ca_file_is_verified_and_counts_days_left_to_the_second() {
+fn https_with_its_ca_file_is_verified_and_counts_days_and_percent_left_to_the_second() {
     let pki = pki("verified");
     let (port, heads) = https_server(&pki, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}");
     let probe = Http {
@@ -432,6 +434,11 @@ fn https_with_its_ca_file_is_verified_and_counts_days_left_to_the_second() {
     assert_eq!(facts(&inside)["tls"]["days-left"], 9);
     let expired = net::http(&probe, &settings(NOT_AFTER + 1));
     assert_eq!(facts(&expired)["tls"]["days-left"], -1);
+    assert_eq!(facts(&expired)["tls"]["percent-left"], -1);
+    let tenth = net::http(&probe, &settings(NOT_AFTER - LIFETIME / 10));
+    assert_eq!(facts(&tenth)["tls"]["percent-left"], 10);
+    let under = net::http(&probe, &settings(NOT_AFTER - LIFETIME / 10 + 1));
+    assert_eq!(facts(&under)["tls"]["percent-left"], 9);
 }
 
 #[test]

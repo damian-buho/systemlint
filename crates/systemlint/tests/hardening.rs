@@ -1042,3 +1042,95 @@ fn a_setuid_file_or_its_directory_fails_when_another_user_may_write_it() {
     }
     assert_eq!(setuid(None), rules(Unknown, Unknown));
 }
+
+// The tls checks of one probed URL, its collector `web` into `probes.web`, sorted by rule.
+fn tls(url: &str, probe: Value) -> Vec<(String, Outcome, Option<f64>)> {
+    let document = json!({"probes": {"web": {"http": {url: probe}}}, "collectors": {"web": {"status": "ok", "into": "probes.web"}}});
+    let mut checks: Vec<_> = scored("tls", &document)
+        .into_iter()
+        .map(|(rule, _, outcome, score)| (rule, outcome, score.map(|s| (s * 10.0).round() / 10.0)))
+        .collect();
+    checks.sort_by(|a, b| a.0.cmp(&b.0));
+    checks
+}
+
+#[test]
+fn a_certificate_fails_expired_or_nearly_so_and_untrusted_only_while_valid() {
+    let url = "https://kiota.test/";
+    let cert = |percent: i64, days: i64, verified: bool| {
+        tls(
+            url,
+            json!({"tls": {"verified": verified, "percent-left": percent, "days-left": days, "not-after": "2030-01-01T00:00:00Z"}}),
+        )
+    };
+    let row = |rule: &str, outcome, score: Option<f64>| (rule.to_owned(), outcome, score);
+    assert_eq!(
+        cert(10, 9, true),
+        [
+            row("tls/expired", Outcome::Pass, None),
+            row("tls/expiring", Outcome::Pass, None),
+            row("tls/untrusted", Outcome::Pass, None)
+        ]
+    );
+    assert_eq!(
+        cert(9, 8, true)[1],
+        row("tls/expiring", Outcome::Fail, Some(3.3))
+    );
+    assert_eq!(
+        cert(0, 0, true)[..2],
+        [
+            row("tls/expired", Outcome::Pass, None),
+            row("tls/expiring", Outcome::Fail, Some(6.6))
+        ],
+        "a certificate on its last day is not yet expired"
+    );
+    assert_eq!(
+        cert(-1, -1, false),
+        [
+            row("tls/expired", Outcome::Fail, Some(8.5)),
+            row("tls/expiring", Outcome::Skip, None),
+            row("tls/untrusted", Outcome::Skip, None)
+        ],
+        "an expired certificate is one finding, not three"
+    );
+    assert_eq!(
+        cert(50, 0, false)[2],
+        row("tls/untrusted", Outcome::Fail, Some(7.0))
+    );
+    assert_eq!(
+        tls(url, json!({"error": "connection refused"})),
+        [
+            row("tls/expired", Outcome::Unknown, None),
+            row("tls/expiring", Outcome::Unknown, None),
+            row("tls/untrusted", Outcome::Unknown, None)
+        ],
+        "a probe with no answer never passes"
+    );
+    assert_eq!(
+        tls("http://kiota.test/", json!({"status": 200})),
+        [],
+        "plain HTTP has no certificate to judge"
+    );
+}
+
+#[test]
+fn the_tls_rules_do_not_apply_without_a_probe_and_are_unknown_offline() {
+    let outcomes = |document: Value| {
+        judge("tls", &document)
+            .into_iter()
+            .map(|(_, _, outcome)| outcome)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        outcomes(json!({"collectors": {"sysctl": {"status": "ok", "into": "sysctl"}}})),
+        [Outcome::NotApplicable; 3],
+        "a host with no network collector has nothing to judge"
+    );
+    assert_eq!(
+        outcomes(
+            json!({"collectors": {"web": {"status": "skipped", "reason": "network", "into": "probes.web"}}})
+        ),
+        [Outcome::Unknown; 3],
+        "an offline run never passes"
+    );
+}

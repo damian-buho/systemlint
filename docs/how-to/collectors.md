@@ -123,7 +123,7 @@ read:
     - https://kiota.ch/
     - {url: "https://endoflife.date/api/v1/products/nodejs/releases/26", body: json}
 parse: {plugin: formats, op: probes}
-into: probes
+into: probes.web
 ```
 
 | Fact under `into` | Meaning |
@@ -135,7 +135,7 @@ into: probes
 | `http.<url>.headers` | each header by its lowercase name, repeated ones joined by a comma and a space; `set-cookie` reads `[redacted]` |
 | `http.<url>.body-sha256` | the lowercase hex SHA-256 of the decoded body |
 | `http.<url>.json` | the body parsed as JSON, with `body: json` |
-| `http.<url>.tls` | `verified`, its `error` when not, `version` (`1.2`, `1.3`), the leaf certificate’s `not-before`, `not-after`, `issuer`, `subject` and `days-left` until `not-after` at `meta.collected-at`, negative once expired |
+| `http.<url>.tls` | `verified`, its `error` when not, `version` (`1.2`, `1.3`), the leaf certificate’s `not-before`, `not-after`, `issuer`, `subject`, `days-left` until `not-after` at `meta.collected-at` and `percent-left` of the validity period, both whole, rounded down and negative once expired |
 
 A target that gives no answer, such as a name that does not resolve or a server
 that answered SERVFAIL 3 times, keeps its reason as `error` and a
@@ -150,6 +150,15 @@ the file at request time and never enters the facts document.
 them) route `http` probes: an `https` URL through a `CONNECT` tunnel, an
 `http` one in absolute form. Only an `http://` proxy without credentials is
 supported; any other is an error naming it. `addr` and `dns` always go direct.
+
+The shipped `tls` ruleset judges every `https` URL under
+`probes.<name>.http`, so write a network collector `into: probes.<name>`:
+`tls/expired` fails a certificate past its end, `tls/expiring` one with under
+a tenth of its lifetime left, which a renewal job that runs never lets happen
+whatever the lifetime, and `tls/untrusted` one this host would not trust while
+it is still valid. With no
+collector into `probes` the ruleset is `not-applicable`; with one skipped, its
+rules are `not run`.
 
 An inline collector under `collect.collectors` may not set `network`, as it
 may not `exec`: a `.systemlint.yaml` arrives with whatever directory

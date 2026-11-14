@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Certificates the network probes found expiring or untrusted
+when: {probes: {minProperties: 1}}
+rules:
+  tls/expired:
+    title: Certificate expired
+    fact: probes.*.http.*.tls.days-left
+    keys: {pattern: "^https://"}
+    expect: {minimum: 0}
+    score: 8.5
+    suggest: {fact: probes.*.http.*.tls.not-after, otherwise: an unknown date}
+    message: "{subject} serves a certificate that ended {suggested}, so every client refuses the site or trains its users to click through the warning"
+    fix: "renew the certificate of {subject} and check why its renewal job did not run: certbot renew --dry-run, or the logs of your ACME client"
+    docs: https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.5
+    references:
+      - {title: Lynis CRYP-7902, url: "https://cisofy.com/lynis/controls/CRYP-7902/"}
+    tags: [tls, lynis]
+  tls/expiring:
+    title: Certificate close to its end, its renewal overdue
+    fact: probes.*.http.*.tls.percent-left
+    keys: {pattern: "^https://"}
+    when: {probes.*.http.*.tls.days-left: {minimum: 0}}
+    expect: {minimum: 10}
+    score: [[0, 6.6], [9, 3.3]]
+    suggest: {fact: probes.*.http.*.tls.not-after, otherwise: an unknown date}
+    message: "{subject} serves a certificate with {got}% of its lifetime left, ending {suggested}, so its renewal is failing and clients refuse the site once it ends"
+    fix: "renew the certificate of {subject} and check why its renewal job did not run: certbot renew --dry-run, or the logs of your ACME client"
+    docs: https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.5
+    tags: [tls]
+  tls/untrusted:
+    title: Certificate this host does not trust
+    fact: probes.*.http.*.tls.verified
+    keys: {pattern: "^https://"}
+    when:
+      probes.*.http.*.tls: {not: {required: [days-left], properties: {days-left: {exclusiveMaximum: 0}}}}
+    expect: {const: true}
+    score: 7.0
+    suggest: {fact: probes.*.http.*.tls.error, otherwise: no reason given}
+    message: "{subject} serves a certificate this host does not trust ({suggested}), so clients refuse it or learn to click through a warning an attacker can reuse"
+    fix: "serve a certificate for the name in {subject} from a CA its clients trust, with its whole chain, or give the probe the private CA as ca-file"
+    docs: https://datatracker.ietf.org/doc/html/rfc5280#section-6
+    tags: [tls]
