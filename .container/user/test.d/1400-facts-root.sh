@@ -29,4 +29,4 @@ report="$(cd "${work}" && systemlint --quiet check --tags '!files' --format text
 b19-assert matches "DASH" 'systemlint_collector_status\{collector="os-release",status="ok"\} 1' "${report}"
 b19-assert equals "DASH" "absent" "$(test -e "${work}/-" && echo present || echo absent)"
 
-b19-assert matches "COLLECTOR" 'needs fact sshd.accounts, which collector sshd skipped' "${facts}"
+b19-assert matches "COLLECTOR" 'needs fact sshd, which collector sshd skipped' "${facts}"
