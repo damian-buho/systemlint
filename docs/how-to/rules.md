@@ -4,10 +4,9 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Rules, rulesets and compliance
+# Rules and rulesets
 
-`systemlint check` judges a facts document with declarative rules, and with
-`--standard` groups that judgement by the controls of a standard too. It reads
+`systemlint check` judges a facts document with declarative rules. It reads
 a saved document (`check facts.yaml`, `check -` for stdin) or collects one first
 (`check`, `check --root DIR`).
 
@@ -355,10 +354,8 @@ Failures that name each other, the two sides of `apt/duplicate`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
 or level, score, rule, subject, message, fix, the message without the subject
 it opens with, a rule not run on one `not-run` line per reason whatever its
-subjects, and the counts after `rating` and the grade; under `--standard`, a `standard`
-line (verdict, standard, coverage `N of M`, name) and a `control` line per
-control (verdict, standard, ID, reasons joined by semicolons, title) follow. Subject, `Why:` and `Fix:` lines, and the last two fields of every
-line but `standard`, end with a full stop unless they already end a sentence, and
+subjects, and the counts after `rating` and the grade. Subject, `Why:` and `Fix:` lines, and the last two fields of every
+line, end with a full stop unless they already end a sentence, and
 the last field opens with a capital, so a screen reader reading the whole report
 pauses between them. Colour marks only the level word
 and rule IDs, so the words still carry the meaning; `--color auto`, the
@@ -371,65 +368,19 @@ printing it, then one stderr line with its number of findings, which `-q` drops.
 `info`, `advice`, a score from 0.1 to 9.9, or `never`; advice fails a run
 only under `--fail-on advice`.
 
-| Code | `check` | `check --standard` | `facts` |
-| --- | --- | --- | --- |
-| 0 | no failure at `--fail-on` | compliant or not applicable | every collector ended `ok` or `skipped` |
-| 1 | a failure at `--fail-on` | non-compliant | a collector ended `error`, so the document is partial |
-| 2 | bad arguments | the same | the same |
-| 3 | — | indeterminate, or a manual control decides | — |
-| 4 | a plugin or collector file was refused | the same, when otherwise compliant | the same, when no collector ended `error` |
-| 5 | the config, a ruleset or a catalog is unreadable, invalid or refused | the same | the config is unreadable or invalid |
-| 6 | the facts document or `--root` can’t be read | the same | `--root` can’t be opened |
-| 7 | `--output` or stdout can’t be written | the same | `--output` or stdout can’t be written |
-| 70 | the system gave no random hash key | the same | the same |
-| 130 | Ctrl-C: `Interrupted, stopping plugins…`, the running plugins killed | the same | the same |
-| 101 | a crash: one line names the report saved under `$XDG_STATE_HOME/systemlint/` (`~/.local/state/systemlint/`) and a pre-filled issue link | the same | the same |
-| 141 | stdout closed early (`systemlint facts \| head`): the run ends silently on `SIGPIPE`, which a shell reports as 141 | the same | the same |
-
-## Compliance
-
-`systemlint check --standard <standard>` adds the rules tagged
-`<standard>:<control>` to the rules `--tags` or `check.tags` select, or runs them
-alone when neither is set, and answers per control; `--standard` may be given
-several times. The verdict, not `--fail-on`, then decides the exit code, so a
-failing advice still fails its control:
-
-| Verdict | When |
-| --- | --- |
-| `non-compliant` | a rule of the control fails, unwaived |
-| `indeterminate` | none fails, but one is `unknown`, or no rule covers the control |
-| `manual` | none fails or is `unknown`, and a `manual` rule covers it, or the catalog marks it manual and no rule covers it |
-| `not-applicable` | its rules gave no check, or only `not-applicable` and `skip` ones, each reason listed |
-| `compliant` | every check passes, is waived or is skipped, and one at least is not skipped |
-
-The standard is non-compliant when any control is, else indeterminate when any
-control is or none exists, else not applicable when every control is, else
-compliant, a `manual` control included: the standard’s note then says how
-many controls need a manual check; over several standards the worst answer wins, and the run is not
-applicable only when every standard is. Coverage counts the catalog controls a
-rule covers and that are not `not-applicable`. A standard no rule is tagged with selects nothing and is
-indeterminate.
-
-The human report closes with a `Standard` section per standard, after the
-failures and before the rating: the verdict, a line per control with the reasons
-under it, then coverage and the note. `--format json` adds a `compliance` object keyed by
-standard; SARIF and textfile carry it as described in [Outputs](outputs.md).
-
-A catalog, `<standard>.yaml` in a rules directory or in the `standards`
-directory beside it (`../share/systemlint/standards/` beside the binary, or a
-sibling of a `check.directories` entry), lists every control, adds the display
-name, and gives coverage. Ruleset loading skips a catalog, and catalog lookup
-skips a ruleset:
-
-```yaml
-name: CIS Ubuntu Linux 26.04 LTS Benchmark
-controls:
-  - {id: "5.2.10", title: Ensure SSH root login is disabled}
-  - {id: "1.1.1", title: Ensure the bootloader password is set, manual: true}
-```
-
-With a catalog, an uncovered control is indeterminate. Without one, the verdict
-carries a note: compliant only means no tagged rule failed.
+| Code | `check` | `facts` |
+| --- | --- | --- |
+| 0 | no failure at `--fail-on` | every collector ended `ok` or `skipped` |
+| 1 | a failure at `--fail-on` | a collector ended `error`, so the document is partial |
+| 2 | bad arguments | the same |
+| 4 | a plugin or collector file was refused | the same, when no collector ended `error` |
+| 5 | the config or a ruleset is unreadable, invalid or refused | the config is unreadable or invalid |
+| 6 | the facts document or `--root` can’t be read | `--root` can’t be opened |
+| 7 | `--output` or stdout can’t be written | the same |
+| 70 | the system gave no random hash key | the same |
+| 130 | Ctrl-C: `Interrupted, stopping plugins…`, the running plugins killed | the same |
+| 101 | a crash: one line names the report saved under `$XDG_STATE_HOME/systemlint/` (`~/.local/state/systemlint/`) and a pre-filled issue link | the same |
+| 141 | stdout closed early (`systemlint facts \| head`): the run ends silently on `SIGPIPE`, which a shell reports as 141 | the same |
 
 ## Differences from spiderlint
 
@@ -449,8 +400,7 @@ facts need it:
   measures web titles;
 - `fix` placeholders are the finding’s `{subject}`, `{got}`, `{field}` and
   `{fact}`, not the host or origin of a URL;
-- exit code 3 means an indeterminate compliance answer, not a failed fetch, and
-  4 a refused plugin or file;
+- exit code 4 means a refused plugin or file, not a failed fetch;
 - `unique: true` sits beside `fact` and fails each subject that shares a value,
   where spiderlint’s `unique: <fact>` gives one finding per value, so a waiver
   or SARIF fingerprint still names one subject;

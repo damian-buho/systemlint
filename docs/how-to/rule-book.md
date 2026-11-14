@@ -32,7 +32,7 @@ A rule judges what is good for the system, not what a distribution ships: a
 stock default that exposes the host still fails. Where two standards disagree
 (NIST SP 800-63B against forced password rotation, a benchmark demanding it),
 ship each side as its own rule tagged with its standard’s control, so the user
-picks the standard they follow with `--standard` or `--tags`.
+picks the standard they follow with `--tags`.
 
 ## The default tag
 
@@ -82,7 +82,7 @@ source does.
 | --- | --- | --- |
 | Lynis | `lynis` | `{title: Lynis <ID>, url: "https://cisofy.com/lynis/controls/<ID>/"}` |
 | `systemd-analyze security` | `systemd-analyze` | `{title: systemd-analyze security, url}` to its manual |
-| a catalog under `standards/` | `<standard>:<control>` | the standard’s own link |
+| a published standard | `<standard>:<control>` | the standard’s own link |
 
 `systemlint check --tags lynis` then runs every rule that covers a Lynis check.
 

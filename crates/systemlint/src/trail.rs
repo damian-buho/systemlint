@@ -20,7 +20,7 @@ thread_local! {
     static SCOPE: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
-/// The scope of the configuration, rulesets and catalogs, whose errors exit 5.
+/// The scope of the configuration and rulesets, whose errors exit 5.
 pub const CONFIG: &str = "config";
 
 /// The scope of the plugin and collector trust walk, whose refusals exit 4.

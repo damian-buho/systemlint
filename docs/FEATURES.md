@@ -14,13 +14,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 - A ruleset names the hosts it is written for, so on any other host its rules answer not applicable, never unknown or failed, and stay out of the rating. See [rules](how-to/rules.md).
 - The shipped apt rules judge Debian, Ubuntu and the distributions built on them, and stand aside everywhere else. See [apt sources](how-to/apt.md).
 - A procedure no fact can prove is a manual rule, listed for a person to review and never counted as a pass.
-- A standard none of whose rules apply answers not applicable, and one with manual controls says how many a person still has to check.
 
 ### Findings a person, a pipeline and a screen reader can read
 
 - Each failing rule is one block with its level, a 0.0–9.9 score, its title and why it matters, every subject it hit and one fix, the worst just above the summary. See [rules](how-to/rules.md).
 - An S to F rating and the counts close the run, so one line says how the host stands.
-- `--plain` prints one tab-separated line per finding and per standard control, for `grep`, `awk` and screen readers.
+- `--plain` prints one tab-separated line per finding, for `grep`, `awk` and screen readers.
 - Colour only marks words that already carry the meaning, and turns off under `NO_COLOR`, `TERM=dumb` or a pipe.
 - JSON, SARIF 2.1.0 and node-exporter textfile carry the same findings for CI and monitoring. See [outputs](how-to/outputs.md).
 

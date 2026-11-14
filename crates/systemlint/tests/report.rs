@@ -34,7 +34,7 @@ fn run(yaml: &str, document: &Value, waivers: &[Waiver]) -> Vec<Check> {
 }
 
 fn sarif(document: &Value, checks: &[Check]) -> Value {
-    serde_json::from_str(&lint_sarif(document, checks, &[])).unwrap()
+    serde_json::from_str(&lint_sarif(document, checks)).unwrap()
 }
 
 #[test]
@@ -173,7 +173,7 @@ fn sarif_bases_a_host_at_slash_and_a_relative_root_on_no_uri() {
 fn textfile_counts_outcomes_rules_and_collectors() {
     let mut document = facts("unprivileged");
     document["collectors"]["odd\"id\\\n"] = json!({"status": "skipped"});
-    let text = lint_textfile(&document, &run(HTTPS, &document, &[]), &[]);
+    let text = lint_textfile(&document, &run(HTTPS, &document, &[]));
     for line in [
         "systemlint_checks{outcome=\"pass\"} 1",
         "systemlint_checks{outcome=\"fail\"} 0",
@@ -246,7 +246,7 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
         .unwrap()
     });
     let checks = lint(&document, &rules, &[], "2026-11-11");
-    let text = lint_human(&document, &checks, &[], false, false, false);
+    let text = lint_human(&document, &checks, false, false, false);
     assert!(text.contains("Not run (env-defaults, env-processes): needs root, and this run is unprivileged\n  env/a, env/b\n\n"), "{text}");
     assert_eq!(text.matches("Not run (").count(), 1, "{text}");
     assert!(
@@ -258,7 +258,7 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
         "{text}"
     );
     assert!(
-        lint_textfile(&document, &checks, &[]).contains("outcome=\"unknown\""),
+        lint_textfile(&document, &checks).contains("outcome=\"unknown\""),
         "machine formats keep the unknown"
     );
 }
@@ -277,14 +277,14 @@ fn an_opt_in_left_off_prints_no_block_and_still_counts() {
         .unwrap()
     });
     let checks = lint(&document, &rules, &[], "2026-11-14");
-    let text = lint_human(&document, &checks, &[], false, false, false);
+    let text = lint_human(&document, &checks, false, false, false);
     assert!(!text.contains("image-config"), "{text}");
     assert!(
         text.contains("Not run (env-processes): can’t read /proc/1/environ without root\n"),
         "{text}"
     );
     assert!(text.ends_with(" · 0 pass, 2 not run\n"), "{text}");
-    let plain = lint_plain(&document, &checks, &[], true);
+    let plain = lint_plain(&document, &checks, true);
     assert!(
         !plain.contains("image-config") && plain.contains("without root"),
         "{plain}"
@@ -306,7 +306,7 @@ fn human_folds_an_unreadable_path_into_one_line_for_every_rule() {
         .unwrap()
     });
     let checks = lint(&document, &rules, &[], "2026-11-13");
-    let text = lint_human(&document, &checks, &[], false, false, false);
+    let text = lint_human(&document, &checks, false, false, false);
     assert!(
         text.starts_with(
             "Not read (env-defaults): /etc/default/cacerts, permission denied\n  env/a, env/b\n\n"
@@ -481,12 +481,12 @@ fn sources() -> (Value, Vec<Check>) {
 #[test]
 fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_last() {
     let (document, checks) = sources();
-    let text = lint_human(&document, &checks, &[], false, false, false);
+    let text = lint_human(&document, &checks, false, false, false);
     let expected = "Warning (4.5): [apt/duplicate] Repository listed in two places\n- /a.list:1.\n- /b.sources:1.\nFix: remove one of the entries, then run sudo apt update.\n\n\
         Error (7.5): [apt/stale-suite] Source fetches an older release’s suite\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
         Rating F · 2 errors, 2 warnings, 0 info · 2 pass\n";
     assert_eq!(text, expected);
-    let painted = lint_human(&document, &checks, &[], true, false, true);
+    let painted = lint_human(&document, &checks, true, false, true);
     assert!(
         painted.contains("\x1b[31mError\x1b[0m (7.5): \x1b[1m[apt/stale-suite]\x1b[0m")
             && painted.contains("\x1b[33mWarning\x1b[0m"),
@@ -502,7 +502,6 @@ fn human_puts_a_fix_under_each_location_when_the_fixes_differ() {
     let text = lint_human(
         &document,
         &lint(&document, &[rule], &[], "2026-11-11"),
-        &[],
         true,
         false,
         false,
@@ -520,7 +519,6 @@ fn human_prints_the_whole_message_of_a_subjectless_check_that_names_no_value() {
     let text = lint_human(
         &document,
         &lint(&document, &[rule], &[], "2026-11-11"),
-        &[],
         true,
         false,
         false,
@@ -545,7 +543,6 @@ fn human_puts_each_remedy_command_under_its_location_unstopped_so_it_pastes() {
     let text = lint_human(
         &document,
         &lint(&document, &[rule], &[], "2026-11-11"),
-        &[],
         true,
         false,
         false,
@@ -564,14 +561,14 @@ fn rationale_and_references_reach_every_format_and_the_human_references_only_und
     let document = json!({"v": 1});
     let checks = lint(&document, &[rule], &[], "2026-11-11");
     assert_eq!(
-        lint_human(&document, &checks, &[], true, false, false),
+        lint_human(&document, &checks, true, false, false),
         "Warning (5.0): [x/drop] Dropped value\nWhy: a value [here] leaks.\n- v: 0 was expected.\nFix: drop it.\n\n"
     );
     assert_eq!(
-        lint_human(&document, &checks, &[], true, true, false),
+        lint_human(&document, &checks, true, true, false),
         "Warning (5.0): [x/drop] Dropped value\nWhy: a value [here] leaks.\n- v: 0 was expected.\nFix: drop it.\nSee: CIS 1.2 <https://example.org/cis>\nSee: Man page <https://example.org/man>\n\n"
     );
-    let report: Value = serde_json::from_str(&lint_json(&document, &checks, &[])).unwrap();
+    let report: Value = serde_json::from_str(&lint_json(&document, &checks)).unwrap();
     assert_eq!(
         (
             &report["checks"][0]["rationale"],
@@ -620,7 +617,6 @@ fn human_wraps_a_long_not_run_list_within_80_columns() {
     let text = lint_human(
         &document,
         &lint(&document, &rules, &[], "2026-11-11"),
-        &[],
         true,
         false,
         false,
@@ -654,7 +650,7 @@ fn plain_prints_a_rule_not_run_once_per_reason_whatever_its_subjects() {
         checks.iter().filter(|c| c.collector.is_some()).count() >= 3,
         "{checks:?}"
     );
-    let text = lint_plain(&document, &checks, &[], true);
+    let text = lint_plain(&document, &checks, true);
     assert_eq!(
         text.lines()
             .filter(|l| l.starts_with("not-run\t"))
@@ -670,7 +666,7 @@ fn plain_prints_a_rule_not_run_once_per_reason_whatever_its_subjects() {
 #[test]
 fn plain_prints_one_tab_separated_line_per_finding() {
     let (document, checks) = sources();
-    let text = lint_plain(&document, &checks, &[], false);
+    let text = lint_plain(&document, &checks, false);
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 5, "{text}");
     assert_eq!(
@@ -697,19 +693,19 @@ fn plain_prints_one_tab_separated_line_per_finding() {
 fn machine_formats_carry_the_rating() {
     let document = facts("root");
     let checks = run(HTTPS, &document, &[]);
-    let report: Value = serde_json::from_str(&lint_json(&document, &checks, &[])).unwrap();
+    let report: Value = serde_json::from_str(&lint_json(&document, &checks)).unwrap();
     assert_eq!(report["rating"], json!({"grade": "D", "score": 0.5}));
     assert_eq!(
         sarif(&document, &checks)["runs"][0]["properties"]["rating"]["grade"],
         "D"
     );
     assert!(
-        lint_textfile(&document, &checks, &[])
+        lint_textfile(&document, &checks)
             .lines()
             .any(|l| l == "systemlint_rating{grade=\"D\"} 0.5")
     );
     assert!(
-        !lint_textfile(&document, &[], &[]).contains("systemlint_rating{"),
+        !lint_textfile(&document, &[]).contains("systemlint_rating{"),
         "no grade, no sample"
     );
 }
@@ -727,9 +723,9 @@ fn a_subject_of_several_keys_shows_its_last_and_keeps_all_of_them_for_waivers() 
         checks[0].message.as_deref(),
         Some("/usr is owned by uid 1000")
     );
-    assert!(lint_human(&document, &checks, &[], true, false, false).contains("\n- /usr: 1000.\n"));
+    assert!(lint_human(&document, &checks, true, false, false).contains("\n- /usr: 1000.\n"));
     assert!(
-        lint_plain(&document, &checks, &[], true)
+        lint_plain(&document, &checks, true)
             .contains("\tfiles/owner\t/usr\tis owned by uid 1000.\t")
     );
     for (glob, waived) in [
@@ -775,7 +771,6 @@ fn plain_drops_only_a_whole_leading_subject_from_the_message() {
         lint_plain(
             &document,
             &lint(&document, &[rule(m)], &[], "2026-11-11"),
-            &[],
             true,
         )
         .split('\t')
@@ -810,7 +805,6 @@ fn plain_drops_only_a_whole_leading_subject_from_the_message() {
                 &[],
                 "2026-11-11",
             ),
-            &[],
             true,
         )
         .trim_end()

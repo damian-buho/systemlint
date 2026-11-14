@@ -44,10 +44,6 @@ systemlint check --root rootfs --format sarif --output systemlint.sarif
   alert follows the same source across runs.
 - The run’s `properties.rating` holds the [rating](rules.md#rating): `grade`
   and the `score` it rests on, or `null` when nothing was judged.
-- With `--standard`, each standard is a run `taxonomies` entry, a taxon per
-  control with its `verdict` and `reasons`; a rule descriptor points at the
-  controls it covers through `relationships`, and `properties.compliance`
-  holds each standard’s verdict.
 
 ## Prometheus textfile
 
@@ -67,8 +63,6 @@ systemlint --quiet check --format textfile --fail-on never \
 | `systemlint_rule_checks` | `rule`, `outcome` | checks of that rule; absent when zero |
 | `systemlint_failures` | `severity`: error, warning, info, advice | failing checks, waived ones apart |
 | `systemlint_rating` | `grade`: S, A, B, C, D, E or F | the share of judged checks kept after failure costs; absent when nothing was judged |
-| `systemlint_controls` | `standard`, `verdict`: compliant, non-compliant, indeterminate, not-applicable, manual | controls of that standard; with `--standard` only |
-| `systemlint_compliance` | `standard`, `verdict`: compliant, non-compliant, indeterminate, not-applicable | 1 for the standard’s verdict, else 0; with `--standard` only |
 | `systemlint_collector_status` | `collector`, `status`: `ok`, `error`, `skipped` | 1 for the status it ended in, else 0 |
 | `systemlint_privileged` | — | 1 when the facts were collected as root |
 

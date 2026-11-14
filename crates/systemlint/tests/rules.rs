@@ -439,7 +439,7 @@ fn no_selector_runs_the_default_tag_and_counts_the_rest_per_ruleset() {
         ["performance", "latency"],
         "a rule takes its ruleset’s tags first, each once"
     );
-    let implicit = lib.select_for(&[], &[]).unwrap();
+    let implicit = lib.select_for(&[]).unwrap();
     assert_eq!(
         ids(&implicit.rules),
         ["apt/https", "os/supported", "shadow/private", "ssh/patched"]
@@ -449,10 +449,10 @@ fn no_selector_runs_the_default_tag_and_counts_the_rest_per_ruleset() {
         BTreeMap::from([("mine".to_owned(), 1), ("perf".to_owned(), 2)]),
         "an off rule is never counted as left out"
     );
-    let replaced = lib.select_for(&["performance".into()], &[]).unwrap();
+    let replaced = lib.select_for(&["performance".into()]).unwrap();
     assert_eq!(ids(&replaced.rules), ["perf/a", "perf/b"]);
     let extended = lib
-        .select_for(&["default".into(), "latency".into()], &[])
+        .select_for(&["default".into(), "latency".into()])
         .unwrap();
     assert_eq!(extended.rules.len(), 5);
     assert_eq!(extended.left_out.values().sum::<usize>(), 2);
@@ -465,7 +465,7 @@ fn no_rule_tagged_default_selects_nothing_rather_than_failing() {
         systemlint::yaml::from_str("rules:\n  mine/x: {fact: x, expect: {minimum: 1}}\n").unwrap(),
     )]))
     .unwrap();
-    let selected = lib.select_for(&[], &[]).unwrap();
+    let selected = lib.select_for(&[]).unwrap();
     assert!(selected.rules.is_empty());
     assert_eq!(selected.left_out, BTreeMap::from([("mine".to_owned(), 1)]));
 }

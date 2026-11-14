@@ -6,7 +6,6 @@
 
 pub mod collect;
 pub mod collector;
-pub mod comply;
 pub mod config;
 pub mod crash;
 pub mod discovery;
