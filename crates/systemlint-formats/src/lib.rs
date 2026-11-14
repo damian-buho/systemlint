@@ -91,7 +91,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "lines" => Ok(lines(&request.inputs)),
         "match" => r#match(&request.inputs, &request.with),
         "pam" => Ok(pam(&request.inputs)),
-        "passwd" => Ok(passwd(&request.inputs)),
+        "passwd" => passwd_with(&request.inputs, &request.with),
         "probes" => Ok(probes(&request.inputs)),
         "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
@@ -110,7 +110,7 @@ const TEXT_OPS: [&str; 9] = [
 ];
 
 /// The family ops that take typed options under `with`.
-const WITH_OPS: [&str; 3] = ["kv", "match", "words"];
+const WITH_OPS: [&str; 4] = ["kv", "match", "passwd", "words"];
 
 /// The typed options of `op` from `with`, or an error naming what is wrong.
 pub fn options<T: serde::de::DeserializeOwned>(op: &str, with: &Map<String, Value>) -> Result<T> {
@@ -443,6 +443,48 @@ fn accounts(inputs: &[Input], fields: usize, entry: Entry) -> Reply {
 /// Every account of passwd(5) files by name.
 pub fn passwd(inputs: &[Input]) -> Reply {
     accounts(inputs, 7, passwd_entry)
+}
+
+/// The shells getusershell(3) falls back to when `/etc/shells` is absent.
+const FALLBACK_SHELLS: [&str; 2] = ["/bin/sh", "/bin/csh"];
+
+/// `passwd`’s options: `shells`, the input listing login shells, which adds `login-shell` to every entry.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PasswdOptions {
+    shells: Option<String>,
+}
+
+/// [`passwd`] over every input but `with.shells`, each entry’s `login-shell` true when its shell is empty or listed there, as getusershell(3) reads it.
+pub fn passwd_with(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
+    let PasswdOptions { shells } = options("passwd", with)?;
+    let Some(shells) = shells else {
+        return Ok(passwd(inputs));
+    };
+    let (listed, accounts): (Vec<&Input>, Vec<&Input>) =
+        inputs.iter().partition(|i| i.name() == shells);
+    let mut diagnostics = Vec::new();
+    let allowed: Vec<String> = match listed.first() {
+        Some(input) => text(input, &mut diagnostics)
+            .map(|(_, t)| {
+                t.lines()
+                    .map(str::trim)
+                    .filter(|l| !l.is_empty() && !l.starts_with('#'))
+                    .map(str::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default(),
+        None => FALLBACK_SHELLS.map(str::to_owned).to_vec(),
+    };
+    let accounts: Vec<Input> = accounts.into_iter().cloned().collect();
+    let mut reply = passwd(&accounts);
+    for entry in reply.facts.values_mut().filter_map(Value::as_object_mut) {
+        let shell = entry["shell"].as_str().unwrap_or_default();
+        let login = shell.is_empty() || allowed.iter().any(|s| s == shell);
+        entry.insert("login-shell".to_owned(), Value::Bool(login));
+    }
+    reply.diagnostics.extend(diagnostics);
+    Ok(reply)
 }
 
 /// Every account of shadow(5) files by name, with no hash.
@@ -1638,6 +1680,47 @@ mod tests {
                 (Some(8), "4 fields where 7 are expected"),
             ]
         );
+    }
+
+    #[test]
+    fn passwd_marks_login_shells_as_getusershell_reads_them() {
+        let with = Map::from_iter([("shells".to_owned(), json!("/etc/shells"))]);
+        let users = file(
+            "/etc/passwd",
+            "root:x:0:0::/root:/bin/bash\nsync:x:4:65534::/bin:/bin/sync\nold:x:5:5::/:\n",
+        );
+        let shells = file("/etc/shells", "# /etc/shells\n/bin/sh\n  /bin/bash \n");
+        let login = |reply: &Reply| {
+            reply
+                .facts
+                .iter()
+                .map(|(k, v)| (k.clone(), v["login-shell"].clone()))
+                .collect::<BTreeMap<_, _>>()
+        };
+        let reply = passwd_with(&[users.clone(), shells], &with).unwrap();
+        assert_eq!(
+            login(&reply),
+            BTreeMap::from([
+                ("old".to_owned(), json!(true)),
+                ("root".to_owned(), json!(true)),
+                ("sync".to_owned(), json!(false))
+            ]),
+            "an empty shell is /bin/sh"
+        );
+        let fallback = passwd_with(std::slice::from_ref(&users), &with).unwrap();
+        assert_eq!(
+            login(&fallback)["root"],
+            json!(false),
+            "no /etc/shells: only /bin/sh and /bin/csh"
+        );
+        assert!(
+            passwd_with(std::slice::from_ref(&users), &Map::new())
+                .unwrap()
+                .facts["root"]
+                .get("login-shell")
+                .is_none()
+        );
+        assert!(passwd_with(&[users], &Map::from_iter([("x".to_owned(), json!(1))])).is_err());
     }
 
     #[test]
