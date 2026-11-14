@@ -6,5 +6,8 @@ id: kernel-modules-loaded
 live: true
 read:
   files: [/proc/modules]
-parse: {plugin: formats, op: proc-modules}
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^(?P<key>\S+) (?P<size>\d+) (?P<instances>\d+) \S+ (?P<state>\S+)'}
 into: kernel.loaded

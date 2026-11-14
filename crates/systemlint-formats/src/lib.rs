@@ -10,8 +10,6 @@ mod audit;
 pub use audit::audit_rules;
 mod auth;
 pub use auth::{limits, login_defs, pam};
-mod modules;
-pub use modules::{modprobe, proc_modules};
 
 use serde_json::{Map, Value};
 use systemlint_protocol::{
@@ -74,12 +72,10 @@ pub fn describe() -> Describe {
             ("lines", &[]),
             ("login-defs", &[]),
             ("match", &[]),
-            ("modprobe", &[]),
             ("mountinfo", &[]),
             ("pam", &[]),
             ("passwd", &[]),
             ("probes", &[]),
-            ("proc-modules", &[]),
             ("resolv", &[]),
             ("shadow", &[]),
             ("stat", &[]),
@@ -113,12 +109,10 @@ pub fn op(request: Request) -> Result<Reply> {
         "lines" => Ok(lines(&request.inputs)),
         "login-defs" => Ok(login_defs(&request.inputs)),
         "match" => r#match(&request.inputs, &request.with),
-        "modprobe" => Ok(modprobe(&request.inputs)),
         "mountinfo" => Ok(mountinfo(&request.inputs)),
         "pam" => Ok(pam(&request.inputs)),
         "passwd" => Ok(passwd(&request.inputs)),
         "probes" => Ok(probes(&request.inputs)),
-        "proc-modules" => Ok(proc_modules(&request.inputs)),
         "resolv" => Ok(resolv(&request.inputs)),
         "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
@@ -134,10 +128,10 @@ pub fn op(request: Request) -> Result<Reply> {
 /// The generic ops that read a command’s stdout as text, so a failed command fails them.
 const TEXT_OPS: [&str; 8] = ["csv", "ini", "json", "kv", "lines", "match", "toml", "yaml"];
 
-/// An error naming the first command that exited non-zero, so its collector fails rather than reading as empty.
+/// An error naming the first command that exited non-zero, 127 (absent) aside, so its collector fails rather than reading as empty.
 fn ran(inputs: &[Input]) -> Result<()> {
     match inputs.iter().find_map(|i| match i {
-        Input::Exec(run) if run.exit != 0 => Some(run),
+        Input::Exec(run) if run.exit != 0 && run.exit != 127 => Some(run),
         _ => None,
     }) {
         Some(run) => Err(format!(
@@ -174,23 +168,24 @@ pub fn r#match(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
                 continue;
             };
             let key = captures.name("key").map_or("", |m| m.as_str());
-            let clash = match key {
-                "" => "an empty key, skipped".to_owned(),
-                k if reply.facts.contains_key(k) => format!("key {k} again, the first kept"),
-                _ => {
-                    let fields = regex
-                        .capture_names()
-                        .flatten()
-                        .filter(|n| *n != "key")
-                        .filter_map(|n| {
-                            captures
-                                .name(n)
-                                .map(|m| (n.to_owned(), Value::from(m.as_str())))
-                        })
-                        .collect();
+            let fields: Map<String, Value> = regex
+                .capture_names()
+                .flatten()
+                .filter(|n| *n != "key")
+                .filter_map(|n| {
+                    captures
+                        .name(n)
+                        .map(|m| (n.to_owned(), Value::from(m.as_str())))
+                })
+                .collect();
+            let clash = match reply.facts.get(key) {
+                _ if key.is_empty() => "an empty key, skipped".to_owned(),
+                None => {
                     reply.facts.insert(key.to_owned(), Value::Object(fields));
                     continue;
                 }
+                Some(Value::Object(first)) if *first == fields => continue,
+                Some(_) => format!("key {key} again with other fields, the first kept"),
             };
             reply.diagnostics.push(Diagnostic {
                 path: path.to_owned(),
@@ -1391,12 +1386,10 @@ mod tests {
                 "lines",
                 "login-defs",
                 "match",
-                "modprobe",
                 "mountinfo",
                 "pam",
                 "passwd",
                 "probes",
-                "proc-modules",
                 "resolv",
                 "shadow",
                 "stat",
@@ -1824,7 +1817,7 @@ mod tests {
 
     #[test]
     fn match_keys_each_matching_line_by_its_key_capture() {
-        let stdout = "NOTE: simulation\nInst libc6 [2.41-1] (2.41-2 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])\nInst newpkg (1.0 Ubuntu:26.04/resolute [all])\nConf libc6 (2.41-2 Ubuntu:26.04/resolute-updates [amd64])\nInst libc6 [2.41-1] (9 other [amd64])\n";
+        let stdout = "NOTE: simulation\nInst libc6 [2.41-1] (2.41-2 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])\nInst newpkg (1.0 Ubuntu:26.04/resolute [all])\nConf libc6 (2.41-2 Ubuntu:26.04/resolute-updates [amd64])\nInst libc6 [2.41-1] (9 other [amd64])\nInst newpkg (1.0 Ubuntu:26.04/resolute [all])\n";
         let reply = op(request(
             "match",
             vec![exec("/usr/bin/apt-get --simulate", stdout, 0)],
@@ -1847,7 +1840,7 @@ mod tests {
             [(
                 "/usr/bin/apt-get",
                 Some(5),
-                "key libc6 again, the first kept"
+                "key libc6 again with other fields, the first kept"
             )]
         );
     }
@@ -1905,6 +1898,9 @@ mod tests {
             lines(1).unwrap_err().to_string(),
             "/bin/cmd -a exited 1: denied"
         );
+        let absent = lines(127).unwrap();
+        assert!(absent.facts.is_empty());
+        assert_eq!(absent.diagnostics[0].message, "exited 127: denied");
         let kept = op(request("exec", vec![exec("/bin/cmd", "", 1)], json!({}))).unwrap();
         assert_eq!(kept.facts["exit-status"], 1);
     }

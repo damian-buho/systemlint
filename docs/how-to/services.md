@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Kernel parameters, modules and audit rules, Docker, systemd units and ufw
 
-Ten collectors record service configuration as facts, `systemd-units` on
+Thirteen collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
@@ -16,8 +16,11 @@ reads the Docker or kernel module facts yet.
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
 | `sysctl` | `/usr/sbin/sysctl -a` on a live host, else `/etc/sysctl.conf` and the `sysctl.d` directories | `sysctl` | `sysctl` |
-| `kernel-modules` | the `modprobe.d` directories, and `modules.order` and `modules.builtin` of every kernel in `/lib/modules` | `modprobe` | `kernel.modules.<module>` |
-| `kernel-modules-loaded` | `/proc/modules` on a live host | `proc-modules` | `kernel.loaded.<module>` |
+| `kernel-modules-shipped` | `modules.order` of every kernel in `/lib/modules` | `match` | `kernel.shipped.<module>` |
+| `kernel-modules-builtin` | `modules.builtin` of every kernel in `/lib/modules` | `match` | `kernel.builtin.<module>` |
+| `kernel-modules-blacklist` | `/usr/sbin/modprobe --showconfig` on a live host | `match` | `kernel.blacklist.<module>` |
+| `kernel-modules-install` | `/usr/sbin/modprobe --showconfig` on a live host | `match` | `kernel.install.<module>` |
+| `kernel-modules-loaded` | `/proc/modules` on a live host | `match` | `kernel.loaded.<module>` |
 | `audit-rules` | `/etc/audit/rules.d/*.rules` | `audit-rules` | `audit.rules` |
 | `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `audit-rules` | `audit.loaded` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
@@ -51,33 +54,37 @@ segment.
 
 ## Kernel modules
 
-`kernel.modules` keys each module by its name, `-` read as `_` as kmod does,
-with what `modprobe` would do with it:
+Five collectors compose kmod’s own answers with `formats match`, one
+collection each, every module keyed by its name:
 
 ```yaml
 kernel:
-  modules:
-    cramfs: {loadable: true, builtin: false, blacklist: false, install: /bin/false}
+  shipped: {cramfs: {}, usb-storage: {}}
+  builtin: {unix: {}}
+  blacklist: {floppy: {}}
+  install: {cramfs: {command: /bin/false}}
+  loaded: {ext4: {size: "1105920", instances: "1", state: Live}}
 ```
 
-- `loadable`: some kernel in `/lib/modules` lists it in `modules.order`; a
-  module only `depmod` added (DKMS, `updates/`) is not counted.
+- `shipped`: some kernel in `/lib/modules` lists it in `modules.order`; a
+  module only `depmod` added (DKMS, `updates/`) is not counted. The name keeps
+  the file’s spelling, so `usb-storage` keeps its `-`.
 - `builtin`: some kernel lists it in `modules.builtin`, so no `modprobe.d`
-  line can keep it out of that kernel.
+  line can keep it out of that kernel; spelled as in the file too.
 - `blacklist`: a `blacklist` line names it, which stops loading by alias only;
   an explicit `modprobe` still loads it.
-- `install`: the command of the first `install` line matching it, as an
-  fnmatch(3) pattern, or `null`; `/bin/false` makes `modprobe` refuse it.
+- `install`: the `command` of its first `install` line, which kmod runs instead
+  of loading it; `/bin/false` makes `modprobe` refuse it.
+- `loaded`: each module in `/proc/modules` with `size` in bytes, `instances`
+  and `state` (`Live`, `Loading`, `Unloading`), as strings.
 
-The files are read as kmod reads them: one file per name, from the highest of
-`/etc/modprobe.d`, `/run/modprobe.d`, `/usr/local/lib/modprobe.d`,
-`/usr/lib/modprobe.d` and `/lib/modprobe.d`, in name order; a trailing `\`
-joins the next line. A module named only by a `modprobe.d` line is listed with
-`loadable` and `builtin` false.
-
-`kernel.loaded` keys each module in `/proc/modules` by name with `size` in
-bytes, `instances`, `used-by` and `state` (`live`, `loading`, `unloading`).
-It is a live fact, absent under `--root`.
+`blacklist` and `install` come from `modprobe --showconfig`, kmod’s merged view
+of every `modprobe.d` file in the order it reads them, so a name there is
+spelled as kmod spells it, `-` read as `_` (`usb_storage`); a rule on
+`usb-storage` guards on `shipped` under one spelling and judges `install` under
+the other. Under `--root` no command runs, so their rules print as `Not run`;
+a host with no `modprobe` has empty `blacklist` and `install` and, with no
+kmod, ships no modules either. `loaded` is a live fact, absent under `--root`.
 
 ## Kernel audit rules
 

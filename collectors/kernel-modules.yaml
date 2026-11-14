@@ -1,9 +1,0 @@
-# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
-#
-# SPDX-License-Identifier: AGPL-3.0-only
-
-id: kernel-modules
-read:
-  files: [/etc/modprobe.d/*.conf, /run/modprobe.d/*.conf, /usr/local/lib/modprobe.d/*.conf, /usr/lib/modprobe.d/*.conf, /lib/modprobe.d/*.conf, /lib/modules/*/modules.order, /lib/modules/*/modules.builtin]
-parse: {plugin: formats, op: modprobe}
-into: kernel.modules
