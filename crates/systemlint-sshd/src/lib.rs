@@ -40,7 +40,7 @@ pub fn op(request: Request) -> Result<Reply> {
     }
 }
 
-/// `global` (plain `sshd -T`, keyed by the main file), `accounts` (each `-T -C` run’s `Match`-able keywords, keyed by its `user`) and the `client` those runs named.
+/// `global` (plain `sshd -T`, keyed by the main file), `accounts` (each `-T -C` run’s `Match`-able keywords, keyed by its `user`), `settings` (see [`settings`]) and the `client` those runs named.
 pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
     let mut reply = Reply::default();
     let (mut global, mut accounts, mut client) = (Map::new(), Map::new(), Map::new());
@@ -87,6 +87,7 @@ pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
             }
         }
     }
+    let settings = settings(&global, &accounts);
     let global = match global.is_empty() {
         true => Map::new(),
         false => Map::from_iter([(MAIN.to_owned(), Value::Object(global))]),
@@ -97,12 +98,39 @@ pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
     reply
         .facts
         .insert("accounts".to_owned(), Value::Object(accounts));
+    reply
+        .facts
+        .insert("settings".to_owned(), Value::Object(settings));
     if !client.is_empty() {
         reply
             .facts
             .insert("client".to_owned(), Value::Object(client));
     }
     Ok(reply)
+}
+
+/// Each `Match`-able keyword’s global value under the main file, plus every account whose own run settled it otherwise.
+pub fn settings(global: &Map<String, Value>, accounts: &Map<String, Value>) -> Map<String, Value> {
+    let mut settings = Map::new();
+    for keyword in config::MATCH {
+        let main = global.get(*keyword);
+        let mut subjects: Map<String, Value> = main
+            .map(|v| (MAIN.to_owned(), v.clone()))
+            .into_iter()
+            .collect();
+        for (account, own) in accounts {
+            match own.get(*keyword) {
+                Some(value) if Some(value) != main => {
+                    subjects.insert(account.clone(), value.clone());
+                }
+                _ => {}
+            }
+        }
+        if !subjects.is_empty() {
+            settings.insert((*keyword).to_owned(), Value::Object(subjects));
+        }
+    }
+    settings
 }
 
 /// The `-C` connection spec of an argv as `key=value` pairs, `None` without one.
@@ -224,8 +252,29 @@ mod tests {
         );
         assert_eq!(facts["accounts"]["root"]["x11forwarding"], "no");
         assert_eq!(
+            facts["settings"],
+            json!({
+                "permitrootlogin": {MAIN: "no"},
+                "x11forwarding": {MAIN: "no", "sftp": "yes"}
+            }),
+            "an account appears only where its value differs from global"
+        );
+        assert_eq!(
             facts["client"],
             json!({"host": "client.invalid", "addr": "192.0.2.1"})
+        );
+    }
+
+    #[test]
+    fn settings_keep_an_account_whose_keyword_global_lacks_and_drop_non_match_keywords() {
+        let global = Map::from_iter([("ciphers".to_owned(), json!(["aes128-ctr"]))]);
+        let accounts = Map::from_iter([(
+            "alice".to_owned(),
+            json!({"banner": "/etc/issue.net", "ciphers": ["chacha20"]}),
+        )]);
+        assert_eq!(
+            Value::Object(settings(&global, &accounts)),
+            json!({"banner": {"alice": "/etc/issue.net"}})
         );
     }
 
@@ -261,11 +310,11 @@ mod tests {
                 absent,
             ),
         ]);
-        assert_eq!(facts, json!({"global": {}, "accounts": {}}));
+        assert_eq!(facts, json!({"global": {}, "accounts": {}, "settings": {}}));
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].path, "/usr/sbin/sshd -T");
         let (facts, _) = collected(&[]);
-        assert_eq!(facts, json!({"global": {}, "accounts": {}}));
+        assert_eq!(facts, json!({"global": {}, "accounts": {}, "settings": {}}));
     }
 
     #[test]
