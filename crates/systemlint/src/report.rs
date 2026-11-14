@@ -173,6 +173,17 @@ fn skip_reason<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
         .filter(|_| check.outcome == Outcome::Unknown && outcome["status"] == "skipped")
 }
 
+/// The collector, path and reason of the unreadable path an `unknown` check stands on, when a `partial` collector could not read it.
+fn unread<'a>(document: &'a Value, check: &'a Check) -> Option<(&'a str, &'a str, &'a str)> {
+    let collector = check.collector.as_deref()?;
+    let paths = document["collectors"][collector]["unreadable"].as_object()?;
+    check
+        .subject
+        .iter()
+        .filter(|_| check.outcome == Outcome::Unknown)
+        .find_map(|key| Some((collector, key.as_str(), paths.get(key)?.as_str()?)))
+}
+
 /// Whether `value` is `text` or a list holding it.
 fn names(value: Option<&Value>, text: &str) -> bool {
     match value {
@@ -514,7 +525,41 @@ fn by_reason<'a>(checks: impl Iterator<Item = &'a Check>) -> BTreeMap<&'a str, B
     groups
 }
 
-/// One block per rule: not run reasons, not applicable reasons, unknowns, manual rules, waivers, failures lowest score first (with references when `verbose`), each standard, then the rating and counts unless `quiet`.
+/// Collectors and rules under each heading.
+type Grouped<'a> = BTreeMap<String, (BTreeSet<&'a str>, BTreeSet<&'a str>)>;
+
+/// One `<label> (collectors): heading` block per heading of `entries` (heading, collector, rule), its rules wrapped under it.
+fn collector_blocks<'a>(
+    out: &mut String,
+    label: &str,
+    entries: impl Iterator<Item = (String, &'a str, &'a str)>,
+    on: bool,
+) {
+    let mut groups: Grouped = BTreeMap::new();
+    for (heading, collector, rule) in entries {
+        let (collectors, rules) = groups.entry(heading).or_default();
+        collectors.insert(collector);
+        rules.insert(rule);
+    }
+    for (heading, (collectors, rules)) in &groups {
+        log::debug!(
+            "{label}: {} rules, collectors {collectors:?}: {heading}",
+            rules.len()
+        );
+        let _ = writeln!(
+            out,
+            "{label} ({}): {heading}",
+            collectors.iter().copied().collect::<Vec<_>>().join(", ")
+        );
+        out.push_str(&wrap(
+            &rules.iter().map(|r| (*r).to_owned()).collect::<Vec<_>>(),
+            on,
+        ));
+        out.push('\n');
+    }
+}
+
+/// One block per rule: not run reasons, unreadable paths, not applicable reasons, unknowns, manual rules, waivers, failures lowest score first (with references when `verbose`), each standard, then the rating and counts unless `quiet`.
 pub fn lint_human(
     document: &Value,
     checks: &[Check],
@@ -524,32 +569,27 @@ pub fn lint_human(
     on: bool,
 ) -> String {
     let mut out = String::new();
-    let mut not_run: BTreeMap<&str, (BTreeSet<&str>, BTreeSet<&str>)> = BTreeMap::new();
-    for check in checks {
-        if let (Some(reason), Some(collector)) =
-            (skip_reason(document, check), check.collector.as_deref())
-        {
-            let (collectors, rules) = not_run.entry(reason).or_default();
-            collectors.insert(collector);
-            rules.insert(&check.rule);
-        }
-    }
-    for (reason, (collectors, rules)) in &not_run {
-        log::debug!(
-            "{} rules not run: collectors {collectors:?} {reason}",
-            rules.len()
-        );
-        let _ = writeln!(
-            out,
-            "Not run ({}): {reason}",
-            collectors.iter().copied().collect::<Vec<_>>().join(", ")
-        );
-        out.push_str(&wrap(
-            &rules.iter().map(|r| (*r).to_owned()).collect::<Vec<_>>(),
-            on,
-        ));
-        out.push('\n');
-    }
+    collector_blocks(
+        &mut out,
+        "Not run",
+        checks.iter().filter_map(|c| {
+            Some((
+                skip_reason(document, c)?.to_owned(),
+                c.collector.as_deref()?,
+                c.rule.as_str(),
+            ))
+        }),
+        on,
+    );
+    collector_blocks(
+        &mut out,
+        "Not read",
+        checks.iter().filter_map(|c| {
+            let (collector, path, reason) = unread(document, c)?;
+            Some((format!("{path}, {reason}"), collector, c.rule.as_str()))
+        }),
+        on,
+    );
     for (reason, rules) in by_reason(
         checks
             .iter()
@@ -563,11 +603,11 @@ pub fn lint_human(
         ));
         out.push('\n');
     }
-    for group in by_rule(
-        checks
-            .iter()
-            .filter(|c| c.outcome == Outcome::Unknown && skip_reason(document, c).is_none()),
-    )
+    for group in by_rule(checks.iter().filter(|c| {
+        c.outcome == Outcome::Unknown
+            && skip_reason(document, c).is_none()
+            && unread(document, c).is_none()
+    }))
     .values()
     {
         let _ = writeln!(out, "{}", header("Unknown", group[0], on));

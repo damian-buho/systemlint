@@ -263,6 +263,35 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     );
 }
 
+#[test]
+fn human_folds_an_unreadable_path_into_one_line_for_every_rule() {
+    let document = json!({
+        "env": {"defaults": {"/etc/default/locale": {"vars": {}}}},
+        "collectors": {"env-defaults": {"status": "ok", "into": "env.defaults", "unreadable": {"/etc/default/cacerts": "permission denied"}}}
+    });
+    let rules = ["a", "b"].map(|id| {
+        compile(
+            &format!("env/{id}"),
+            systemlint::yaml::from_str("fact: env.defaults.*.vars\nexpect: {type: object}\n")
+                .unwrap(),
+        )
+        .unwrap()
+    });
+    let checks = lint(&document, &rules, &[], "2026-11-13");
+    let text = lint_human(&document, &checks, &[], false, false, false);
+    assert!(
+        text.starts_with(
+            "Not read (env-defaults): /etc/default/cacerts, permission denied\n  env/a, env/b\n\n"
+        ),
+        "{text}"
+    );
+    assert!(!text.contains("Unknown: ["), "{text}");
+    assert!(
+        text.ends_with(" · 2 pass, 2 unknown\n"),
+        "the summary keeps them unknown: {text}"
+    );
+}
+
 fn judged(outcome: Outcome, score: f64) -> Check {
     Check {
         rule: "r".into(),
