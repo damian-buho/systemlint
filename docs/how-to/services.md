@@ -21,8 +21,8 @@ reads the Docker or kernel module facts yet.
 | `kernel-modules-blacklist` | `/usr/sbin/modprobe --showconfig` on a live host | `match` | `kernel.blacklist.<module>` |
 | `kernel-modules-install` | `/usr/sbin/modprobe --showconfig` on a live host | `match` | `kernel.install.<module>` |
 | `kernel-modules-loaded` | `/proc/modules` on a live host | `match` | `kernel.loaded.<module>` |
-| `audit-rules` | `/etc/audit/rules.d/*.rules` | `audit-rules` | `audit.rules` |
-| `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `audit-rules` | `audit.loaded` |
+| `audit-rules` | `/etc/audit/rules.d/*.rules` | `lines` | `audit.rules.<file>` |
+| `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `lines` | `audit.loaded./usr/sbin/auditctl` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
 | `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system`, with its `stat` | `units` | `systemd.units.<unit>` |
 | `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all` on a live host | `systemd` | `systemd.state.<unit>` |
@@ -88,47 +88,40 @@ kmod, ships no modules either. `loaded` is a live fact, absent under `--root`.
 
 ## Kernel audit rules
 
-`audit.rules` holds the rules augenrules loads from `/etc/audit/rules.d`, the
-files in `ls -v` order; `audit.loaded` holds the set the kernel runs, as
-`auditctl -l` lists it, which needs root. Both take one shape:
+`audit.rules` holds the lines of each file augenrules loads from
+`/etc/audit/rules.d`; `audit.loaded` holds the lines `auditctl -l` prints for
+the set the kernel runs, which needs root. Both key an array of lines by
+their source:
 
 ```yaml
 audit:
   rules:
-    watches:
-      /etc/sudoers:
-        - {action: always, perms: wa, filters: [], keys: [scope], source: /etc/audit/rules.d/50-scope.rules:1}
-      /usr/bin/sudo:
-        - {action: always, perms: x, filters: [auid>=1000, auid!=unset], keys: [privileged], source: /etc/audit/rules.d/50-scope.rules:4}
-    syscalls:
-      execve:
-        - {action: always, arch: b64, filters: [euid!=uid, auid!=unset], keys: [user_emulation], source: /etc/audit/rules.d/50-scope.rules:2}
-    lists:
-      exclude:
-        - {action: never, syscalls: [], filters: [msgtype=CWD], keys: [], source: /etc/audit/rules.d/50-scope.rules:3}
-    control: {backlog: 8192, failure: 1, enabled: 2}
+    /etc/audit/rules.d/50-scope.rules:
+      - "-w /etc/sudoers -p wa -k scope"
+      - "-e 2"
+  loaded:
+    /usr/sbin/auditctl:
+      - "-w /etc/sudoers -p wa -k scope"
+      - "-a always,exit -F arch=b64 -S execve -C uid!=euid -F auid!=-1 -F key=user_emulation"
 ```
 
-- `watches` keys each watched path, a trailing `/` dropped, with every rule on
-  it in load order: a `-w` line, or an `exit` rule naming `path=` or `dir=`
-  over every syscall. `perms` is the accesses it audits in `rwxa` order, all
-  four when the rule names none.
-- `syscalls` keys each syscall an `exit` rule names, `all` for a rule naming
-  none, with every rule on it in load order, a `-A` rule first. `arch` is
-  `b64` or `b32` for any name of those tables (`x86_64`, `i386`), `null`
-  when the rule gives none, which auditctl reads as the table it was built for.
-- `lists` keys every other list, `exclude`, `user`, `task`, `filesystem` or
-  `io_uring`, with its rules in load order.
-- `filters` are the `-F` and `-C` conditions as written, an ID field’s `-1`
-  or `4294967295` read as `unset`; `key` and `arch` are taken out.
-- `control` holds the last value of `-e` (`enabled`), `-b` (`backlog`),
-  `-f` (`failure`), `-r` (`rate`) and `--backlog_wait_time`, and `true` for
-  `-c`, `-i` and `--loginuid-immutable`.
+A rule judges them with a pattern, as the CIS audits grep them: some source
+holds a matching line, its fields in any order through lookaheads:
 
-A `-D` line clears every rule before it, as it does at load. A line the op
-does not apply (`-d`, `-W`, `-R`, a malformed rule) is a diagnostic naming its
-file and line, and is left out. `audit.loaded` is absent when `auditctl` is
-not installed or exited non-zero, as without `CAP_AUDIT_CONTROL`.
+```yaml
+expect:
+  not:
+    additionalProperties:
+      not:
+        contains: {pattern: '^\s*-w\s+/etc/sudoers(?=\s)(?=.*\s-p\s*(?=\S*w)(?=\S*a))(?=.*\s(-k\s*|-F\s*key=)\S)'}
+```
+
+`auditctl -l` prints each rule in one normal form (`-p` in `rwxa` order,
+`auid!=-1` for `unset`, `-F key=`), while the files keep what was written, so
+a pattern over `audit.rules` accepts every spelling auditctl does. The lines
+are not applied: a `-D` does not clear the lines before it and a `never` rule
+does not shadow a later `always`. `audit.loaded` is absent when `auditctl` is
+not installed, and the collector fails when it exits non-zero.
 
 ## Docker daemon
 
