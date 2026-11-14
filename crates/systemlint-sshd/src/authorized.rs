@@ -2,18 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The `AuthorizedKeysFile` paths sshd may read for each account its own `sshd -T -C` run settled, `%` tokens resolved.
+//! The `AuthorizedKeysFile` paths sshd may read for each passwd account, from its own `sshd -T -C` run or the global settings, `%` tokens resolved.
 
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
 use systemlint_protocol::{Diagnostic, Reply};
 
+use crate::config::MAIN;
+
 /// The keyword whose paths this module resolves.
 const KEYWORD: &str = "authorizedkeysfile";
 
-/// The fact holding each account’s effective settings, which this op needs.
-pub const ACCOUNTS: &str = "sshd.accounts";
+/// The fact holding the global and per-account settings, which this op needs.
+pub const SSHD: &str = "sshd";
 
 /// One local account as sshd expands tokens for it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,18 +25,15 @@ pub struct Account {
     pub home: String,
 }
 
-/// `ssh.authorized-key-files`: per account in `sshd.accounts`, every absolute path sshd may read keys from, in its order.
+/// `ssh.authorized-key-files`: per passwd account, every absolute path sshd may read keys from, in its order, from `sshd.accounts` else `sshd.global`.
 pub fn files(facts: &BTreeMap<String, Value>) -> std::result::Result<Reply, String> {
-    let settings = map(facts, ACCOUNTS)?;
+    let sshd = map(facts, SSHD)?;
     let passwd = map(facts, "accounts.passwd")?;
+    let global = &sshd.get("global").unwrap_or(&Value::Null)[MAIN];
     let mut reply = Reply::default();
-    for (name, set) in settings {
-        let Some(entry) = passwd.get(name) else {
-            reply.diagnostics.push(Diagnostic {
-                path: format!("{ACCOUNTS}.{name}"),
-                line: None,
-                message: "not in accounts.passwd, so its paths can’t be expanded".to_owned(),
-            });
+    for (name, entry) in passwd {
+        let own = sshd.get("accounts").and_then(|a| a.get(name));
+        let Some(set) = own.or(global.get(KEYWORD).map(|_| global)) else {
             continue;
         };
         let account = Account {
@@ -133,15 +132,18 @@ mod tests {
     }
 
     #[test]
-    fn each_settled_account_gets_its_own_paths() {
+    fn every_passwd_account_gets_its_own_run_or_the_global_paths() {
         let facts = BTreeMap::from([
             (
-                ACCOUNTS.to_owned(),
+                SSHD.to_owned(),
                 json!({
-                    "alice": {KEYWORD: [".ssh/authorized_keys", "/etc/ssh/keys/%u", ".ssh/authorized_keys"]},
-                    "sftp": {KEYWORD: ["none"]},
-                    "ghost": {KEYWORD: [".ssh/authorized_keys"]},
-                    "bad": {KEYWORD: ["%C"]}
+                    "global": {MAIN: {KEYWORD: [".ssh/authorized_keys"]}},
+                    "accounts": {
+                        "alice": {KEYWORD: [".ssh/authorized_keys", "/etc/ssh/keys/%u", ".ssh/authorized_keys"]},
+                        "sftp": {KEYWORD: ["none"]},
+                        "ghost": {KEYWORD: [".ssh/authorized_keys"]},
+                        "bad": {KEYWORD: ["%C"]}
+                    }
                 }),
             ),
             (
@@ -149,17 +151,36 @@ mod tests {
                 json!({
                     "alice": {"uid": 1000, "home": "/home/alice"},
                     "sftp": {"uid": 1001, "home": "/srv/sftp"},
-                    "bad": {"uid": 1002, "home": "/home/bad"}
+                    "bad": {"uid": 1002, "home": "/home/bad"},
+                    "sync": {"uid": 4, "home": "/bin"}
                 }),
             ),
         ]);
         let reply = files(&facts).unwrap();
         assert_eq!(
             Value::Object(reply.facts.into_iter().collect()),
-            json!({"alice": ["/home/alice/.ssh/authorized_keys", "/etc/ssh/keys/alice"], "sftp": [], "bad": []})
+            json!({
+                "alice": ["/home/alice/.ssh/authorized_keys", "/etc/ssh/keys/alice"],
+                "sftp": [],
+                "bad": [],
+                "sync": ["/bin/.ssh/authorized_keys"]
+            }),
+            "sync had no run, so the global value holds; ghost is in no passwd"
         );
         let paths: Vec<_> = reply.diagnostics.iter().map(|d| d.path.as_str()).collect();
-        assert_eq!(paths, ["authorizedkeysfile %C", "sshd.accounts.ghost"]);
-        assert!(files(&BTreeMap::new()).unwrap_err().contains(ACCOUNTS));
+        assert_eq!(paths, ["authorizedkeysfile %C"]);
+        assert!(files(&BTreeMap::new()).unwrap_err().contains(SSHD));
+    }
+
+    #[test]
+    fn no_global_value_and_no_run_gives_no_entry() {
+        let facts = BTreeMap::from([
+            (SSHD.to_owned(), json!({"global": {}, "accounts": {}})),
+            (
+                "accounts.passwd".to_owned(),
+                json!({"sync": {"uid": 4, "home": "/bin"}}),
+            ),
+        ]);
+        assert!(files(&facts).unwrap().facts.is_empty());
     }
 }

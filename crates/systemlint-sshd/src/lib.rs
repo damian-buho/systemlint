@@ -23,7 +23,7 @@ pub fn describe() -> Describe {
             ("config", &[]),
             (
                 "authorized-key-files",
-                &[authorized::ACCOUNTS, "accounts.passwd"],
+                &[authorized::SSHD, "accounts.passwd"],
             ),
             ("authorized-keys", &[keys::NAMED]),
         ],
@@ -197,10 +197,7 @@ mod tests {
                 ("config", vec![]),
                 (
                     "authorized-key-files",
-                    vec![
-                        authorized::ACCOUNTS.to_owned(),
-                        "accounts.passwd".to_owned()
-                    ]
+                    vec![authorized::SSHD.to_owned(), "accounts.passwd".to_owned()]
                 ),
                 ("authorized-keys", vec![keys::NAMED.to_owned()])
             ]

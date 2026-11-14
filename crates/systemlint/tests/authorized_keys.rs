@@ -16,7 +16,7 @@ use systemlint::rules::Library;
 use systemlint::source::Root;
 use systemlint_protocol::{ExecInput, Input, PROTOCOL, Request};
 
-const PASSWD: &str = "root:x:0:0::/root:/bin/bash\nalice:x:1000:1000::/home/alice:/bin/bash\nbob:x:1001:1001::/home/bob:/bin/sh\n";
+const PASSWD: &str = "root:x:0:0::/root:/bin/bash\nalice:x:1000:1000::/home/alice:/bin/bash\nbob:x:1001:1001::/home/bob:/bin/sh\nwww:x:33:33::/var/www:/usr/sbin/nologin\n";
 const GLOBAL: &str = "authorizedkeysfile .ssh/authorized_keys /etc/ssh/keys/%u\npubkeyacceptedalgorithms ssh-ed25519,rsa-sha2-512,ssh-dss\nrequiredrsasize 1024\n";
 const BOB: &str = "authorizedkeysfile /etc/ssh/bob/%u\npubkeyacceptedalgorithms ssh-ed25519,rsa-sha2-512,ssh-dss\nrequiredrsasize 1024\n";
 const ED25519: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINQVHjXf7wHmfkvbwaZCksrE3U8tnP/3vlEMvEzXpq9E alice@example";
@@ -175,10 +175,7 @@ fn document() -> Value {
         json!({"sshd": sshd(), "collectors": {"sshd": {"status": "ok", "into": "sshd"}}});
     for (id, needs) in [
         ("accounts-passwd", &[][..]),
-        (
-            "ssh-authorized-key-files",
-            &["sshd.accounts", "accounts.passwd"],
-        ),
+        ("ssh-authorized-key-files", &["sshd", "accounts.passwd"]),
         ("ssh-authorized-keys", &["ssh.authorized-key-files"]),
     ] {
         let into = collector(id).into;
@@ -209,7 +206,7 @@ fn checks(document: &Value) -> Vec<Check> {
 }
 
 #[test]
-fn each_account_gets_the_files_its_own_sshd_run_and_tokens_name() {
+fn each_account_gets_the_files_its_own_sshd_run_or_the_global_one_and_tokens_name() {
     let document = document();
     assert_eq!(
         document["ssh"]["authorized-key-files"],
@@ -217,7 +214,9 @@ fn each_account_gets_the_files_its_own_sshd_run_and_tokens_name() {
             "alice": ["/home/alice/.ssh/authorized_keys", "/etc/ssh/keys/alice"],
             "bob": ["/etc/ssh/bob/bob"],
             "root": ["/root/.ssh/authorized_keys", "/etc/ssh/keys/root"],
-        })
+            "www": ["/var/www/.ssh/authorized_keys", "/etc/ssh/keys/www"],
+        }),
+        "www got no run, so sshd’s global AuthorizedKeysFile holds"
     );
     let keys = &document["ssh"]["authorized-keys"];
     assert_eq!(
