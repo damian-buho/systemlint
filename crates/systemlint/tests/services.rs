@@ -32,6 +32,7 @@ fn facts(id: &str) -> Value {
         image_config: None,
         jobs: 1,
         network: None,
+        containers: false,
     };
     let given = inputs(&c, &options).unwrap();
     assert!(

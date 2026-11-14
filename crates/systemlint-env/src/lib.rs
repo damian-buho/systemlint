@@ -31,6 +31,12 @@ pub const CLEAR: [&str; 11] = [
 /// The ld.so preload list, read as a system-wide `LD_PRELOAD`.
 pub const PRELOAD: &str = "/etc/ld.so.preload";
 
+/// What a container’s environment is keyed by, before its name or short ID.
+pub const CONTAINER: &str = "container:";
+
+/// Where Docker keeps each container’s `config.v2.json`, one directory per full ID.
+pub const DOCKER_CONTAINERS: &str = "/var/lib/docker/containers/";
+
 /// Leaf prefixes of the cgroup scopes container engines create, before the container ID.
 pub const CONTAINER_SCOPES: [&str; 4] = ["docker-", "libpod-", "cri-containerd-", "crio-"];
 
@@ -41,6 +47,7 @@ pub fn describe() -> Describe {
         &[
             ("files", &[]),
             ("image", &[]),
+            ("containers", &[]),
             ("processes", &[]),
             ("units", &[]),
         ],
@@ -53,6 +60,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "files" => Ok(files(&request.inputs)),
         "units" => Ok(units(&request.inputs)),
         "processes" => Ok(processes(&request.inputs)),
+        "containers" => Ok(containers(&request.inputs)),
         "image" => image(&request.inputs).map_err(Into::into),
         other => Err(format!("op {other} is not implemented").into()),
     }
@@ -339,7 +347,7 @@ pub fn owner(cgroup: &str) -> Option<String> {
         .find_map(|p| leaf.strip_prefix(p))
         .and_then(|rest| rest.strip_suffix(".scope"))
     {
-        return Some(format!("container:{}", &id[..id.len().min(12)]));
+        return Some(format!("{CONTAINER}{}", &id[..id.len().min(12)]));
     }
     (cgroup.starts_with("/system.slice/") && leaf.ends_with(".service")).then(|| leaf.to_owned())
 }
@@ -367,14 +375,45 @@ pub fn parent(stat: &str) -> Option<u32> {
         .ok()
 }
 
-/// The environment of each service’s and container’s top process, the lowest PID whose parent sits outside its cgroup, from `/proc/<pid>/{environ,cgroup,stat}`.
+/// The environment of each service’s top process, the lowest PID whose parent sits outside its cgroup, from `/proc/<pid>/{environ,cgroup,stat}`; containers are left to [`containers`].
 pub fn processes(inputs: &[Input]) -> Reply {
+    environments(inputs, false)
+}
+
+/// Like [`processes`], for containers only, each keyed by its Docker name from `config.v2.json`, else its short ID.
+pub fn containers(inputs: &[Input]) -> Reply {
+    environments(inputs, true)
+}
+
+/// The short ID and name in a Docker `/var/lib/docker/containers/<id>/config.v2.json`.
+fn docker_name(path: &str, text: &str) -> Option<(String, String)> {
+    let id = path
+        .strip_prefix(DOCKER_CONTAINERS)?
+        .strip_suffix("/config.v2.json")?;
+    let config: Value = serde_json::from_str(text).ok()?;
+    let name = config["Name"].as_str()?.trim_start_matches('/');
+    (!name.is_empty()).then(|| (id[..id.len().min(12)].to_owned(), name.to_owned()))
+}
+
+fn environments(inputs: &[Input], containers: bool) -> Reply {
     let mut reply = Reply::default();
     let mut procs: BTreeMap<u32, BTreeMap<&str, &str>> = BTreeMap::new();
+    let mut names: BTreeMap<String, String> = BTreeMap::new();
     for input in inputs {
         let Some((path, text)) = text(input, &mut reply.diagnostics) else {
             continue;
         };
+        if path.starts_with(DOCKER_CONTAINERS) {
+            match docker_name(path, text) {
+                Some((id, name)) => drop(names.insert(id, name)),
+                None => reply.diagnostics.push(Diagnostic {
+                    path: path.to_owned(),
+                    line: None,
+                    message: "names no container, so its short ID stands for it".to_owned(),
+                }),
+            }
+            continue;
+        }
         let mut parts = path.trim_start_matches('/').split('/');
         if let (Some("proc"), Some(Ok(pid)), Some(file), None) = (
             parts.next(),
@@ -397,7 +436,13 @@ pub fn processes(inputs: &[Input]) -> Reply {
         else {
             continue;
         };
-        let Some(key) = owner(own) else { continue };
+        let Some(key) = owner(own).filter(|k| k.starts_with(CONTAINER) == containers) else {
+            continue;
+        };
+        let key = match key.strip_prefix(CONTAINER).and_then(|id| names.get(id)) {
+            Some(name) => format!("{CONTAINER}{name}"),
+            None => key,
+        };
         if group(ppid) != Some(own) && !files.get("environ").is_none_or(|e| e.is_empty()) {
             tops.entry(key).or_insert(*pid);
         }
@@ -412,7 +457,7 @@ pub fn processes(inputs: &[Input]) -> Reply {
         place(
             &mut reply,
             &key,
-            "process",
+            if containers { "container" } else { "process" },
             vars,
             Map::from_iter([("pid".to_owned(), json!(pid))]),
         );
@@ -738,17 +783,32 @@ mod tests {
         ])
         .collect();
         let reply = processes(&inputs);
-        assert_eq!(
-            reply.facts.keys().collect::<Vec<_>>(),
-            ["app.service", "container:feedfacecafe"]
-        );
+        assert_eq!(reply.facts.keys().collect::<Vec<_>>(), ["app.service"]);
         assert_eq!(reply.facts["app.service"]["pid"], 100);
         assert_eq!(reply.facts["app.service"]["path"], json!(["/usr/bin"]));
+        assert_eq!(reply.hash, ["/app.service/vars/SECRET"]);
+        let unnamed = containers(&inputs);
         assert_eq!(
-            reply.facts["container:feedfacecafe"]["vars"]["NODE_TLS_REJECT_UNAUTHORIZED"],
+            unnamed.facts.keys().collect::<Vec<_>>(),
+            ["container:feedfacecafe"]
+        );
+        assert_eq!(unnamed.facts["container:feedfacecafe"]["kind"], "container");
+        assert_eq!(
+            unnamed.facts["container:feedfacecafe"]["vars"]["NODE_TLS_REJECT_UNAUTHORIZED"],
             "0"
         );
-        assert_eq!(reply.hash, ["/app.service/vars/SECRET"]);
+        let docker =
+            |id: &str, body: &str| file(&format!("{DOCKER_CONTAINERS}{id}/config.v2.json"), body);
+        let named: Vec<Input> = inputs
+            .into_iter()
+            .chain([
+                docker("feedfacecafe0000", r#"{"Name": "/web"}"#),
+                docker("0123456789abcdef", "not json"),
+            ])
+            .collect();
+        let reply = containers(&named);
+        assert_eq!(reply.facts.keys().collect::<Vec<_>>(), ["container:web"]);
+        assert_eq!(reply.diagnostics.len(), 1, "{:?}", reply.diagnostics);
     }
 
     #[test]

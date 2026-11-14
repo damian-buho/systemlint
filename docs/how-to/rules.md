@@ -323,7 +323,7 @@ expiry is the only judgement that reads the clock at lint time.
 `--format human` prints one block per rule, an empty line after each: a
 `Not run` block per reason a collector was skipped (no root, a refused read,
 live-only under `--root`) with its rules wrapped under it, none for an opt-in the
-run did not ask for (`--image-config`, `--network`), which only the counts show, a
+run did not ask for (`--image-config`, `--network`, `--containers`), which only the counts show, a
 `Not read` block per path a collector could not read (still `unknown` in the
 counts and every machine format), then a `Not applicable` block per ruleset reason with its rules wrapped under it,
 `Unknown`, `Manual` (with the `Why:` procedure) and `Waived` blocks, then the failures, lowest score first, so the

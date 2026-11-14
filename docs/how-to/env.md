@@ -18,14 +18,15 @@ systemlint check --root rootfs --image-config config.json --tags env
 
 ## Collectors
 
-All five use `systemlint-env` and land under `env.<source>.<environment>`.
+All six use `systemlint-env` and land under `env.<source>.<environment>`.
 
 | Collector | Reads | Facts at |
 | --- | --- | --- |
 | `env-files` | `/etc/environment`, `/etc/profile.d/*.sh`, `/etc/ld.so.preload` | `env.files.<path>` |
 | `env-defaults` | `/etc/default/*` and every unit’s `EnvironmentFile=` | `env.defaults.<path>` |
 | `env-units` | `systemctl show` on a live host, else the `.service` files and drop-ins | `env.units.<unit>` |
-| `env-processes` | `/proc/<pid>/environ`, `cgroup` and `stat`, live and as root only | `env.processes.<unit or container>` |
+| `env-processes` | `/proc/<pid>/environ`, `cgroup` and `stat`, live and as root only | `env.processes.<unit>` |
+| `env-containers` | the same, and Docker’s `config.v2.json` for names, with `--containers` only | `env.containers.container:<name>` |
 | `env-image` | the file given with `--image-config` | `env.image.<path>` |
 
 - **System files**: only plain assignments count, `NAME=value` or
@@ -43,12 +44,16 @@ All five use `systemlint-env` and land under `env.<source>.<environment>`.
   unprivileged run, and its rules answer `unknown`, while every readable file
   is judged.
 - **Running services**: the environment of the top process of each system
-  service and each container, the lowest PID whose parent sits outside its
-  cgroup, so a forking daemon’s worker never stands in for it. A container is
-  named `container:` and the first 12 characters of its ID (Docker, Podman,
-  containerd, CRI-O). Reading another user’s `environ` needs root: an
-  unprivileged run fails this collector, and its rules answer `unknown`.
-  Under `--root` it is skipped.
+  service, the lowest PID whose parent sits outside its cgroup, so a forking
+  daemon’s worker never stands in for it. Reading another user’s `environ`
+  needs root: an unprivileged run skips this collector and lists its rules as
+  `Not run`. Under `--root` it is skipped.
+- **Containers**: a container’s environment is its image’s, so
+  `env-processes` leaves it out and `env-containers` judges it only with
+  `--containers` or `collect.containers: true`. A container is named
+  `container:` and its Docker name, else the first 12 characters of its ID
+  (Podman, containerd, CRI-O, or a Docker container whose config is
+  unreadable); a name outlives the ID a re-created container gets.
 - **Image config**: an image’s `ENV` lives in its config, not in its root
   filesystem. `--image-config` takes an OCI image config
   (`skopeo inspect --config`), a Docker image JSON, or `docker inspect` output
@@ -58,11 +63,11 @@ Each environment holds:
 
 | Key | Meaning |
 | --- | --- |
-| `kind` | `file`, `unit`, `process` or `image` |
+| `kind` | `file`, `unit`, `process`, `container` or `image` |
 | `vars` | every variable by name |
 | `path` | the `PATH` entries, when `PATH` is set; an entry starting with `$`, an unexpanded reference, is left out |
 | `environment-files` | a unit’s `EnvironmentFile=` paths, a leading `-` removed |
-| `pid` | a running service’s process ID |
+| `pid` | a running service’s or container’s process ID |
 
 ### Values and hashes
 

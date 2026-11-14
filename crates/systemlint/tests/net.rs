@@ -657,6 +657,7 @@ fn options(live: bool, network: bool) -> Options {
         image_config: None,
         jobs: 1,
         network: network.then(Proxies::default),
+        containers: false,
     }
 }
 

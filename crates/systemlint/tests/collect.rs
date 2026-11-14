@@ -231,6 +231,7 @@ fn options(live: bool) -> Options {
         image_config: None,
         jobs: 1,
         network: None,
+        containers: false,
     }
 }
 
@@ -637,6 +638,7 @@ fn two_jobs_run_two_collectors_at_once() {
         &Options {
             jobs: 2,
             network: None,
+            containers: false,
             ..options(false)
         },
     );
@@ -664,6 +666,7 @@ fn any_jobs_give_the_sequential_document() {
         &Options {
             jobs: 1,
             network: None,
+            containers: false,
             ..options(false)
         },
     );
@@ -681,6 +684,7 @@ fn any_jobs_give_the_sequential_document() {
         &Options {
             jobs: 64,
             network: None,
+            containers: false,
             ..options(false)
         },
     );
@@ -1060,4 +1064,18 @@ fn a_partial_collector_keeps_what_it_may_read_and_names_the_rest() {
             "without partial one refusal skips it, naming the privilege: {whole}"
         );
     }
+}
+
+#[test]
+fn a_containers_collector_runs_only_when_asked() {
+    let yaml = "id: dump\ncontainers: true\nread:\n  files: [/etc/os-release]\nparse: {plugin: dump, op: parse}\ninto: dump\n";
+    let off = collect(&[collector(yaml)], &plugins(), &options(false));
+    assert_eq!(off["collectors"]["dump"]["status"], "skipped", "{off}");
+    assert_eq!(off["collectors"]["dump"]["opt-in"], true, "{off}");
+    let asked = Options {
+        containers: true,
+        ..options(false)
+    };
+    let on = collect(&[collector(yaml)], &plugins(), &asked);
+    assert_eq!(on["collectors"]["dump"]["status"], "ok", "{on}");
 }

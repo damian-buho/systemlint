@@ -93,6 +93,7 @@ fn document() -> Value {
         image_config: None,
         jobs: 1,
         network: None,
+        containers: false,
     };
     let mut document =
         json!({"accounts": {"passwd": run("accounts-passwd", &options, &Named::default())}});

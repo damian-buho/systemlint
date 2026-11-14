@@ -84,6 +84,9 @@ struct Cli {
     /// Run the network: true collectors, which connect, query DNS and fetch URLs from this host [default: collect.network, else off]
     #[arg(long, global = true)]
     network: bool,
+    /// Run the containers: true collectors, which read the environment of every running container [default: collect.containers, else off]
+    #[arg(long, global = true)]
+    containers: bool,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -277,6 +280,7 @@ fn main() -> ExitCode {
     };
     config.collect.jobs = cli.jobs.or(config.collect.jobs);
     config.collect.network = cli.network.then_some(true).or(config.collect.network);
+    config.collect.containers = cli.containers.then_some(true).or(config.collect.containers);
     match command {
         Command::Facts {
             root,
@@ -421,12 +425,14 @@ fn gather(
             .network
             .unwrap_or(false)
             .then(|| net::Proxies::from_env(|name| std::env::var(name).ok())),
+        containers: config.collect.containers.unwrap_or(false),
     };
     log::debug!(
-        "collect.jobs {:?}, running {} at once, network {:?}",
+        "collect.jobs {:?}, running {} at once, network {:?}, containers {}",
         config.collect.jobs,
         options.jobs,
-        options.network
+        options.network,
+        options.containers
     );
     let started = Instant::now();
     let status = !quiet && !log::log_enabled!(log::Level::Debug) && std::io::stderr().is_terminal();

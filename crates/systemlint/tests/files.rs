@@ -80,6 +80,7 @@ fn document() -> Value {
         image_config: None,
         jobs: 1,
         network: None,
+        containers: false,
     };
     let (mut groups, mut outcomes) = (Map::new(), Map::new());
     for id in COLLECTORS {

@@ -14,11 +14,12 @@ use systemlint::rules::Library;
 use systemlint::source::Root;
 use systemlint_protocol::{PROTOCOL, Request};
 
-const COLLECTORS: [&str; 5] = [
+const COLLECTORS: [&str; 6] = [
     "env-files",
     "env-defaults",
     "env-units",
     "env-processes",
+    "env-containers",
     "env-image",
 ];
 
@@ -52,6 +53,7 @@ fn document() -> Value {
             image_config: Some(image_config()),
             jobs: 1,
             network: None,
+            containers: false,
         };
         let request = Request {
             protocol: PROTOCOL,
@@ -143,13 +145,19 @@ fn every_source_lands_with_secrets_hashed_and_proxy_passwords_masked() {
             .unwrap()
             .keys()
             .collect::<Vec<_>>(),
-        [
-            "app.service",
-            "container:feedfacecafe",
-            "containerd.service"
-        ]
+        ["app.service", "containerd.service"],
+        "a container is left to env-containers"
     );
     assert_eq!(env["processes"]["app.service"]["pid"], 100);
+    assert_eq!(
+        env["containers"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .collect::<Vec<_>>(),
+        ["container:web"],
+        "named as Docker names it"
+    );
     assert_eq!(
         env["image"][image_config().to_str().unwrap()]["vars"]["NODE_TLS_REJECT_UNAUTHORIZED"],
         "0"
@@ -204,10 +212,7 @@ fn the_fixture_fails_every_env_rule_on_its_one_subject() {
         ("env/proxy-http", "files, /etc/profile.d/site.sh".to_owned()),
         ("env/secret-name", "defaults, /etc/default/app".to_owned()),
         ("env/tls-verify", image),
-        (
-            "env/tls-verify",
-            "processes, container:feedfacecafe".to_owned(),
-        ),
+        ("env/tls-verify", "containers, container:web".to_owned()),
     ];
     expected.sort();
     assert_eq!(failing, expected);
@@ -219,15 +224,17 @@ fn the_fixture_fails_every_env_rule_on_its_one_subject() {
     assert_eq!(
         skipped,
         [
+            "containers, container:web",
             "processes, app.service",
-            "processes, container:feedfacecafe",
             "processes, containerd.service"
         ],
         "a process is no place a credential is written"
     );
     let tls = checks
         .iter()
-        .find(|c| c.rule == "env/tls-verify" && c.is_failing())
+        .find(|c| {
+            c.rule == "env/tls-verify" && c.is_failing() && c.subject_text().starts_with("image")
+        })
         .unwrap();
     assert!(
         tls.message

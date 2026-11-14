@@ -136,6 +136,7 @@ fn document() -> Value {
         image_config: None,
         jobs: 1,
         network: None,
+        containers: false,
     };
     let mut document = json!({"apt": {"installed": {"openssh-server": {"version": "1:9.6p1-3ubuntu13.20"}}}, "collectors": {}});
     for (id, needs) in [

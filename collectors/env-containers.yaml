@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: env-containers
+live: true
+privileged: true
+containers: true
+read:
+  files: [/proc/*/environ, /proc/*/cgroup, /proc/*/stat, /var/lib/docker/containers/*/config.v2.json]
+parse: {plugin: env, op: containers}
+into: env.containers

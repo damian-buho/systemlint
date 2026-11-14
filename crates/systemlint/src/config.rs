@@ -125,6 +125,9 @@ pub struct Collect {
     /// Run the `network: true` collectors [default: false]
     #[serde(default)]
     pub network: Option<bool>,
+    /// Run the `containers: true` collectors [default: false]
+    #[serde(default)]
+    pub containers: Option<bool>,
     #[serde(default)]
     pub format: Option<FactsFormat>,
     #[serde(default)]

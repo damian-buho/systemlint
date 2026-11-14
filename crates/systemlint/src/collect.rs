@@ -54,6 +54,7 @@ pub struct Options {
     pub image_config: Option<PathBuf>,
     pub jobs: usize,
     pub network: Option<crate::net::Proxies>,
+    pub containers: bool,
 }
 
 /// The key every value a plugin marks for hashing is keyed with: random per run unless the config sets one.
@@ -139,35 +140,37 @@ pub fn collect_reporting(
     let mut described: HashMap<String, Result<Describe, String>> = HashMap::new();
     let mut planned = Vec::new();
     for (index, collector) in collectors.iter().enumerate() {
+        let opt_in = if collector.read.image_config && options.image_config.is_none() {
+            Some("reads an image config, and no --image-config was given".to_owned())
+        } else if collector.network && options.network.is_none() {
+            Some(
+                "makes network requests, and neither --network nor collect.network: true was given"
+                    .to_owned(),
+            )
+        } else if collector.containers && !options.containers {
+            Some("reads every container’s environment, and neither --containers nor collect.containers: true was given".to_owned())
+        } else {
+            None
+        };
         let skip = match (
             (collector.live || collector.network) && !options.live,
-            collector.read.image_config && options.image_config.is_none(),
             collector.privileged && !options.privileged,
-            collector.network && options.network.is_none(),
         ) {
-            (true, _, _, _) => Some(format!(
+            (true, _) => Some(format!(
                 "reads the live host only, and --root {} was given",
                 options.root.path().display()
             )),
-            (_, true, _, _) => {
-                Some("reads an image config, and no --image-config was given".to_owned())
-            }
-            (_, _, true, _) => Some("needs root, and this run is unprivileged".to_owned()),
-            (_, _, _, true) => Some(
-                "makes network requests, and neither --network nor collect.network: true was given"
-                    .to_owned(),
-            ),
+            (_, true) => Some("needs root, and this run is unprivileged".to_owned()),
             _ => None,
         };
-        if let Some(reason) = skip {
-            let opt_in = (collector.read.image_config && options.image_config.is_none())
-                || (collector.network && options.network.is_none());
+        if let Some(reason) = opt_in.clone().or(skip) {
             log::debug!(
-                "collector {} skipped, opt-in {opt_in}: {reason}",
-                collector.id
+                "collector {} skipped, opt-in {}: {reason}",
+                collector.id,
+                opt_in.is_some()
             );
             let mut outcome = json!({"status": "skipped", "reason": reason});
-            if opt_in {
+            if opt_in.is_some() {
                 outcome["opt-in"] = Value::Bool(true);
             }
             outcomes.insert(collector.id.clone(), outcome);

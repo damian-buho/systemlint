@@ -37,6 +37,7 @@ fn document(root: &str) -> Value {
         image_config: None,
         jobs: 1,
         network: None,
+        containers: false,
     };
     let mut facts = Map::new();
     let mut outcomes = Map::new();

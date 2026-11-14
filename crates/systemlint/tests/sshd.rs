@@ -37,6 +37,7 @@ fn document(effective: bool) -> Value {
         image_config: None,
         jobs: 1,
         network: None,
+        containers: false,
     };
     let mut given = inputs(&collector, &options).unwrap();
     assert!(
