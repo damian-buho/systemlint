@@ -36,6 +36,12 @@ into: apt.sources
 | `live` | `true` when the collector reads what only a running host has, such as `/proc`; skipped under `--root` |
 | `secret` | `true` to replace every string the op returns with its keyed hash, as for values a plugin marks, so a command’s output compares without being stored |
 | `partial` | `true` to keep what the run may read: a path it may not read becomes the key `into.<path>`, which every rule under a `*` there answers `unknown` for; only for an op that keys its facts by input path |
+| `network` | `true` when it lists `addr`, `dns` or `http`, which only it may; skipped unless the run passes `--network` or sets `collect.network: true`, and under `--root` |
+| `read.addr` | `host:port` targets the core opens a TCP connection to |
+| `read.dns` | hostnames the core queries, each taken as fully qualified |
+| `read.dns-types` | the record types asked for each name: `A`, `AAAA`, `CAA`, `CNAME`, `MX`, `NS`, `PTR`, `SOA`, `SRV`, `TXT` [default: `A`, `AAAA`] |
+| `read.dns-server` | the IP, or `IP:port`, every query goes to [default: the `nameserver` lines of this host’s `/etc/resolv.conf`] |
+| `read.http` | URLs the core sends one GET to, or maps `{url, username, password-file, ca-file, body: json}` |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
@@ -73,8 +79,8 @@ collector, so a walk that was cut short never passes. A
   `ENV` is not in its root filesystem. The path as given is the input’s
   `path`, and `meta.subject.image-config` records it.
 
-Every source is read-only and capped at 16 MiB per file or stream; `exec`
-and the plugin call each time out after 30 seconds, or `collect.timeout`
+Every source is read-only and capped at 16 MiB per file, stream or response; `exec`,
+the plugin call and each network attempt time out after 30 seconds, or `collect.timeout`
 seconds from the configuration. Collectors run `--jobs N` at once (1 to 64,
 default `collect.jobs`, else the available CPUs), a collector waiting for
 the ones that produce what it `needs`; the facts document is the same for
@@ -94,6 +100,62 @@ such a path and why under `collectors.<id>.unreadable` instead, finishes
 `unknown`, naming the file, so `env-defaults` judges every readable
 `/etc/default` file while a 0600 one stays visible.
 
+## Network probes
+
+systemlint stays offline unless asked: a `network: true` collector is
+`skipped` until the run passes `--network` or the configuration sets
+`collect.network: true`. It also never runs under `--root`, since its answers
+describe the host running systemlint, not the root being read. Its requests
+are made by the core, from the host running systemlint, never by a plugin;
+each attempt waits at most `collect.timeout`, and one that fails for a reason
+another try may fix is tried 3 times, waiting half a second and then a second,
+each wait with up to as much again of random jitter. `-v` logs every attempt
+and how long it took, and the closing line names every target asked.
+
+```yaml
+id: web
+network: true
+read:
+  addr: ["kiota.ch:443"]
+  dns: [kiota.ch]
+  dns-types: [A, AAAA, MX]
+  http:
+    - https://kiota.ch/
+    - {url: "https://endoflife.date/api/v1/products/nodejs/releases/26", body: json}
+parse: {plugin: formats, op: probes}
+into: probes
+```
+
+| Fact under `into` | Meaning |
+| --- | --- |
+| `addr.<target>.reachable` | `true` when a connection opened; `false` once every address refused, or timed out on every attempt |
+| `dns.<name>.<type>` | the record data, sorted, one string per record (`10 mail.example.`); empty for NXDOMAIN or no record of that type |
+| `dns.<name>.resolvable` | `true` when any asked type returned a record |
+| `http.<url>.status` | the status code; a redirect is never followed, its `location` header says where |
+| `http.<url>.headers` | each header by its lowercase name, repeated ones joined by a comma and a space; `set-cookie` reads `[redacted]` |
+| `http.<url>.body-sha256` | the lowercase hex SHA-256 of the decoded body |
+| `http.<url>.json` | the body parsed as JSON, with `body: json` |
+| `http.<url>.tls` | `verified`, its `error` when not, `version` (`1.2`, `1.3`), the leaf certificate’s `not-before`, `not-after`, `issuer`, `subject` and `days-left` until `not-after` at `meta.collected-at`, negative once expired |
+
+A target that gives no answer, such as a name that does not resolve or a server
+that answered SERVFAIL 3 times, keeps its reason as `error` and a
+diagnostic, so every rule on it answers `unknown`, never `fail`. An `https`
+URL whose certificate this host would not trust, by its CA certificates or
+`ca-file` alone when given, is described under `tls` with `verified: false`
+and nothing is sent to it, credentials least of all. `username` and
+`password-file` go together and only over `https`; the password is read from
+the file at request time and never enters the facts document.
+
+`HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` (lowercase first, as cURL reads
+them) route `http` probes: an `https` URL through a `CONNECT` tunnel, an
+`http` one in absolute form. Only an `http://` proxy without credentials is
+supported; any other is an error naming it. `addr` and `dns` always go direct.
+
+An inline collector under `collect.collectors` may not set `network`, as it
+may not `exec`: a `.systemlint.yaml` arrives with whatever directory
+systemlint runs in, and should not choose where this host connects. Put a
+network collector in a file under `collect.directories`.
+
 ## Outcomes
 
 Each collector records `collectors.<id>.status` and its `into` in the facts
@@ -103,7 +165,7 @@ document, with a `reason` when it is not `ok`:
 | --- | --- |
 | `ok` | the plugin replied and its facts are under `into` |
 | `error` | reading failed, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
-| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, or `privileged` in an unprivileged run; the reason is kept |
+| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`; the reason is kept |
 
 An `ok` collector also records its `plugin` and `op`, the plugin’s
 `diagnostics`, under `redacted` the JSON Pointers of the values the plugin

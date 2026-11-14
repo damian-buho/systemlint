@@ -101,7 +101,7 @@ $ systemlint-formats --describe
 | `op` | one of the ops `--describe` lists |
 | `root` | `/` on a live host, else the root filesystem being read; paths in `inputs` stay absolute inside it |
 | `now` | the collection time, RFC 3339; a plugin computes every age against it, never its own clock |
-| `inputs[]` | a file `{path, content \| content-base64, stat, statfs, absent}` or a command `{argv, stdout, stderr, exit}` |
+| `inputs[]` | a file `{path, content \| content-base64, stat, statfs, absent}`, a command `{argv, stdout, stderr, exit}` or a network probe `{probe, target, facts, error}` |
 | `facts` | the facts the op `needs`, by path |
 
 A file carries `content` when it is valid UTF-8 and `content-base64`
@@ -112,6 +112,12 @@ the filesystem holding the path as statfs(2) counts it, in `blocks`,
 `blocks-free`, `blocks-available` (what a user who is not root may still fill),
 `files`, `files-free` and `read-only`. `absent: true` marks a path an inline collector named
 that is not there, carrying no `content` or `stat`.
+
+A probe is a request the core made for a `network: true` collector: `probe`
+is `addr`, `dns` or `http`, `target` the address, name or URL, `facts` what
+the core measured and `error` why it got no answer, or why some facts are
+missing. The plugin never reaches the network itself; `formats probes` keys
+each one by kind and target.
 
 ## Reply
 

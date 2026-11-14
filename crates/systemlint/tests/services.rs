@@ -31,6 +31,7 @@ fn facts(id: &str) -> Value {
         hash_key: HashKey::configured("a fixture hash key"),
         image_config: None,
         jobs: 1,
+        network: None,
     };
     let given = inputs(&c, &options).unwrap();
     assert!(

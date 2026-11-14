@@ -21,18 +21,27 @@ fn collector(id: &str, exec: Option<&str>) -> Collector {
 
 #[test]
 fn a_run_under_one_second_ends_silently() {
-    assert_eq!(finished(Duration::from_millis(999), &[]), None);
+    assert_eq!(finished(Duration::from_millis(999), &[], &[]), None);
     assert_eq!(
-        finished(Duration::from_millis(1000), &[]).as_deref(),
+        finished(Duration::from_millis(1000), &[], &[]).as_deref(),
         Some("Collected in 1.0 s.")
     );
     assert_eq!(
         finished(
             Duration::from_millis(2340),
-            &["sshd -T".to_owned(), "id".to_owned()]
+            &["sshd -T".to_owned(), "id".to_owned()],
+            &[]
         )
         .as_deref(),
         Some("Collected in 2.3 s; ran sshd -T, id.")
+    );
+}
+
+#[test]
+fn a_run_that_reached_the_network_always_names_its_targets() {
+    assert_eq!(
+        finished(Duration::ZERO, &[], &["kiota.ch:443".to_owned()]).as_deref(),
+        Some("Collected in 0.0 s; asked the network about kiota.ch:443.")
     );
 }
 

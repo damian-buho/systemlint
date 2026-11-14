@@ -230,6 +230,7 @@ fn options(live: bool) -> Options {
         hash_key: HashKey::configured("a fixture hash key"),
         image_config: None,
         jobs: 1,
+        network: None,
     }
 }
 
@@ -635,6 +636,7 @@ fn two_jobs_run_two_collectors_at_once() {
         &plugins(),
         &Options {
             jobs: 2,
+            network: None,
             ..options(false)
         },
     );
@@ -661,6 +663,7 @@ fn any_jobs_give_the_sequential_document() {
         &plugins(),
         &Options {
             jobs: 1,
+            network: None,
             ..options(false)
         },
     );
@@ -677,6 +680,7 @@ fn any_jobs_give_the_sequential_document() {
         &plugins(),
         &Options {
             jobs: 64,
+            network: None,
             ..options(false)
         },
     );

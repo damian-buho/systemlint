@@ -13,19 +13,25 @@ repository.workspace = true
 [dependencies]
 clap.workspace = true
 env_logger.workspace = true
+hickory-proto.workspace = true
 hmac.workspace = true
 jsonschema.workspace = true
 libc.workspace = true
 log.workspace = true
 rustix.workspace = true
+rustls.workspace = true
+rustls-native-certs.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 systemlint-protocol.workspace = true
+url.workspace = true
 wait-timeout.workspace = true
+x509-parser.workspace = true
 
 [dev-dependencies]
+rcgen.workspace = true
 systemlint-apt.workspace = true
 systemlint-env.workspace = true
 systemlint-formats.workspace = true

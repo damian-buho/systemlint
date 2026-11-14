@@ -36,6 +36,7 @@ fn document(effective: bool) -> Value {
         hash_key: HashKey::configured("a fixture hash key"),
         image_config: None,
         jobs: 1,
+        network: None,
     };
     let mut given = inputs(&collector, &options).unwrap();
     assert!(

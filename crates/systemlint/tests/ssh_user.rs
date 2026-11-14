@@ -92,6 +92,7 @@ fn document() -> Value {
         hash_key: HashKey::configured("a fixture hash key"),
         image_config: None,
         jobs: 1,
+        network: None,
     };
     let mut document =
         json!({"accounts": {"passwd": run("accounts-passwd", &options, &Named::default())}});

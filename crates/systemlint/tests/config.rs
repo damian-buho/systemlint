@@ -184,6 +184,14 @@ fn an_inline_collector_is_checked_and_can_not_exec() {
         .contains("collect.collectors nginx: an inline collector can’t exec")
     );
     assert!(
+        Config::load(&write(
+            "inline-network",
+            "collect:\n  network: true\n  collectors:\n    - id: web\n      network: true\n      read: {addr: [\"kiota.ch:443\"]}\n      parse: {plugin: formats, op: probes}\n      into: probes\n"
+        ))
+        .unwrap_err()
+        .contains("collect.collectors web: an inline collector can’t exec or reach the network")
+    );
+    assert!(
         Config::load(&write("inline-relative", &inline("stat: [etc/x]")))
             .unwrap_err()
             .contains("collect.collectors nginx: read glob etc/x is not absolute")

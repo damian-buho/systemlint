@@ -28,12 +28,36 @@ pub fn commands(document: &Value, collectors: &[Collector]) -> Vec<String> {
         .collect()
 }
 
-/// The closing line of a run that took `SLOW` or longer: the time spent, then the commands run.
-pub fn finished(elapsed: Duration, commands: &[String]) -> Option<String> {
-    let ran = if commands.is_empty() {
-        String::new()
-    } else {
-        format!("; ran {}", commands.join(", "))
+/// Every network target a collection asked: each `addr`, `dns` and `http` of a collector that ran.
+pub fn reached(document: &Value, collectors: &[Collector]) -> Vec<String> {
+    let ran = |c: &&Collector| document["collectors"][&c.id]["status"] != "skipped";
+    collectors
+        .iter()
+        .filter(|c| c.network)
+        .filter(ran)
+        .flat_map(|c| {
+            let read = &c.read;
+            read.addr
+                .iter()
+                .chain(&read.dns)
+                .cloned()
+                .chain(read.http.iter().map(|h| h.url.clone()))
+        })
+        .collect()
+}
+
+/// The closing line of a run that took `SLOW` or longer, or reached the network: the time spent, the commands run, the targets asked.
+pub fn finished(elapsed: Duration, commands: &[String], reached: &[String]) -> Option<String> {
+    let list = |verb: &str, items: &[String]| match items.is_empty() {
+        true => String::new(),
+        false => format!("; {verb} {}", items.join(", ")),
     };
-    (elapsed >= SLOW).then(|| format!("Collected in {:.1} s{ran}.", elapsed.as_secs_f64()))
+    (elapsed >= SLOW || !reached.is_empty()).then(|| {
+        format!(
+            "Collected in {:.1} s{}{}.",
+            elapsed.as_secs_f64(),
+            list("ran", commands),
+            list("asked the network about", reached)
+        )
+    })
 }

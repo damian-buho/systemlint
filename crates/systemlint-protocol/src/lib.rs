@@ -95,12 +95,24 @@ fn live_root() -> String {
     "/".to_owned()
 }
 
-/// What the core read for the op: a file or a command’s output.
+/// What the core read for the op: a file, a command’s output or a network probe.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Input {
     File(FileInput),
     Exec(ExecInput),
+    Probe(ProbeInput),
+}
+
+impl Input {
+    /// The path, argv or probe target this input names, for a diagnostic.
+    pub fn name(&self) -> String {
+        match self {
+            Self::File(file) => file.path.clone(),
+            Self::Exec(exec) => exec.argv.join(" "),
+            Self::Probe(probe) => probe.target.clone(),
+        }
+    }
 }
 
 /// A file read by the core, as text or base64, with its stat when collected.
@@ -144,6 +156,38 @@ pub struct ExecInput {
     pub stdout: String,
     pub stderr: String,
     pub exit: i32,
+}
+
+/// A network request the core made: what it measured, or why it got no answer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProbeInput {
+    pub probe: ProbeKind,
+    pub target: String,
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    pub facts: serde_json::Map<String, Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// What a probe asks the network.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ProbeKind {
+    Addr,
+    Dns,
+    Http,
+}
+
+impl ProbeKind {
+    /// The kind as the facts document keys it.
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Addr => "addr",
+            Self::Dns => "dns",
+            Self::Http => "http",
+        }
+    }
 }
 
 /// File metadata, with the mode bits a schema cannot test spelled out as booleans.

@@ -14,6 +14,7 @@ use systemlint::collect::{self, Options};
 use systemlint::config::{self, Config, FactsFormat, ListFormat};
 use systemlint::discovery::{self, Trust};
 use systemlint::judge::{self, Rule};
+use systemlint::net;
 use systemlint::report::{self, Colour, FailOn, Format};
 use systemlint::rules::Library;
 use systemlint::source::Root;
@@ -80,6 +81,9 @@ struct Cli {
     /// Run this many collectors at once, 1 to 64 [default: collect.jobs, else the available CPUs]
     #[arg(short, long, global = true, value_name = "N", value_parser = clap::value_parser!(u64).range(1..=runner::MAX_CHILDREN as u64))]
     jobs: Option<u64>,
+    /// Run the network: true collectors, which connect, query DNS and fetch URLs from this host [default: collect.network, else off]
+    #[arg(long, global = true)]
+    network: bool,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -272,6 +276,7 @@ fn main() -> ExitCode {
         Err(code) => return ExitCode::from(code),
     };
     config.collect.jobs = cli.jobs.or(config.collect.jobs);
+    config.collect.network = cli.network.then_some(true).or(config.collect.network);
     match command {
         Command::Facts {
             root,
@@ -411,11 +416,17 @@ fn gather(
             .jobs
             .and_then(|j| usize::try_from(j).ok())
             .unwrap_or_else(collect::default_jobs),
+        network: config
+            .collect
+            .network
+            .unwrap_or(false)
+            .then(|| net::Proxies::from_env(|name| std::env::var(name).ok())),
     };
     log::debug!(
-        "collect.jobs {:?}, running {} at once",
+        "collect.jobs {:?}, running {} at once, network {:?}",
         config.collect.jobs,
-        options.jobs
+        options.jobs,
+        options.network
     );
     let started = Instant::now();
     let status = !quiet && !log::log_enabled!(log::Level::Debug) && std::io::stderr().is_terminal();
@@ -434,6 +445,7 @@ fn gather(
     if let Some(line) = progress::finished(
         started.elapsed(),
         &progress::commands(&document, &collectors),
+        &progress::reached(&document, &collectors),
     )
     .filter(|_| !quiet)
     {

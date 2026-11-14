@@ -156,6 +156,11 @@ pub fn load(
                     format!("exited {}: {reason}", exec.exit),
                 ));
             }
+            Input::Probe(probe) => reply.diagnostics.push(Diagnostic {
+                path: probe.target.clone(),
+                line: None,
+                message: "a probe is not an sshd config, skipped".to_owned(),
+            }),
         }
     }
     let fallback = if files.contains_key(MAIN) {

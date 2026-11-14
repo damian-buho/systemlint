@@ -53,6 +53,7 @@ pub struct Options {
     pub hash_key: HashKey,
     pub image_config: Option<PathBuf>,
     pub jobs: usize,
+    pub network: Option<crate::net::Proxies>,
 }
 
 /// The key every value a plugin marks for hashing is keyed with: random per run unless the config sets one.
@@ -139,18 +140,23 @@ pub fn collect_reporting(
     let mut planned = Vec::new();
     for (index, collector) in collectors.iter().enumerate() {
         let skip = match (
-            collector.live && !options.live,
+            (collector.live || collector.network) && !options.live,
             collector.read.image_config && options.image_config.is_none(),
             collector.privileged && !options.privileged,
+            collector.network && options.network.is_none(),
         ) {
-            (true, _, _) => Some(format!(
+            (true, _, _, _) => Some(format!(
                 "reads the live host only, and --root {} was given",
                 options.root.path().display()
             )),
-            (_, true, _) => {
+            (_, true, _, _) => {
                 Some("reads an image config, and no --image-config was given".to_owned())
             }
-            (_, _, true) => Some("needs root, and this run is unprivileged".to_owned()),
+            (_, _, true, _) => Some("needs root, and this run is unprivileged".to_owned()),
+            (_, _, _, true) => Some(
+                "makes network requests, and neither --network nor collect.network: true was given"
+                    .to_owned(),
+            ),
             _ => None,
         };
         if let Some(reason) = skip {
@@ -845,6 +851,14 @@ pub fn read_partial(
             }));
         }
         None => {}
+    }
+    if let Some(proxies) = options.network.as_ref().filter(|_| collector.network) {
+        let settings = crate::net::Settings {
+            timeout: options.timeout,
+            now: options.now,
+            proxies: proxies.clone(),
+        };
+        inputs.extend(crate::net::probes(&collector.read, &settings));
     }
     Ok((inputs, unreadable))
 }

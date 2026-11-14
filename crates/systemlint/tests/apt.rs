@@ -36,6 +36,7 @@ fn document(root: &str) -> Value {
         hash_key: HashKey::configured("a fixture hash key"),
         image_config: None,
         jobs: 1,
+        network: None,
     };
     let mut facts = Map::new();
     let mut outcomes = Map::new();

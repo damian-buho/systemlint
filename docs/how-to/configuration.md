@@ -56,10 +56,11 @@ plugins:
   format: json         # the default plugin list --format: human or json
 collect:
   directories: [collectors]
-  timeout: 30          # seconds per command or plugin call, 1 or more
+  timeout: 30          # seconds per command, plugin call or network attempt, 1 or more
   jobs: 4              # the default --jobs: collectors run at once, 1 to 64
+  network: false       # true runs the network: true collectors, as --network does
   hash-key: ...        # 16 characters or more
-  collectors: []       # inline collectors, never exec; see collectors.md
+  collectors: []       # inline collectors, never exec nor network; see collectors.md
   format: json         # the default facts --format, over the --output extension: yaml or json
 check:
   directories: [rulesets]

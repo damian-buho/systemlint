@@ -122,6 +122,9 @@ pub struct Collect {
     /// Collectors run at once, 1 to 64 [default: the available CPUs, at most 64]
     #[serde(default)]
     pub jobs: Option<u64>,
+    /// Run the `network: true` collectors [default: false]
+    #[serde(default)]
+    pub network: Option<bool>,
     #[serde(default)]
     pub format: Option<FactsFormat>,
     #[serde(default)]
@@ -275,9 +278,9 @@ impl Config {
                     collector.id
                 )
             })?;
-            if collector.read.exec.is_some() {
+            if collector.read.exec.is_some() || collector.network {
                 return Err(format!(
-                    "{}: collect.collectors {}: an inline collector can’t exec; put it in a collect.directories file",
+                    "{}: collect.collectors {}: an inline collector can’t exec or reach the network; put it in a collect.directories file",
                     path.display(),
                     collector.id
                 ));

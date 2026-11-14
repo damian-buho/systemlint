@@ -51,6 +51,7 @@ fn document() -> Value {
             hash_key: key.clone(),
             image_config: Some(image_config()),
             jobs: 1,
+            network: None,
         };
         let request = Request {
             protocol: PROTOCOL,

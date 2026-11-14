@@ -65,6 +65,7 @@ pub fn describe() -> Describe {
             ("lines", &[]),
             ("mountinfo", &[]),
             ("passwd", &[]),
+            ("probes", &[]),
             ("shadow", &[]),
             ("stat", &[]),
             ("statfs", &[]),
@@ -89,6 +90,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "lines" => Ok(lines(&request.inputs)),
         "mountinfo" => Ok(mountinfo(&request.inputs)),
         "passwd" => Ok(passwd(&request.inputs)),
+        "probes" => Ok(probes(&request.inputs)),
         "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
         "statfs" => Ok(statfs(&request.inputs)),
@@ -107,6 +109,7 @@ pub fn kv(inputs: &[Input]) -> Reply {
         let (path, text) = match input {
             Input::File(file) => (file.path.clone(), file.content.as_deref()),
             Input::Exec(exec) => (exec.argv.join(" "), Some(exec.stdout.as_str())),
+            Input::Probe(probe) => (probe.target.clone(), None),
         };
         let mut diagnose = |line: Option<u64>, message: String| {
             reply.diagnostics.push(Diagnostic {
@@ -176,10 +179,10 @@ pub fn statfs(inputs: &[Input]) -> Reply {
                 line: None,
                 message: "no statfs; list it under read.statfs".to_owned(),
             }),
-            Input::Exec(exec) => reply.diagnostics.push(Diagnostic {
-                path: exec.argv.join(" "),
+            other => reply.diagnostics.push(Diagnostic {
+                path: other.name(),
                 line: None,
-                message: "a command has no statfs".to_owned(),
+                message: "not a file, so no statfs".to_owned(),
             }),
         }
     }
@@ -212,10 +215,10 @@ pub fn stat(inputs: &[Input]) -> Reply {
                 line: None,
                 message: "no stat; list it under read.stat".to_owned(),
             }),
-            Input::Exec(exec) => reply.diagnostics.push(Diagnostic {
-                path: exec.argv.join(" "),
+            other => reply.diagnostics.push(Diagnostic {
+                path: other.name(),
                 line: None,
-                message: "a command has no stat".to_owned(),
+                message: "not a file, so no stat".to_owned(),
             }),
         }
     }
@@ -247,12 +250,42 @@ pub fn exec(inputs: &[Input]) -> Reply {
                 line: None,
                 message: "a second command, skipped".to_owned(),
             }),
-            Input::File(file) => reply.diagnostics.push(Diagnostic {
-                path: file.path.clone(),
+            other => reply.diagnostics.push(Diagnostic {
+                path: other.name(),
                 line: None,
-                message: "a file is not a command, skipped".to_owned(),
+                message: "not a command, skipped".to_owned(),
             }),
         }
+    }
+    reply
+}
+
+/// Every probe keyed by its kind then its target, one that got no answer as `{error}` with a diagnostic.
+pub fn probes(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        let Input::Probe(probe) = input else {
+            reply.diagnostics.push(Diagnostic {
+                path: input.name(),
+                line: None,
+                message: "not a probe, skipped".to_owned(),
+            });
+            continue;
+        };
+        let mut fact = probe.facts.clone();
+        if let Some(error) = &probe.error {
+            reply.diagnostics.push(Diagnostic {
+                path: probe.target.clone(),
+                line: None,
+                message: error.clone(),
+            });
+            fact.insert("error".to_owned(), Value::from(error.as_str()));
+        }
+        let kind = reply
+            .facts
+            .entry(probe.probe.key().to_owned())
+            .or_insert_with(|| Value::Object(Map::new()));
+        kind[&probe.target] = Value::Object(fact);
     }
     reply
 }
@@ -510,11 +543,11 @@ pub fn text<'a>(input: &'a Input, diagnostics: &mut Vec<Diagnostic>) -> Option<(
             });
             None
         }
-        Input::Exec(exec) => {
+        other => {
             diagnostics.push(Diagnostic {
-                path: exec.argv.join(" "),
+                path: other.name(),
                 line: None,
-                message: "a command is not a file, skipped".to_owned(),
+                message: "not a file, skipped".to_owned(),
             });
             None
         }
@@ -925,7 +958,7 @@ pub fn systemd(inputs: &[Input]) -> Reply {
                 stat: Some(stat),
                 ..
             }) => (path, stat),
-            Input::File(_) => continue,
+            Input::File(_) | Input::Probe(_) => continue,
             Input::Exec(e) if e.exit == 0 => {
                 live = Some(e);
                 continue;
@@ -1119,6 +1152,52 @@ mod tests {
     }
 
     #[test]
+    fn probes_key_each_target_by_kind_and_keep_an_error_beside_its_facts() {
+        use systemlint_protocol::{ProbeInput, ProbeKind};
+        let probe = |probe, target: &str, facts: Value, error: Option<&str>| {
+            Input::Probe(ProbeInput {
+                probe,
+                target: target.to_owned(),
+                facts: facts.as_object().cloned().unwrap_or_default(),
+                error: error.map(str::to_owned),
+            })
+        };
+        let reply = probes(&[
+            probe(
+                ProbeKind::Addr,
+                "kiota.ch:443",
+                serde_json::json!({"reachable": true}),
+                None,
+            ),
+            probe(
+                ProbeKind::Http,
+                "https://x.test/",
+                serde_json::json!({"tls": {"verified": false}}),
+                Some("TLS not trusted"),
+            ),
+            file("/etc/hosts", ""),
+        ]);
+        assert_eq!(
+            Value::Object(reply.facts.into_iter().collect()),
+            serde_json::json!({
+                "addr": {"kiota.ch:443": {"reachable": true}},
+                "http": {"https://x.test/": {"tls": {"verified": false}, "error": "TLS not trusted"}}
+            })
+        );
+        assert_eq!(
+            reply
+                .diagnostics
+                .iter()
+                .map(|d| (d.path.as_str(), d.message.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                ("https://x.test/", "TLS not trusted"),
+                ("/etc/hosts", "not a probe, skipped")
+            ]
+        );
+    }
+
+    #[test]
     fn describe_lists_the_generic_parsers() {
         let describe = describe();
         assert_eq!(describe.name, "formats");
@@ -1139,6 +1218,7 @@ mod tests {
                 "lines",
                 "mountinfo",
                 "passwd",
+                "probes",
                 "shadow",
                 "stat",
                 "statfs",
