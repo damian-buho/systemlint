@@ -66,6 +66,7 @@ pub fn describe() -> Describe {
             ("mountinfo", &[]),
             ("passwd", &[]),
             ("probes", &[]),
+            ("resolv", &[]),
             ("shadow", &[]),
             ("stat", &[]),
             ("statfs", &[]),
@@ -91,6 +92,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "mountinfo" => Ok(mountinfo(&request.inputs)),
         "passwd" => Ok(passwd(&request.inputs)),
         "probes" => Ok(probes(&request.inputs)),
+        "resolv" => Ok(resolv(&request.inputs)),
         "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
         "statfs" => Ok(statfs(&request.inputs)),
@@ -525,6 +527,65 @@ pub fn fstab(inputs: &[Input]) -> Reply {
             ]),
         )))
     })
+}
+
+/// The nameservers glibc asks, at most this many.
+pub const MAXNS: usize = 3;
+
+/// Every resolv.conf(5) by path, as glibc reads it: the first [`MAXNS`] valid `nameservers`, the last `search` or `domain` line’s `search` list, and every `options` word.
+pub fn resolv(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
+        let (mut nameservers, mut search, mut options) = (Vec::new(), Vec::new(), Vec::new());
+        for (index, line) in text.lines().enumerate() {
+            let mut words = line.split_whitespace();
+            let (Some(keyword), rest) = (words.next(), words) else {
+                continue;
+            };
+            let mut diagnose = |message: String| {
+                reply.diagnostics.push(Diagnostic {
+                    path: path.to_owned(),
+                    line: Some(index as u64 + 1),
+                    message,
+                })
+            };
+            match keyword {
+                k if k.starts_with(['#', ';']) => {}
+                "nameserver" => match rest.clone().next() {
+                    Some(ip)
+                        if ip
+                            .split('%')
+                            .next()
+                            .unwrap_or(ip)
+                            .parse::<std::net::IpAddr>()
+                            .is_err() =>
+                    {
+                        diagnose(format!(
+                            "nameserver {ip} is not an IP address, ignored as glibc does"
+                        ))
+                    }
+                    Some(ip) if nameservers.len() < MAXNS => nameservers.push(ip.to_owned()),
+                    Some(ip) => diagnose(format!(
+                        "nameserver {ip} is past the first {MAXNS}, ignored as glibc does"
+                    )),
+                    None => diagnose("nameserver names no address".to_owned()),
+                },
+                "search" => search = rest.map(str::to_owned).collect(),
+                "domain" => search = rest.take(1).map(str::to_owned).collect(),
+                "sortlist" => {}
+                "options" => options.extend(rest.map(str::to_owned)),
+                other => diagnose(format!("keyword {other} is unknown, ignored")),
+            }
+        }
+        reply.facts.insert(
+            path.to_owned(),
+            serde_json::json!({"nameservers": nameservers, "search": search, "options": options}),
+        );
+    }
+    reply
 }
 
 /// The text of a file input, or a diagnostic when it is missing or not UTF-8.
@@ -1219,6 +1280,7 @@ mod tests {
                 "mountinfo",
                 "passwd",
                 "probes",
+                "resolv",
                 "shadow",
                 "stat",
                 "statfs",
@@ -1926,6 +1988,38 @@ mod tests {
         assert_eq!(
             reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(),
             [Some(7)]
+        );
+    }
+
+    #[test]
+    fn resolv_keeps_the_first_three_valid_nameservers_and_the_last_search_as_glibc() {
+        let reply = resolv(&[file(
+            "/etc/resolv.conf",
+            "# comment\n\
+             ; comment\n\
+             search a.test b.test\n\
+             nameserver nonsense\n\
+             nameserver 127.0.0.53\n\
+             nameserver fe80::1%eth0\n\
+             options edns0\n\
+             nameserver 192.0.2.1\n\
+             nameserver 192.0.2.2\n\
+             domain c.test d.test\n\
+             sortlist 10.0.0.0/8\n\
+             options ndots:2 trust-ad\n\
+             lookup file bind\n",
+        )]);
+        assert_eq!(
+            json!(reply.facts),
+            json!({"/etc/resolv.conf": {
+                "nameservers": ["127.0.0.53", "fe80::1%eth0", "192.0.2.1"],
+                "search": ["c.test"],
+                "options": ["edns0", "ndots:2", "trust-ad"],
+            }})
+        );
+        assert_eq!(
+            reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(),
+            [Some(4), Some(9), Some(13)]
         );
     }
 
