@@ -6,5 +6,5 @@ id: audit-rules-loaded
 privileged: true
 read:
   exec: [/usr/sbin/auditctl, -l]
-parse: {plugin: formats, op: lines}
+parse: {plugin: formats, op: options, with: {split: [-a, -S]}}
 into: audit.loaded

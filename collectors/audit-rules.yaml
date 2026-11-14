@@ -5,5 +5,5 @@
 id: audit-rules
 read:
   files: [/etc/audit/rules.d/*.rules]
-parse: {plugin: formats, op: lines}
+parse: {plugin: formats, op: options, with: {split: [-a, -S]}}
 into: audit.rules

@@ -9,7 +9,7 @@ use systemlint::judge::{Outcome, compile, lint};
 use systemlint::rules::Library;
 use systemlint_protocol::{ExecInput, Input};
 
-// CIS 6.2.3.1, 6.2.3.2 and 6.2.3.20 as rule patterns over the lines of both sources, each a line some source must hold.
+// CIS 6.2.3.1, 6.2.3.2 and 6.2.3.20 as rules over the options of both sources, each a line some source must hold.
 const RULESET: &str = r#"
 description: CIS audits over audit rule lines
 rules:
@@ -20,21 +20,40 @@ rules:
       not:
         additionalProperties:
           not:
-            contains: {pattern: '^\s*-w\s+/etc/sudoers(?=\s)(?=.*\s-p\s*(?=\S*w)(?=\S*a))(?=.*\s(-k\s*|-F\s*key=)\S)'}
+            contains:
+              required: ["-w", "-p"]
+              properties:
+                "-w": {contains: {const: /etc/sudoers}}
+                "-p": {contains: {allOf: [{pattern: w}, {pattern: a}]}}
+              anyOf:
+                - required: ["-k"]
+                - properties: {"-F": {contains: {pattern: '^key='}}}
+                  required: ["-F"]
   audit/user-emulation:
     title: commands run as another user unaudited
     fact: audit.*
     expect:
       allOf:
-        - not: {additionalProperties: {not: {contains: {pattern: '^\s*-a\s+always,exit(?=.*\s-F\s*arch=b64\b)(?=.*\s-F\s*auid!=(unset|-1|4294967295)\b)(?=.*\s-C\s*(euid!=uid|uid!=euid)\b)(?=.*\s-S\s*(\S*,)?execve\b)(?=.*\s(-k\s*|-F\s*key=)\S)'}}}}
-        - not: {additionalProperties: {not: {contains: {pattern: '^\s*-a\s+always,exit(?=.*\s-F\s*arch=b32\b)(?=.*\s-F\s*auid!=(unset|-1|4294967295)\b)(?=.*\s-C\s*(euid!=uid|uid!=euid)\b)(?=.*\s-S\s*(\S*,)?execve\b)(?=.*\s(-k\s*|-F\s*key=)\S)'}}}}
+        - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/emulation'}, {properties: {"-F": {contains: {const: arch=b64}}}}]}}}}
+        - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/emulation'}, {properties: {"-F": {contains: {const: arch=b32}}}}]}}}}
+      $defs:
+        emulation:
+          required: ["-a", "-F", "-C", "-S"]
+          properties:
+            "-a": {allOf: [{contains: {const: always}}, {contains: {const: exit}}]}
+            "-F": {contains: {enum: [auid!=unset, auid!=-1, auid!=4294967295]}}
+            "-C": {contains: {enum: [euid!=uid, uid!=euid]}}
+            "-S": {contains: {const: execve}}
+          anyOf:
+            - required: ["-k"]
+            - properties: {"-F": {contains: {pattern: '^key='}}}
   audit/immutable:
     title: audit rules left mutable
     fact: audit.rules
     expect:
       allOf:
-        - not: {additionalProperties: {not: {contains: {pattern: '^\s*-e\s+2\b'}}}}
-        - additionalProperties: {not: {contains: {pattern: '^\s*-e\s+[01]\b'}}}
+        - not: {additionalProperties: {not: {contains: {required: ["-e"], properties: {"-e": {contains: {const: 2}}}}}}}
+        - additionalProperties: {not: {contains: {required: ["-e"], properties: {"-e": {contains: {enum: [0, 1]}}}}}}
 "#;
 
 // The rules.d file as CIS’s remediation writes it.
@@ -43,7 +62,7 @@ const ON_DISK: &str = "## stock\n-D\n-w /etc/sudoers -p aw -k scope\n-a always,e
 // The same rules as auditctl -l prints them once loaded.
 const LOADED: &str = "-w /etc/sudoers -p wa -k scope\n-a always,exit -F arch=b64 -S execve -C uid!=euid -F auid!=-1 -F key=user_emulation\n-a always,exit -F arch=b32 -S execve -C uid!=euid -F auid!=-1 -F key=user_emulation\n";
 
-// The facts formats lines makes of one rules.d file and one auditctl -l run.
+// The facts formats options makes of one rules.d file and one auditctl -l run, as the shipped collectors ask.
 fn facts(on_disk: &str, loaded: &str) -> Value {
     let file = serde_json::from_value(
         json!({"path": "/etc/audit/rules.d/50-cis.rules", "content": on_disk}),
@@ -55,8 +74,14 @@ fn facts(on_disk: &str, loaded: &str) -> Value {
         stderr: String::new(),
         exit: 0,
     };
-    let rules = systemlint_formats::lines(&[Input::File(file)]).facts;
-    let loaded = systemlint_formats::lines(&[Input::Exec(run)]).facts;
+    let with = json!({"split": ["-a", "-S"]});
+    let with = with.as_object().unwrap();
+    let rules = systemlint_formats::flags(&[Input::File(file)], with)
+        .unwrap()
+        .facts;
+    let loaded = systemlint_formats::flags(&[Input::Exec(run)], with)
+        .unwrap()
+        .facts;
     json!({"audit": {"rules": rules, "loaded": loaded}})
 }
 

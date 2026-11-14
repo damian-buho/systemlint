@@ -89,37 +89,45 @@ kmod, ships no modules either. `loaded` is a live fact, absent under `--root`.
 
 ## Kernel audit rules
 
-`audit.rules` holds the lines of each file augenrules loads from
-`/etc/audit/rules.d`; `audit.loaded` holds the lines `auditctl -l` prints for
-the set the kernel runs, which needs root. Both key an array of lines by
-their source:
+`audit.rules` holds the rules of each file augenrules loads from
+`/etc/audit/rules.d`; `audit.loaded` holds the rules `auditctl -l` prints for
+the set the kernel runs, which needs root. Both are `formats options`: each
+source keys its lines in order, each line a record of its flags, `-a` and
+`-S` split on `,`:
 
 ```yaml
 audit:
   rules:
     /etc/audit/rules.d/50-scope.rules:
-      - "-w /etc/sudoers -p wa -k scope"
-      - "-e 2"
+      - {"-w": [/etc/sudoers], "-p": [wa], "-k": [scope], args: [], line: 1}
+      - {"-e": [2], args: [], line: 2}
   loaded:
     /usr/sbin/auditctl:
-      - "-w /etc/sudoers -p wa -k scope"
-      - "-a always,exit -F arch=b64 -S execve -C uid!=euid -F auid!=-1 -F key=user_emulation"
+      - {"-a": [always, exit], "-F": [arch=b64, auid!=-1, key=user_emulation], "-S": [execve], "-C": [uid!=euid], args: [], line: 2}
 ```
 
-A rule judges them with a pattern, as the CIS audits grep them: some source
-holds a matching line, its fields in any order through lookaheads:
+A rule says that some source holds a line with the flags it needs, in any
+order:
 
 ```yaml
 expect:
   not:
     additionalProperties:
       not:
-        contains: {pattern: '^\s*-w\s+/etc/sudoers(?=\s)(?=.*\s-p\s*(?=\S*w)(?=\S*a))(?=.*\s(-k\s*|-F\s*key=)\S)'}
+        contains:
+          required: ["-w", "-p"]
+          properties:
+            "-w": {contains: {const: /etc/sudoers}}
+            "-p": {contains: {allOf: [{pattern: w}, {pattern: a}]}}
+          anyOf:
+            - required: ["-k"]
+            - properties: {"-F": {contains: {pattern: '^key='}}}
+              required: ["-F"]
 ```
 
 `auditctl -l` prints each rule in one normal form (`-p` in `rwxa` order,
 `auid!=-1` for `unset`, `-F key=`), while the files keep what was written, so
-a pattern over `audit.rules` accepts every spelling auditctl does. The lines
+a rule over `audit.rules` accepts every spelling auditctl does. The lines
 are not applied: a `-D` does not clear the lines before it and a `never` rule
 does not shadow a later `always`. `audit.loaded` is absent when `auditctl` is
 not installed, and the collector fails when it exits non-zero.
