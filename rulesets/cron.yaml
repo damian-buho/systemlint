@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: the system crontab and cron directories, kept from other users
+tags: [default]
 rules:
   cron/world-readable:
     title: System cron jobs readable by every user

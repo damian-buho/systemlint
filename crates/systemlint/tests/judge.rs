@@ -648,8 +648,8 @@ fn paths_are_dotted_or_json_pointers() {
 #[test]
 fn score_bands_follow_spiderlint_at_every_edge() {
     for (value, level) in [
-        (0.0, Severity::Hint),
-        (0.9, Severity::Hint),
+        (0.0, Severity::Advice),
+        (0.9, Severity::Advice),
         (1.0, Severity::Info),
         (3.2, Severity::Info),
         (3.3, Severity::Warning),

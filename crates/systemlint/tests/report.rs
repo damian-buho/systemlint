@@ -179,7 +179,7 @@ fn textfile_counts_outcomes_rules_and_collectors() {
         "systemlint_checks{outcome=\"fail\"} 0",
         "systemlint_rule_checks{rule=\"apt/https\",outcome=\"pass\"} 1",
         "systemlint_failures{severity=\"error\"} 0",
-        "systemlint_failures{severity=\"hint\"} 0",
+        "systemlint_failures{severity=\"advice\"} 0",
         "systemlint_collector_status{collector=\"shadow\",status=\"error\"} 1",
         "systemlint_collector_status{collector=\"shadow\",status=\"ok\"} 0",
         "systemlint_collector_status{collector=\"odd\\\"id\\\\\\n\",status=\"skipped\"} 1",

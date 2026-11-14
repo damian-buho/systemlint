@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: the keys each account’s AuthorizedKeysFile lets log in
+tags: [default]
 rules:
   authorized-keys/rsa-size:
     title: Short RSA key authorized

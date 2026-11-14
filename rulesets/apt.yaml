@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: apt sources that drift from the host release, lose their signature checks or confuse apt
+tags: [default]
 when:
   os.release:
     anyOf:

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: PAM authentication stacks that let a login through without a password or without limit
+tags: [default]
 when: {auth.pam: {minProperties: 1}}
 rules:
   pam/permit-sufficient:

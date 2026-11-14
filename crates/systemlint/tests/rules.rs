@@ -181,15 +181,9 @@ fn excludes_and_overrides_by_id_or_glob() {
         ["a/y", "b/z"]
     );
     assert_eq!(
-        ids(&lib.select(&["!a/*".into()]).unwrap()),
-        [
-            "apt/https",
-            "b/z",
-            "os/supported",
-            "shadow/private",
-            "ssh/patched"
-        ],
-        "only exclusions start from every rule"
+        ids(&lib.select(&["!ssh/*".into()]).unwrap()),
+        ["apt/https", "os/supported", "shadow/private"],
+        "only exclusions start from the rules tagged default"
     );
     assert_eq!(
         ids(&lib.select(&["a/*".into(), "!a/x".into()]).unwrap()),
@@ -426,4 +420,52 @@ fn facts_refuse_a_fact_or_an_expect_beside_them_an_overriding_one_included() {
             "{selector}: {error}"
         );
     }
+}
+
+#[test]
+fn no_selector_runs_the_default_tag_and_counts_the_rest_per_ruleset() {
+    let lib = library(&[
+        (
+            "perf",
+            "tags: [performance]\nrules:\n  perf/a: {fact: a, expect: {minimum: 1}, tags: [latency, performance]}\n  perf/b: {fact: b, expect: {minimum: 1}}\n  perf/c: {fact: c, expect: {minimum: 1}, severity: off}\n",
+        ),
+        (
+            "mine",
+            "rules:\n  mine/x: {fact: x, expect: {minimum: 1}}\n",
+        ),
+    ]);
+    assert_eq!(
+        lib.definitions["perf/a"].tags,
+        ["performance", "latency"],
+        "a rule takes its ruleset’s tags first, each once"
+    );
+    let implicit = lib.select_for(&[], &[]).unwrap();
+    assert_eq!(
+        ids(&implicit.rules),
+        ["apt/https", "os/supported", "shadow/private", "ssh/patched"]
+    );
+    assert_eq!(
+        implicit.left_out,
+        BTreeMap::from([("mine".to_owned(), 1), ("perf".to_owned(), 2)]),
+        "an off rule is never counted as left out"
+    );
+    let replaced = lib.select_for(&["performance".into()], &[]).unwrap();
+    assert_eq!(ids(&replaced.rules), ["perf/a", "perf/b"]);
+    let extended = lib
+        .select_for(&["default".into(), "latency".into()], &[])
+        .unwrap();
+    assert_eq!(extended.rules.len(), 5);
+    assert_eq!(extended.left_out.values().sum::<usize>(), 2);
+}
+
+#[test]
+fn no_rule_tagged_default_selects_nothing_rather_than_failing() {
+    let lib = Library::new(BTreeMap::from([(
+        "mine".to_owned(),
+        systemlint::yaml::from_str("rules:\n  mine/x: {fact: x, expect: {minimum: 1}}\n").unwrap(),
+    )]))
+    .unwrap();
+    let selected = lib.select_for(&[], &[]).unwrap();
+    assert!(selected.rules.is_empty());
+    assert_eq!(selected.left_out, BTreeMap::from([("mine".to_owned(), 1)]));
 }

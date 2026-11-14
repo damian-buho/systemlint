@@ -40,7 +40,7 @@ apt/https:
 | `facts` | instead of `fact` and `expect`: `all`, `any` or `none` over a list of `{fact, expect}`, see [Several facts](#several-facts) |
 | `keys` | a JSON Schema the key of the fact’s last `*` must satisfy, or it is no subject, see [Subjects](#subjects) |
 | `when` | a guard: a map is AND, a list of maps is OR; each entry is a constant to equal or a schema to satisfy |
-| `severity` | `error`, `warning`, `info`, `hint` or `off`; `warning` when absent |
+| `severity` | `error`, `warning`, `info`, `advice` (a tuning hint, below `info`) or `off`; `warning` when absent |
 | `score` | a number from 0.0 to 9.9, or a curve of `[value, score]` points read against the fact’s number |
 | `message` | the finding’s sentence, with `{got}`, `{field}`, `{fact}` and `{subject}` filled in |
 | `fix` | how to fix it, with the same placeholders; the human report lists the subjects above it, so a fix that leaves `{subject}` out reads once for all of them |
@@ -175,7 +175,7 @@ cannot read fails the rule.
 
 ### Scores
 
-Scores and levels share spiderlint’s bands: hint 0.0–0.9 (base 0.5), info
+Scores and levels share spiderlint’s bands: advice 0.0–0.9 (base 0.5), info
 1.0–3.2 (2), warning 3.3–6.5 (5), error 6.6–9.9 (8). A number sets the score and
 its band sets the level; a curve computes the score from the fact’s number and
 may cross bands; a level alone gives its base score. A level written over a
@@ -202,6 +202,7 @@ used twice is refused.
 
 ```yaml
 description: Stricter than the shipped rules
+tags: [default]
 extends: [recommended]
 when: {os.release.ID: {const: ubuntu}}
 rules:
@@ -217,6 +218,8 @@ level, a score, or a partial rule whose keys win and whose `expect` merges
 keyword by keyword, dropping the inherited `message`, which may state the old
 bounds. `extends` takes rulesets, rule IDs and tag globs, flattened depth first;
 a ruleset name also brings the rules tagged with it, as a selector does.
+`tags` go to every rule the ruleset defines, before the rule’s own, so the
+shipped rulesets carry `tags: [default]` once rather than on each rule.
 
 `when` takes the form a rule’s does, without `*`, since a ruleset has no
 subject. It guards every rule the ruleset defines, however it is selected, and
@@ -260,9 +263,22 @@ IDs and tags; a selector naming a ruleset also picks that ruleset’s rules, so
 `ssh` brings the `ssh` ruleset and every rule tagged `ssh`. The list is a union: a ruleset
 brings its overrides, an ID or tag pick brings the plain rule unless a ruleset
 already brought it. `!x` removes what `x` names; `off` rules drop out. With no
-selector every rule runs. A selector matching nothing is an error.
+selector, or only `!` ones, the rules tagged `default` run: every shipped
+ruleset carries it, an opinionated one (performance, a latency profile) does
+not. A selector matching nothing is an error.
+
+`--tags performance` replaces the default, `--tags default,performance` extends
+it, `--tags '*'` runs every rule, and `check.tags` sets a site’s own default.
+A run on the default prints one stderr line naming what it left out, per
+defining ruleset, so a rule of your own without `default` never vanishes
+silently (`-q` drops it):
+
+```text
+12 rules not selected: containers (3), performance (9). Name them in --tags to run them.
+```
 
 ```sh
+systemlint check facts.yaml --tags 'default,performance'
 systemlint check facts.yaml --tags 'strict,!experimental'
 systemlint check facts.yaml --tags 'cis-ubuntu-26.04:5.2.*'
 ```
@@ -352,7 +368,8 @@ when stdout is not a terminal, and `FORCE_COLOR` turns it on.
 the counts; `--format sarif` and `--format textfile` are described in
 [Outputs](outputs.md). `-o PATH` (`--output`) writes the report atomically instead of
 printing it, then one stderr line with its number of findings, which `-q` drops. `--fail-on` (`check.fail-on`) takes `error`, the default, `warning`,
-`info`, a score from 0.1 to 9.9, or `never`; a hint never fails a run.
+`info`, `advice`, a score from 0.1 to 9.9, or `never`; advice fails a run
+only under `--fail-on advice`.
 
 | Code | `check` | `check --standard` | `facts` |
 | --- | --- | --- | --- |
@@ -375,7 +392,7 @@ printing it, then one stderr line with its number of findings, which `-q` drops.
 `<standard>:<control>` to the rules `--tags` or `check.tags` select, or runs them
 alone when neither is set, and answers per control; `--standard` may be given
 several times. The verdict, not `--fail-on`, then decides the exit code, so a
-failing hint still fails its control:
+failing advice still fails its control:
 
 | Verdict | When |
 | --- | --- |
@@ -437,4 +454,4 @@ facts need it:
 - `unique: true` sits beside `fact` and fails each subject that shares a value,
   where spiderlint’s `unique: <fact>` gives one finding per value, so a waiver
   or SARIF fingerprint still names one subject;
-- there are no `scope`, `hints` or built-in rules.
+- there are no `scope`, `hints` or built-in rules; `advice` replaces the `hint` level.

@@ -46,6 +46,7 @@ fn rules(base: &[&str], standards: &[&str], extra: &[(&str, &str)]) -> Vec<Rule>
     library(extra)
         .select_for(&base, &standards)
         .unwrap()
+        .rules
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect()
@@ -108,7 +109,7 @@ fn a_standard_adds_its_tagged_rules_to_the_selectors() {
     assert_eq!(
         rules(&[], &[], &[]).len(),
         4,
-        "no standard and no selector is every rule"
+        "no standard and no selector is the default tag"
     );
 }
 
@@ -117,7 +118,7 @@ fn a_standard_no_rule_carries_selects_nothing_and_is_indeterminate() {
     assert!(rules(&[], &["nothing"], &[]).is_empty());
     assert!(
         rules(&["!experimental"], &["nothing"], &[]).is_empty(),
-        "only exclusions never widen to every rule"
+        "only exclusions never widen to the default"
     );
     assert_eq!(ids(&rules(&["os"], &["nothing"], &[])), ["os/supported"]);
     let report = comply("nothing", &[], &[], None);
@@ -155,17 +156,28 @@ fn an_unprivileged_run_is_indeterminate_never_compliant() {
 }
 
 #[test]
-fn a_hint_failure_fails_its_control_whatever_fail_on_says() {
+fn an_advice_failure_fails_its_control_whatever_fail_on_says() {
     let rules = rules(
-        &["hinted"],
+        &["advised"],
         &["fixture-a"],
-        &[("hinted", "extends: [fixture]\nrules: {apt/https: hint}\n")],
+        &[(
+            "advised",
+            "extends: [fixture]\nrules: {apt/https: advice}\n",
+        )],
     );
     let document = http_source();
     let checks = lint(&document, &rules, &[], "2026-11-11");
     assert!(
         !"info".parse::<FailOn>().unwrap().reached(&checks),
-        "a hint never reaches --fail-on"
+        "advice never reaches --fail-on info"
+    );
+    assert!(
+        !"0.1".parse::<FailOn>().unwrap().reached(&checks),
+        "advice never reaches a score threshold"
+    );
+    assert!(
+        "advice".parse::<FailOn>().unwrap().reached(&checks),
+        "--fail-on advice fails on advice"
     );
     let report = comply("fixture-a", &rules, &checks, None);
     assert_eq!(

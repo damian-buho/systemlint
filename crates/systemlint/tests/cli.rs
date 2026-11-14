@@ -483,7 +483,7 @@ fn plain_report(dir: &Path, args: &[&str]) -> String {
     )
     .unwrap();
     let file = dir.join("config.yaml");
-    std::fs::write(&file, "check:\n  plain: true\n  rulesets:\n    t: {rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n").unwrap();
+    std::fs::write(&file, "check:\n  plain: true\n  rulesets:\n    t: {tags: [default], rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n").unwrap();
     let out = core()
         .arg("--config")
         .arg(&file)
@@ -555,7 +555,7 @@ fn an_output_counts_its_findings_one_in_the_singular() {
     )
     .unwrap();
     let report = dir.join("report.sarif").display().to_string();
-    let config = "check:\n  rulesets:\n    t: {rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n";
+    let config = "check:\n  rulesets:\n    t: {tags: [default], rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n";
     let (code, stderr) = run(
         &dir,
         config,
@@ -599,7 +599,7 @@ fn ruleset_vars_come_from_var_then_vars_then_config_then_default() {
     let file = dir.join("vars.yaml");
     std::fs::write(&file, "want: 1\n").unwrap();
     let (facts, file) = (path.display().to_string(), file.display().to_string());
-    let config = "check:\n  rulesets:\n    t: {vars: {want: {default: 2}}, rules: {t/x: {fact: x, expect: {const: '${want}'}, severity: error}}}\n";
+    let config = "check:\n  rulesets:\n    t: {tags: [default], vars: {want: {default: 2}}, rules: {t/x: {fact: x, expect: {const: '${want}'}, severity: error}}}\n";
     assert_eq!(
         run(&dir, config, &["check", &facts]).0,
         1,
@@ -813,4 +813,28 @@ fn no_project_config_skips_the_working_directory_file() {
         "{}",
         String::from_utf8_lossy(&skipped.stderr)
     );
+}
+
+#[test]
+fn a_run_without_tags_names_the_rules_the_default_left_out() {
+    let dir = base("left-out");
+    let path = dir.join("facts.yaml");
+    std::fs::write(
+        &path,
+        format!("meta: {{schema: {}}}\nx: 1\n", systemlint::collect::SCHEMA),
+    )
+    .unwrap();
+    let facts = path.display().to_string();
+    let config = "check:\n  rulesets:\n    perf: {tags: [performance], rules: {perf/x: {fact: x, expect: {const: 2}, severity: error}, perf/y: {fact: x, expect: {const: 3}}}}\n";
+    let (code, stderr) = run(&dir, config, &["check", &facts]);
+    assert_eq!(code, 0, "{stderr}");
+    assert!(
+        stderr.contains("2 rules not selected: perf (2). Name them in --tags to run them."),
+        "{stderr}"
+    );
+    let (code, stderr) = run(&dir, config, &["check", "--tags", "performance", &facts]);
+    assert_eq!(code, 1, "{stderr}");
+    assert!(!stderr.contains("not selected"), "{stderr}");
+    let (_, quiet) = run(&dir, config, &["--quiet", "check", &facts]);
+    assert!(!quiet.contains("not selected"), "{quiet}");
 }

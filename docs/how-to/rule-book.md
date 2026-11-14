@@ -34,6 +34,13 @@ stock default that exposes the host still fails. Where two standards disagree
 ship each side as its own rule tagged with its standard’s control, so the user
 picks the standard they follow with `--standard` or `--tags`.
 
+## The default tag
+
+A ruleset that hardens the host carries `tags: [default]`, so a bare
+`systemlint check` runs it. A practice ruleset (performance, stability, an
+opinionated profile) leaves it out and runs when its tag is named; a category
+is a tag, never a field.
+
 ## Small rulesets
 
 One ruleset per subject a person thinks of (`ufw.yaml`, `kernel.yaml`,

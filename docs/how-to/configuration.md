@@ -65,7 +65,7 @@ collect:
   format: json         # the default facts --format, over the --output extension: yaml or json
 check:
   directories: [rulesets]
-  tags: [apt, sshd]    # the default --tags
+  tags: [default, performance]  # the default --tags, else default
   vars: {ntp: time.example}  # ruleset var values, under --var, --vars and from-env
   fail-on: warning     # the default --fail-on
   format: sarif        # the default --format: human, json, sarif or textfile

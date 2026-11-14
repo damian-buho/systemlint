@@ -22,7 +22,7 @@ systemlint check --root rootfs --format sarif --output systemlint.sarif
 
 | Check | SARIF result |
 | --- | --- |
-| `fail` | `kind: fail`, `level` from the severity: `error`, `warning`, `note` for info and hint |
+| `fail` | `kind: fail`, `level` from the severity: `error`, `warning`, `note` for info and advice |
 | `fail` with an active waiver | the same, plus a `suppressions` entry with the reason and `until` |
 | `unknown` | `kind: open`, `level: none`, the reason as message |
 | `not-applicable` | `kind: notApplicable`, `level: none`, the reason as message |
@@ -65,7 +65,7 @@ systemlint --quiet check --format textfile --fail-on never \
 | --- | --- | --- |
 | `systemlint_checks` | `outcome`: pass, fail, waived, unknown, skip, not-applicable, manual | checks in the run |
 | `systemlint_rule_checks` | `rule`, `outcome` | checks of that rule; absent when zero |
-| `systemlint_failures` | `severity`: error, warning, info, hint | failing checks, waived ones apart |
+| `systemlint_failures` | `severity`: error, warning, info, advice | failing checks, waived ones apart |
 | `systemlint_rating` | `grade`: S, A, B, C, D, E or F | the share of judged checks kept after failure costs; absent when nothing was judged |
 | `systemlint_controls` | `standard`, `verdict`: compliant, non-compliant, indeterminate, not-applicable, manual | controls of that standard; with `--standard` only |
 | `systemlint_compliance` | `standard`, `verdict`: compliant, non-compliant, indeterminate, not-applicable | 1 for the standard’s verdict, else 0; with `--standard` only |

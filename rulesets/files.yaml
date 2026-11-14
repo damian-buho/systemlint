@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: files that grant root, hold password hashes or host keys, or sit in the PATH, kept to root alone
+tags: [default]
 rules:
   files/world-writable:
     title: File writable by every user

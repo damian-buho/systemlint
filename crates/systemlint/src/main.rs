@@ -120,13 +120,13 @@ enum Command {
     Check {
         #[command(flatten)]
         input: Input,
-        /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, !x removes [default: check.tags, else every rule]
+        /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, !x removes [default: check.tags, else default]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
         /// Also run the rules tagged STANDARD:<control> and answer per control; repeatable
         #[arg(long, value_name = "STANDARD")]
         standard: Vec<String>,
-        /// Exit 1 on a failure at error, warning, info, a score from 0.1 to 9.9, or never [default: check.fail-on, else error]
+        /// Exit 1 on a failure at error, warning, info, advice, a score from 0.1 to 9.9, or never [default: check.fail-on, else error]
         #[arg(long, value_name = "LEVEL")]
         fail_on: Option<FailOn>,
         #[command(flatten)]
@@ -146,7 +146,7 @@ enum Command {
         /// Check and change this root filesystem, such as an image being built, instead of the live host
         #[arg(long, value_name = "DIR")]
         root: Option<PathBuf>,
-        /// Rules to fix, as for check [default: check.tags, else every rule]
+        /// Rules to fix, as for check [default: check.tags, else default]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
         #[command(flatten)]
@@ -597,7 +597,13 @@ fn library(config: &Config, vars: &Vars) -> Result<Library, u8> {
     }
 }
 
-fn compiled(library: &Library, selection: &Selection, config: &Config) -> Result<Vec<Rule>, u8> {
+/// The selected rules compiled; with no `--tags` or `--standard` and unless `quiet`, one stderr line names the rules left out.
+fn compiled(
+    library: &Library,
+    selection: &Selection,
+    config: &Config,
+    quiet: bool,
+) -> Result<Vec<Rule>, u8> {
     let base = if selection.tags.is_empty() {
         &config.check.tags
     } else {
@@ -606,14 +612,33 @@ fn compiled(library: &Library, selection: &Selection, config: &Config) -> Result
     let selected = trail::scoped(trail::CONFIG, || {
         library
             .select_for(base, &selection.standards)
-            .and_then(|specs| {
-                specs
+            .and_then(|selected| {
+                let implicit = selection.tags.is_empty() && selection.standards.is_empty();
+                if let Some(line) = left_out(&selected.left_out).filter(|_| implicit && !quiet) {
+                    eprintln!("{line}");
+                }
+                selected
+                    .rules
                     .into_iter()
                     .map(|(id, spec)| judge::compile(&id, spec))
                     .collect::<Result<Vec<_>, _>>()
             })
     });
     selected.map_err(fail(trail::CONFIG, EXIT_CONFIG))
+}
+
+/// `12 rules not selected: performance (9), containers (3).`, with how to run them; none when nothing was left out.
+fn left_out(counts: &std::collections::BTreeMap<String, usize>) -> Option<String> {
+    let total: usize = counts.values().sum();
+    log::debug!("{total} rules not selected in {} rulesets", counts.len());
+    (total > 0).then(|| {
+        let each: Vec<String> = counts.iter().map(|(r, n)| format!("{r} ({n})")).collect();
+        format!(
+            "{} not selected: {}. Name them in --tags to run them.",
+            plural(total, "rule"),
+            each.join(", ")
+        )
+    })
 }
 
 /// The error `line`, then each debug record kept under `tag`, indented on its own line.
@@ -705,7 +730,7 @@ fn lint(
         let rules = if library.definitions.is_empty() {
             Vec::new()
         } else {
-            compiled(&library, selection, config)?
+            compiled(&library, selection, config, quiet)?
         };
         let catalogs = catalogs(config, &selection.standards)?;
         let fail_on = fail_on
@@ -718,9 +743,9 @@ fn lint(
             document["meta"]["collected-at"],
             rules.len()
         );
-        if rules.is_empty() && !quiet {
+        if library.definitions.is_empty() && !quiet {
             eprintln!(
-                "No rules selected. Searched: {}",
+                "No rules found. Searched: {}",
                 rules::directories(&exe(), &config.check.directories)
                     .iter()
                     .map(|d| d.display().to_string())
@@ -822,7 +847,7 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
         let rules = if library.definitions.is_empty() {
             Vec::new()
         } else {
-            compiled(&library, selection, config)?
+            compiled(&library, selection, config, quiet)?
         };
         let (document, trusted) = gather(config, root, None, quiet)?;
         let systemlint::fix::Plan { changes, kept } = systemlint::fix::plan(

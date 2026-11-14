@@ -31,10 +31,11 @@ impl FromStr for FailOn {
             "error" => Ok(Self::Level(Severity::Error)),
             "warning" => Ok(Self::Level(Severity::Warning)),
             "info" => Ok(Self::Level(Severity::Info)),
+            "advice" => Ok(Self::Level(Severity::Advice)),
             _ => match text.parse::<f64>() {
                 Ok(score) if (0.1..=9.9).contains(&score) => Ok(Self::Score(score)),
                 _ => Err(format!(
-                    "fail-on {text:?} is not error, warning, info, never or a score from 0.1 to 9.9"
+                    "fail-on {text:?} is not error, warning, info, advice, never or a score from 0.1 to 9.9"
                 )),
             },
         }
@@ -42,11 +43,15 @@ impl FromStr for FailOn {
 }
 
 impl FailOn {
-    /// Whether any check fails at or above this threshold; a hint never does.
+    /// Whether any check fails at or above this threshold; advice only under `advice` itself.
     pub fn reached(self, checks: &[Check]) -> bool {
         checks
             .iter()
-            .filter(|c| c.is_failing() && c.severity != Some(Severity::Hint))
+            .filter(|c| {
+                c.is_failing()
+                    && (c.severity != Some(Severity::Advice)
+                        || self == Self::Level(Severity::Advice))
+            })
             .any(|c| match self {
                 Self::Never => false,
                 Self::Level(level) => c.severity >= Some(level),
@@ -155,13 +160,13 @@ fn paint(on: bool, code: &str, text: &str) -> String {
     }
 }
 
-/// The capitalised level word and its colour code: red error, yellow warning, dim info and hint.
+/// The capitalised level word and its colour code: red error, yellow warning, dim info and advice.
 fn level_word(severity: Option<Severity>) -> (&'static str, &'static str) {
     match severity {
         Some(Severity::Error) => ("Error", "31"),
         Some(Severity::Warning) => ("Warning", "33"),
         Some(Severity::Info) => ("Info", "2"),
-        _ => ("Hint", "2"),
+        _ => ("Advice", "2"),
     }
 }
 
@@ -432,9 +437,9 @@ fn summary_line(document: &Value, checks: &[Check], on: bool) -> String {
         counted(failing(Severity::Warning), "warning", "warnings"),
         format!("{} info", failing(Severity::Info)),
     ];
-    let hints = failing(Severity::Hint);
-    if hints > 0 {
-        levels.push(counted(hints, "hint", "hints"));
+    let advice = failing(Severity::Advice);
+    if advice > 0 {
+        levels.push(format!("{advice} advice"));
     }
     let s = summary(checks);
     let not_run = checks
@@ -834,7 +839,7 @@ pub fn lint_json(document: &Value, checks: &[Check], compliance: &[Report]) -> S
     serde_json::to_string_pretty(&report).unwrap_or_default() + "\n"
 }
 
-/// The SARIF level of a failure: error, warning, or note for info and hint.
+/// The SARIF level of a failure: error, warning, or note for info and advice.
 fn level(severity: Option<Severity>) -> &'static str {
     match severity {
         Some(Severity::Error) => "error",
@@ -1089,7 +1094,7 @@ pub fn lint_textfile(document: &Value, checks: &[Check], compliance: &[Report]) 
         Severity::Error,
         Severity::Warning,
         Severity::Info,
-        Severity::Hint,
+        Severity::Advice,
     ] {
         let _ = writeln!(
             out,

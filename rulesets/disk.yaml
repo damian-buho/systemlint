@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Filesystems close to full
+tags: [default]
 rules:
   disk/full:
     title: Filesystem almost out of space

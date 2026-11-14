@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Certificates the network probes found expiring or untrusted
+tags: [default]
 when: {probes: {minProperties: 1}}
 rules:
   tls/expired:

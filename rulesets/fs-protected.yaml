@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Kernel protections against link and file tricks in world-writable sticky directories such as /tmp
+tags: [default]
 rules:
   fs-protected/symlinks:
     title: Symlinks in /tmp followed across owners

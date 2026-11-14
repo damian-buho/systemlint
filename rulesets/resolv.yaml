@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Nameservers in /etc/resolv.conf that do not resolve for this host
+tags: [default]
 when: {resolv.probes: {required: [nameserver]}}
 rules:
   resolv/nameserver-silent:

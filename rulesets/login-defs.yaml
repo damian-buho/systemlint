@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Account defaults in /etc/login.defs that hand new files to other users
+tags: [default]
 when: {auth.login-defs: {minProperties: 1}}
 rules:
   login-defs/umask:

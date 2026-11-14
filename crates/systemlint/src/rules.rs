@@ -15,6 +15,9 @@ use crate::discovery::{Refusal, Trust};
 /// The ruleset directory relative to the core binary’s own directory.
 pub const BESIDE: &str = "../share/systemlint/rulesets";
 
+/// The tag a run selects when neither `--tags` nor `check.tags` names any.
+pub const DEFAULT: &str = "default";
+
 /// Rules by ID, as a selector picks them.
 type Picks = BTreeMap<String, Spec>;
 
@@ -22,7 +25,7 @@ type Picks = BTreeMap<String, Spec>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
-    Hint,
+    Advice,
     Info,
     Warning,
     Error,
@@ -147,6 +150,8 @@ pub struct Ruleset {
     #[serde(default)]
     pub extends: Vec<String>,
     #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
     pub when: Option<When>,
     #[serde(default)]
     pub vars: BTreeMap<String, crate::vars::Var>,
@@ -159,6 +164,15 @@ pub struct Ruleset {
 pub struct Library {
     pub rulesets: BTreeMap<String, Ruleset>,
     pub definitions: BTreeMap<String, Spec>,
+    /// The ruleset that defines each rule, by rule ID.
+    pub owners: BTreeMap<String, String>,
+}
+
+/// What a selection runs, and how many rules it left out per defining ruleset.
+#[derive(Debug, Default)]
+pub struct Selected {
+    pub rules: Picks,
+    pub left_out: BTreeMap<String, usize>,
 }
 
 /// Whether `text` matches `pattern`, where `*` is any run of characters and `?` one.
@@ -200,6 +214,18 @@ fn entry(raw: &Value) -> Result<Spec, String> {
             Ok(Spec { pinned, ..spec })
         }
     }
+}
+
+/// A ruleset’s entry as a spec, a definition taking the ruleset’s own tags first.
+fn defined(ruleset: &Ruleset, raw: &Value) -> Result<Spec, String> {
+    let mut spec = entry(raw)?;
+    if spec.defines() {
+        let own = std::mem::take(&mut spec.tags);
+        spec.tags = ruleset.tags.clone();
+        spec.tags
+            .extend(own.into_iter().filter(|t| !ruleset.tags.contains(t)));
+    }
+    Ok(spec)
 }
 
 /// `over` on top of `base`: set fields win, `expect` merges keyword by keyword and drops the inherited message, tags and references add up.
@@ -276,7 +302,8 @@ impl Library {
         let mut owner: BTreeMap<String, String> = BTreeMap::new();
         for (name, ruleset) in &rulesets {
             for (id, raw) in &ruleset.rules {
-                let mut spec = entry(raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
+                let mut spec =
+                    defined(ruleset, raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
                 if !spec.defines() {
                     continue;
                 }
@@ -304,6 +331,7 @@ impl Library {
         Ok(Self {
             rulesets,
             definitions,
+            owners: owner,
         })
     }
 
@@ -391,7 +419,8 @@ impl Library {
         }
         seen.pop();
         for (id, raw) in &ruleset.rules {
-            let spec = entry(raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
+            let spec =
+                defined(ruleset, raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
             let base = merged.remove(id).or_else(|| {
                 if spec.defines() {
                     None
@@ -455,14 +484,21 @@ impl Library {
         tagged
     }
 
-    /// The rules a selector list picks: a union in order (every rule when only `!` entries), a ruleset’s overrides beating a plain ID or tag pick, `!` removing, `off` dropped.
+    /// The rules a selector list picks: a union in order (the `default` tag when only `!` entries), a ruleset’s overrides beating a plain ID or tag pick, `!` removing, `off` dropped.
     pub fn select(&self, selectors: &[String]) -> Result<BTreeMap<String, Spec>, String> {
+        Ok(Self::on(self.pick(selectors)?))
+    }
+
+    /// [`Library::select`] before `off` rules are dropped.
+    fn pick(&self, selectors: &[String]) -> Result<Picks, String> {
         let mut picked: BTreeMap<String, Spec> = BTreeMap::new();
-        let every = ["*".to_owned()];
-        let mut includes: Vec<&String> = selectors.iter().filter(|s| !s.starts_with('!')).collect();
+        let includes: Vec<&String> = selectors.iter().filter(|s| !s.starts_with('!')).collect();
         if includes.is_empty() {
-            log::debug!("selectors {selectors:?} only exclude, starting from every rule");
-            includes.extend(&every);
+            picked = self.matching(DEFAULT).unwrap_or_default();
+            log::debug!(
+                "selectors {selectors:?} only exclude, starting from {} rules tagged {DEFAULT}",
+                picked.len()
+            );
         }
         for selector in includes {
             let (overrides, plain) = self.named(selector)?;
@@ -479,6 +515,11 @@ impl Library {
             );
             picked.retain(|id, _| !overrides.contains_key(id) && !plain.contains_key(id));
         }
+        Ok(picked)
+    }
+
+    /// `picked` without its `off` rules.
+    fn on(mut picked: Picks) -> Picks {
         picked.retain(|id, spec| {
             let off = spec.severity == Some(Severity::Off);
             if off {
@@ -486,15 +527,25 @@ impl Library {
             }
             !off
         });
-        Ok(picked)
+        picked
     }
 
-    /// The rules `base` picks plus every rule tagged `<standard>:*`; standards with nothing else to pick select nothing, never every rule.
-    pub fn select_for(
-        &self,
-        base: &[String],
-        standards: &[String],
-    ) -> Result<BTreeMap<String, Spec>, String> {
+    /// How many defined rules `picked` leaves out, per defining ruleset; an `off` definition is not counted.
+    fn left_out(&self, picked: &Picks) -> BTreeMap<String, usize> {
+        let mut out = BTreeMap::new();
+        for (id, spec) in &self.definitions {
+            if picked.contains_key(id) || spec.severity == Some(Severity::Off) {
+                continue;
+            }
+            let owner = self.owners.get(id).cloned().unwrap_or_default();
+            log::debug!("rule {id} of ruleset {owner} is not selected");
+            *out.entry(owner).or_insert(0) += 1;
+        }
+        out
+    }
+
+    /// The rules `base` picks plus every rule tagged `<standard>:*`, and those left out; standards with nothing else to pick select nothing, never the default.
+    pub fn select_for(&self, base: &[String], standards: &[String]) -> Result<Selected, String> {
         let mut selectors = base.to_vec();
         for standard in standards {
             let prefix = format!("{standard}:");
@@ -510,9 +561,16 @@ impl Library {
         }
         if !standards.is_empty() && selectors.iter().all(|s| s.starts_with('!')) {
             log::debug!("standards {standards:?} and selectors {base:?} pick no rule");
-            return Ok(BTreeMap::new());
+            return Ok(Selected {
+                left_out: self.left_out(&BTreeMap::new()),
+                ..Selected::default()
+            });
         }
-        self.select(&selectors)
+        let picked = self.pick(&selectors)?;
+        Ok(Selected {
+            left_out: self.left_out(&picked),
+            rules: Self::on(picked),
+        })
     }
 }
 

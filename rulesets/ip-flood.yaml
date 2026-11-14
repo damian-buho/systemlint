@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Network settings that let a flood exhaust this host or use it to amplify an attack
+tags: [default]
 rules:
   ip-flood/syncookies:
     title: SYN cookies off

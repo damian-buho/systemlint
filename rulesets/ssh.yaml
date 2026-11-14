@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: OpenSSH server settings that weaken authentication, forwarding or cryptography, after dev-sec ssh-baseline
+tags: [default]
 rules:
   ssh/root-login:
     title: Root may log in with a password

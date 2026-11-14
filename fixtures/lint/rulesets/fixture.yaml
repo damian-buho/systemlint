@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Rules the engine tests judge fixture facts with
+tags: [default]
 rules:
   os/supported:
     fact: os.release.VERSION_ID

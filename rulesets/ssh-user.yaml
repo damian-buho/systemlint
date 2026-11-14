@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: each user’s ~/.ssh and what is in it, kept from other users
+tags: [default]
 rules:
   ssh-user/world-writable:
     title: SSH user file writable by every user

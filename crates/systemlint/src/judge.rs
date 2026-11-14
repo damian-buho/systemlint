@@ -724,7 +724,7 @@ const BANDS: [(Severity, f64, f64, f64); 4] = [
     (Severity::Error, 6.6, 9.9, 8.0),
     (Severity::Warning, 3.3, 6.5, 5.0),
     (Severity::Info, 1.0, 3.2, 2.0),
-    (Severity::Hint, 0.0, 0.9, 0.5),
+    (Severity::Advice, 0.0, 0.9, 0.5),
 ];
 
 /// A score on the one-decimal grid, 0.0 to 9.9.
@@ -738,7 +738,7 @@ pub fn level_of(score: f64) -> Severity {
     BANDS
         .iter()
         .find(|(_, min, _, _)| tenths >= *min)
-        .map_or(Severity::Hint, |b| b.0)
+        .map_or(Severity::Advice, |b| b.0)
 }
 
 /// A level’s band: lowest score, highest score, base.
