@@ -5,5 +5,8 @@
 id: auth-login-defs
 read:
   files: [/etc/login.defs]
-parse: {plugin: formats, op: login-defs}
+parse:
+  plugin: formats
+  op: kv
+  with: {separator: whitespace, repeat: last}
 into: auth.login-defs

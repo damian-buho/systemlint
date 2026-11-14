@@ -17,7 +17,7 @@ use systemlint_protocol::{
     Describe, Diagnostic, ExecInput, FileInput, Input, PROTOCOL, Reply, Request, VERSION,
 };
 
-use crate::collector::{Collector, overlaps, prefix, template};
+use crate::collector::{Collector, Order, Prefer, overlaps, prefix, template};
 use crate::discovery::Plugin;
 use crate::runner::{self, MAX_CHILDREN, OUTPUT_CAP};
 use crate::source::{Failure, Root};
@@ -662,6 +662,53 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
     read(collector, options, &Named::default())
 }
 
+/// The paths of drop-in `patterns` as systemd reads a conf directory set: per file name the earliest glob’s match, by name, then each literal pattern’s matches in listed order.
+fn drop_in<E>(
+    id: &str,
+    patterns: &[String],
+    mut glob: impl FnMut(&String) -> Result<Vec<String>, E>,
+) -> Result<Vec<String>, E> {
+    let (mut chosen, mut literal) = (BTreeMap::<String, String>::new(), Vec::new());
+    for pattern in patterns {
+        let matches = glob(pattern)?;
+        if !pattern.contains(['*', '?', '[']) {
+            literal.extend(matches);
+            continue;
+        }
+        for path in matches {
+            let name = path.rsplit('/').next().unwrap_or(&path).to_owned();
+            match chosen.get(&name) {
+                Some(kept) => log::debug!("collector {id}: {path} hidden by {kept}"),
+                None => drop(chosen.insert(name, path)),
+            }
+        }
+    }
+    Ok(chosen.into_values().chain(literal).collect())
+}
+
+/// Leaves the command alone when it exited 0, else the files alone, for `read.prefer: exec`.
+fn prefer_exec(id: &str, inputs: &mut Vec<Input>) {
+    let ran = inputs
+        .iter()
+        .any(|i| matches!(i, Input::Exec(e) if e.exit == 0));
+    for input in inputs.iter() {
+        match input {
+            Input::Exec(e) if e.exit == 127 => {
+                log::debug!("collector {id}: {} is absent, the files answer", e.argv[0])
+            }
+            Input::Exec(e) if e.exit != 0 => log::warn!(
+                "collector {id}: {} exited {}, the files answer: {}",
+                e.argv[0],
+                e.exit,
+                e.stderr.trim()
+            ),
+            _ => {}
+        }
+    }
+    log::debug!("collector {id}: the command answers alone: {ran}");
+    inputs.retain(|i| matches!(i, Input::Exec(_)) == ran);
+}
+
 /// Like [`inputs`], adding the `named` paths, taken literally, never as globs.
 pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<Vec<Input>, String> {
     read_partial(collector, options, named)
@@ -710,14 +757,21 @@ pub fn read_partial(
                 Ok(all)
             })
     };
-    let reads: BTreeSet<String> = globbed(&collector.read.files)?
-        .into_iter()
-        .chain(expanded(&named.files)?)
-        .collect();
-    for path in reads {
-        match root.read(&path, OUTPUT_CAP) {
+    let reads: Vec<String> = match collector.read.order {
+        Order::Path => globbed(&collector.read.files)?
+            .into_iter()
+            .chain(expanded(&named.files)?)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect(),
+        Order::DropIn => drop_in(&collector.id, &collector.read.files, |p| {
+            globbed(std::slice::from_ref(p))
+        })?,
+    };
+    for path in &reads {
+        match root.read(path, OUTPUT_CAP) {
             Ok(bytes) => {
-                let entry = files.entry(path.clone()).or_insert_with(|| blank(&path));
+                let entry = files.entry(path.clone()).or_insert_with(|| blank(path));
                 match String::from_utf8(bytes) {
                     Ok(text) => entry.content = Some(text),
                     Err(e) => entry.content_base64 = Some(base64(e.as_bytes())),
@@ -729,9 +783,9 @@ pub fn read_partial(
                 collector.id
             ),
             Err(e) if collector.partial && e.kind() == io::ErrorKind::PermissionDenied => {
-                refuse(&path, &e)
+                refuse(path, &e)
             }
-            Err(e) => return Err(Failure::of("read", &path, e)),
+            Err(e) => return Err(Failure::of("read", path, e)),
         }
     }
     let stats: BTreeSet<String> = globbed(&collector.read.stat)?
@@ -857,7 +911,12 @@ pub fn read_partial(
             },
         );
     }
-    let mut inputs: Vec<Input> = files.into_values().map(Input::File).collect();
+    let mut ordered: Vec<FileInput> = match collector.read.order {
+        Order::Path => Vec::new(),
+        Order::DropIn => reads.iter().filter_map(|p| files.remove(p)).collect(),
+    };
+    ordered.extend(files.into_values());
+    let mut inputs: Vec<Input> = ordered.into_iter().map(Input::File).collect();
     match &collector.read.exec {
         Some(argv) if !options.live => log::debug!(
             "collector {}: {} not run under --root",
@@ -897,6 +956,9 @@ pub fn read_partial(
             }));
         }
         None => {}
+    }
+    if collector.read.prefer == Some(Prefer::Exec) {
+        prefer_exec(&collector.id, &mut inputs);
     }
     if let Some(proxies) = options.network.as_ref().filter(|_| collector.network) {
         let settings = crate::net::Settings {

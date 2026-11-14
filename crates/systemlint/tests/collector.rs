@@ -77,6 +77,27 @@ fn invalid_collectors_are_refused_with_the_reason() {
             "PATH is never searched",
         ),
         (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "stat: [/etc/os-release]\n  order: drop-in",
+            ),
+            "read.order drop-in orders files",
+        ),
+        (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "files: [/etc/os-release]\n  prefer: exec",
+            ),
+            "give both read.exec and read.files",
+        ),
+        (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "exec: [/bin/true]\n  prefer: exec",
+            ),
+            "give both read.exec and read.files",
+        ),
+        (
             GOOD.replace("into: os.release", "into: meta.x"),
             "reserved meta",
         ),

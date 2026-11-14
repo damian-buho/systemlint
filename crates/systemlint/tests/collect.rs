@@ -9,8 +9,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 use systemlint::collect::{
-    HashKey, Named, Options, REDACTED, SCHEMA, base64, collect, collect_reporting, read_partial,
-    rfc3339,
+    HashKey, Named, Options, REDACTED, SCHEMA, base64, collect, collect_reporting, inputs,
+    read_partial, rfc3339,
 };
 use systemlint::collector::Collector;
 use systemlint::discovery::Plugin;
@@ -281,6 +281,40 @@ fn reply_lands_under_into_with_diagnostics_redaction_and_meta() {
         (Some(1), Some("parse"), Some("2026-11-11T12:00:00Z"))
     );
     assert_eq!(sent["root"], meta["subject"]["path"]);
+}
+
+#[test]
+fn prefer_exec_takes_the_command_when_it_exits_0_else_the_files() {
+    let commands = |argv: &str, live: bool| {
+        let c = collector(&format!(
+            "id: p\nread: {{files: [/etc/os-release], exec: {argv}, prefer: exec}}\nparse: {{plugin: formats, op: kv}}\ninto: p\n"
+        ));
+        inputs(&c, &options(live))
+            .unwrap()
+            .iter()
+            .map(|i| matches!(i, systemlint_protocol::Input::Exec(_)))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        commands("[/bin/true]", true),
+        [true],
+        "exit 0 answers alone"
+    );
+    assert_eq!(
+        commands("[/bin/false]", true),
+        [false],
+        "exit 1 leaves the files"
+    );
+    assert_eq!(
+        commands("[/nonexistent/x]", true),
+        [false],
+        "absent leaves the files"
+    );
+    assert_eq!(
+        commands("[/bin/true]", false),
+        [false],
+        "--root never runs it"
+    );
 }
 
 #[test]

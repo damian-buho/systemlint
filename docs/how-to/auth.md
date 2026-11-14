@@ -20,7 +20,7 @@ systemlint check --root /mnt/image --tags auth
 
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
-| `auth-login-defs` | `/etc/login.defs` | `login-defs` | `auth.login-defs.<NAME>` |
+| `auth-login-defs` | `/etc/login.defs` | `kv` | `auth.login-defs.<NAME>` |
 | `auth-pam` | `/etc/pam.d/*` | `pam` | `auth.pam.<path>` |
 | `auth-limits` | `/etc/security/limits.conf`, `limits.d/*.conf` | `words` | `auth.limits.<path>` |
 | `auth-pwquality` | `/etc/security/pwquality.conf`, `pwquality.conf.d/*.conf` | `ini` | `auth.pwquality.<path>` |
@@ -38,10 +38,11 @@ auth:
       - {domain: "*", type: hard, item: core, value: 0, line: 52}
 ```
 
-- `login-defs` reads `NAME value` lines as shadow does: the last line naming
-  a key wins, and surrounding double quotes are dropped. Every value stays a
-  string, written as in the file, since shadow reads numbers in C notation
-  (`022` is octal).
+- `auth-login-defs` reads `NAME value` lines as shadow does, through `kv`
+  with `separator: whitespace` and `repeat: last`: the last line naming a key wins,
+  and surrounding double quotes are dropped. A bare decimal number becomes a
+  number (`PASS_MAX_DAYS 99999`); one with a leading zero stays text as
+  written, since shadow reads numbers in C notation (`022` is octal).
 - `pam` keeps each file’s entries in order and does not follow `@include`, so
   a finding names the file that holds the line. `module` is the module’s file
   name with any directory dropped; a leading `-` on the type sets `silent`; a

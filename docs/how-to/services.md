@@ -15,7 +15,7 @@ reads the Docker or kernel module facts yet.
 
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
-| `sysctl` | `/usr/sbin/sysctl -a` on a live host, else `/etc/sysctl.conf` and the `sysctl.d` directories | `sysctl` | `sysctl` |
+| `sysctl` | `/usr/sbin/sysctl -a` on a live host, else the `sysctl.d` directories and `/etc/sysctl.conf` | `kv` | `sysctl.settings` |
 | `kernel-modules-shipped` | `modules.order` of every kernel in `/lib/modules` | `match` | `kernel.shipped.<module>` |
 | `kernel-modules-builtin` | `modules.builtin` of every kernel in `/lib/modules` | `match` | `kernel.builtin.<module>` |
 | `kernel-modules-blacklist` | `/usr/sbin/modprobe --showconfig` on a live host | `words` | `kernel.blacklist.<module>` |
@@ -31,9 +31,9 @@ reads the Docker or kernel module facts yet.
 
 ## sysctl
 
-`sysctl.source` is `effective` when `sysctl -a` ran and exited 0, `files`
-when the configuration was read instead (under `--root`, or with no
-`sysctl` binary), or `none`. `sysctl.settings` nests each key by its dots, so
+`sysctl.settings` holds what `sysctl -a` printed when it ran and exited 0
+(`read.prefer: exec`), else the configuration (under `--root`, or with no
+`sysctl` binary or a failing one). It nests each key by its dots, so
 `net.ipv4.ip_forward` is the fact `sysctl.settings.net.ipv4.ip_forward`, and a
 rule can bind every interface with `sysctl.settings.net.ipv4.conf.*.rp_filter`.
 An interface name holding a dot shows it as `/` (`eth0/100`), as `sysctl`
@@ -44,7 +44,7 @@ an unprivileged run cannot read some keys (`kernel.cad_pid`, the
 `stable_secret` of each interface), and a rule on one of them answers
 `unknown`.
 
-The files are applied as systemd-sysctl applies them: one file per name, from
+The files are applied as systemd-sysctl applies them (`read.order: drop-in`): one file per name, from
 the highest of `/etc/sysctl.d`, `/run/sysctl.d`, `/usr/local/lib/sysctl.d`,
 `/usr/lib/sysctl.d` and `/lib/sysctl.d`, in name order, then
 `/etc/sysctl.conf`; a later setting wins. A key written with `/` separators

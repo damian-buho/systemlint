@@ -9,7 +9,7 @@ rules:
   login-defs/umask:
     title: The login umask leaves new files open to other users
     fact: auth.login-defs
-    expect: {required: [UMASK], properties: {UMASK: {pattern: "^0[0-7]?[2367]7$"}}}
+    expect: {required: [UMASK], properties: {UMASK: {type: string, pattern: "^0[0-7]?[2367]7$"}}}
     severity: warning
     score: 4.0
     message: "UMASK in /etc/login.defs is unset (022) or keeps group write or any other-user bit open, so every user’s new files are readable, or writable, by users who should not see them"

@@ -36,7 +36,7 @@ fn scored(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome, Opti
 
 // A facts document holding the given sysctl settings, nested by their dots.
 fn sysctl(settings: Value) -> Value {
-    json!({"sysctl": {"source": "effective", "settings": settings}, "collectors": {"sysctl": {"status": "ok", "into": "sysctl"}}})
+    json!({"sysctl": {"settings": settings}, "collectors": {"sysctl": {"status": "ok", "into": "sysctl.settings"}}})
 }
 
 // The settings object for one dotted key.
@@ -1159,7 +1159,7 @@ fn the_tls_rules_do_not_apply_without_a_probe_and_are_unknown_offline() {
             .collect::<Vec<_>>()
     };
     assert_eq!(
-        outcomes(json!({"collectors": {"sysctl": {"status": "ok", "into": "sysctl"}}})),
+        outcomes(json!({"collectors": {"sysctl": {"status": "ok", "into": "sysctl.settings"}}})),
         [Outcome::NotApplicable; 3],
         "a host with no network collector has nothing to judge"
     );
@@ -1227,7 +1227,7 @@ fn the_resolv_rules_do_not_apply_without_their_collector_and_are_unknown_offline
             .collect::<Vec<_>>()
     };
     assert_eq!(
-        outcomes(json!({"collectors": {"sysctl": {"status": "ok", "into": "sysctl"}}})),
+        outcomes(json!({"collectors": {"sysctl": {"status": "ok", "into": "sysctl.settings"}}})),
         [Outcome::NotApplicable; 2]
     );
     assert_eq!(
@@ -1279,7 +1279,12 @@ fn the_login_umask_passes_from_027_and_fails_at_022_or_unset() {
         assert_eq!(umask(json!({"UMASK": loose})), [Outcome::Fail], "{loose}");
     }
     assert_eq!(
-        umask(json!({"PASS_MAX_DAYS": "99999"})),
+        umask(json!({"UMASK": 27})),
+        [Outcome::Fail],
+        "a bare 27 is typed a number"
+    );
+    assert_eq!(
+        umask(json!({"PASS_MAX_DAYS": 99999})),
         [Outcome::Fail],
         "unset is 022"
     );

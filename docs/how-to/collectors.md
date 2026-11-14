@@ -44,10 +44,12 @@ into: apt.sources
 | `read.dns-server` | the IP, or `IP:port`, every query goes to [default: the `nameserver` lines of this host’s `/etc/resolv.conf`] |
 | `read.dns-server-from` | dotted fact paths, `*` a whole segment, `N` a list’s item and `:N` its first N, whose strings name servers, IPv6 `%zone` dropped; each server is asked the `read.dns` names on its own, as a `nameserver` probe, instead of resolving them; never beside `dns-server` |
 | `read.http` | URLs the core sends one GET to, or maps `{url, username, password-file, ca-file, body: json}` |
+| `read.order` | the order `files` reach the plugin: `path` [default], or `drop-in`, as systemd reads a conf directory set: per filename the match of the earliest glob in `files` hides the others, in name order, then each path with no wildcard in listed order |
+| `read.prefer` | `exec`: the command alone when it exited 0, else the files alone (under `--root`, with the program absent or failing); needs both `exec` and `files` |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
-| `parse.with` | the typed options of a family op (`words`, `match`), passed in the request’s `with`; see [Family ops](#family-ops) |
+| `parse.with` | the typed options of a family op (`kv`, `words`, `match`), passed in the request’s `with`; see [Family ops](#family-ops) |
 | `into` | the dotted fact path the reply’s facts are placed at; never under `meta` or `collectors`, never overlapping another collector’s |
 
 `files`, `stat` and `exec` sit side by side under `read`; a collector uses
@@ -362,6 +364,36 @@ parse:
   op: words
   with: {separator: ":", columns: [name, null, gid, members], lists: [members], key: name}
 into: accounts.group
+```
+
+`op: kv` reads one key and its value per line, every input into one object.
+A quoted value is unquoted as a shell would and stays text; a bare one is
+typed.
+
+| Option | Meaning |
+| --- | --- |
+| `separator` | the string between key and value, blanks around it trimmed, or `whitespace` for the first run of blanks, a key alone then holding `""` [default: `=`] |
+| `comments` | the markers that open a comment line [default: `["#"]`] |
+| `repeat` | for a key seen again, in input order: `first` [default], `last`, or `list` keeping every value |
+| `nest` | the character that nests a key (`.` puts `net.ipv4.ip_forward` at `net` → `ipv4` → `ip_forward`) |
+| `swap` | a character exchanged with `nest` in a key where it comes first, as sysctl.d(5) writes `net/ipv4/conf/eth0.100/rp_filter`; needs `nest` |
+| `strip` | characters dropped from a key’s start, such as sysctl.d’s `-` |
+
+Kernel parameters from `sysctl -a`, or from the sysctl.d files in
+systemd-sysctl’s order when it cannot run:
+
+```yaml
+id: sysctl
+read:
+  files: [/etc/sysctl.d/*.conf, /run/sysctl.d/*.conf, /usr/local/lib/sysctl.d/*.conf, /usr/lib/sysctl.d/*.conf, /lib/sysctl.d/*.conf, /etc/sysctl.conf]
+  order: drop-in
+  exec: [/usr/sbin/sysctl, -a]
+  prefer: exec
+parse:
+  plugin: formats
+  op: kv
+  with: {comments: ["#", ";"], repeat: last, nest: ".", swap: /, strip: "-"}
+into: sysctl.settings
 ```
 
 `op: match` is for the one line shape no family covers, such as a module’s

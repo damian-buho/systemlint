@@ -79,6 +79,29 @@ pub struct Read {
     pub dns_server_from: Vec<String>,
     #[serde(default)]
     pub http: Vec<Http>,
+    #[serde(default)]
+    pub order: Order,
+    #[serde(default)]
+    pub prefer: Option<Prefer>,
+}
+
+/// The order `read.files` reach the plugin in.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Order {
+    /// Sorted by path.
+    #[default]
+    Path,
+    /// As systemd reads a conf directory set: per file name the earliest glob’s match, by name, then each literal path in listed order.
+    DropIn,
+}
+
+/// Which source answers when a collector reads both files and a command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Prefer {
+    /// The command’s stdout when it exited 0, else the files.
+    Exec,
 }
 
 /// The record types a `dns` probe asks for unless `dns-types` names others.
@@ -283,6 +306,12 @@ impl Collector {
             }
             crate::judge::schema(keep)
                 .map_err(|e| format!("read.stat-keep is no valid schema: {e}"))?;
+        }
+        if self.read.order == Order::DropIn && self.read.files.is_empty() {
+            return Err("read.order drop-in orders files; list them under read.files".to_owned());
+        }
+        if self.read.prefer.is_some() && (self.read.exec.is_none() || self.read.files.is_empty()) {
+            return Err("read.prefer exec chooses between a command and files; give both read.exec and read.files".to_owned());
         }
         match self.read.exec.as_deref() {
             Some([]) => return Err("read.exec is empty; give an argv list".to_owned()),

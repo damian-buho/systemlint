@@ -63,11 +63,10 @@ fn facts(id: &str) -> Value {
 
 #[test]
 fn sysctl_under_root_applies_the_files_in_systemd_order() {
-    let sysctl = facts("sysctl");
-    assert_eq!(sysctl["source"], "files");
     assert_eq!(
-        sysctl["settings"],
-        json!({"kernel": {"kptr_restrict": 1}, "net": {"ipv4": {"ip_forward": 1}}})
+        facts("sysctl"),
+        json!({"kernel": {"kptr_restrict": 1}, "net": {"ipv4": {"ip_forward": 1}}}),
+        "/etc/sysctl.d/60-docker.conf hides /usr/lib’s and applies after 50-default.conf"
     );
 }
 

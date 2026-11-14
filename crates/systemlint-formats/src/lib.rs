@@ -7,23 +7,16 @@
 use std::collections::BTreeMap;
 
 mod auth;
+mod kv;
 mod words;
-pub use auth::{login_defs, pam};
+pub use auth::pam;
+pub use kv::kv;
 pub use words::words;
 
 use serde_json::{Map, Value};
 use systemlint_protocol::{
     Describe, Diagnostic, FileInput, FileKind, Input, Reply, Request, Result,
 };
-
-/// The sysctl.d directories systemd-sysctl reads, highest precedence first; `/etc/sysctl.conf` applies after them all.
-pub const SYSCTL_DIRS: [&str; 5] = [
-    "/etc/sysctl.d",
-    "/run/sysctl.d",
-    "/usr/local/lib/sysctl.d",
-    "/usr/lib/sysctl.d",
-    "/lib/sysctl.d",
-];
 
 /// The unit directories systemd reads, highest precedence first.
 pub const UNIT_DIRS: [&str; 8] = [
@@ -66,7 +59,6 @@ pub fn describe() -> Describe {
             ("json", &[]),
             ("kv", &[]),
             ("lines", &[]),
-            ("login-defs", &[]),
             ("match", &[]),
             ("pam", &[]),
             ("passwd", &[]),
@@ -74,7 +66,6 @@ pub fn describe() -> Describe {
             ("shadow", &[]),
             ("stat", &[]),
             ("statfs", &[]),
-            ("sysctl", &[]),
             ("systemd", &[]),
             ("toml", &[]),
             ("words", &[]),
@@ -96,9 +87,8 @@ pub fn op(request: Request) -> Result<Reply> {
         "exec" => Ok(exec(&request.inputs)),
         "ini" => Ok(ini(&request.inputs)),
         "json" => Ok(json(&request.inputs)),
-        "kv" => Ok(kv(&request.inputs)),
+        "kv" => kv(&request.inputs, &request.with),
         "lines" => Ok(lines(&request.inputs)),
-        "login-defs" => Ok(login_defs(&request.inputs)),
         "match" => r#match(&request.inputs, &request.with),
         "pam" => Ok(pam(&request.inputs)),
         "passwd" => Ok(passwd(&request.inputs)),
@@ -106,7 +96,6 @@ pub fn op(request: Request) -> Result<Reply> {
         "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
         "statfs" => Ok(statfs(&request.inputs)),
-        "sysctl" => Ok(sysctl(&request.inputs)),
         "systemd" => Ok(systemd(&request.inputs)),
         "toml" => Ok(toml(&request.inputs)),
         "words" => words(&request.inputs, &request.with),
@@ -121,7 +110,7 @@ const TEXT_OPS: [&str; 9] = [
 ];
 
 /// The family ops that take typed options under `with`.
-const WITH_OPS: [&str; 2] = ["match", "words"];
+const WITH_OPS: [&str; 3] = ["kv", "match", "words"];
 
 /// The typed options of `op` from `with`, or an error naming what is wrong.
 pub fn options<T: serde::de::DeserializeOwned>(op: &str, with: &Map<String, Value>) -> Result<T> {
@@ -209,49 +198,6 @@ pub fn r#match(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
         }
     }
     Ok(reply)
-}
-
-/// Every `key=value` line of every input in one object, the first input holding a key winning; values unquoted as a shell would.
-pub fn kv(inputs: &[Input]) -> Reply {
-    let mut reply = Reply::default();
-    for input in inputs {
-        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
-            continue;
-        };
-        let mut diagnose = |line: Option<u64>, message: String| {
-            reply.diagnostics.push(Diagnostic {
-                path: path.to_owned(),
-                line,
-                message,
-            })
-        };
-        for (index, line) in text.lines().enumerate() {
-            let number = Some(index as u64 + 1);
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let Some((key, value)) = line.split_once('=') else {
-                diagnose(number, format!("no = in {line:?}"));
-                continue;
-            };
-            let key = key.trim();
-            if key.is_empty() {
-                diagnose(number, "a value with no key".to_owned());
-                continue;
-            }
-            match unquote(value.trim()) {
-                Ok(value) => {
-                    reply
-                        .facts
-                        .entry(key.to_owned())
-                        .or_insert(Value::from(value));
-                }
-                Err(message) => diagnose(number, format!("{key}: {message}")),
-            }
-        }
-    }
-    reply
 }
 
 /// Every input’s filesystem use keyed by its path: `blocks` and `inodes` used in whole percent rounded up as df(1) does, each left out when the filesystem counts none, and `read-only`.
@@ -793,137 +739,14 @@ fn kind(value: &Value) -> &'static str {
     }
 }
 
-/// Kernel parameters nested by their dotted keys: from `sysctl -a` when it exited 0, else from the sysctl.d files in systemd-sysctl’s order.
-pub fn sysctl(inputs: &[Input]) -> Reply {
-    let mut reply = Reply::default();
-    let mut flat = BTreeMap::new();
-    let effective = inputs.iter().find_map(|i| match i {
-        Input::Exec(e) if e.exit == 0 => Some(e),
-        Input::Exec(e) if e.exit != 127 => {
-            reply.diagnostics.push(Diagnostic {
-                path: e.argv.join(" "),
-                line: None,
-                message: format!(
-                    "exited {}, read from the files: {}",
-                    e.exit,
-                    e.stderr.trim()
-                ),
-            });
-            None
-        }
-        _ => None,
-    });
-    let source = if let Some(exec) = effective {
-        for line in exec.stdout.lines().filter(|l| !l.trim().is_empty()) {
-            match line.split_once(" = ") {
-                Some((key, value)) => {
-                    drop(flat.insert(key.trim().to_owned(), value.trim().to_owned()))
-                }
-                None => reply.diagnostics.push(Diagnostic {
-                    path: exec.argv.join(" "),
-                    line: None,
-                    message: format!("no “key = value” in {line:?}"),
-                }),
-            }
-        }
-        "effective"
-    } else {
-        let files: Vec<(&str, &str)> = inputs
-            .iter()
-            .filter(|i| matches!(i, Input::File(_)))
-            .filter_map(|i| text(i, &mut reply.diagnostics))
-            .collect();
-        for (path, text) in sysctl_order(&files) {
-            for (index, line) in text.lines().enumerate() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with(['#', ';']) {
-                    continue;
-                }
-                match line.trim_start_matches('-').split_once('=') {
-                    Some((key, value)) if !key.trim().is_empty() => {
-                        drop(flat.insert(sysctl_key(key.trim()), value.trim().to_owned()))
-                    }
-                    _ => reply.diagnostics.push(Diagnostic {
-                        path: path.to_owned(),
-                        line: Some(index as u64 + 1),
-                        message: format!("no key = value in {line:?}"),
-                    }),
-                }
-            }
-        }
-        if files.is_empty() { "none" } else { "files" }
-    };
-    let mut settings = Map::new();
-    for (key, value) in flat {
-        let value = value
-            .parse::<i64>()
-            .map_or_else(|_| Value::from(value.clone()), Value::from);
-        if let Err(message) = nest(&mut settings, &key, value) {
-            reply.diagnostics.push(Diagnostic {
-                path: key,
-                line: None,
-                message,
-            });
-        }
-    }
-    reply.facts.insert("source".to_owned(), Value::from(source));
-    reply
-        .facts
-        .insert("settings".to_owned(), Value::Object(settings));
-    reply
-}
-
-/// The sysctl files in the order systemd-sysctl applies them: one file per name from the highest directory, by name, `/etc/sysctl.conf` last.
-pub fn sysctl_order<'a>(files: &[(&'a str, &'a str)]) -> Vec<(&'a str, &'a str)> {
-    let conf = files
-        .iter()
-        .find(|(p, _)| *p == "/etc/sysctl.conf")
-        .copied();
-    conf_order(&SYSCTL_DIRS, files)
-        .into_iter()
-        .chain(conf)
-        .collect()
-}
-
-/// The files of a drop-in directory set as systemd and kmod read them: one per name from the highest of `dirs`, by name; a file outside `dirs` is left out.
-pub fn conf_order<'a>(dirs: &[&str], files: &[(&'a str, &'a str)]) -> Vec<(&'a str, &'a str)> {
-    let mut chosen: BTreeMap<&str, (usize, &str, &str)> = BTreeMap::new();
-    for (path, text) in files {
-        let Some((dir, name)) = path.rsplit_once('/') else {
-            continue;
-        };
-        let Some(rank) = dirs.iter().position(|d| *d == dir) else {
-            continue;
-        };
-        if chosen.get(name).is_none_or(|(r, _, _)| rank < *r) {
-            chosen.insert(name, (rank, path, text));
-        }
-    }
-    chosen.into_values().map(|(_, p, t)| (p, t)).collect()
-}
-
-/// A sysctl key with `.` separators, swapping `/` and `.` when `/` comes first as systemd does.
-pub fn sysctl_key(key: &str) -> String {
-    match key.find(['.', '/']) {
-        Some(i) if key.as_bytes()[i] == b'/' => key
-            .chars()
-            .map(|c| match c {
-                '/' => '.',
-                '.' => '/',
-                c => c,
-            })
-            .collect(),
-        _ => key.to_owned(),
-    }
-}
-
-/// Places `value` at the dotted `key` in `map`, refusing a key that crosses a value.
+/// Places `value` at `key` split on `separator` in `map`, refusing a key that crosses a value.
 pub fn nest(
     map: &mut Map<String, Value>,
     key: &str,
+    separator: char,
     value: Value,
 ) -> std::result::Result<(), String> {
-    let segments: Vec<&str> = key.split('.').collect();
+    let segments: Vec<&str> = key.split(separator).collect();
     let (last, parents) = segments.split_last().ok_or("empty key")?;
     let mut at = map;
     for segment in parents {
@@ -1203,25 +1026,8 @@ mod tests {
                 .map(|o| o.op.as_str())
                 .collect::<Vec<_>>(),
             [
-                "csv",
-                "exec",
-                "ini",
-                "json",
-                "kv",
-                "lines",
-                "login-defs",
-                "match",
-                "pam",
-                "passwd",
-                "probes",
-                "shadow",
-                "stat",
-                "statfs",
-                "sysctl",
-                "systemd",
-                "toml",
-                "words",
-                "yaml"
+                "csv", "exec", "ini", "json", "kv", "lines", "match", "pam", "passwd", "probes",
+                "shadow", "stat", "statfs", "systemd", "toml", "words", "yaml"
             ]
         );
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));
@@ -1229,10 +1035,14 @@ mod tests {
 
     #[test]
     fn kv_reads_the_fixture_os_release() {
-        let reply = kv(&[file(
-            "/usr/lib/os-release",
-            include_str!("../../../fixtures/ubuntu-26.04/usr/lib/os-release"),
-        )]);
+        let reply = kv(
+            &[file(
+                "/usr/lib/os-release",
+                include_str!("../../../fixtures/ubuntu-26.04/usr/lib/os-release"),
+            )],
+            &Map::new(),
+        )
+        .unwrap();
         assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
         assert_eq!(reply.facts["VERSION_CODENAME"], "resolute");
         assert_eq!(reply.facts["PRETTY_NAME"], "Ubuntu 26.04.1 LTS");
@@ -1247,7 +1057,7 @@ mod tests {
             stderr: String::new(),
             exit: 0,
         });
-        let reply = kv(&[file("/etc/a", "A=file\n"), exec]);
+        let reply = kv(&[file("/etc/a", "A=file\n"), exec], &Map::new()).unwrap();
         assert_eq!(
             (reply.facts["A"].as_str(), reply.facts["B"].as_str()),
             (Some("file"), Some("exec"))
@@ -1256,10 +1066,14 @@ mod tests {
 
     #[test]
     fn kv_names_each_bad_line() {
-        let reply = kv(&[file(
-            "/etc/x",
-            "# comment\n\nGOOD = spaced \nno equals\n=orphan\nOPEN=\"half\n",
-        )]);
+        let reply = kv(
+            &[file(
+                "/etc/x",
+                "# comment\n\nGOOD = spaced \nno equals\n=orphan\nOPEN=\"half\n",
+            )],
+            &Map::new(),
+        )
+        .unwrap();
         assert_eq!(reply.facts["GOOD"], "spaced");
         let lines: Vec<_> = reply
             .diagnostics
@@ -1291,7 +1105,7 @@ mod tests {
             statfs: None,
             absent: false,
         });
-        let reply = kv(&[input]);
+        let reply = kv(&[input], &Map::new()).unwrap();
         assert!(reply.facts.is_empty());
         assert_eq!(reply.diagnostics[0].line, None);
     }
@@ -1788,98 +1602,6 @@ mod tests {
             [("/c", None), ("/d", Some(2))]
         );
         assert!(reply.diagnostics[0].message.contains("list"));
-    }
-
-    #[test]
-    fn sysctl_takes_sysctl_a_when_it_ran() {
-        let files = file("/etc/sysctl.d/10-x.conf", "kernel.kptr_restrict = 0\n");
-        let reply = sysctl(&[
-            files.clone(),
-            exec(
-                "/usr/sbin/sysctl -a",
-                "kernel.kptr_restrict = 2\nnet.ipv4.conf.eth0/100.rp_filter = 1\nnet.ipv4.ip_local_port_range = 32768\t60999\n",
-                0,
-            ),
-        ]);
-        assert_eq!(reply.facts["source"], "effective");
-        let settings = &reply.facts["settings"];
-        assert_eq!(settings["kernel"]["kptr_restrict"], 2);
-        assert_eq!(settings["net"]["ipv4"]["conf"]["eth0/100"]["rp_filter"], 1);
-        assert_eq!(
-            settings["net"]["ipv4"]["ip_local_port_range"],
-            "32768\t60999"
-        );
-        assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
-        let absent = sysctl(&[files.clone(), exec("/usr/sbin/sysctl -a", "", 127)]);
-        assert_eq!(
-            (
-                absent.facts["source"].as_str(),
-                absent.facts["settings"]["kernel"]["kptr_restrict"].as_i64()
-            ),
-            (Some("files"), Some(0))
-        );
-        assert!(absent.diagnostics.is_empty());
-        let failed = sysctl(&[exec("/usr/sbin/sysctl -a", "", 1)]);
-        assert_eq!(failed.facts["source"], "none");
-        assert!(
-            failed.diagnostics[0]
-                .message
-                .contains("exited 1, read from the files: denied"),
-            "{:?}",
-            failed.diagnostics
-        );
-    }
-
-    #[test]
-    fn sysctl_files_follow_systemd_order() {
-        let reply = sysctl(&[
-            file("/etc/sysctl.conf", "kernel.c = conf\n"),
-            file("/etc/sysctl.d/50-same.conf", "kernel.a = etc\n"),
-            file(
-                "/usr/lib/sysctl.d/50-same.conf",
-                "kernel.a = usr\nkernel.b = usr\n",
-            ),
-            file(
-                "/usr/lib/sysctl.d/10-early.conf",
-                "kernel.b = early\nkernel/c = early\n-net/ipv4/conf/eth0.100/rp_filter=2\n; c\nbad line\n",
-            ),
-            file("/usr/lib/sysctl.d/99-late.conf", "kernel.a.deeper = 1\n"),
-            file("/opt/sysctl.d/00-ignored.conf", "kernel.a = ignored\n"),
-        ]);
-        let settings = &reply.facts["settings"];
-        assert_eq!(
-            (
-                settings["kernel"]["a"].as_str(),
-                settings["kernel"]["b"].as_str(),
-                settings["kernel"]["c"].as_str()
-            ),
-            (Some("etc"), Some("early"), Some("conf"))
-        );
-        assert_eq!(settings["net"]["ipv4"]["conf"]["eth0/100"]["rp_filter"], 2);
-        assert_eq!(
-            reply
-                .diagnostics
-                .iter()
-                .map(|d| (d.path.as_str(), d.line))
-                .collect::<Vec<_>>(),
-            [
-                ("/usr/lib/sysctl.d/10-early.conf", Some(5)),
-                ("kernel.a.deeper", None)
-            ]
-        );
-    }
-
-    #[test]
-    fn sysctl_keys_swap_only_when_a_slash_comes_first() {
-        assert_eq!(
-            sysctl_key("net/ipv4/conf/eth0.100/rp_filter"),
-            "net.ipv4.conf.eth0/100.rp_filter"
-        );
-        assert_eq!(
-            sysctl_key("net.ipv4.conf.eth0/100.rp_filter"),
-            "net.ipv4.conf.eth0/100.rp_filter"
-        );
-        assert_eq!(sysctl_key("kernel"), "kernel");
     }
 
     #[test]

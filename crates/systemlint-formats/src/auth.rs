@@ -18,30 +18,6 @@ fn note(reply: &mut Reply, path: &str, line: usize, message: String) {
     });
 }
 
-/// Every `NAME value` line of login.defs as shadow’s getdef reads it: the last line naming a key wins, surrounding double quotes dropped.
-pub fn login_defs(inputs: &[Input]) -> Reply {
-    let mut reply = Reply::default();
-    for (_, content) in inputs
-        .iter()
-        .filter_map(|i| text(i, &mut reply.diagnostics))
-    {
-        for line in content.lines() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let (name, value) = line.split_once(char::is_whitespace).unwrap_or((line, ""));
-            let value = value.trim();
-            let value = value
-                .strip_prefix('"')
-                .and_then(|v| v.strip_suffix('"'))
-                .unwrap_or(value);
-            reply.facts.insert(name.to_owned(), Value::from(value));
-        }
-    }
-    reply
-}
-
 /// The next PAM token: a `[…]` group kept whole with its brackets and `\]` unescaped, else a run of non-blanks.
 fn token(rest: &mut &str) -> Option<String> {
     *rest = rest.trim_start();
@@ -161,18 +137,6 @@ mod tests {
             statfs: None,
             absent: false,
         })
-    }
-
-    #[test]
-    fn login_defs_keeps_the_last_value_of_a_key_without_its_quotes() {
-        let reply = login_defs(&[file(
-            "/etc/login.defs",
-            "# comment\nUMASK\t\t022\nPASS_MAX_DAYS 99999\nUMASK 027\nENV_PATH \"PATH=/bin\"\nLOG_OK_LOGINS\n",
-        )]);
-        assert_eq!(
-            object(reply.facts),
-            json!({"UMASK": "027", "PASS_MAX_DAYS": "99999", "ENV_PATH": "PATH=/bin", "LOG_OK_LOGINS": ""})
-        );
     }
 
     #[test]
