@@ -20,14 +20,14 @@ systemlint check --root /mnt/image --tags accounts
 
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
-| `accounts-passwd` | `/etc/passwd` | `passwd` | `accounts.passwd.<name>` |
+| `accounts-passwd` | `/etc/passwd`, `/etc/shells` | `passwd` with `shells: /etc/shells` | `accounts.passwd.<name>` |
 | `accounts-group` | `/etc/group` | `words` on `:`, the password field dropped | `accounts.group.<name>` |
 | `accounts-shadow` | `/etc/shadow`, root only | `shadow` | `accounts.shadow.<name>` |
 
 ```yaml
 accounts:
   passwd:
-    root: {password: shadow, uid: 0, gid: 0, gecos: root, home: /root, shell: /bin/bash, line: 1, shadowed: []}
+    root: {password: shadow, uid: 0, gid: 0, gecos: root, home: /root, shell: /bin/bash, login-shell: true, line: 1, shadowed: []}
   group:
     sudo: {gid: 27, members: [alice], path: /etc/group, line: 28, shadowed: []}
   shadow:
@@ -41,6 +41,9 @@ accounts:
   `/etc/shadow`, `empty`, `locked` for a leading `!` or `*`, else `hash`. A
   group carries no `password`: `accounts-group` drops the field, whose hash
   belongs in `/etc/gshadow`.
+- `login-shell` is true when the shell is empty or listed in `/etc/shells`,
+  as getusershell(3) reads it, and without that file only for `/bin/sh` and
+  `/bin/csh`; the `sshd` collector runs for these accounts and root.
 - Empty lines and lines starting with `#` are skipped. A line with the wrong
   number of fields, or a uid that is not a number, is left out with a
   diagnostic naming its line; a group’s `gid` is a number when it is written

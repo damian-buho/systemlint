@@ -18,7 +18,7 @@ sudo systemlint check --tags ssh
 
 | Collector | Runs | Facts at |
 | --- | --- | --- |
-| `sshd` | `/usr/sbin/sshd -T`, then `/usr/sbin/sshd -T -C user=<account>,host=client.invalid,addr=192.0.2.1` for root and every account whose shell is not `nologin` or `false` | `sshd` |
+| `sshd` | `/usr/sbin/sshd -T`, then `/usr/sbin/sshd -T -C user=<account>,host=client.invalid,addr=192.0.2.1` for root and every account whose `login-shell` is true (see [accounts](accounts.md)) | `sshd` |
 
 `sshd -T` reads the host keys, so the collector needs root, and it runs only
 on a live host: an unprivileged run or one under `--root` prints every `ssh`
@@ -56,16 +56,25 @@ sshd:
       permitrootlogin: prohibit-password
     backup:
       passwordauthentication: "yes"
+  settings:
+    passwordauthentication:
+      /etc/ssh/sshd_config: "no"
+      backup: "yes"
+    x11forwarding:
+      /etc/ssh/sshd_config: "yes"
   client: {host: client.invalid, addr: 192.0.2.1}
 ```
 
 `global` holds every keyword of plain `sshd -T`, under the main file’s path.
 `accounts` holds, per account, the keywords a `Match` block accepts as that
 account’s own `sshd -T -C` run printed them; a keyword `Match` refuses
-(`Ciphers`, `LoginGraceTime`, `Port` …) lives under `global` only. A rule over
-`sshd.accounts.*` names the account the setting applies to, so a global
-setting fails once per account that gets it, and a rule over `sshd.global.*`
-names the main file. `client` is the connection every account’s run named.
+(`Ciphers`, `LoginGraceTime`, `Port` …) lives under `global` only.
+`settings` holds each keyword a `Match` block accepts, its global value under
+the main file’s path plus every account whose own run settled it otherwise;
+a keyword no run printed is an empty map. A rule over `sshd.settings.<keyword>.*`
+so fails a global setting once, under the main file, and an account only where
+a `Match` changed it; a rule over `sshd.global.*` names the main file.
+`client` is the connection every account’s run named.
 
 ## Rules
 
@@ -106,7 +115,7 @@ under `/etc/ssh` are the [files](files.md) ruleset’s.
 
 | Collector | Reads | Facts at |
 | --- | --- | --- |
-| `ssh-authorized-key-files` | `sshd.accounts` and `accounts.passwd` | `ssh.authorized-key-files.<account>` |
+| `ssh-authorized-key-files` | `sshd` and `accounts.passwd` | `ssh.authorized-key-files.<account>` |
 | `ssh-authorized-keys` | every file the previous facts name, root only | `ssh.authorized-keys.<account>` |
 
 ```yaml
@@ -126,9 +135,11 @@ ssh:
           options: {restrict: true, from: ["192.0.2.0/24"]}
 ```
 
-`authorized-key-files` lists, per account in `sshd.accounts`, every path sshd
+`authorized-key-files` lists, per account in `accounts.passwd`, every path sshd
 reads its keys from, in sshd’s order, taken from the `AuthorizedKeysFile` its
-own run printed. `%%`, `%h`, `%u`
+own run printed, else, for an account with no run, from `sshd.global`, so a
+`Match` for an account without a login shell is not seen. With neither, the
+account has no entry. `%%`, `%h`, `%u`
 and `%U` are expanded and a relative path lands below the home directory; a
 path with another token is left out with a diagnostic, as sshd refuses it.
 `none` names no file.

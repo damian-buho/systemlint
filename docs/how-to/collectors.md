@@ -192,7 +192,7 @@ document, with a `reason` when it is not `ok`:
 | --- | --- |
 | `ok` | the plugin replied and its facts are under `into` |
 | `error` | reading failed for any reason but a refusal, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
-| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`, a fact it needs or reads from whose collector was skipped (`needs fact sshd.accounts, which collector sshd skipped: …`), or the kernel refused a read (`can’t list /etc/cron.hourly without root`); the reason is kept, and `opt-in: true` marks an `image-config`, `network` or `containers` collector the run did not ask for |
+| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`, a fact it needs or reads from whose collector was skipped (`needs fact sshd, which collector sshd skipped: …`), or the kernel refused a read (`can’t list /etc/cron.hourly without root`); the reason is kept, and `opt-in: true` marks an `image-config`, `network` or `containers` collector the run did not ask for |
 
 An `ok` collector also records its `plugin` and `op`, the plugin’s
 `diagnostics`, under `redacted` the JSON Pointers of the values the plugin
