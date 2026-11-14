@@ -79,6 +79,55 @@ fn invalid_collectors_are_refused_with_the_reason() {
         (
             GOOD.replace(
                 "files: [/etc/os-release]",
+                "exec-from: {each: accounts.passwd, argv: []}",
+            ),
+            "read.exec-from argv is empty",
+        ),
+        (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "exec-from: {each: accounts.passwd, argv: [sshd]}",
+            ),
+            "PATH is never searched",
+        ),
+        (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "exec-from: {each: accounts.passwd, argv: ['/bin/{key}']}",
+            ),
+            "PATH is never searched",
+        ),
+        (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "exec-from: {each: accounts.*, argv: [/bin/id]}",
+            ),
+            "without wildcards",
+        ),
+        (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "exec-from: {each: os, argv: [/bin/id]}",
+            ),
+            "does not write",
+        ),
+        (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "exec-from: {each: accounts..passwd, argv: [/bin/id]}",
+            ),
+            "without wildcards",
+        ),
+        (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "exec-from: {each: accounts.passwd, keep: {type: 7}, argv: [/bin/id]}",
+            ),
+            "keep is no valid schema",
+        ),
+        (
+            GOOD.replace(
+                "files: [/etc/os-release]",
                 "stat: [/etc/os-release]\n  order: drop-in",
             ),
             "read.order drop-in orders files",
@@ -140,6 +189,13 @@ fn invalid_collectors_are_refused_with_the_reason() {
     assert!(
         Collector::parse(&GOOD.replace("files: [/etc/os-release]", "exec: [/usr/sbin/sshd, -T]"))
             .is_ok()
+    );
+    assert!(
+        Collector::parse(&GOOD.replace(
+            "files: [/etc/os-release]",
+            "exec-from: {each: accounts.passwd, keep: {type: object}, argv: [/bin/id, '{key}']}"
+        ))
+        .is_ok()
     );
 }
 

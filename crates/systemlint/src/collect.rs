@@ -17,7 +17,7 @@ use systemlint_protocol::{
     Describe, Diagnostic, ExecInput, FileInput, Input, PROTOCOL, Reply, Request, VERSION,
 };
 
-use crate::collector::{Collector, Order, Prefer, overlaps, prefix, template};
+use crate::collector::{Collector, ExecFrom, Order, Prefer, overlaps, prefix, template};
 use crate::discovery::Plugin;
 use crate::runner::{self, MAX_CHILDREN, OUTPUT_CAP};
 use crate::source::{Failure, Root};
@@ -176,15 +176,15 @@ pub fn collect_reporting(
             outcomes.insert(collector.id.clone(), outcome);
             continue;
         }
-        if collector.read.exec.is_some()
+        if collector.read.runs()
             && !options.live
             && collector.read.files.is_empty()
             && collector.read.stat.is_empty()
             && collector.read.statfs.is_empty()
-            && collector.read.named().next().is_none()
+            && collector.read.from().next().is_none()
         {
             log::debug!("collector {} skipped: exec under --root", collector.id);
-            outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": format!("runs {} on a live host only, and --root {} was given", collector.read.exec.as_deref().unwrap_or_default()[0], options.root.path().display())}));
+            outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": format!("runs {} on a live host only, and --root {} was given", collector.read.program(), options.root.path().display())}));
             continue;
         }
         match trail::scoped(&trail::collector(&collector.id), || {
@@ -258,13 +258,23 @@ pub fn collect_reporting(
                             let _ = sender.send((index, plugin, result));
                         });
                     }
-                    Err(reason) => record(
-                        &mut outcomes,
-                        collector,
-                        plugin,
-                        Err(reason.into()),
-                        options.privileged,
-                    ),
+                    Err(reason) => match skipped_need(collector, &needs, collectors, &outcomes) {
+                        Some(skipped) => {
+                            log::debug!(
+                                "collector {} skipped: {}",
+                                collector.id,
+                                skipped["reason"]
+                            );
+                            outcomes.insert(collector.id.clone(), skipped);
+                        }
+                        None => record(
+                            &mut outcomes,
+                            collector,
+                            plugin,
+                            Err(reason.into()),
+                            options.privileged,
+                        ),
+                    },
                 }
             }
             if running.is_empty() {
@@ -424,6 +434,27 @@ fn gather(
     Ok(given)
 }
 
+/// A `skipped` outcome naming the skipped collector that produces a fact `collector` needs or reads from, `opt-in` carried over.
+fn skipped_need(
+    collector: &Collector,
+    needs: &[String],
+    collectors: &[Collector],
+    outcomes: &Map<String, Value>,
+) -> Option<Value> {
+    let named: Vec<String> = collector.read.named().map(prefix).collect();
+    needs.iter().chain(&named).find_map(|need| {
+        let producer = collectors
+            .iter()
+            .find(|c| c.id != collector.id && overlaps(&c.into, need))?;
+        let outcome = outcomes.get(&producer.id).filter(|o| o["status"] == "skipped")?;
+        let mut skipped = json!({"status": "skipped", "reason": format!("needs fact {need}, which collector {} skipped: {}", producer.id, outcome["reason"].as_str().unwrap_or_default())});
+        if outcome["opt-in"] == true {
+            skipped["opt-in"] = Value::Bool(true);
+        }
+        Some(skipped)
+    })
+}
+
 /// Why the fact `need` is absent: the collector that should have produced it and how it finished, or that none does.
 fn missing(
     collector: &Collector,
@@ -454,6 +485,7 @@ pub struct Named {
     pub stat: Vec<(String, String)>,
     pub statfs: Vec<(String, String)>,
     pub servers: Vec<String>,
+    pub execs: Vec<Vec<String>>,
 }
 
 /// The absolute paths at each `read.*-from` pattern with its glob, and the servers at `read.dns-server-from`, failing when a pattern’s literal prefix is absent.
@@ -503,7 +535,54 @@ pub fn named(
             .into_iter()
             .map(|(server, _)| server)
             .collect(),
+        execs: match &collector.read.exec_from {
+            Some(from) => execs(collector, from, collectors, facts, outcomes)?,
+            None => Vec::new(),
+        },
     })
+}
+
+/// One argv per key of the map at `from.each` whose value `from.keep` admits, `{key}` replaced; a key holding a comma, `=` or a control or blank character is left out.
+fn execs(
+    collector: &Collector,
+    from: &ExecFrom,
+    collectors: &[Collector],
+    facts: &Map<String, Value>,
+    outcomes: &Map<String, Value>,
+) -> Result<Vec<Vec<String>>, String> {
+    let Some(entries) = lookup(facts, &from.each) else {
+        return Err(missing(collector, &from.each, collectors, outcomes));
+    };
+    let entries = entries
+        .as_object()
+        .ok_or_else(|| format!("read.exec-from each {} is not a map", from.each))?;
+    let keep = from.keep.as_ref().map(crate::judge::schema).transpose()?;
+    let mut argvs = Vec::new();
+    for (key, value) in entries {
+        if keep.as_ref().is_some_and(|k| !k.is_valid(value)) {
+            log::trace!("collector {}: {} {key} not kept", collector.id, from.each);
+        } else if key.is_empty()
+            || key
+                .chars()
+                .any(|c| matches!(c, ',' | '=') || c.is_control() || c.is_whitespace())
+        {
+            log::debug!(
+                "collector {}: {} key {key:?} is no safe argument, left out",
+                collector.id,
+                from.each
+            );
+        } else {
+            argvs.push(from.argv.iter().map(|a| a.replace("{key}", key)).collect());
+        }
+    }
+    log::debug!(
+        "collector {}: {} names {} of {} commands",
+        collector.id,
+        from.each,
+        argvs.len(),
+        entries.len()
+    );
+    Ok(argvs)
 }
 
 /// Every string at `segments` under `value`, `*` matching each key, `N` a list’s item and `:N` its first N, a list giving each of its strings, a map its keys.
@@ -917,45 +996,15 @@ pub fn read_partial(
     };
     ordered.extend(files.into_values());
     let mut inputs: Vec<Input> = ordered.into_iter().map(Input::File).collect();
-    match &collector.read.exec {
-        Some(argv) if !options.live => log::debug!(
-            "collector {}: {} not run under --root",
-            collector.id,
-            argv[0]
-        ),
-        Some(argv) if matches!(root.stat(&argv[0]), Err(e) if e.kind() == io::ErrorKind::NotFound) =>
-        {
-            log::debug!(
-                "collector {}: {} is absent, passed as exit 127",
+    for argv in collector.read.exec.iter().chain(&named.execs) {
+        match options.live {
+            false => log::debug!(
+                "collector {}: {} not run under --root",
                 collector.id,
                 argv[0]
-            );
-            inputs.push(Input::Exec(ExecInput {
-                argv: argv.clone(),
-                stdout: String::new(),
-                stderr: format!("{}: not found\n", argv[0]),
-                exit: 127,
-            }));
+            ),
+            true => inputs.push(Input::Exec(execute(collector, argv, root, options)?)),
         }
-        Some(argv) => {
-            let args: Vec<&str> = argv[1..].iter().map(String::as_str).collect();
-            let output = runner::run(
-                Path::new(&argv[0]),
-                &args,
-                None,
-                options.timeout,
-                OUTPUT_CAP,
-            )
-            .map_err(|e| format!("{}: {e}", argv[0]))?;
-            let exit = output.code();
-            inputs.push(Input::Exec(ExecInput {
-                argv: argv.clone(),
-                stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-                stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-                exit,
-            }));
-        }
-        None => {}
     }
     if collector.read.prefer == Some(Prefer::Exec) {
         prefer_exec(&collector.id, &mut inputs);
@@ -973,6 +1022,49 @@ pub fn read_partial(
         ));
     }
     Ok((inputs, unreadable))
+}
+
+/// Runs one command, an absent program passed as exit 127.
+fn execute(
+    collector: &Collector,
+    argv: &[String],
+    root: &Root,
+    options: &Options,
+) -> Result<ExecInput, String> {
+    if matches!(root.stat(&argv[0]), Err(e) if e.kind() == io::ErrorKind::NotFound) {
+        log::debug!(
+            "collector {}: {} is absent, passed as exit 127",
+            collector.id,
+            argv[0]
+        );
+        return Ok(ExecInput {
+            argv: argv.to_vec(),
+            stdout: String::new(),
+            stderr: format!("{}: not found\n", argv[0]),
+            exit: 127,
+        });
+    }
+    let args: Vec<&str> = argv[1..].iter().map(String::as_str).collect();
+    let output = runner::run(
+        Path::new(&argv[0]),
+        &args,
+        None,
+        options.timeout,
+        OUTPUT_CAP,
+    )
+    .map_err(|e| format!("{}: {e}", argv[0]))?;
+    log::debug!(
+        "collector {}: {} exited {}",
+        collector.id,
+        argv.join(" "),
+        output.code()
+    );
+    Ok(ExecInput {
+        argv: argv.to_vec(),
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        exit: output.code(),
+    })
 }
 
 /// Whether `error` says the path is not there, a process that exited mid-read included.

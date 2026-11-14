@@ -13,7 +13,7 @@ use crate::collector::Collector;
 /// A run shorter than this ends without a closing line.
 pub const SLOW: Duration = Duration::from_secs(1);
 
-/// The commands a live collection ran: each `exec` of a collector that ended `ok` on the host.
+/// The commands a live collection ran: each `exec`, and each `exec-from` per entry, of a collector that ended `ok` on the host.
 pub fn commands(document: &Value, collectors: &[Collector]) -> Vec<String> {
     let live = document
         .pointer("/meta/subject/kind")
@@ -24,7 +24,19 @@ pub fn commands(document: &Value, collectors: &[Collector]) -> Vec<String> {
         .iter()
         .filter(|_| live)
         .filter(ok)
-        .filter_map(|c| c.read.exec.as_ref().map(|argv| argv.join(" ")))
+        .flat_map(|c| {
+            let each = c
+                .read
+                .exec_from
+                .as_ref()
+                .map(|e| format!("{} per {} entry", e.argv.join(" "), e.each));
+            c.read
+                .exec
+                .as_ref()
+                .map(|argv| argv.join(" "))
+                .into_iter()
+                .chain(each)
+        })
         .collect()
 }
 

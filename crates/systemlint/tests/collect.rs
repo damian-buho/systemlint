@@ -24,6 +24,16 @@ const PLUGINS: &[(&str, &str, &str)] = &[
         r#"printf '%s\n' '{"facts":{"a":1,"nested":{"secret":"hunter2"}},"diagnostics":[{"path":"/etc/x","line":2,"message":"odd"}],"redact":["/nested/secret","/absent"]}'"#,
     ),
     (
+        "users",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"root":{"uid":0,"shell":"/usr/sbin/nologin"},"alice":{"uid":1000,"shell":"/bin/bash"},"svc":{"uid":100,"shell":"/usr/sbin/nologin"},"a,b":{"uid":1001,"shell":"/bin/sh"}}}'"#,
+    ),
+    (
+        "each",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
+    ),
+    (
         "dump",
         r#"[{"op":"parse"}]"#,
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
@@ -577,6 +587,54 @@ fn exec_is_skipped_under_root_and_runs_live() {
         ),
         (Some("out\n"), Some("err\n"), Some(3))
     );
+}
+
+#[test]
+fn exec_from_runs_once_per_kept_entry_and_only_live() {
+    let users = collector("id: users\nparse: {plugin: users, op: parse}\ninto: accounts.passwd\n");
+    let each = collector(
+        "id: each\nread:\n  exec-from:\n    each: accounts.passwd\n    keep: {anyOf: [{properties: {uid: {const: 0}}}, {properties: {shell: {not: {pattern: /nologin$}}}}]}\n    argv: [/bin/echo, 'user={key}']\nparse: {plugin: each, op: parse}\ninto: each\n",
+    );
+    let doc = collect(&[each.clone(), users.clone()], &plugins(), &options(true));
+    assert_eq!(doc["collectors"]["each"]["status"], "ok", "{doc}");
+    let mut ran: Vec<String> = request("each")["inputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["stdout"].as_str().unwrap().to_owned())
+        .collect();
+    ran.sort();
+    assert_eq!(
+        ran,
+        ["user=alice\n", "user=root\n"],
+        "uid 0 kept, nologin dropped, a comma never passed"
+    );
+    let doc = collect(&[each, users], &plugins(), &options(false));
+    assert!(
+        doc["collectors"]["each"]["reason"]
+            .as_str()
+            .unwrap()
+            .contains("/bin/echo on a live host only"),
+        "{doc}"
+    );
+}
+
+#[test]
+fn a_collector_needing_a_skipped_collectors_fact_is_skipped_too() {
+    let derive =
+        collector("id: derive\nparse: {plugin: derive, op: codename}\ninto: apt.codename\n");
+    let base =
+        collector("id: base\nlive: true\nparse: {plugin: base, op: release}\ninto: os.release\n");
+    let doc = collect(&[derive, base], &plugins(), &options(false));
+    let outcome = &doc["collectors"]["derive"];
+    assert_eq!(outcome["status"], "skipped", "{doc}");
+    assert!(
+        outcome["reason"].as_str().unwrap().starts_with(
+            "needs fact os.release, which collector base skipped: reads the live host only"
+        ),
+        "{doc}"
+    );
+    assert!(outcome.get("opt-in").is_none());
 }
 
 #[test]

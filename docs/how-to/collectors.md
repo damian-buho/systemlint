@@ -26,6 +26,7 @@ into: apt.sources
 | `read.stat` | absolute globs whose files are passed with their `stat` and no content |
 | `read.statfs` | absolute globs whose paths are passed with the `statfs` of the filesystem holding them; a path the run may not reach is left out (`partial` makes it unknown), and one that gives no answer within the timeout fails the collector |
 | `read.exec` | an argv list run without a shell, live mode only; the program is an absolute path |
+| `read.exec-from` | `each`, a dotted fact path to a map; `argv`, run once per key, `{key}` replaced by it; `keep`, a JSON Schema the key’s value must pass. Live mode only, never inline; a key holding a comma, `=`, a blank or a control character is left out, so it can’t add a field to a `key=value` list. The `sshd` collector runs `sshd -T -C user={key},…` over `accounts.passwd` |
 | `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
 | `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files`; `{pattern}/glob` globs below each, as `{accounts.passwd.*.home}/.ssh/*` |
 | `read.stat-from` | the same, naming files to pass with their `stat` |
@@ -191,7 +192,7 @@ document, with a `reason` when it is not `ok`:
 | --- | --- |
 | `ok` | the plugin replied and its facts are under `into` |
 | `error` | reading failed for any reason but a refusal, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
-| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`, or the kernel refused a read (`can’t list /etc/cron.hourly without root`); the reason is kept, and `opt-in: true` marks an `image-config`, `network` or `containers` collector the run did not ask for |
+| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`, a fact it needs or reads from whose collector was skipped (`needs fact sshd.accounts, which collector sshd skipped: …`), or the kernel refused a read (`can’t list /etc/cron.hourly without root`); the reason is kept, and `opt-in: true` marks an `image-config`, `network` or `containers` collector the run did not ask for |
 
 An `ok` collector also records its `plugin` and `op`, the plugin’s
 `diagnostics`, under `redacted` the JSON Pointers of the values the plugin

@@ -185,6 +185,14 @@ fn an_inline_collector_is_checked_and_can_not_exec() {
     );
     assert!(
         Config::load(&write(
+            "inline-exec-from",
+            &inline("stat: [/etc/x], exec-from: {each: accounts.passwd, argv: [/bin/id, '{key}']}")
+        ))
+        .unwrap_err()
+        .contains("collect.collectors nginx: an inline collector can’t exec")
+    );
+    assert!(
+        Config::load(&write(
             "inline-network",
             "collect:\n  network: true\n  collectors:\n    - id: web\n      network: true\n      read: {addr: [\"kiota.ch:443\"]}\n      parse: {plugin: formats, op: probes}\n      into: probes\n"
         ))

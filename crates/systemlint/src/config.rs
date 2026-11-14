@@ -281,7 +281,7 @@ impl Config {
                     collector.id
                 )
             })?;
-            if collector.read.exec.is_some() || collector.network {
+            if collector.read.runs() || collector.network {
                 return Err(format!(
                     "{}: collect.collectors {}: an inline collector can’t exec or reach the network; put it in a collect.directories file",
                     path.display(),

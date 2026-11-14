@@ -62,3 +62,17 @@ fn only_a_live_collector_that_ended_ok_ran_its_command() {
         "under --root no command runs"
     );
 }
+
+#[test]
+fn an_exec_from_command_is_named_once_per_fact_map() {
+    let sshd: Collector = systemlint::yaml::from_str("id: sshd\ninto: sshd\nread: {exec: [/usr/sbin/sshd, -T], exec-from: {each: accounts.passwd, argv: [/usr/sbin/sshd, -T, -C, 'user={key}']}}\nparse: {plugin: sshd, op: config}\n").unwrap();
+    let host =
+        json!({"meta": {"subject": {"kind": "host"}}, "collectors": {"sshd": {"status": "ok"}}});
+    assert_eq!(
+        commands(&host, &[sshd]),
+        [
+            "/usr/sbin/sshd -T",
+            "/usr/sbin/sshd -T -C user={key} per accounts.passwd entry"
+        ]
+    );
+}

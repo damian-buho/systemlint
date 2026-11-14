@@ -51,6 +51,8 @@ pub struct Read {
     pub stat: Vec<String>,
     #[serde(default)]
     pub exec: Option<Vec<String>>,
+    #[serde(default, rename = "exec-from")]
+    pub exec_from: Option<ExecFrom>,
     #[serde(default, rename = "image-config")]
     pub image_config: bool,
     #[serde(default, rename = "files-from")]
@@ -83,6 +85,16 @@ pub struct Read {
     pub order: Order,
     #[serde(default)]
     pub prefer: Option<Prefer>,
+}
+
+/// `read.exec-from`: one command per entry of the map at `each` that `keep` admits, `{key}` in `argv` replaced by the entry’s key.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExecFrom {
+    pub each: String,
+    #[serde(default)]
+    pub keep: Option<serde_json::Map<String, serde_json::Value>>,
+    pub argv: Vec<String>,
 }
 
 /// The order `read.files` reach the plugin in.
@@ -200,16 +212,31 @@ impl Read {
         !(self.files.is_empty()
             && self.stat.is_empty()
             && self.statfs.is_empty()
-            && self.exec.is_none()
+            && !self.runs()
             && !self.image_config
             && self.from().next().is_none())
     }
 
-    /// The fact paths that name paths to read or stat, or servers to ask.
+    /// Whether a command is listed, plain or one per fact entry.
+    pub fn runs(&self) -> bool {
+        self.exec.is_some() || self.exec_from.is_some()
+    }
+
+    /// The program the first listed command runs.
+    pub fn program(&self) -> &str {
+        self.exec
+            .as_deref()
+            .or(self.exec_from.as_ref().map(|e| e.argv.as_slice()))
+            .and_then(<[String]>::first)
+            .map_or("", String::as_str)
+    }
+
+    /// The fact paths that name paths to read or stat, servers to ask, or commands to run.
     pub fn named(&self) -> impl Iterator<Item = &str> {
         self.from()
             .chain(&self.dns_server_from)
             .map(|entry| template(entry).0)
+            .chain(self.exec_from.iter().map(|e| e.each.as_str()))
     }
 }
 
@@ -313,14 +340,37 @@ impl Collector {
         if self.read.prefer.is_some() && (self.read.exec.is_none() || self.read.files.is_empty()) {
             return Err("read.prefer exec chooses between a command and files; give both read.exec and read.files".to_owned());
         }
-        match self.read.exec.as_deref() {
-            Some([]) => return Err("read.exec is empty; give an argv list".to_owned()),
-            Some([program, ..]) if !program.starts_with('/') => {
+        let from = self.read.exec_from.as_ref();
+        for (field, argv) in [
+            ("read.exec", self.read.exec.as_deref()),
+            ("read.exec-from argv", from.map(|e| e.argv.as_slice())),
+        ] {
+            match argv {
+                Some([]) => return Err(format!("{field} is empty; give an argv list")),
+                Some([program, ..]) if !program.starts_with('/') || program.contains('{') => {
+                    return Err(format!(
+                        "{field} program {program} is not an absolute path; PATH is never searched"
+                    ));
+                }
+                _ => {}
+            }
+        }
+        if let Some(from) = from {
+            if from
+                .each
+                .split('.')
+                .any(|s| s.is_empty() || s.contains('*'))
+                || overlaps(&from.each, &self.into)
+            {
                 return Err(format!(
-                    "read.exec program {program} is not an absolute path; PATH is never searched"
+                    "read.exec-from each {:?} is not a dotted fact path without wildcards that this collector does not write",
+                    from.each
                 ));
             }
-            _ => {}
+            if let Some(keep) = &from.keep {
+                crate::judge::schema(keep)
+                    .map_err(|e| format!("read.exec-from keep is no valid schema: {e}"))?;
+            }
         }
         for entry in self.read.from().chain(&self.read.dns_server_from) {
             let (pattern, suffix) = template(entry);
