@@ -186,8 +186,8 @@ document, with a `reason` when it is not `ok`:
 | Status | Meaning |
 | --- | --- |
 | `ok` | the plugin replied and its facts are under `into` |
-| `error` | reading failed, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
-| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`; the reason is kept |
+| `error` | reading failed for any reason but a refusal, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
+| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`, or the kernel refused a read (`can’t list /etc/cron.hourly without root`); the reason is kept, and `opt-in: true` marks an `image-config` or `network` collector the run did not ask for |
 
 An `ok` collector also records its `plugin` and `op`, the plugin’s
 `diagnostics`, under `redacted` the JSON Pointers of the values the plugin

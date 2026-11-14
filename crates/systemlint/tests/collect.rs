@@ -1015,6 +1015,7 @@ fn a_partial_collector_keeps_what_it_may_read_and_names_the_rest() {
     }
     let options = Options {
         root: Root::open(&dir).unwrap(),
+        privileged: rustix::process::geteuid().is_root(),
         ..options(false)
     };
     let yaml = "id: dump\nread:\n  files: [/*]\nparse: {plugin: dump, op: parse}\ninto: dump\n";
@@ -1051,12 +1052,12 @@ fn a_partial_collector_keeps_what_it_may_read_and_names_the_rest() {
         "{doc}"
     );
     let whole = collect(&[collector(yaml)], &plugins(), &options);
-    let reason = whole["collectors"]["dump"]["reason"]
-        .as_str()
-        .unwrap_or_default();
-    assert_eq!(
-        reason.contains("can’t read /refused"),
-        !root,
-        "without partial one refusal fails it: {whole}"
-    );
+    let outcome = &whole["collectors"]["dump"];
+    if !root {
+        assert_eq!(
+            (outcome["status"].as_str(), outcome["reason"].as_str()),
+            (Some("skipped"), Some("can’t read /refused without root")),
+            "without partial one refusal skips it, naming the privilege: {whole}"
+        );
+    }
 }

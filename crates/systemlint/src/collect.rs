@@ -20,7 +20,7 @@ use systemlint_protocol::{
 use crate::collector::{Collector, overlaps, prefix, template};
 use crate::discovery::Plugin;
 use crate::runner::{self, MAX_CHILDREN, OUTPUT_CAP};
-use crate::source::Root;
+use crate::source::{Failure, Root};
 use crate::trail;
 
 /// The facts document schema version written to `meta.schema`.
@@ -160,11 +160,17 @@ pub fn collect_reporting(
             _ => None,
         };
         if let Some(reason) = skip {
-            log::debug!("collector {} skipped: {reason}", collector.id);
-            outcomes.insert(
-                collector.id.clone(),
-                json!({"status": "skipped", "reason": reason}),
+            let opt_in = (collector.read.image_config && options.image_config.is_none())
+                || (collector.network && options.network.is_none());
+            log::debug!(
+                "collector {} skipped, opt-in {opt_in}: {reason}",
+                collector.id
             );
+            let mut outcome = json!({"status": "skipped", "reason": reason});
+            if opt_in {
+                outcome["opt-in"] = Value::Bool(true);
+            }
+            outcomes.insert(collector.id.clone(), outcome);
             continue;
         }
         if collector.read.exec.is_some()
@@ -249,7 +255,13 @@ pub fn collect_reporting(
                             let _ = sender.send((index, plugin, result));
                         });
                     }
-                    Err(reason) => record(&mut outcomes, collector, plugin, Err(reason)),
+                    Err(reason) => record(
+                        &mut outcomes,
+                        collector,
+                        plugin,
+                        Err(reason.into()),
+                        options.privileged,
+                    ),
                 }
             }
             if running.is_empty() {
@@ -279,8 +291,9 @@ pub fn collect_reporting(
                 .and_then(|(value, diagnostics, redacted, hashed, unreadable)| {
                     place(&mut facts, &collector.into, value)
                         .map(|()| (diagnostics, redacted, hashed, unreadable))
+                        .map_err(Failure::from)
                 });
-            record(&mut outcomes, collector, plugin, placed);
+            record(&mut outcomes, collector, plugin, placed, options.privileged);
         }
     });
     for collector in collectors {
@@ -303,12 +316,13 @@ pub fn collect_reporting(
     Value::Object(facts)
 }
 
-/// Records how `collector` finished in `outcomes`.
+/// Records how `collector` finished in `outcomes`, a refused read as `skipped` for want of a privilege.
 fn record(
     outcomes: &mut Map<String, Value>,
     collector: &Collector,
     plugin: &Plugin,
-    finished: Result<Summary, String>,
+    finished: Result<Summary, Failure>,
+    privileged: bool,
 ) {
     let outcome = match finished {
         Ok((diagnostics, redacted, hashed, unreadable)) => {
@@ -335,7 +349,20 @@ fn record(
             }
             ok
         }
-        Err(reason) => {
+        Err(Failure::Denied(what)) => {
+            let reason = match privileged {
+                true => format!(
+                    "can’t {what} even as root; a security module or a dropped capability refuses it"
+                ),
+                false => format!("can’t {what} without root"),
+            };
+            log::debug!(
+                "collector {} refused, privileged {privileged}: {reason}",
+                collector.id
+            );
+            json!({"status": "skipped", "reason": reason})
+        }
+        Err(Failure::Other(reason)) => {
             log::debug!("collector {} failed: {reason}", collector.id);
             error(reason)
         }
@@ -523,7 +550,7 @@ fn run(
     named: &Named,
     options: &Options,
     now: &str,
-) -> Result<Finished, String> {
+) -> Result<Finished, Failure> {
     let (inputs, unreadable) = read_partial(collector, options, named)?;
     let request = Request {
         protocol: PROTOCOL,
@@ -625,7 +652,9 @@ pub fn inputs(collector: &Collector, options: &Options) -> Result<Vec<Input>, St
 
 /// Like [`inputs`], adding the `named` paths, taken literally, never as globs.
 pub fn read(collector: &Collector, options: &Options, named: &Named) -> Result<Vec<Input>, String> {
-    read_partial(collector, options, named).map(|(inputs, _)| inputs)
+    read_partial(collector, options, named)
+        .map(|(inputs, _)| inputs)
+        .map_err(String::from)
 }
 
 /// Like [`read`], with each path a `partial` collector may not read and why, instead of failing.
@@ -633,7 +662,7 @@ pub fn read_partial(
     collector: &Collector,
     options: &Options,
     named: &Named,
-) -> Result<(Vec<Input>, BTreeMap<String, String>), String> {
+) -> Result<(Vec<Input>, BTreeMap<String, String>), Failure> {
     let root = &options.root;
     let mut unreadable = BTreeMap::new();
     let mut refuse = |path: &str, e: &io::Error| {
@@ -652,13 +681,13 @@ pub fn read_partial(
         statfs: None,
         absent: false,
     };
-    let globbed = |patterns: &[String]| -> Result<Vec<String>, String> {
+    let globbed = |patterns: &[String]| -> Result<Vec<String>, Failure> {
         patterns.iter().try_fold(Vec::new(), |mut all, p| {
             all.extend(root.glob(p)?);
             Ok(all)
         })
     };
-    let expanded = |named: &[(String, String)]| -> Result<Vec<String>, String> {
+    let expanded = |named: &[(String, String)]| -> Result<Vec<String>, Failure> {
         named
             .iter()
             .try_fold(Vec::new(), |mut all, (base, suffix)| {
@@ -690,7 +719,7 @@ pub fn read_partial(
             Err(e) if collector.partial && e.kind() == io::ErrorKind::PermissionDenied => {
                 refuse(&path, &e)
             }
-            Err(e) => return Err(format!("can’t read {path}: {e}")),
+            Err(e) => return Err(Failure::of("read", &path, e)),
         }
     }
     let stats: BTreeSet<String> = globbed(&collector.read.stat)?
@@ -723,7 +752,7 @@ pub fn read_partial(
                                 collector.id
                             )
                         }
-                        Err(e) => return Err(format!("can’t hash {path}: {e}")),
+                        Err(e) => return Err(Failure::of("hash", &path, e)),
                     }
                 }
                 files
@@ -745,7 +774,7 @@ pub fn read_partial(
             Err(e) if collector.partial && e.kind() == io::ErrorKind::PermissionDenied => {
                 refuse(&path, &e)
             }
-            Err(e) => return Err(format!("can’t stat {path}: {e}")),
+            Err(e) => return Err(Failure::of("stat", &path, e)),
         }
     }
     if keep.is_some() {
@@ -773,7 +802,7 @@ pub fn read_partial(
                 files.entry(dir.clone()).or_insert_with(|| blank(&dir)).stat = Some(stat);
             }
             Err(e) if gone(&e) => log::debug!("collector {}: parent {dir} is absent", collector.id),
-            Err(e) => return Err(format!("can’t stat {dir}: {e}")),
+            Err(e) => return Err(Failure::of("stat", &dir, e)),
         }
     }
     let filesystems: BTreeSet<String> = globbed(&collector.read.statfs)?
@@ -796,7 +825,7 @@ pub fn read_partial(
                 "collector {}: {path} refused statfs, left out",
                 collector.id
             ),
-            Err(e) => return Err(format!("can’t statfs {path}: {e}")),
+            Err(e) => return Err(Failure::of("statfs", &path, e)),
         }
     }
     if let (true, Some(path)) = (collector.read.image_config, &options.image_config) {

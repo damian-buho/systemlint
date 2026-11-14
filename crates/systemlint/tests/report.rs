@@ -264,6 +264,34 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
 }
 
 #[test]
+fn an_opt_in_left_off_prints_no_block_and_still_counts() {
+    let mut document = facts("root");
+    document["collectors"]["env-image"] = json!({"status": "skipped", "opt-in": true, "reason": "reads an image config, and no --image-config was given", "into": "env.image"});
+    document["collectors"]["env-processes"] = json!({"status": "skipped", "reason": "can’t read /proc/1/environ without root", "into": "env.processes"});
+    let rules = ["image", "processes"].map(|source| {
+        let yaml = format!("fact: env.{source}.*.vars\nexpect: {{type: object}}\n");
+        compile(
+            &format!("env/{source}"),
+            systemlint::yaml::from_str(&yaml).unwrap(),
+        )
+        .unwrap()
+    });
+    let checks = lint(&document, &rules, &[], "2026-11-14");
+    let text = lint_human(&document, &checks, &[], false, false, false);
+    assert!(!text.contains("image-config"), "{text}");
+    assert!(
+        text.contains("Not run (env-processes): can’t read /proc/1/environ without root\n"),
+        "{text}"
+    );
+    assert!(text.ends_with(" · 0 pass, 2 not run\n"), "{text}");
+    let plain = lint_plain(&document, &checks, &[], true);
+    assert!(
+        !plain.contains("image-config") && plain.contains("without root"),
+        "{plain}"
+    );
+}
+
+#[test]
 fn human_folds_an_unreadable_path_into_one_line_for_every_rule() {
     let document = json!({
         "env": {"defaults": {"/etc/default/locale": {"vars": {}}}},

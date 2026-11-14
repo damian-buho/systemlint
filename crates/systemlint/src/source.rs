@@ -23,6 +23,47 @@ const RETRIES: u32 = 8;
 /// The most paths one glob’s `**` may name before it fails.
 pub const WALK_CAP: usize = 1_000_000;
 
+/// Why a read failed: the kernel refused the action and path in `Denied`, anything else in `Other`.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Failure {
+    Denied(String),
+    Other(String),
+}
+
+impl Failure {
+    /// `can’t {verb} {path}`, `Denied` when the error is a refusal.
+    pub fn of(verb: &str, path: &str, error: impl Into<io::Error>) -> Self {
+        let error = error.into();
+        match error.kind() {
+            io::ErrorKind::PermissionDenied => Self::Denied(format!("{verb} {path}")),
+            _ => Self::Other(format!("can’t {verb} {path}: {error}")),
+        }
+    }
+
+    /// `prefix: ` before an `Other` reason; a refusal keeps its own words.
+    pub fn within(self, prefix: &str) -> Self {
+        match self {
+            Self::Other(reason) => Self::Other(format!("{prefix}: {reason}")),
+            denied => denied,
+        }
+    }
+}
+
+impl From<String> for Failure {
+    fn from(reason: String) -> Self {
+        Self::Other(reason)
+    }
+}
+
+impl From<Failure> for String {
+    fn from(failure: Failure) -> Self {
+        match failure {
+            Failure::Denied(what) => format!("can’t {what}: permission denied"),
+            Failure::Other(reason) => reason,
+        }
+    }
+}
+
 /// A directory every path is resolved inside, `/` on a live host.
 #[derive(Debug)]
 pub struct Root {
@@ -90,17 +131,17 @@ impl Root {
     }
 
     /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component and never a leading dot, `**` as the whole last component every path below, see [`Root::walk`].
-    pub fn glob(&self, pattern: &str) -> Result<Vec<String>, String> {
+    pub fn glob(&self, pattern: &str) -> Result<Vec<String>, Failure> {
         self.glob_under("", pattern)
     }
 
     /// Like [`Root::glob`], below the literal `base`, whose own `*` and `?` match nothing.
-    pub fn glob_under(&self, base: &str, pattern: &str) -> Result<Vec<String>, String> {
+    pub fn glob_under(&self, base: &str, pattern: &str) -> Result<Vec<String>, Failure> {
         let parts: Vec<&str> = pattern.split('/').filter(|p| !p.is_empty()).collect();
         if parts.iter().rev().skip(1).any(|p| p.contains("**"))
             || parts.last().is_some_and(|p| p.contains("**") && *p != "**")
         {
-            return Err(format!("glob {pattern}: ** is only a whole last component"));
+            return Err(format!("glob {pattern}: ** is only a whole last component").into());
         }
         let mut found = vec![base.trim_end_matches('/').to_owned()];
         for part in parts {
@@ -108,7 +149,7 @@ impl Root {
             for base in &found {
                 if part == "**" {
                     self.walk(base, WALK_CAP, &mut next)
-                        .map_err(|e| format!("glob {pattern}: {e}"))?;
+                        .map_err(|e| e.within(&format!("glob {pattern}")))?;
                     continue;
                 }
                 if !part.contains(['*', '?']) {
@@ -127,10 +168,10 @@ impl Root {
                         log::trace!("glob {pattern}: {dir} is absent, no match under it");
                         continue;
                     }
-                    Err(e) => return Err(format!("can’t list {dir}: {e}")),
+                    Err(e) => return Err(Failure::of("list", dir, e)),
                 };
-                for entry in Dir::new(fd).map_err(|e| format!("can’t list {dir}: {e}"))? {
-                    let entry = entry.map_err(|e| format!("can’t list {dir}: {e}"))?;
+                for entry in Dir::new(fd).map_err(|e| Failure::of("list", dir, e))? {
+                    let entry = entry.map_err(|e| Failure::of("list", dir, e))?;
                     let name = entry.file_name().to_string_lossy();
                     if name != "." && name != ".." && wildcard(part, &name) {
                         next.push(format!("{base}/{name}"));
@@ -146,7 +187,7 @@ impl Root {
     }
 
     /// Appends `base` and every path below it, dotted names included, never entering another filesystem or a symlinked directory; fails once `out` holds more than `cap` paths.
-    pub fn walk(&self, base: &str, cap: usize, out: &mut Vec<String>) -> Result<(), String> {
+    pub fn walk(&self, base: &str, cap: usize, out: &mut Vec<String>) -> Result<(), Failure> {
         let skipped = |e: &io::Error| {
             matches!(
                 e.kind(),
@@ -163,10 +204,10 @@ impl Root {
                     log::trace!("walk {base}: {at} is no directory to enter: {e}");
                     continue;
                 }
-                Err(e) => return Err(format!("can’t list {at}: {e}")),
+                Err(e) => return Err(Failure::of("list", at, e)),
             };
             let here = rustix::fs::fstat(&fd)
-                .map_err(|e| format!("can’t stat {at}: {e}"))?
+                .map_err(|e| Failure::of("stat", at, e))?
                 .st_dev;
             match device {
                 Some(start) if start != here => {
@@ -175,8 +216,8 @@ impl Root {
                 }
                 _ => device = Some(here),
             }
-            for entry in Dir::new(fd).map_err(|e| format!("can’t list {at}: {e}"))? {
-                let entry = entry.map_err(|e| format!("can’t list {at}: {e}"))?;
+            for entry in Dir::new(fd).map_err(|e| Failure::of("list", at, e))? {
+                let entry = entry.map_err(|e| Failure::of("list", at, e))?;
                 let name = entry.file_name().to_string_lossy();
                 if name == "." || name == ".." {
                     continue;
@@ -187,7 +228,7 @@ impl Root {
                 }
                 out.push(path);
                 if out.len() > cap {
-                    return Err(format!("names more than {cap} paths; narrow it"));
+                    return Err(format!("names more than {cap} paths; narrow it").into());
                 }
             }
         }

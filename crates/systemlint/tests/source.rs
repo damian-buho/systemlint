@@ -7,7 +7,7 @@ use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
 
 use systemlint::collector::Digest;
-use systemlint::source::{Root, wildcard};
+use systemlint::source::{Failure, Root, wildcard};
 use systemlint_protocol::FileKind;
 
 fn fixture(name: &str) -> PathBuf {
@@ -213,6 +213,7 @@ fn a_double_star_walks_every_path_below_dotted_ones_included_never_a_symlinked_d
     for pattern in ["/usr/**/file", "/usr/a**", "/**x"] {
         assert!(
             root.glob(pattern)
+                .map_err(String::from)
                 .unwrap_err()
                 .contains("whole last component"),
             "{pattern}"
@@ -229,6 +230,32 @@ fn a_double_star_walks_every_path_below_dotted_ones_included_never_a_symlinked_d
     out.clear();
     assert_eq!(
         root.walk("/usr", 6, &mut out).unwrap_err(),
-        "names more than 6 paths; narrow it"
+        Failure::Other("names more than 6 paths; narrow it".into())
+    );
+}
+
+#[test]
+fn a_refusal_is_denied_and_keeps_its_words_through_a_glob() {
+    let denied = Failure::of(
+        "list",
+        "/etc/cron.hourly",
+        std::io::Error::from_raw_os_error(libc::EACCES),
+    );
+    assert_eq!(denied, Failure::Denied("list /etc/cron.hourly".into()));
+    assert_eq!(
+        denied.within("glob /etc/**"),
+        Failure::Denied("list /etc/cron.hourly".into())
+    );
+    assert_eq!(
+        String::from(Failure::Denied("read /x".into())),
+        "can’t read /x: permission denied"
+    );
+    let other = Failure::of("read", "/x", ErrorKind::InvalidData);
+    assert!(
+        matches!(&other, Failure::Other(r) if r.starts_with("can’t read /x: ")),
+        "{other:?}"
+    );
+    assert!(
+        matches!(other.within("glob /x"), Failure::Other(r) if r.starts_with("glob /x: can’t read /x: "))
     );
 }

@@ -173,6 +173,12 @@ fn skip_reason<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
         .filter(|_| check.outcome == Outcome::Unknown && outcome["status"] == "skipped")
 }
 
+/// Like [`skip_reason`], unless the collector is an opt-in the user left off, which only the counts show.
+fn shown_skip<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
+    let opt_in = document["collectors"][check.collector.as_deref()?]["opt-in"] == true;
+    skip_reason(document, check).filter(|_| !opt_in)
+}
+
 /// The collector, path and reason of the unreadable path an `unknown` check stands on, when a `partial` collector could not read it.
 fn unread<'a>(document: &'a Value, check: &'a Check) -> Option<(&'a str, &'a str, &'a str)> {
     let collector = check.collector.as_deref()?;
@@ -574,7 +580,7 @@ pub fn lint_human(
         "Not run",
         checks.iter().filter_map(|c| {
             Some((
-                skip_reason(document, c)?.to_owned(),
+                shown_skip(document, c)?.to_owned(),
                 c.collector.as_deref()?,
                 c.rule.as_str(),
             ))
@@ -708,7 +714,7 @@ pub fn lint_plain(
     };
     let not_run: BTreeSet<(&str, &str)> = checks
         .iter()
-        .filter_map(|c| Some((c.rule.as_str(), skip_reason(document, c)?)))
+        .filter_map(|c| Some((c.rule.as_str(), shown_skip(document, c)?)))
         .collect();
     log::debug!("{} rule and reason pairs not run", not_run.len());
     for (rule, reason) in not_run {
