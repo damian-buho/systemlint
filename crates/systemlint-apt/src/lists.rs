@@ -7,7 +7,7 @@
 use serde_json::{Map, Value, json};
 use systemlint_protocol::{Diagnostic, Input, Reply};
 
-use crate::deb822;
+use systemlint_formats::deb822;
 
 const MONTHS: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",

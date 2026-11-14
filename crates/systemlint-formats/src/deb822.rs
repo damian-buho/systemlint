@@ -4,6 +4,43 @@
 
 //! deb822 paragraphs as apt reads them: `Name: value`, continuation lines, `#` comments, blank-line separators.
 
+use serde_json::{Map, Value};
+use systemlint_protocol::{Diagnostic, Input, Reply};
+
+use crate::text;
+
+/// Every input’s paragraphs in order under its path, each `{line, fields}` with its values as text, a clear-signed text read inside its signature.
+pub fn deb822(inputs: &[Input]) -> Reply {
+    let mut reply = Reply::default();
+    for input in inputs {
+        let Some((path, content)) = text(input, &mut reply.diagnostics) else {
+            continue;
+        };
+        let (stanzas, problems) = parse(&unsign(content));
+        reply
+            .diagnostics
+            .extend(problems.into_iter().map(|(line, message)| Diagnostic {
+                path: path.to_owned(),
+                line: Some(line),
+                message,
+            }));
+        let paragraphs = stanzas.into_iter().map(|stanza| {
+            let mut fields = Map::new();
+            for field in stanza.fields {
+                fields.entry(field.name).or_insert(Value::from(field.value));
+            }
+            Value::Object(Map::from_iter([
+                ("line".to_owned(), Value::from(stanza.line)),
+                ("fields".to_owned(), Value::Object(fields)),
+            ]))
+        });
+        reply
+            .facts
+            .insert(path.to_owned(), Value::Array(paragraphs.collect()));
+    }
+    reply
+}
+
 /// One `Name: value` field, continuation lines joined by `\n`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Field {
@@ -114,6 +151,29 @@ pub fn boolean(value: &str) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+    use systemlint_protocol::FileInput;
+
+    #[test]
+    fn the_op_lists_paragraphs_per_path_as_text_reading_inside_a_signature() {
+        let release = "-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA512\n\nOrigin: Ubuntu\nVersion: 26.04\nInstalled-Size: 12\n- Description: x\n\nPackage: a\nPackage: b\nbad line\n-----BEGIN PGP SIGNATURE-----\nabc\n";
+        let reply = deb822(&[Input::File(FileInput {
+            path: "/var/lib/apt/lists/x_InRelease".into(),
+            content: Some(release.into()),
+            content_base64: None,
+            stat: None,
+            statfs: None,
+            absent: false,
+        })]);
+        assert_eq!(
+            reply.facts["/var/lib/apt/lists/x_InRelease"],
+            json!([
+                {"line": 1, "fields": {"Origin": "Ubuntu", "Version": "26.04", "Installed-Size": "12", "Description": "x"}},
+                {"line": 6, "fields": {"Package": "a"}},
+            ])
+        );
+        assert_eq!(reply.diagnostics[0].line, Some(8));
+    }
 
     #[test]
     fn paragraphs_split_on_blank_lines_and_skip_comments() {

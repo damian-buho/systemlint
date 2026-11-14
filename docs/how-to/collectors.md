@@ -289,8 +289,11 @@ contents, read it under `files` with `op: lines`, which keys each file’s list 
 lines by its path, so a rule asserts `contains: {pattern: …}`; contents enter
 the facts document only through a collector the operator writes. `op: yaml`
 (YAML 1.2 booleans, so `no` stays a string), `op: toml` (a date as its TOML
-text) and `op: csv` (a list of rows keyed by the header row) key each parsed
-file by its path, a file that does not parse becoming a diagnostic.
+text), `op: csv` (a list of rows keyed by the header row) and `op: deb822`
+(a list of `{line, fields}` paragraphs as apt and dpkg read them, values as
+text, continuation lines joined by a newline, the first field of a name kept,
+a clear-signed `InRelease` read inside its signature) key each parsed file by
+its path, a file that does not parse becoming a diagnostic.
 
 To judge any command, a collector file under `collect.directories` runs it
 with `read.exec` and `op: exec`, which returns its `exit-status`, `stdout`,
@@ -303,7 +306,7 @@ parse: {plugin: formats, op: exec}
 into: commands.nginx-test
 ```
 
-The text ops (`lines`, `kv`, `words`, `options`, `match`, `ini`, `json`, `yaml`, `toml`, `csv`) read a
+The text ops (`lines`, `kv`, `words`, `options`, `match`, `deb822`, `ini`, `json`, `yaml`, `toml`, `csv`) read a
 command’s `stdout` as they read a file when it exits 0, its program path
 standing in for a file path; any other exit is a diagnostic naming the status
 and the first line of `stderr`:

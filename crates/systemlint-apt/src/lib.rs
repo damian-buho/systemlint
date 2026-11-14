@@ -7,9 +7,9 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
+use systemlint_formats::deb822;
 use systemlint_protocol::{Describe, Diagnostic, Input, Reply, Request, Result};
 
-pub mod deb822;
 pub mod lists;
 pub mod sources;
 

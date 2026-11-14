@@ -10,7 +10,7 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use systemlint_protocol::{Diagnostic, Input, Reply};
 
-use crate::deb822::{self, Stanza};
+use systemlint_formats::deb822::{self, Stanza};
 
 /// Ubuntu and Debian release codenames, oldest first.
 pub const CODENAMES: &[&str] = &[

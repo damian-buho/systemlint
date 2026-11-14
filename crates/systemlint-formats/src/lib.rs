@@ -6,9 +6,11 @@
 
 use std::collections::BTreeMap;
 
+pub mod deb822;
 mod kv;
 mod options;
 mod words;
+pub use deb822::deb822;
 pub use kv::kv;
 pub use options::flags;
 pub use words::words;
@@ -54,6 +56,7 @@ pub fn describe() -> Describe {
         "formats",
         &[
             ("csv", &[]),
+            ("deb822", &[]),
             ("exec", &[]),
             ("ini", &[]),
             ("json", &[]),
@@ -84,6 +87,7 @@ pub fn op(request: Request) -> Result<Reply> {
     }
     match request.op.as_str() {
         "csv" => Ok(csv(&request.inputs)),
+        "deb822" => Ok(deb822(&request.inputs)),
         "exec" => Ok(exec(&request.inputs)),
         "ini" => Ok(ini(&request.inputs)),
         "json" => Ok(json(&request.inputs)),
@@ -105,8 +109,8 @@ pub fn op(request: Request) -> Result<Reply> {
 }
 
 /// The generic ops that read a command’s stdout as text, so a failed command fails them.
-const TEXT_OPS: [&str; 10] = [
-    "csv", "ini", "json", "kv", "lines", "match", "options", "toml", "words", "yaml",
+const TEXT_OPS: [&str; 11] = [
+    "csv", "deb822", "ini", "json", "kv", "lines", "match", "options", "toml", "words", "yaml",
 ];
 
 /// The family ops that take typed options under `with`.
@@ -1068,8 +1072,8 @@ mod tests {
                 .map(|o| o.op.as_str())
                 .collect::<Vec<_>>(),
             [
-                "csv", "exec", "ini", "json", "kv", "lines", "match", "options", "passwd",
-                "probes", "shadow", "stat", "statfs", "systemd", "toml", "words", "yaml"
+                "csv", "deb822", "exec", "ini", "json", "kv", "lines", "match", "options",
+                "passwd", "probes", "shadow", "stat", "statfs", "systemd", "toml", "words", "yaml"
             ]
         );
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));

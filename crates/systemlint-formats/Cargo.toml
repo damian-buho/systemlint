@@ -4,7 +4,7 @@
 
 [package]
 name = "systemlint-formats"
-description = "systemlint plugin: Generic parsers: csv, exec, ini, json, kv, lines, stat, sysctl, toml, yaml"
+description = "systemlint plugin: the generic parsers, one per format family"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
