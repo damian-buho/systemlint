@@ -109,7 +109,7 @@ pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
     Ok(reply)
 }
 
-/// Each `Match`-able keyword’s global value under the main file, plus every account whose own run settled it otherwise.
+/// Each `Match`-able keyword’s global value under the main file, plus every account whose own run settled it otherwise, empty when none has it.
 pub fn settings(global: &Map<String, Value>, accounts: &Map<String, Value>) -> Map<String, Value> {
     let mut settings = Map::new();
     for keyword in config::MATCH {
@@ -126,9 +126,7 @@ pub fn settings(global: &Map<String, Value>, accounts: &Map<String, Value>) -> M
                 _ => {}
             }
         }
-        if !subjects.is_empty() {
-            settings.insert((*keyword).to_owned(), Value::Object(subjects));
-        }
+        settings.insert((*keyword).to_owned(), Value::Object(subjects));
     }
     settings
 }
@@ -252,12 +250,17 @@ mod tests {
         );
         assert_eq!(facts["accounts"]["root"]["x11forwarding"], "no");
         assert_eq!(
-            facts["settings"],
-            json!({
-                "permitrootlogin": {MAIN: "no"},
-                "x11forwarding": {MAIN: "no", "sftp": "yes"}
-            }),
+            (
+                &facts["settings"]["permitrootlogin"],
+                &facts["settings"]["x11forwarding"]
+            ),
+            (&json!({MAIN: "no"}), &json!({MAIN: "no", "sftp": "yes"})),
             "an account appears only where its value differs from global"
+        );
+        assert_eq!(
+            facts["settings"]["banner"],
+            json!({}),
+            "a keyword no run printed is empty"
         );
         assert_eq!(
             facts["client"],
@@ -272,10 +275,10 @@ mod tests {
             "alice".to_owned(),
             json!({"banner": "/etc/issue.net", "ciphers": ["chacha20"]}),
         )]);
-        assert_eq!(
-            Value::Object(settings(&global, &accounts)),
-            json!({"banner": {"alice": "/etc/issue.net"}})
-        );
+        let settings = settings(&global, &accounts);
+        assert_eq!(settings["banner"], json!({"alice": "/etc/issue.net"}));
+        assert!(!settings.contains_key("ciphers"));
+        assert_eq!(settings.len(), config::MATCH.len());
     }
 
     #[test]
@@ -310,11 +313,31 @@ mod tests {
                 absent,
             ),
         ]);
-        assert_eq!(facts, json!({"global": {}, "accounts": {}, "settings": {}}));
+        assert_eq!(
+            (&facts["global"], &facts["accounts"]),
+            (&json!({}), &json!({}))
+        );
+        assert!(
+            facts["settings"]
+                .as_object()
+                .unwrap()
+                .values()
+                .all(|v| v == &json!({}))
+        );
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].path, "/usr/sbin/sshd -T");
         let (facts, _) = collected(&[]);
-        assert_eq!(facts, json!({"global": {}, "accounts": {}, "settings": {}}));
+        assert_eq!(
+            (&facts["global"], &facts["accounts"]),
+            (&json!({}), &json!({}))
+        );
+        assert!(
+            facts["settings"]
+                .as_object()
+                .unwrap()
+                .values()
+                .all(|v| v == &json!({}))
+        );
     }
 
     #[test]
