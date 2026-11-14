@@ -21,7 +21,7 @@ systemlint check --root /mnt/image --tags accounts
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
 | `accounts-passwd` | `/etc/passwd` | `passwd` | `accounts.passwd.<name>` |
-| `accounts-group` | `/etc/group` | `group` | `accounts.group.<name>` |
+| `accounts-group` | `/etc/group` | `words` on `:`, the password field dropped | `accounts.group.<name>` |
 | `accounts-shadow` | `/etc/shadow`, root only | `shadow` | `accounts.shadow.<name>` |
 
 ```yaml
@@ -29,7 +29,7 @@ accounts:
   passwd:
     root: {password: shadow, uid: 0, gid: 0, gecos: root, home: /root, shell: /bin/bash, line: 1, shadowed: []}
   group:
-    sudo: {password: shadow, gid: 27, members: [alice], line: 28, shadowed: []}
+    sudo: {gid: 27, members: [alice], path: /etc/group, line: 28, shadowed: []}
   shadow:
     root: {password: locked, line: 1, shadowed: []}
 ```
@@ -38,11 +38,13 @@ accounts:
   reads the files top-down. A later line repeating the name is never read; its
   line number goes to the first entry’s `shadowed`.
 - `password` is a word, never the hash: `shadow` for `x`, which defers to
-  `/etc/shadow` or `/etc/gshadow`, `empty`, `locked` for a leading `!` or `*`,
-  else `hash`.
+  `/etc/shadow`, `empty`, `locked` for a leading `!` or `*`, else `hash`. A
+  group carries no `password`: `accounts-group` drops the field, whose hash
+  belongs in `/etc/gshadow`.
 - Empty lines and lines starting with `#` are skipped. A line with the wrong
-  number of fields, or a uid or gid that is not a number, is left out with a
-  diagnostic naming its line.
+  number of fields, or a uid that is not a number, is left out with a
+  diagnostic naming its line; a group’s `gid` is a number when it is written
+  as one.
 - `accounts-shadow` is skipped in an unprivileged run, so its rule answers
   `unknown` there.
 

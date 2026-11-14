@@ -42,12 +42,12 @@ into: apt.sources
 | `read.dns` | hostnames the core queries, each taken as fully qualified |
 | `read.dns-types` | the record types asked for each name: `A`, `AAAA`, `CAA`, `CNAME`, `MX`, `NS`, `PTR`, `SOA`, `SRV`, `TXT` [default: `A`, `AAAA`] |
 | `read.dns-server` | the IP, or `IP:port`, every query goes to [default: the `nameserver` lines of this host’s `/etc/resolv.conf`] |
-| `read.dns-server-from` | dotted fact paths, `*` a whole segment, whose strings name servers, IPv6 `%zone` dropped; each server is asked the `read.dns` names on its own, as a `nameserver` probe, instead of resolving them; never beside `dns-server` |
+| `read.dns-server-from` | dotted fact paths, `*` a whole segment, `N` a list’s item and `:N` its first N, whose strings name servers, IPv6 `%zone` dropped; each server is asked the `read.dns` names on its own, as a `nameserver` probe, instead of resolving them; never beside `dns-server` |
 | `read.http` | URLs the core sends one GET to, or maps `{url, username, password-file, ca-file, body: json}` |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
-| `parse.with` | options passed to the op in the request’s `with`; only `formats match` takes any |
+| `parse.with` | the typed options of a family op (`words`, `match`), passed in the request’s `with`; see [Family ops](#family-ops) |
 | `into` | the dotted fact path the reply’s facts are placed at; never under `meta` or `collectors`, never overlapping another collector’s |
 
 `files`, `stat` and `exec` sit side by side under `read`; a collector uses
@@ -166,10 +166,10 @@ collector into `probes` the ruleset is `not-applicable`; with one skipped, its
 rules are `not run`.
 
 The shipped `resolv-conf` collector reads `/etc/resolv.conf` with `formats
-resolv` into `resolv.conf.<path>`, as glibc reads it: the first 3 valid
-`nameservers`, the `search` list of the last `search` or `domain` line, and
-every `options` word. The shipped `resolv-nameservers` collector asks each of
-those nameservers for the root zone’s `NS` records into `resolv.probes`, and
+words` into `resolv.conf.<path>`: every `nameserver` and `options` word in
+order, and the last `search` and `domain` lines. The shipped
+`resolv-nameservers` collector asks the first 3 nameservers, the ones glibc
+uses, for the root zone’s `NS` records into `resolv.probes`, and
 the `resolv` ruleset fails one that answers no query
 (`resolv/nameserver-silent`) or answers `REFUSED`
 (`resolv/nameserver-refuses`), both covering Lynis NETW-2704. A
@@ -300,7 +300,7 @@ parse: {plugin: formats, op: exec}
 into: commands.nginx-test
 ```
 
-The text ops (`lines`, `kv`, `ini`, `json`, `yaml`, `toml`, `csv`) read a
+The text ops (`lines`, `kv`, `words`, `match`, `ini`, `json`, `yaml`, `toml`, `csv`) read a
 command’s `stdout` as they read a file when it exits 0, its program path
 standing in for a file path; any other exit is a diagnostic naming the status
 and the first line of `stderr`:
@@ -312,11 +312,65 @@ parse: {plugin: formats, op: json}
 into: commands.mounts
 ```
 
-`op: match` turns lines into keyed facts: `with.pattern` is a regular expression with named
-captures, each line it matches one fact keyed by its `key` capture, the other
-captures that matched its fields; lines it does not match are dropped, and a
-key seen again is a diagnostic, the first kept. One package per pending
-upgrade:
+## Family ops
+
+`formats` has one op per format family, never one per file or program: most
+files that look custom are whitespace records or `key value` lines. A family
+op takes a few typed options under `parse.with`, never a pattern, and types
+the scalars it reads: a bare decimal integer with no leading zero becomes a
+number (`27`, `-1`), anything else stays text (`0644`, `yes`, a quoted
+`"27"`).
+
+`op: words` reads whitespace records, `"…"` and `[…]` each one word with
+their delimiters dropped (`\"` and `\]` escape the closing mark); a word
+opening with a comment marker ends the line, and a `\` at a line end joins
+the next one.
+
+| Option | Meaning |
+| --- | --- |
+| `separator` | split each line on this string instead, keeping empty fields, as `:` tables need; a comment then only opens a line |
+| `comments` | the markers that open a comment [default: `["#"]`] |
+| `directives` | keep only the lines whose first word is one of these |
+| `columns` | name each word in order, `null` dropping one; without it, each input path maps every first word to the list of words after it |
+| `required` | the fewest words a line may have [default: every column]; a line with fewer, or with more and no `rest`, is a diagnostic |
+| `rest` | the column holding the words past the named ones, as a list |
+| `lists` | columns split on `,`, empty items dropped |
+| `key` | a column, or a list of them for nested keys, keying records across every input instead of listing them per path; each record gets its `path` and `line` |
+| `repeat` | for a key seen again: `first` [default] or `last`, the other lines’ numbers in the kept record’s `shadowed`, or `list` keeping every record; without `columns`, also `append`, joining the words, and a map giving a policy per first word, `*` for the rest |
+| `octal` | decode `\040`-style escapes, as fstab(5) and the kernel’s mount tables write a space |
+
+`/etc/resolv.conf` as glibc reads it, every `nameserver` kept and the
+`resolv-nameservers` collector taking the first 3 with `nameserver.:3`:
+
+```yaml
+id: resolv-conf
+read: {files: [/etc/resolv.conf]}
+parse:
+  plugin: formats
+  op: words
+  with: {comments: ["#", ";"], repeat: {nameserver: append, options: append, search: last, domain: last}}
+into: resolv.conf
+```
+
+`/etc/group` keyed by name, the password field never read:
+
+```yaml
+id: accounts-group
+read: {files: [/etc/group]}
+parse:
+  plugin: formats
+  op: words
+  with: {separator: ":", columns: [name, null, gid, members], lists: [members], key: name}
+into: accounts.group
+```
+
+`op: match` is for the one line shape no family covers, such as a module’s
+base name in `modules.order`: `with.pattern` is one short regular expression,
+with no lookaheads, whose named captures become the fields, each line it
+matches one fact keyed by its `key` capture; lines it does not match are
+dropped, and a key seen again with other fields is a diagnostic, the first
+kept. Needing a longer pattern means a family is missing. One package per
+pending upgrade:
 
 ```yaml
 id: apt-upgrades

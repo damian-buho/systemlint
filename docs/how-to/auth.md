@@ -22,7 +22,7 @@ systemlint check --root /mnt/image --tags auth
 | --- | --- | --- | --- |
 | `auth-login-defs` | `/etc/login.defs` | `login-defs` | `auth.login-defs.<NAME>` |
 | `auth-pam` | `/etc/pam.d/*` | `pam` | `auth.pam.<path>` |
-| `auth-limits` | `/etc/security/limits.conf`, `limits.d/*.conf` | `limits` | `auth.limits.entries` |
+| `auth-limits` | `/etc/security/limits.conf`, `limits.d/*.conf` | `words` | `auth.limits.<path>` |
 | `auth-pwquality` | `/etc/security/pwquality.conf`, `pwquality.conf.d/*.conf` | `ini` | `auth.pwquality.<path>` |
 | `auth-securetty` | `/etc/securetty` | `lines` | `auth.securetty.<path>` |
 
@@ -34,8 +34,8 @@ auth:
       - {line: 17, type: auth, control: "[success=1 default=ignore]", module: pam_unix.so, arguments: [nullok], silent: false}
       - {line: 21, include: common-account}
   limits:
-    entries:
-      - {domain: "*", type: hard, item: core, value: "0", path: /etc/security/limits.conf, line: 52}
+    /etc/security/limits.conf:
+      - {domain: "*", type: hard, item: core, value: 0, line: 52}
 ```
 
 - `login-defs` reads `NAME value` lines as shadow does: the last line naming
@@ -48,10 +48,11 @@ auth:
   `[…]` control is lowercased with its spaces collapsed, and a `[…]` argument
   loses its brackets. A line of an unknown type is left out with a diagnostic,
   as Linux-PAM skips it.
-- `limits` lists every entry in read order, `limits.conf` first: pam_limits
-  gives a user’s own line precedence over a group’s and a group’s over `*`, so
-  a rule judges the whole list rather than one winning line. A line without
-  exactly four fields is left out with a diagnostic, as pam_limits ignores it.
+- `limits` lists each file’s entries in order, as written: pam_limits gives a
+  user’s own line precedence over a group’s and a group’s over `*`, so a rule
+  judges every file’s list rather than one winning line, and compares `type`
+  and `item` without case, as pam_limits does. A line without exactly four
+  fields is left out with a diagnostic, as pam_limits ignores it.
 
 ## Rules
 

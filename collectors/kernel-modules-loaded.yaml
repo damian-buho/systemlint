@@ -8,6 +8,6 @@ read:
   files: [/proc/modules]
 parse:
   plugin: formats
-  op: match
-  with: {pattern: '^(?P<key>\S+) (?P<size>\d+) (?P<instances>\d+) \S+ (?P<state>\S+)'}
+  op: words
+  with: {columns: [name, size, instances, null, state, null], key: name}
 into: kernel.loaded

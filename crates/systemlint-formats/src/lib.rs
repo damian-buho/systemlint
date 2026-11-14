@@ -7,7 +7,9 @@
 use std::collections::BTreeMap;
 
 mod auth;
-pub use auth::{limits, login_defs, pam};
+mod words;
+pub use auth::{login_defs, pam};
+pub use words::words;
 
 use serde_json::{Map, Value};
 use systemlint_protocol::{
@@ -60,26 +62,22 @@ pub fn describe() -> Describe {
         &[
             ("csv", &[]),
             ("exec", &[]),
-            ("fstab", &[]),
-            ("group", &[]),
             ("ini", &[]),
             ("json", &[]),
             ("kv", &[]),
-            ("limits", &[]),
             ("lines", &[]),
             ("login-defs", &[]),
             ("match", &[]),
-            ("mountinfo", &[]),
             ("pam", &[]),
             ("passwd", &[]),
             ("probes", &[]),
-            ("resolv", &[]),
             ("shadow", &[]),
             ("stat", &[]),
             ("statfs", &[]),
             ("sysctl", &[]),
             ("systemd", &[]),
             ("toml", &[]),
+            ("words", &[]),
             ("yaml", &[]),
         ],
     )
@@ -87,7 +85,7 @@ pub fn describe() -> Describe {
 
 /// Runs one op.
 pub fn op(request: Request) -> Result<Reply> {
-    if request.op != "match" && !request.with.is_empty() {
+    if !WITH_OPS.contains(&request.op.as_str()) && !request.with.is_empty() {
         return Err(format!("op {} takes no with", request.op).into());
     }
     if TEXT_OPS.contains(&request.op.as_str()) {
@@ -96,33 +94,53 @@ pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
         "csv" => Ok(csv(&request.inputs)),
         "exec" => Ok(exec(&request.inputs)),
-        "fstab" => Ok(fstab(&request.inputs)),
-        "group" => Ok(group(&request.inputs)),
         "ini" => Ok(ini(&request.inputs)),
         "json" => Ok(json(&request.inputs)),
         "kv" => Ok(kv(&request.inputs)),
-        "limits" => Ok(limits(&request.inputs)),
         "lines" => Ok(lines(&request.inputs)),
         "login-defs" => Ok(login_defs(&request.inputs)),
         "match" => r#match(&request.inputs, &request.with),
-        "mountinfo" => Ok(mountinfo(&request.inputs)),
         "pam" => Ok(pam(&request.inputs)),
         "passwd" => Ok(passwd(&request.inputs)),
         "probes" => Ok(probes(&request.inputs)),
-        "resolv" => Ok(resolv(&request.inputs)),
         "shadow" => Ok(shadow(&request.inputs)),
         "stat" => Ok(stat(&request.inputs)),
         "statfs" => Ok(statfs(&request.inputs)),
         "sysctl" => Ok(sysctl(&request.inputs)),
         "systemd" => Ok(systemd(&request.inputs)),
         "toml" => Ok(toml(&request.inputs)),
+        "words" => words(&request.inputs, &request.with),
         "yaml" => Ok(yaml(&request.inputs)),
         other => Err(format!("unknown op {other}").into()),
     }
 }
 
 /// The generic ops that read a command’s stdout as text, so a failed command fails them.
-const TEXT_OPS: [&str; 8] = ["csv", "ini", "json", "kv", "lines", "match", "toml", "yaml"];
+const TEXT_OPS: [&str; 9] = [
+    "csv", "ini", "json", "kv", "lines", "match", "toml", "words", "yaml",
+];
+
+/// The family ops that take typed options under `with`.
+const WITH_OPS: [&str; 2] = ["match", "words"];
+
+/// The typed options of `op` from `with`, or an error naming what is wrong.
+pub fn options<T: serde::de::DeserializeOwned>(op: &str, with: &Map<String, Value>) -> Result<T> {
+    serde_json::from_value(Value::Object(with.clone()))
+        .map_err(|e| format!("{op} with: {e}").into())
+}
+
+/// A bare word as a fact: a decimal integer with no leading zero becomes a number, anything else stays text.
+pub fn scalar(word: &str) -> Value {
+    let digits = word.strip_prefix('-').unwrap_or(word);
+    let integer = !digits.is_empty()
+        && digits.bytes().all(|b| b.is_ascii_digit())
+        && (digits == "0" || !digits.starts_with('0'))
+        && word != "-0";
+    match word.parse::<i64>() {
+        Ok(n) if integer => Value::from(n),
+        _ => Value::from(word),
+    }
+}
 
 /// An error naming the first command that exited non-zero, 127 (absent) aside, so its collector fails rather than reading as empty.
 fn ran(inputs: &[Input]) -> Result<()> {
@@ -423,16 +441,6 @@ fn passwd_entry(parts: &[&str]) -> std::result::Result<Map<String, Value>, Strin
     ]))
 }
 
-/// A group(5) line’s facts.
-fn group_entry(parts: &[&str]) -> std::result::Result<Map<String, Value>, String> {
-    let members: Vec<&str> = parts[3].split(',').filter(|m| !m.is_empty()).collect();
-    Ok(Map::from_iter([
-        ("password".to_owned(), Value::from(password(parts[1]))),
-        ("gid".to_owned(), id(parts, 2, "gid")?),
-        ("members".to_owned(), Value::from(members)),
-    ]))
-}
-
 /// A shadow(5) line’s facts, the hash reduced to its word.
 fn shadow_entry(parts: &[&str]) -> std::result::Result<Map<String, Value>, String> {
     Ok(Map::from_iter([(
@@ -491,184 +499,9 @@ pub fn passwd(inputs: &[Input]) -> Reply {
     accounts(inputs, 7, passwd_entry)
 }
 
-/// Every group of group(5) files by name.
-pub fn group(inputs: &[Input]) -> Reply {
-    accounts(inputs, 4, group_entry)
-}
-
 /// Every account of shadow(5) files by name, with no hash.
 pub fn shadow(inputs: &[Input]) -> Reply {
     accounts(inputs, 9, shadow_entry)
-}
-
-/// A mount table field with its `\040`-style octal escapes decoded.
-fn unoctal(field: &str) -> String {
-    let (bytes, mut out, mut i) = (field.as_bytes(), Vec::with_capacity(field.len()), 0);
-    while i < bytes.len() {
-        let code = bytes.get(i + 1..i + 4).filter(|_| bytes[i] == b'\\');
-        match code.and_then(|c| u8::from_str_radix(std::str::from_utf8(c).ok()?, 8).ok()) {
-            Some(byte) => (out.push(byte), i += 4),
-            None => (out.push(bytes[i]), i += 1),
-        };
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
-
-/// The fstab(5) options as mount(8) applies them: `user`, `users`, `owner` and `group` add what they imply, and a later `dev`, `suid` or `exec` drops its `no` form.
-fn fstab_options(written: &str) -> Vec<String> {
-    let mut options: Vec<String> = Vec::new();
-    for option in written.split(',').filter(|o| !o.is_empty()) {
-        let implied: &[&str] = match option {
-            "user" | "users" => &["noexec", "nosuid", "nodev"],
-            "owner" | "group" => &["nosuid", "nodev"],
-            _ => &[],
-        };
-        for o in std::iter::once(option).chain(implied.iter().copied()) {
-            let opposite = o.strip_prefix("no").map_or(format!("no{o}"), str::to_owned);
-            options.retain(|kept| *kept != opposite && kept != o);
-            options.push(o.to_owned());
-        }
-    }
-    options
-}
-
-/// One mount table line’s mount point and facts, `None` to skip it, or the message naming the bad field.
-type MountEntry = fn(&[&str]) -> std::result::Result<Option<(String, Map<String, Value>)>, String>;
-
-/// Every mount of mount table inputs keyed by mount point, a later line over the same point winning as the kernel stacks it; `entry` gives a line’s mount point and facts, or `None` to skip it.
-fn mount_table(inputs: &[Input], entry: MountEntry) -> Reply {
-    let mut reply = Reply::default();
-    for input in inputs {
-        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
-            continue;
-        };
-        for (index, raw) in text.lines().enumerate() {
-            let fields: Vec<&str> = raw.split_whitespace().collect();
-            if fields.first().is_none_or(|f| f.starts_with('#')) {
-                continue;
-            }
-            match entry(&fields) {
-                Ok(Some((point, mut facts))) => {
-                    facts.insert("line".to_owned(), Value::from(index as u64 + 1));
-                    reply.facts.insert(point, Value::Object(facts));
-                }
-                Ok(None) => {}
-                Err(message) => reply.diagnostics.push(Diagnostic {
-                    path: path.to_owned(),
-                    line: Some(index as u64 + 1),
-                    message,
-                }),
-            }
-        }
-    }
-    reply
-}
-
-/// Every mount of `/proc/*/mountinfo` by mount point: `source`, `filesystem`, the per-mount `options` and the filesystem’s `super-options`.
-pub fn mountinfo(inputs: &[Input]) -> Reply {
-    mount_table(inputs, |fields| {
-        let dash = fields
-            .iter()
-            .position(|f| *f == "-")
-            .filter(|d| *d >= 6 && d + 3 < fields.len());
-        let Some(dash) = dash else {
-            return Err(
-                "not a mountinfo line: no ` - ` after six fields with three after it".to_owned(),
-            );
-        };
-        let list = |s: &str| Value::from(s.split(',').map(unoctal).collect::<Vec<_>>());
-        Ok(Some((
-            unoctal(fields[4]),
-            Map::from_iter([
-                ("source".to_owned(), Value::from(unoctal(fields[dash + 2]))),
-                ("filesystem".to_owned(), Value::from(fields[dash + 1])),
-                ("options".to_owned(), list(fields[5])),
-                ("super-options".to_owned(), list(fields[dash + 3])),
-            ]),
-        )))
-    })
-}
-
-/// Every mount of fstab(5) files by mount point, swap left out: `source`, `filesystem` and the effective `options`.
-pub fn fstab(inputs: &[Input]) -> Reply {
-    mount_table(inputs, |fields| {
-        if !(3..=6).contains(&fields.len()) {
-            return Err(format!("{} fields where 3 to 6 are expected", fields.len()));
-        }
-        if fields[2] == "swap" {
-            return Ok(None);
-        }
-        Ok(Some((
-            unoctal(fields[1]),
-            Map::from_iter([
-                ("source".to_owned(), Value::from(unoctal(fields[0]))),
-                ("filesystem".to_owned(), Value::from(fields[2])),
-                (
-                    "options".to_owned(),
-                    Value::from(fstab_options(fields.get(3).copied().unwrap_or("defaults"))),
-                ),
-            ]),
-        )))
-    })
-}
-
-/// The nameservers glibc asks, at most this many.
-pub const MAXNS: usize = 3;
-
-/// Every resolv.conf(5) by path, as glibc reads it: the first [`MAXNS`] valid `nameservers`, the last `search` or `domain` line’s `search` list, and every `options` word.
-pub fn resolv(inputs: &[Input]) -> Reply {
-    let mut reply = Reply::default();
-    for input in inputs {
-        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
-            continue;
-        };
-        let (mut nameservers, mut search, mut options) = (Vec::new(), Vec::new(), Vec::new());
-        for (index, line) in text.lines().enumerate() {
-            let mut words = line.split_whitespace();
-            let (Some(keyword), rest) = (words.next(), words) else {
-                continue;
-            };
-            let mut diagnose = |message: String| {
-                reply.diagnostics.push(Diagnostic {
-                    path: path.to_owned(),
-                    line: Some(index as u64 + 1),
-                    message,
-                })
-            };
-            match keyword {
-                k if k.starts_with(['#', ';']) => {}
-                "nameserver" => match rest.clone().next() {
-                    Some(ip)
-                        if ip
-                            .split('%')
-                            .next()
-                            .unwrap_or(ip)
-                            .parse::<std::net::IpAddr>()
-                            .is_err() =>
-                    {
-                        diagnose(format!(
-                            "nameserver {ip} is not an IP address, ignored as glibc does"
-                        ))
-                    }
-                    Some(ip) if nameservers.len() < MAXNS => nameservers.push(ip.to_owned()),
-                    Some(ip) => diagnose(format!(
-                        "nameserver {ip} is past the first {MAXNS}, ignored as glibc does"
-                    )),
-                    None => diagnose("nameserver names no address".to_owned()),
-                },
-                "search" => search = rest.map(str::to_owned).collect(),
-                "domain" => search = rest.take(1).map(str::to_owned).collect(),
-                "sortlist" => {}
-                "options" => options.extend(rest.map(str::to_owned)),
-                other => diagnose(format!("keyword {other} is unknown, ignored")),
-            }
-        }
-        reply.facts.insert(
-            path.to_owned(),
-            serde_json::json!({"nameservers": nameservers, "search": search, "options": options}),
-        );
-    }
-    reply
 }
 
 /// The text of a file, or a zero-exit command’s stdout keyed by its program; a diagnostic otherwise.
@@ -1372,26 +1205,22 @@ mod tests {
             [
                 "csv",
                 "exec",
-                "fstab",
-                "group",
                 "ini",
                 "json",
                 "kv",
-                "limits",
                 "lines",
                 "login-defs",
                 "match",
-                "mountinfo",
                 "pam",
                 "passwd",
                 "probes",
-                "resolv",
                 "shadow",
                 "stat",
                 "statfs",
                 "sysctl",
                 "systemd",
                 "toml",
+                "words",
                 "yaml"
             ]
         );
@@ -2090,15 +1919,7 @@ mod tests {
     }
 
     #[test]
-    fn group_lists_members_and_shadow_never_returns_a_hash() {
-        let groups = group(&[file("/etc/group", "sudo:x:27:alice,bob\nusers:x:100:\n")]);
-        assert_eq!(
-            json!(groups.facts),
-            json!({
-                "sudo": {"password": "shadow", "gid": 27, "members": ["alice", "bob"], "line": 1, "shadowed": []},
-                "users": {"password": "shadow", "gid": 100, "members": [], "line": 2, "shadowed": []},
-            })
-        );
+    fn shadow_never_returns_a_hash() {
         let shadowed = shadow(&[file(
             "/etc/shadow",
             "root:$y$j9T$secret:20000:0:99999:7:::\ndaemon:*:20000:0:99999:7:::\nlocked:!$6$x:20000::::::\nopen::20000:0:99999:7:::\n",
@@ -2118,6 +1939,26 @@ mod tests {
                 ("root", "hash")
             ]
         );
+    }
+
+    #[test]
+    fn scalar_types_only_a_decimal_integer_without_a_leading_zero() {
+        for (word, typed) in [
+            ("0", json!(0)),
+            ("27", json!(27)),
+            ("-1", json!(-1)),
+            ("9223372036854775807", json!(9223372036854775807_i64)),
+            ("9223372036854775808", json!("9223372036854775808")),
+            ("0644", json!("0644")),
+            ("-0", json!("-0")),
+            ("-", json!("-")),
+            ("+1", json!("+1")),
+            ("1.5", json!("1.5")),
+            ("yes", json!("yes")),
+            ("", json!("")),
+        ] {
+            assert_eq!(scalar(word), typed, "{word:?}");
+        }
     }
 
     #[test]
@@ -2157,96 +1998,5 @@ mod tests {
             "850 of the 950 blocks a user may fill is 89.5 %, so 90"
         );
         assert_eq!(reply.diagnostics.len(), 1, "{:?}", reply.diagnostics);
-    }
-
-    #[test]
-    fn mountinfo_keys_mounts_by_point_the_top_of_a_stack_winning() {
-        let reply = mountinfo(&[file(
-            "/proc/self/mountinfo",
-            "22 1 0:21 / / rw,relatime shared:1 - ext4 /dev/sda1 rw\n\
-             30 22 0:30 / /tmp rw,nosuid,nodev shared:5 - tmpfs tmpfs rw,size=50%\n\
-             31 30 0:31 / /tmp rw - tmpfs tmpfs rw\n\
-             32 22 0:32 / /mnt/my\\040disk rw,noexec - vfat /dev/sd\\134b rw\n\
-             33 22 0:33 / /bad rw shared:1 - tmpfs\n",
-        )]);
-        assert_eq!(
-            json!(reply.facts),
-            json!({
-                "/": {"source": "/dev/sda1", "filesystem": "ext4", "options": ["rw", "relatime"], "super-options": ["rw"], "line": 1},
-                "/tmp": {"source": "tmpfs", "filesystem": "tmpfs", "options": ["rw"], "super-options": ["rw"], "line": 3},
-                "/mnt/my disk": {"source": "/dev/sd\\b", "filesystem": "vfat", "options": ["rw", "noexec"], "super-options": ["rw"], "line": 4},
-            })
-        );
-        assert_eq!(
-            reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(),
-            [Some(5)]
-        );
-    }
-
-    #[test]
-    fn fstab_applies_implied_and_later_options_and_skips_swap() {
-        let reply = fstab(&[file(
-            "/etc/fstab",
-            "# comment\n\
-             UUID=1 / ext4 defaults 0 1\n\
-             tmpfs /tmp tmpfs nosuid,nodev,noexec,dev 0 0\n\
-             /dev/sdb /media/usb vfat users,exec\n\
-             /dev/sdc /srv/a\\040b xfs\n\
-             /swapfile none swap sw 0 0\n\
-             /dev/sdd /x ext4 defaults 0 0 extra\n",
-        )]);
-        assert_eq!(
-            json!(reply.facts),
-            json!({
-                "/": {"source": "UUID=1", "filesystem": "ext4", "options": ["defaults"], "line": 2},
-                "/tmp": {"source": "tmpfs", "filesystem": "tmpfs", "options": ["nosuid", "noexec", "dev"], "line": 3},
-                "/media/usb": {"source": "/dev/sdb", "filesystem": "vfat", "options": ["users", "nosuid", "nodev", "exec"], "line": 4},
-                "/srv/a b": {"source": "/dev/sdc", "filesystem": "xfs", "options": ["defaults"], "line": 5},
-            })
-        );
-        assert_eq!(
-            reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(),
-            [Some(7)]
-        );
-    }
-
-    #[test]
-    fn resolv_keeps_the_first_three_valid_nameservers_and_the_last_search_as_glibc() {
-        let reply = resolv(&[file(
-            "/etc/resolv.conf",
-            "# comment\n\
-             ; comment\n\
-             search a.test b.test\n\
-             nameserver nonsense\n\
-             nameserver 127.0.0.53\n\
-             nameserver fe80::1%eth0\n\
-             options edns0\n\
-             nameserver 192.0.2.1\n\
-             nameserver 192.0.2.2\n\
-             domain c.test d.test\n\
-             sortlist 10.0.0.0/8\n\
-             options ndots:2 trust-ad\n\
-             lookup file bind\n",
-        )]);
-        assert_eq!(
-            json!(reply.facts),
-            json!({"/etc/resolv.conf": {
-                "nameservers": ["127.0.0.53", "fe80::1%eth0", "192.0.2.1"],
-                "search": ["c.test"],
-                "options": ["edns0", "ndots:2", "trust-ad"],
-            }})
-        );
-        assert_eq!(
-            reply.diagnostics.iter().map(|d| d.line).collect::<Vec<_>>(),
-            [Some(4), Some(9), Some(13)]
-        );
-    }
-
-    #[test]
-    fn unoctal_decodes_three_octal_digits_only() {
-        assert_eq!(unoctal("a\\040b\\011c\\134"), "a b\tc\\");
-        assert_eq!(unoctal("\\04"), "\\04");
-        assert_eq!(unoctal("\\777x"), "\\777x");
-        assert_eq!(unoctal("\\08a"), "\\08a");
     }
 }

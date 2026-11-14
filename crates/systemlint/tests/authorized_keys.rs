@@ -115,7 +115,7 @@ fn run(id: &str, options: &Options, document: &Value, needs: &[&str]) -> Map<Str
         now: None,
         inputs: read(&c, options, &paths).unwrap(),
         facts,
-        with: Default::default(),
+        with: c.parse.with.clone(),
     };
     let reply = match c.parse.plugin.as_str() {
         "sshd" => systemlint_sshd::op(request),

@@ -7,6 +7,6 @@ read:
   exec: [/usr/sbin/modprobe, --showconfig]
 parse:
   plugin: formats
-  op: match
-  with: {pattern: '^install (?P<key>\S+) (?P<command>.+)$'}
+  op: words
+  with: {directives: [install], columns: [null, module], rest: command, key: module}
 into: kernel.install

@@ -42,45 +42,6 @@ pub fn login_defs(inputs: &[Input]) -> Reply {
     reply
 }
 
-/// Every pam_limits entry of every input in read order under `entries`: domain, type and item lowercased as pam_limits compares them, value, path and line; text after `#` is a comment.
-pub fn limits(inputs: &[Input]) -> Reply {
-    let mut reply = Reply::default();
-    let mut entries = Vec::new();
-    let files: Vec<_> = inputs
-        .iter()
-        .filter_map(|i| text(i, &mut reply.diagnostics))
-        .collect();
-    for (path, content) in files {
-        for (index, line) in content.lines().enumerate() {
-            let words: Vec<&str> = line
-                .split('#')
-                .next()
-                .unwrap_or("")
-                .split_whitespace()
-                .collect();
-            match words[..] {
-                [] => {}
-                [domain, kind, item, value] => entries.push(json!({
-                    "domain": domain, "type": kind.to_lowercase(), "item": item.to_lowercase(),
-                    "value": value.to_lowercase(), "path": path, "line": index + 1})),
-                _ => note(
-                    &mut reply,
-                    path,
-                    index + 1,
-                    format!(
-                        "{} fields where pam_limits takes 4, ignored as it does",
-                        words.len()
-                    ),
-                ),
-            }
-        }
-    }
-    reply
-        .facts
-        .insert("entries".to_owned(), Value::from(entries));
-    reply
-}
-
 /// The next PAM token: a `[…]` group kept whole with its brackets and `\]` unescaped, else a run of non-blanks.
 fn token(rest: &mut &str) -> Option<String> {
     *rest = rest.trim_start();
@@ -212,27 +173,6 @@ mod tests {
             object(reply.facts),
             json!({"UMASK": "027", "PASS_MAX_DAYS": "99999", "ENV_PATH": "PATH=/bin", "LOG_OK_LOGINS": ""})
         );
-    }
-
-    #[test]
-    fn limits_lists_entries_in_read_order_and_skips_a_line_with_the_wrong_field_count() {
-        let reply = limits(&[
-            file(
-                "/etc/security/limits.conf",
-                "*  Hard  CORE  0 # no dumps\n@audio - rtprio\n",
-            ),
-            file(
-                "/etc/security/limits.d/90.conf",
-                "root hard core Unlimited\n",
-            ),
-        ]);
-        assert_eq!(
-            object(reply.facts),
-            json!({"entries": [
-                {"domain": "*", "type": "hard", "item": "core", "value": "0", "path": "/etc/security/limits.conf", "line": 1},
-                {"domain": "root", "type": "hard", "item": "core", "value": "unlimited", "path": "/etc/security/limits.d/90.conf", "line": 1}]})
-        );
-        assert_eq!(reply.diagnostics[0].line, Some(2));
     }
 
     #[test]

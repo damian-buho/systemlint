@@ -506,7 +506,7 @@ pub fn named(
     })
 }
 
-/// Every string at `segments` under `value`, `*` matching each key, a list giving each of its strings, a map its keys.
+/// Every string at `segments` under `value`, `*` matching each key, `N` a list’s item and `:N` its first N, a list giving each of its strings, a map its keys.
 fn strings(value: &Value, segments: &[&str], out: &mut Vec<String>) {
     match (segments.split_first(), value) {
         (None, Value::String(s)) => out.push(s.clone()),
@@ -519,6 +519,14 @@ fn strings(value: &Value, segments: &[&str], out: &mut Vec<String>) {
         }
         (Some((key, rest)), Value::Object(map)) => map
             .get(*key)
+            .into_iter()
+            .for_each(|v| strings(v, rest, out)),
+        (Some((slice, rest)), Value::Array(items)) if slice.starts_with(':') => {
+            let first = slice[1..].parse().unwrap_or(0);
+            items.iter().take(first).for_each(|v| strings(v, rest, out))
+        }
+        (Some((index, rest)), Value::Array(items)) if index.parse::<usize>().is_ok() => items
+            .get(index.parse::<usize>().unwrap_or_default())
             .into_iter()
             .for_each(|v| strings(v, rest, out)),
         _ => log::trace!(

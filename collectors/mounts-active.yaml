@@ -5,6 +5,9 @@
 id: mounts-active
 live: true
 read:
-  files: [/proc/self/mountinfo]
-parse: {plugin: formats, op: mountinfo}
+  files: [/proc/self/mounts]
+parse:
+  plugin: formats
+  op: words
+  with: {columns: [source, mountpoint, filesystem, options, dump, pass], required: 6, lists: [options], key: mountpoint, repeat: last, octal: true}
 into: mounts.active

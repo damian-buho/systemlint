@@ -777,6 +777,36 @@ fn a_world_writable_mount_without_nosuid_nodev_or_noexec_fails() {
         ],
         "a root run judges the declared table and skips the live one"
     );
+    let declared = |options: &[&str]| {
+        mounts(None, json!({"/tmp": {"options": options}}))
+            .into_iter()
+            .filter(|(rule, _, _)| rule.starts_with("mounts/fstab-"))
+            .map(|(rule, _, outcome)| (rule, outcome))
+            .collect::<Vec<_>>()
+    };
+    let fstab = |nodev, noexec, nosuid| {
+        vec![
+            ("mounts/fstab-nodev".to_owned(), nodev),
+            ("mounts/fstab-noexec".to_owned(), noexec),
+            ("mounts/fstab-nosuid".to_owned(), nosuid),
+        ]
+    };
+    use Outcome::{Fail, Pass};
+    assert_eq!(
+        declared(&["users"]),
+        fstab(Pass, Pass, Pass),
+        "users implies all three"
+    );
+    assert_eq!(
+        declared(&["owner"]),
+        fstab(Pass, Fail, Pass),
+        "owner implies nosuid and nodev"
+    );
+    assert_eq!(
+        declared(&["users", "exec", "suid", "dev"]),
+        fstab(Fail, Fail, Fail),
+        "a later option undoes what users implies"
+    );
     assert!(
         mounts(Some(json!({"/": {"options": ["rw"]}})), json!({})).is_empty(),
         "no separate /tmp mount, no check"
@@ -1216,9 +1246,9 @@ fn the_resolv_rules_do_not_apply_without_their_collector_and_are_unknown_offline
     );
 }
 
-// A document with the auth collectors’ facts: login.defs keys, pam_limits entries and PAM files by path.
+// A document with the auth collectors’ facts: login.defs keys, pam_limits entries of limits.conf and PAM files by path.
 fn auth(defs: Value, limits: Value, pam: Value) -> Value {
-    json!({"auth": {"login-defs": defs, "limits": {"entries": limits}, "pam": pam}, "collectors": {
+    json!({"auth": {"login-defs": defs, "limits": {"/etc/security/limits.conf": limits}, "pam": pam}, "collectors": {
         "auth-login-defs": {"status": "ok", "into": "auth.login-defs"},
         "auth-limits": {"status": "ok", "into": "auth.limits"},
         "auth-pam": {"status": "ok", "into": "auth.pam"}}})
@@ -1338,8 +1368,8 @@ fn a_password_stack_without_faillock_fails_and_one_without_pam_unix_is_not_judge
 }
 
 // A pam_limits core entry.
-fn core(domain: &str, kind: &str, value: &str) -> Value {
-    json!({"domain": domain, "type": kind, "item": "core", "value": value, "path": "/etc/security/limits.conf", "line": 1})
+fn core(domain: &str, kind: &str, value: Value) -> Value {
+    json!({"domain": domain, "type": kind, "item": "core", "value": value, "line": 1})
 }
 
 #[test]
@@ -1352,26 +1382,52 @@ fn core_dumps_pass_only_with_a_hard_zero_for_everyone_and_none_raised() {
             &auth(json!({}), entries, pam.clone()),
         )
     };
-    assert_eq!(limit(json!([core("*", "hard", "0")])), [Outcome::Pass]);
-    assert_eq!(limit(json!([core("*", "-", "0")])), [Outcome::Pass]);
+    assert_eq!(limit(json!([core("*", "hard", json!(0))])), [Outcome::Pass]);
+    assert_eq!(limit(json!([core("*", "-", json!(0))])), [Outcome::Pass]);
     assert_eq!(
-        limit(json!([core("*", "soft", "0")])),
+        limit(json!([core("*", "Hard", json!(0))])),
+        [Outcome::Pass],
+        "pam_limits compares without case"
+    );
+    assert_eq!(
+        limit(json!([core("*", "soft", json!(0))])),
         [Outcome::Fail],
         "soft is raised at will"
     );
     assert_eq!(
-        limit(json!([core("root", "hard", "0")])),
+        limit(json!([core("root", "hard", json!(0))])),
         [Outcome::Fail],
         "not every user"
     );
     assert_eq!(
+        limit(json!([core("*", "hard", json!(1))])),
+        [Outcome::Fail],
+        "1 is the edge above 0"
+    );
+    assert_eq!(
         limit(json!([
-            core("*", "hard", "0"),
-            core("@dev", "hard", "unlimited")
+            core("*", "hard", json!(0)),
+            core("@dev", "hard", json!("unlimited"))
         ])),
         [Outcome::Fail]
     );
     assert_eq!(limit(json!([])), [Outcome::Fail]);
+    let mut split = auth(json!({}), json!([core("*", "hard", json!(0))]), pam.clone());
+    split["auth"]["limits"]["/etc/security/limits.d/dev.conf"] =
+        json!([core("@dev", "-", json!("unlimited"))]);
+    assert_eq!(
+        outcomes("coredump", "coredump/no-hard-limit", &split),
+        [Outcome::Fail],
+        "a drop-in raising it"
+    );
+    let mut dropin = auth(json!({}), json!([]), pam.clone());
+    dropin["auth"]["limits"]["/etc/security/limits.d/core.conf"] =
+        json!([core("*", "hard", json!(0))]);
+    assert_eq!(
+        outcomes("coredump", "coredump/no-hard-limit", &dropin),
+        [Outcome::Pass],
+        "the zero in a drop-in"
+    );
     assert_eq!(
         outcomes(
             "coredump",

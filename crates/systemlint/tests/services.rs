@@ -46,7 +46,7 @@ fn facts(id: &str) -> Value {
         now: None,
         inputs: given,
         facts: BTreeMap::new(),
-        with: Default::default(),
+        with: c.parse.with.clone(),
     };
     let reply = match c.parse.plugin.as_str() {
         "systemd" => systemlint_systemd::op(request),

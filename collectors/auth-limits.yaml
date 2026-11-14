@@ -5,5 +5,8 @@
 id: auth-limits
 read:
   files: [/etc/security/limits.conf, /etc/security/limits.d/*.conf]
-parse: {plugin: formats, op: limits}
+parse:
+  plugin: formats
+  op: words
+  with: {columns: [domain, type, item, value]}
 into: auth.limits

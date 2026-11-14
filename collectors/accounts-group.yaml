@@ -5,5 +5,8 @@
 id: accounts-group
 read:
   files: [/etc/group]
-parse: {plugin: formats, op: group}
+parse:
+  plugin: formats
+  op: words
+  with: {separator: ":", columns: [name, null, gid, members], lists: [members], key: name}
 into: accounts.group

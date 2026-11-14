@@ -7,6 +7,6 @@ read:
   exec: [/usr/sbin/modprobe, --showconfig]
 parse:
   plugin: formats
-  op: match
-  with: {pattern: '^blacklist (?P<key>\S+)$'}
+  op: words
+  with: {directives: [blacklist], columns: [null, module], key: module}
 into: kernel.blacklist

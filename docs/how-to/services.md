@@ -18,9 +18,9 @@ reads the Docker or kernel module facts yet.
 | `sysctl` | `/usr/sbin/sysctl -a` on a live host, else `/etc/sysctl.conf` and the `sysctl.d` directories | `sysctl` | `sysctl` |
 | `kernel-modules-shipped` | `modules.order` of every kernel in `/lib/modules` | `match` | `kernel.shipped.<module>` |
 | `kernel-modules-builtin` | `modules.builtin` of every kernel in `/lib/modules` | `match` | `kernel.builtin.<module>` |
-| `kernel-modules-blacklist` | `/usr/sbin/modprobe --showconfig` on a live host | `match` | `kernel.blacklist.<module>` |
-| `kernel-modules-install` | `/usr/sbin/modprobe --showconfig` on a live host | `match` | `kernel.install.<module>` |
-| `kernel-modules-loaded` | `/proc/modules` on a live host | `match` | `kernel.loaded.<module>` |
+| `kernel-modules-blacklist` | `/usr/sbin/modprobe --showconfig` on a live host | `words` | `kernel.blacklist.<module>` |
+| `kernel-modules-install` | `/usr/sbin/modprobe --showconfig` on a live host | `words` | `kernel.install.<module>` |
+| `kernel-modules-loaded` | `/proc/modules` on a live host | `words` | `kernel.loaded.<module>` |
 | `audit-rules` | `/etc/audit/rules.d/*.rules` | `lines` | `audit.rules.<file>` |
 | `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `lines` | `audit.loaded./usr/sbin/auditctl` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
@@ -54,16 +54,17 @@ segment.
 
 ## Kernel modules
 
-Five collectors compose kmod’s own answers with `formats match`, one
-collection each, every module keyed by its name:
+Five collectors compose kmod’s own answers with `formats words`, or `formats
+match` for a module path’s base name, one collection each, every module keyed
+by its name:
 
 ```yaml
 kernel:
   shipped: {cramfs: {}, usb-storage: {}}
   builtin: {unix: {}}
-  blacklist: {floppy: {}}
-  install: {cramfs: {command: /bin/false}}
-  loaded: {ext4: {size: "1105920", instances: "1", state: Live}}
+  blacklist: {floppy: {path: /usr/sbin/modprobe, line: 12, shadowed: []}}
+  install: {cramfs: {command: [/bin/false], path: /usr/sbin/modprobe, line: 40, shadowed: []}}
+  loaded: {ext4: {size: 1105920, instances: 1, state: Live, path: /proc/modules, line: 3, shadowed: []}}
 ```
 
 - `shipped`: some kernel in `/lib/modules` lists it in `modules.order`; a
@@ -73,10 +74,10 @@ kernel:
   line can keep it out of that kernel; spelled as in the file too.
 - `blacklist`: a `blacklist` line names it, which stops loading by alias only;
   an explicit `modprobe` still loads it.
-- `install`: the `command` of its first `install` line, which kmod runs instead
-  of loading it; `/bin/false` makes `modprobe` refuse it.
+- `install`: the `command` words of its first `install` line, which kmod runs
+  instead of loading it; `/bin/false` makes `modprobe` refuse it.
 - `loaded`: each module in `/proc/modules` with `size` in bytes, `instances`
-  and `state` (`Live`, `Loading`, `Unloading`), as strings.
+  as numbers and `state` (`Live`, `Loading`, `Unloading`).
 
 `blacklist` and `install` come from `modprobe --showconfig`, kmod’s merged view
 of every `modprobe.d` file in the order it reads them, so a name there is

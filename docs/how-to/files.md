@@ -141,8 +141,8 @@ Two collectors read the mount table, each keyed by mount point with its
 
 | Collector | Into | Reads |
 | --- | --- | --- |
-| `mounts-active` | `mounts.active` | `/proc/self/mountinfo` on a live host, the top of a stacked mount point winning, plus each filesystem’s `super-options` |
-| `mounts-fstab` | `mounts.fstab` | `/etc/fstab`, swap left out; `options` as `mount` applies them, so `users` adds `noexec,nosuid,nodev` and a later `dev` drops `nodev` |
+| `mounts-active` | `mounts.active` | `/proc/self/mounts` on a live host (`formats words`), the top of a stacked mount point winning; `options` holds the mount’s and its filesystem’s |
+| `mounts-fstab` | `mounts.fstab` | `/etc/fstab` (`formats words`), `options` as written; the `fstab-*` rules count what `user`, `users`, `owner` and `group` imply, and fail an explicit `suid`, `dev` or `exec` |
 
 A third, `mounts-usage`, statfs each active mount point on a live host into
 `mounts.usage.<point>`: `blocks` and `inodes` used, in whole percent rounded up

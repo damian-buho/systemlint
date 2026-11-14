@@ -239,7 +239,7 @@ fn closed_udp_port() -> SocketAddr {
 #[test]
 fn a_nameserver_answers_with_its_codes_or_is_silent_and_a_bad_address_is_an_error() {
     let read = Collector::parse(
-        "id: d\nnetwork: true\nread: {dns: [probe.test, absent.test], dns-types: [A], dns-server-from: [resolv.conf.*.nameservers]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
+        "id: d\nnetwork: true\nread: {dns: [probe.test, absent.test], dns-types: [A], dns-server-from: [resolv.conf.*.nameserver.:3]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
     )
     .unwrap()
     .read;
@@ -270,7 +270,7 @@ fn a_nameserver_answers_with_its_codes_or_is_silent_and_a_bad_address_is_an_erro
 #[test]
 fn dns_server_from_asks_each_named_server_instead_of_the_names() {
     let read = Collector::parse(
-        "id: d\nnetwork: true\nread: {dns: [probe.test], dns-server-from: [resolv.conf.*.nameservers]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
+        "id: d\nnetwork: true\nread: {dns: [probe.test], dns-server-from: [resolv.conf.*.nameserver.:3]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
     )
     .unwrap()
     .read;
@@ -289,15 +289,15 @@ fn dns_server_from_asks_each_named_server_instead_of_the_names() {
 #[test]
 fn named_servers_are_taken_as_written_and_their_absent_fact_names_its_collector() {
     let probe = Collector::parse(
-        "id: ns\nnetwork: true\nread: {dns: [\".\"], dns-server-from: [resolv.conf.*.nameservers]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
+        "id: ns\nnetwork: true\nread: {dns: [\".\"], dns-server-from: [resolv.conf.*.nameserver.:3]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
     )
     .unwrap();
     let conf = Collector::parse(
-        "id: rc\nread: {files: [/etc/resolv.conf]}\nparse: {plugin: formats, op: resolv}\ninto: resolv.conf\n",
+        "id: rc\nread: {files: [/etc/resolv.conf]}\nparse: {plugin: formats, op: words}\ninto: resolv.conf\n",
     )
     .unwrap();
     let collectors = [conf, probe.clone()];
-    let facts = json!({"resolv": {"conf": {"/etc/resolv.conf": {"nameservers": ["127.0.0.53", "fe80::1%eth0"]}}}});
+    let facts = json!({"resolv": {"conf": {"/etc/resolv.conf": {"nameserver": ["127.0.0.53", "fe80::1%eth0", "192.0.2.1", "192.0.2.2"]}}}});
     let named = collect::named(
         &probe,
         &collectors,
@@ -305,7 +305,23 @@ fn named_servers_are_taken_as_written_and_their_absent_fact_names_its_collector(
         &Default::default(),
     )
     .unwrap();
-    assert_eq!(named.servers, ["127.0.0.53", "fe80::1%eth0"]);
+    assert_eq!(
+        named.servers,
+        ["127.0.0.53", "fe80::1%eth0", "192.0.2.1"],
+        "glibc asks the first 3"
+    );
+    let second = Collector::parse(
+        "id: ns\nnetwork: true\nread: {dns: [\".\"], dns-server-from: [resolv.conf.*.nameserver.1]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
+    )
+    .unwrap();
+    let one = collect::named(
+        &second,
+        &collectors,
+        facts.as_object().unwrap(),
+        &Default::default(),
+    )
+    .unwrap();
+    assert_eq!(one.servers, ["fe80::1%eth0"], "an index takes one item");
     let outcomes = json!({"rc": {"status": "error"}});
     let missing = collect::named(
         &probe,
@@ -714,14 +730,14 @@ fn a_collector_declares_network_exactly_when_it_probes_and_probes_alone() {
     assert!(parse("{addr: [\"kiota.ch:0\"]}", true).is_err());
     assert!(
         parse(
-            "{dns: [\".\"], dns-server-from: [resolv.conf.*.nameservers]}",
+            "{dns: [\".\"], dns-server-from: [resolv.conf.*.nameserver.:3]}",
             true
         )
         .is_ok()
     );
     for (read, why) in [
         (
-            "{dns-server-from: [resolv.conf.*.nameservers]}",
+            "{dns-server-from: [resolv.conf.*.nameserver.:3]}",
             "no addr, dns or http",
         ),
         (
@@ -787,7 +803,7 @@ fn the_closing_line_names_each_probed_nameserver_not_the_name_asked() {
             "id: web\nnetwork: true\nread: {addr: [\"kiota.ch:443\"], dns: [kiota.ch]}\nparse: {plugin: formats, op: probes}\ninto: probes.web\n",
         ),
         parse(
-            "id: ns\nnetwork: true\nread: {dns: [\".\"], dns-server-from: [resolv.conf.*.nameservers]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
+            "id: ns\nnetwork: true\nread: {dns: [\".\"], dns-server-from: [resolv.conf.*.nameserver.:3]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
         ),
     ];
     let document = json!({

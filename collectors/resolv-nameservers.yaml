@@ -7,6 +7,6 @@ network: true
 read:
   dns: ["."]
   dns-types: [NS]
-  dns-server-from: [resolv.conf.*.nameservers]
+  dns-server-from: [resolv.conf.*.nameserver.:3]
 parse: {plugin: formats, op: probes}
 into: resolv.probes

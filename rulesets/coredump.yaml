@@ -19,16 +19,20 @@ rules:
     tags: [coredump, sysctl, lynis]
   coredump/no-hard-limit:
     title: Login sessions may dump core
-    fact: auth.limits.entries
+    fact: auth.limits
     when: {auth.pam: {minProperties: 1}}
     expect:
-      contains:
-        required: [domain, type, item, value]
-        properties: {domain: {const: "*"}, type: {enum: [hard, "-"]}, item: {const: core}, value: {const: "0"}}
       not:
-        contains:
-          required: [type, item, value]
-          properties: {type: {enum: [hard, "-"]}, item: {const: core}, value: {not: {const: "0"}}}
+        additionalProperties:
+          not:
+            contains:
+              required: [domain, type, item, value]
+              properties: {domain: {const: "*"}, type: {pattern: "(?i)^(hard|-)$"}, item: {pattern: "(?i)^core$"}, value: {const: 0}}
+      additionalProperties:
+        not:
+          contains:
+            required: [type, item, value]
+            properties: {type: {pattern: "(?i)^(hard|-)$"}, item: {pattern: "(?i)^core$"}, value: {not: {const: 0}}}
     severity: warning
     score: 3.0
     message: "pam_limits sets no hard core limit of 0 for every user, or raises it for some, so a program that crashes in a login session can write its memory, secrets included, to a core file"

@@ -5,5 +5,8 @@
 id: resolv-conf
 read:
   files: [/etc/resolv.conf]
-parse: {plugin: formats, op: resolv}
+parse:
+  plugin: formats
+  op: words
+  with: {comments: ["#", ";"], repeat: {nameserver: append, options: append, search: last, domain: last}}
 into: resolv.conf
