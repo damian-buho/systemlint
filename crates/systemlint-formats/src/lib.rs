@@ -6,6 +6,9 @@
 
 use std::collections::BTreeMap;
 
+mod auth;
+pub use auth::{limits, login_defs, pam};
+
 use serde_json::{Map, Value};
 use systemlint_protocol::{
     Describe, Diagnostic, FileInput, FileKind, Input, Reply, Request, Result,
@@ -62,8 +65,11 @@ pub fn describe() -> Describe {
             ("ini", &[]),
             ("json", &[]),
             ("kv", &[]),
+            ("limits", &[]),
             ("lines", &[]),
+            ("login-defs", &[]),
             ("mountinfo", &[]),
+            ("pam", &[]),
             ("passwd", &[]),
             ("probes", &[]),
             ("resolv", &[]),
@@ -88,8 +94,11 @@ pub fn op(request: Request) -> Result<Reply> {
         "ini" => Ok(ini(&request.inputs)),
         "json" => Ok(json(&request.inputs)),
         "kv" => Ok(kv(&request.inputs)),
+        "limits" => Ok(limits(&request.inputs)),
         "lines" => Ok(lines(&request.inputs)),
+        "login-defs" => Ok(login_defs(&request.inputs)),
         "mountinfo" => Ok(mountinfo(&request.inputs)),
+        "pam" => Ok(pam(&request.inputs)),
         "passwd" => Ok(passwd(&request.inputs)),
         "probes" => Ok(probes(&request.inputs)),
         "resolv" => Ok(resolv(&request.inputs)),
@@ -1276,8 +1285,11 @@ mod tests {
                 "ini",
                 "json",
                 "kv",
+                "limits",
                 "lines",
+                "login-defs",
                 "mountinfo",
+                "pam",
                 "passwd",
                 "probes",
                 "resolv",
