@@ -21,7 +21,7 @@ systemlint check --root /mnt/image --tags auth
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
 | `auth-login-defs` | `/etc/login.defs` | `kv` | `auth.login-defs.<NAME>` |
-| `auth-pam` | `/etc/pam.d/*` | `pam` | `auth.pam.<path>` |
+| `auth-pam` | `/etc/pam.d/*` | `words` | `auth.pam.<path>` |
 | `auth-limits` | `/etc/security/limits.conf`, `limits.d/*.conf` | `words` | `auth.limits.<path>` |
 | `auth-pwquality` | `/etc/security/pwquality.conf`, `pwquality.conf.d/*.conf` | `ini` | `auth.pwquality.<path>` |
 | `auth-securetty` | `/etc/securetty` | `lines` | `auth.securetty.<path>` |
@@ -31,7 +31,7 @@ auth:
   login-defs: {UMASK: "022", PASS_MAX_DAYS: "99999", USERGROUPS_ENAB: "yes"}
   pam:
     /etc/pam.d/common-auth:
-      - {line: 17, type: auth, control: "[success=1 default=ignore]", module: pam_unix.so, arguments: [nullok], silent: false}
+      - {line: 17, type: auth, control: "success=1 default=ignore", module: pam_unix.so, arguments: [nullok]}
       - {line: 21, include: common-account}
   limits:
     /etc/security/limits.conf:
@@ -43,12 +43,16 @@ auth:
   and surrounding double quotes are dropped. A bare decimal number becomes a
   number (`PASS_MAX_DAYS 99999`); one with a leading zero stays text as
   written, since shadow reads numbers in C notation (`022` is octal).
-- `pam` keeps each file’s entries in order and does not follow `@include`, so
-  a finding names the file that holds the line. `module` is the module’s file
-  name with any directory dropped; a leading `-` on the type sets `silent`; a
-  `[…]` control is lowercased with its spaces collapsed, and a `[…]` argument
-  loses its brackets. A line of an unknown type is left out with a diagnostic,
-  as Linux-PAM skips it.
+- `pam` keeps each file’s entries in order as written, through `words`
+  columns `type control module` and the rest as `arguments`, and does not
+  follow `@include`, so a finding names the file that holds the line. A
+  `[…]` control or argument is one word with its brackets dropped; `module`
+  stays as written, a path or a filename; a leading `-` stays on the type;
+  an `@include` line is `{type: "@include", control: <file>}`. The rules
+  compare the type and control without case and the module by its
+  filename, as Linux-PAM does, so `-Auth Sufficient /lib/security/pam_permit.so`
+  fails like `auth sufficient pam_permit.so`. A `#` opens a comment only at
+  the start of a word, where Linux-PAM cuts a line at any `#`.
 - `limits` lists each file’s entries in order, as written: pam_limits gives a
   user’s own line precedence over a group’s and a group’s over `*`, so a rule
   judges every file’s list rather than one winning line, and compares `type`

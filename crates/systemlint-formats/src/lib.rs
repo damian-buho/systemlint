@@ -6,11 +6,9 @@
 
 use std::collections::BTreeMap;
 
-mod auth;
 mod kv;
 mod options;
 mod words;
-pub use auth::pam;
 pub use kv::kv;
 pub use options::flags;
 pub use words::words;
@@ -63,7 +61,6 @@ pub fn describe() -> Describe {
             ("lines", &[]),
             ("match", &[]),
             ("options", &[]),
-            ("pam", &[]),
             ("passwd", &[]),
             ("probes", &[]),
             ("shadow", &[]),
@@ -94,7 +91,6 @@ pub fn op(request: Request) -> Result<Reply> {
         "lines" => Ok(lines(&request.inputs)),
         "match" => r#match(&request.inputs, &request.with),
         "options" => flags(&request.inputs, &request.with),
-        "pam" => Ok(pam(&request.inputs)),
         "passwd" => passwd_with(&request.inputs, &request.with),
         "probes" => Ok(probes(&request.inputs)),
         "shadow" => Ok(shadow(&request.inputs)),
@@ -1072,7 +1068,7 @@ mod tests {
                 .map(|o| o.op.as_str())
                 .collect::<Vec<_>>(),
             [
-                "csv", "exec", "ini", "json", "kv", "lines", "match", "options", "pam", "passwd",
+                "csv", "exec", "ini", "json", "kv", "lines", "match", "options", "passwd",
                 "probes", "shadow", "stat", "statfs", "systemd", "toml", "words", "yaml"
             ]
         );

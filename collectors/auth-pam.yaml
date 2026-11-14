@@ -5,5 +5,8 @@
 id: auth-pam
 read:
   files: [/etc/pam.d/*]
-parse: {plugin: formats, op: pam}
+parse:
+  plugin: formats
+  op: words
+  with: {columns: [type, control, module], rest: arguments, required: 2}
 into: auth.pam

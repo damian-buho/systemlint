@@ -1291,9 +1291,9 @@ fn the_login_umask_passes_from_027_and_fails_at_022_or_unset() {
     assert_eq!(umask(json!({})), [Outcome::NotApplicable], "no login.defs");
 }
 
-// A PAM entry as the formats pam op writes it.
+// A PAM entry as the auth-pam collector’s words columns write it.
 fn entry(kind: &str, control: &str, module: &str, arguments: &[&str]) -> Value {
-    json!({"line": 1, "type": kind, "control": control, "module": module, "arguments": arguments, "silent": false})
+    json!({"line": 1, "type": kind, "control": control, "module": module, "arguments": arguments})
 }
 
 #[test]
@@ -1308,22 +1308,26 @@ fn pam_permit_fails_only_where_it_settles_the_auth_stack() {
     };
     assert_eq!(permit("sufficient", "auth"), [Outcome::Fail]);
     assert_eq!(
-        permit("[success=done default=ignore]", "auth"),
+        permit("Sufficient", "-Auth"),
+        [Outcome::Fail],
+        "Linux-PAM ignores case"
+    );
+    assert_eq!(
+        permit("success=done  default=ignore", "auth"),
         [Outcome::Fail]
     );
     assert_eq!(
-        permit("[default=ignore success=done]", "auth"),
+        permit("default=ignore success=done", "auth"),
         [Outcome::Fail]
     );
+    assert_eq!(permit("success=done1", "auth"), [Outcome::Pass]);
+    assert_eq!(permit("insufficient", "auth"), [Outcome::Pass]);
     assert_eq!(
         permit("required", "auth"),
         [Outcome::Pass],
         "Debian’s common-auth tail"
     );
-    assert_eq!(
-        permit("[success=1 default=ignore]", "auth"),
-        [Outcome::Pass]
-    );
+    assert_eq!(permit("success=1 default=ignore", "auth"), [Outcome::Pass]);
     assert_eq!(permit("sufficient", "session"), [Outcome::Pass]);
 }
 
@@ -1335,6 +1339,7 @@ fn pam_unix_nullok_fails_on_its_auth_line_only() {
         outcomes("pam", "pam/nullok", &auth(json!({}), json!([]), pam))
     };
     assert_eq!(nullok("auth", &["nullok"]), [Outcome::Fail]);
+    assert_eq!(nullok("-auth", &["nullok"]), [Outcome::Fail]);
     assert_eq!(nullok("auth", &["nullok_secure"]), [Outcome::Fail]);
     assert_eq!(nullok("auth", &["try_first_pass"]), [Outcome::Pass]);
     assert_eq!(nullok("password", &["nullok"]), [Outcome::Pass]);
@@ -1357,6 +1362,14 @@ fn a_password_stack_without_faillock_fails_and_one_without_pam_unix_is_not_judge
     let faillock = entry("auth", "required", "pam_faillock.so", &["preauth"]);
     assert_eq!(lockout(json!([unix])), [Outcome::Fail]);
     assert_eq!(lockout(json!([faillock, unix])), [Outcome::Pass]);
+    let pathed = entry("auth", "required", "/usr/lib/security/pam_unix.so", &[]);
+    assert_eq!(
+        lockout(json!([pathed])),
+        [Outcome::Fail],
+        "a module named by path"
+    );
+    let lookalike = entry("auth", "required", "pam_unix.so.bak", &[]);
+    assert_eq!(lockout(json!([lookalike])), [Outcome::Pass]);
     assert_eq!(
         lockout(json!([entry("auth", "required", "pam_sss.so", &[])])),
         [Outcome::Pass]

@@ -14,9 +14,9 @@ rules:
         contains:
           required: [type, module, control]
           properties:
-            type: {const: auth}
-            module: {const: pam_permit.so}
-            control: {anyOf: [{const: sufficient}, {pattern: "[\\[ ]success=done[ \\]]"}]}
+            type: {pattern: "(?i)^-?auth$"}
+            module: {pattern: "(^|/)pam_permit\\.so$"}
+            control: {pattern: "(?i)^sufficient$|(^|\\s)success=done(\\s|$)"}
     severity: error
     score: 9.0
     message: "{subject} lets pam_permit, which always succeeds, settle its auth stack, so anyone who reaches a service using it logs in without a password"
@@ -31,8 +31,8 @@ rules:
         contains:
           required: [type, module, arguments]
           properties:
-            type: {const: auth}
-            module: {const: pam_unix.so}
+            type: {pattern: "(?i)^-?auth$"}
+            module: {pattern: "(^|/)pam_unix\\.so$"}
             arguments: {contains: {enum: [nullok, nullok_secure]}}
     severity: warning
     score: 5.0
@@ -44,8 +44,8 @@ rules:
     title: Password logins are never locked out
     fact: auth.pam.*
     expect:
-      if: {contains: {required: [type, module], properties: {type: {const: auth}, module: {const: pam_unix.so}}}}
-      then: {contains: {required: [type, module], properties: {type: {const: auth}, module: {const: pam_faillock.so}}}}
+      if: {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_unix\\.so$"}}}}
+      then: {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}}}}
     severity: warning
     score: 5.0
     message: "{subject} checks passwords with pam_unix but never calls pam_faillock, so an attacker may guess passwords without limit"
