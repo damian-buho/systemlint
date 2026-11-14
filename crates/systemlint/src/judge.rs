@@ -668,7 +668,8 @@ enum Tri {
     Unknown(String, Option<String>),
 }
 
-fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String]) -> Tri {
+/// `when` on `bound`; with `unproduced`, a fact no collector produces is false, as a ruleset’s guard reads it.
+fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String], unproduced: bool) -> Tri {
     if when.is_empty() {
         return Tri::True;
     }
@@ -679,8 +680,13 @@ fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String]) -> Tri {
         for g in branch {
             let keys = concrete(&g.path, bound);
             let Some(actual) = get(document, &keys) else {
+                let (reason, collector) = absent(document, &keys);
+                if unproduced && collector.is_none() {
+                    log::debug!("when {} has no producer, so it is false", keys.join("."));
+                    result = Tri::False(format!("when no collector produces {}", keys.join(".")));
+                    break;
+                }
                 if matches!(result, Tri::True) {
-                    let (reason, collector) = absent(document, &keys);
                     result = Tri::Unknown(format!("when {reason}"), collector);
                 }
                 continue;
@@ -922,7 +928,7 @@ fn verdict<'a>(combine: Combine, mut judged: Vec<Judged<'a>>) -> Option<Judged<'
 
 /// One check of `rule` on `bound`; `unbound` stands for the first fact when its collection is absent, and then only the facts without `*` are judged beside it.
 fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged<'_>>) -> Check {
-    match guard(&rule.when, document, bound) {
+    match guard(&rule.when, document, bound, false) {
         Tri::False(reason) => {
             return Check {
                 reason: Some(reason),
@@ -1048,7 +1054,7 @@ fn failure(
 /// Every check of `rule` on `document`: one not-applicable, unknown or manual check, else one per subject, none when its subjects exist and are empty.
 pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
     for (name, when) in &rule.applies {
-        match guard(when, document, &[]) {
+        match guard(when, document, &[], true) {
             Tri::True => {}
             Tri::False(reason) => {
                 log::debug!(
@@ -1085,7 +1091,7 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
         let keys = concrete(&rule.fact[..last], &[]);
         let (reason, collector) = absent(document, &keys);
         log::debug!("rule {} has no subjects: {reason}", rule.id);
-        if let Tri::False(skipped) = guard(&rule.when, document, &[]) {
+        if let Tri::False(skipped) = guard(&rule.when, document, &[], false) {
             log::debug!("rule {} skips its absent collection: {skipped}", rule.id);
             return vec![Check {
                 reason: Some(skipped),

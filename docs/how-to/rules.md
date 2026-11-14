@@ -221,6 +221,9 @@ bounds. `extends` takes rulesets, rule IDs and tag globs, flattened depth first.
 subject. It guards every rule the ruleset defines, however it is selected, and
 every rule it brings through `extends` or overrides; a rule answers
 `not-applicable` when any such `when` is false, `unknown` when one is absent.
+A fact no collector produces is false there, so a ruleset over facts only an
+optional collector writes (`when: {probes: {minProperties: 1}}`) does not
+apply until one is configured.
 A false schema over an object names in its reason only the properties the
 schema reads (`when os.release.ID is “fedora” and os.release.ID_LIKE is none`).
 

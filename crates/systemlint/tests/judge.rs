@@ -882,6 +882,28 @@ fn a_ruleset_that_does_not_apply_answers_one_not_applicable_check_per_rule() {
         "{:?}",
         absent[0].reason
     );
+    let unproduced = in_ruleset(
+        &format!("when: {{probes: {{minProperties: 1}}}}\n{rule}"),
+        &facts("root"),
+    )
+    .unwrap();
+    assert_eq!(
+        (outcomes(&unproduced), unproduced[0].reason.as_deref()),
+        (
+            vec![(String::new(), Outcome::NotApplicable)],
+            Some("ruleset deb: when no collector produces probes")
+        ),
+        "a fact no collector produces can never apply"
+    );
+    let in_rule = in_ruleset(
+        "rules:\n  apt/https: {fact: apt.sources.*.uri, when: {probes: {minProperties: 1}}, expect: {}}\n",
+        &facts("root"),
+    )
+    .unwrap();
+    assert!(
+        in_rule.iter().all(|c| c.outcome == Outcome::Unknown),
+        "a rule’s own when keeps an unproduced fact unknown: {in_rule:?}"
+    );
     let star = in_ruleset(
         &format!("when: {{apt.sources.*.enabled: true}}\n{rule}"),
         &facts("root"),
