@@ -89,7 +89,7 @@ fn checks(document: &Value) -> Vec<Check> {
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
-    assert_eq!(rules.len(), 8);
+    assert_eq!(rules.len(), 9);
     lint(document, &rules, &[], "2026-11-11")
 }
 
@@ -210,6 +210,10 @@ fn the_fixture_fails_every_env_rule_on_its_one_subject() {
         ("env/ld-preload", "files, /etc/ld.so.preload".to_owned()),
         ("env/path-entry", "files, /etc/environment".to_owned()),
         ("env/proxy-http", "files, /etc/profile.d/site.sh".to_owned()),
+        (
+            "env/python-path",
+            "files, /etc/profile.d/site.sh".to_owned(),
+        ),
         ("env/secret-name", "defaults, /etc/default/app".to_owned()),
         ("env/tls-verify", image),
         ("env/tls-verify", "containers, container:web".to_owned()),

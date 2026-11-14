@@ -116,7 +116,7 @@ fn systemd_units_merge_each_unit_and_a_masked_unit_is_skipped() {
         units["app.service"]["sections"]["Service"]["Environment"],
         json!([
             "LANG=C.UTF-8",
-            "LD_LIBRARY_PATH=/opt/app/lib \"SSL_CERT_FILE=/opt/app/ca.pem\""
+            "LD_LIBRARY_PATH=/opt/app/lib: \"SSL_CERT_FILE=/opt/app/ca.pem\""
         ])
     );
     assert_eq!(units["bare.service"]["sandbox"]["user"], "root");

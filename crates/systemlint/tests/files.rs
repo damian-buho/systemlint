@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
 
 use serde_json::{Map, Value, json};
-use systemlint::collect::{HashKey, Options, inputs};
+use systemlint::collect::{HashKey, Options, inputs, named, read};
 use systemlint::collector::Collector;
 use systemlint::judge::{Check, Outcome, compile, lint};
 use systemlint::rules::Library;
@@ -68,9 +68,9 @@ fn root() -> PathBuf {
     root
 }
 
-// Each files collector read through the core and parsed by the formats library in-process.
-fn document() -> Value {
-    let options = Options {
+// The options every files test reads its root with.
+fn options() -> Options {
+    Options {
         privileged: true,
         root: Root::open(&root()).unwrap(),
         live: false,
@@ -81,7 +81,12 @@ fn document() -> Value {
         jobs: 1,
         network: None,
         containers: false,
-    };
+    }
+}
+
+// Each files collector read through the core and parsed by the formats library in-process.
+fn document() -> Value {
+    let options = options();
     let (mut groups, mut outcomes) = (Map::new(), Map::new());
     for id in COLLECTORS {
         let c = Collector::parse(
@@ -199,4 +204,52 @@ fn the_shadow_and_host_key_patterns_take_0640_or_stricter_at_every_edge() {
         .map(|c| c.subject_text())
         .collect();
     assert_eq!(failing, ["0641", "0644", "0650", "0660", "0740", "4640"]);
+}
+
+#[test]
+fn a_writable_library_or_python_path_entry_fails_the_files_rules_and_a_relative_one_is_left_to_env()
+{
+    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("search-path-root");
+    for (path, mode) in [("opt", 0o755), ("opt/lib", 0o777), ("opt/py", 0o755)] {
+        fs::create_dir_all(root.join(path)).unwrap();
+        fs::set_permissions(root.join(path), fs::Permissions::from_mode(mode)).unwrap();
+    }
+    let options = Options {
+        root: Root::open(&root).unwrap(),
+        ..options()
+    };
+    let c = Collector::parse(
+        &fs::read_to_string(repository().join("collectors/files-search-path.yaml")).unwrap(),
+    )
+    .unwrap();
+    let facts = json!({"env": {"units": {"app.service": {"library-path": ["/opt/lib", "", "rel"], "python-path": ["/opt/py"]}}, "files": {}, "defaults": {}}});
+    let outcomes = Map::new();
+    let paths = named(&c, &[], facts.as_object().unwrap(), &outcomes).unwrap();
+    let request = Request {
+        protocol: PROTOCOL,
+        op: c.parse.op.clone(),
+        root: "/".to_owned(),
+        now: None,
+        inputs: read(&c, &options, &paths).unwrap(),
+        facts: BTreeMap::new(),
+    };
+    let reply = systemlint_formats::op(request).unwrap();
+    assert_eq!(
+        reply.facts.keys().collect::<Vec<_>>(),
+        ["/opt/lib", "/opt/py"]
+    );
+    let document = json!({"files": {"search-path": reply.facts}, "collectors": {"files-search-path": {"status": "ok", "into": c.into}}});
+    let checks = checks(&document);
+    let failing: Vec<(&str, String)> = checks
+        .iter()
+        .filter(|c| c.is_failing() && c.rule != "files/owner")
+        .map(|c| (c.rule.as_str(), c.subject_text()))
+        .collect();
+    assert_eq!(
+        failing,
+        [
+            ("files/group-writable", "search-path, /opt/lib".to_owned()),
+            ("files/world-writable", "search-path, /opt/lib".to_owned())
+        ]
+    );
 }

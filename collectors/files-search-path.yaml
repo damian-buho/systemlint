@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: files-search-path
+read:
+  stat-from: [env.files.*.library-path, env.defaults.*.library-path, env.units.*.library-path, env.files.*.python-path, env.defaults.*.python-path, env.units.*.python-path]
+parse: {plugin: formats, op: stat}
+into: files.search-path

@@ -8,3 +8,4 @@ export NODE_OPTIONS="--require /opt/hook.js"
 if [ -d /snap/bin ]; then
   PATH="$PATH:/snap/bin"
 fi
+export PYTHONPATH="lib"

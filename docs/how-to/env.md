@@ -66,13 +66,14 @@ Each environment holds:
 | `kind` | `file`, `unit`, `process`, `container` or `image` |
 | `vars` | every variable by name |
 | `path` | the `PATH` entries, when `PATH` is set; an entry starting with `$`, an unexpanded reference, is left out |
+| `library-path`, `python-path` | the `LD_LIBRARY_PATH` and `PYTHONPATH` entries, split the same way |
 | `environment-files` | a unit’s `EnvironmentFile=` paths, a leading `-` removed |
 | `pid` | a running service’s or container’s process ID |
 
 ### Values and hashes
 
 A value stays in clear only for the names the rules read and that hold no
-secret: `PATH`, `LANG`, `LANGUAGE`, `LC_*`, `LD_*`, every `*_proxy` (any case,
+secret: `PATH`, `PYTHONPATH`, `LANG`, `LANGUAGE`, `LC_*`, `LD_*`, every `*_proxy` (any case,
 a password in the URL replaced by `[redacted]`), `NODE_OPTIONS`,
 `NODE_TLS_REJECT_UNAUTHORIZED`, `GIT_SSL_NO_VERIFY`, `PYTHONHTTPSVERIFY`,
 `CURL_CA_BUNDLE`, `SSL_CERT_FILE`, `SSL_CERT_DIR` and `REQUESTS_CA_BUNDLE`,
@@ -98,8 +99,9 @@ collect:
 | Rule | Severity | Fails when an environment sets |
 | --- | --- | --- |
 | `env/ld-preload` | error | `LD_PRELOAD` or `LD_AUDIT`, `/etc/ld.so.preload` included |
-| `env/ld-library-path` | warning | `LD_LIBRARY_PATH` |
-| `env/interpreter-injection` | warning | `NODE_OPTIONS` with `--require`, `-r`, `--import` or a loader; `PYTHONPATH`, `PYTHONSTARTUP`, `PERL5OPT`, `RUBYOPT`, `JAVA_TOOL_OPTIONS`, `BASH_ENV` or `PROMPT_COMMAND` |
+| `env/ld-library-path` | warning | an empty or relative `LD_LIBRARY_PATH` entry, a trailing colon included, which ld.so searches from the current directory |
+| `env/python-path` | warning | an empty or relative `PYTHONPATH` entry, which Python resolves against the current directory |
+| `env/interpreter-injection` | warning | `NODE_OPTIONS` with `--require`, `-r`, `--import` or a loader; `PYTHONSTARTUP`, `PERL5OPT`, `RUBYOPT`, `JAVA_TOOL_OPTIONS`, `BASH_ENV` or `PROMPT_COMMAND` |
 | `env/tls-verify` | error | `NODE_TLS_REJECT_UNAUTHORIZED=0`, `PYTHONHTTPSVERIFY=0` or any `GIT_SSL_NO_VERIFY` |
 | `env/ca-override` | info | `CURL_CA_BUNDLE`, `SSL_CERT_FILE`, `SSL_CERT_DIR` or `REQUESTS_CA_BUNDLE` |
 | `env/proxy-http` | info | an `http_proxy`, `https_proxy` or `all_proxy` of `http://` to a host other than loopback |
@@ -109,7 +111,8 @@ collect:
 A subject is the source and the environment, such as
 `units, app.service` or `defaults, /etc/default/app`. A rule names the first
 offending variable of an environment; the fix of one shows the next.
-World-writable `PATH` directories are judged by `files/world-writable`
-([File permissions](files.md)) for Debian’s default `PATH` and every absolute
-entry a system file or unit sets; a running process or image may name a path
+World-writable `PATH`, `LD_LIBRARY_PATH` and `PYTHONPATH` directories are
+judged by the `files` rules ([File permissions](files.md)) for Debian’s default
+`PATH` and every absolute entry a system file or unit sets, so a search path
+into a directory only root may write, such as a snap’s, is no finding; a running process or image may name a path
 in another mount namespace, so their entries are left out.

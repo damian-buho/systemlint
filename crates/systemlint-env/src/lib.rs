@@ -14,8 +14,9 @@ use systemlint_protocol::{Describe, Diagnostic, Input, Reply, Request, Result};
 pub const TOGGLES: [&str; 8] = ["true", "false", "yes", "no", "on", "off", "0", "1"];
 
 /// Names whose values stay in clear: the rules read them, and they hold no secret.
-pub const CLEAR: [&str; 11] = [
+pub const CLEAR: [&str; 12] = [
     "PATH",
+    "PYTHONPATH",
     "LANG",
     "LANGUAGE",
     "NODE_OPTIONS",
@@ -26,6 +27,13 @@ pub const CLEAR: [&str; 11] = [
     "SSL_CERT_FILE",
     "SSL_CERT_DIR",
     "REQUESTS_CA_BUNDLE",
+];
+
+/// Colon-separated search paths, each also kept as its list of entries under the key beside it.
+pub const SEARCH_PATHS: [(&str, &str); 3] = [
+    ("PATH", "path"),
+    ("LD_LIBRARY_PATH", "library-path"),
+    ("PYTHONPATH", "python-path"),
 ];
 
 /// The ld.so preload list, read as a system-wide `LD_PRELOAD`.
@@ -88,12 +96,14 @@ pub fn place(
     extra: Map<String, Value>,
 ) {
     let mut env = json!({"kind": kind});
-    if let Some(path) = vars.get("PATH") {
-        env["path"] = json!(
-            path.split(':')
-                .filter(|e| !e.starts_with('$'))
-                .collect::<Vec<_>>()
-        );
+    for (variable, key) in SEARCH_PATHS {
+        if let Some(path) = vars.get(variable) {
+            env[key] = json!(
+                path.split(':')
+                    .filter(|e| !e.starts_with('$'))
+                    .collect::<Vec<_>>()
+            );
+        }
     }
     let mut shown = Map::new();
     for (name, value) in vars {
@@ -536,12 +546,13 @@ mod tests {
             "NO_PROXY",
             "NODE_OPTIONS",
             "GIT_SSL_NO_VERIFY",
+            "PYTHONPATH",
         ] {
             assert!(clear(name), "{name}");
         }
         for name in [
             "AWS_SECRET_ACCESS_KEY",
-            "PYTHONPATH",
+            "PYTHONSTARTUP",
             "HOME",
             "proxy",
             "PATHS",
@@ -555,6 +566,8 @@ mod tests {
         let mut reply = Reply::default();
         let vars = BTreeMap::from([
             ("PATH".into(), "/usr/bin::bin:$PATH".into()),
+            ("LD_LIBRARY_PATH".into(), "/opt/containerd/lib:".into()),
+            ("PYTHONPATH".into(), "lib".into()),
             ("TOKEN".into(), "s3cret".into()),
             ("EMPTY".into(), String::new()),
             ("http_proxy".into(), "http://u:p@proxy:3128".into()),
@@ -562,6 +575,8 @@ mod tests {
         place(&mut reply, "/etc/a~b", "file", vars, Map::new());
         let env = &reply.facts["/etc/a~b"];
         assert_eq!(env["path"], json!(["/usr/bin", "", "bin"]));
+        assert_eq!(env["library-path"], json!(["/opt/containerd/lib", ""]));
+        assert_eq!(env["python-path"], json!(["lib"]));
         assert_eq!(env["vars"]["http_proxy"], "http://u:[redacted]@proxy:3128");
         assert_eq!(reply.hash, ["/~1etc~1a~0b/vars/TOKEN"]);
         assert!(place_without_path());
