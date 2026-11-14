@@ -4,9 +4,9 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Kernel parameters and modules, Docker, systemd units and ufw
+# Kernel parameters, modules and audit rules, Docker, systemd units and ufw
 
-Eight collectors record service configuration as facts, `systemd-units` on
+Ten collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
@@ -18,6 +18,8 @@ reads the Docker or kernel module facts yet.
 | `sysctl` | `/usr/sbin/sysctl -a` on a live host, else `/etc/sysctl.conf` and the `sysctl.d` directories | `sysctl` | `sysctl` |
 | `kernel-modules` | the `modprobe.d` directories, and `modules.order` and `modules.builtin` of every kernel in `/lib/modules` | `modprobe` | `kernel.modules.<module>` |
 | `kernel-modules-loaded` | `/proc/modules` on a live host | `proc-modules` | `kernel.loaded.<module>` |
+| `audit-rules` | `/etc/audit/rules.d/*.rules` | `audit-rules` | `audit.rules` |
+| `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `audit-rules` | `audit.loaded` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
 | `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system`, with its `stat` | `units` | `systemd.units.<unit>` |
 | `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all` on a live host | `systemd` | `systemd.state.<unit>` |
@@ -76,6 +78,50 @@ joins the next line. A module named only by a `modprobe.d` line is listed with
 `kernel.loaded` keys each module in `/proc/modules` by name with `size` in
 bytes, `instances`, `used-by` and `state` (`live`, `loading`, `unloading`).
 It is a live fact, absent under `--root`.
+
+## Kernel audit rules
+
+`audit.rules` holds the rules augenrules loads from `/etc/audit/rules.d`, the
+files in `ls -v` order; `audit.loaded` holds the set the kernel runs, as
+`auditctl -l` lists it, which needs root. Both take one shape:
+
+```yaml
+audit:
+  rules:
+    watches:
+      /etc/sudoers:
+        - {action: always, perms: wa, filters: [], keys: [scope], source: /etc/audit/rules.d/50-scope.rules:1}
+      /usr/bin/sudo:
+        - {action: always, perms: x, filters: [auid>=1000, auid!=unset], keys: [privileged], source: /etc/audit/rules.d/50-scope.rules:4}
+    syscalls:
+      execve:
+        - {action: always, arch: b64, filters: [euid!=uid, auid!=unset], keys: [user_emulation], source: /etc/audit/rules.d/50-scope.rules:2}
+    lists:
+      exclude:
+        - {action: never, syscalls: [], filters: [msgtype=CWD], keys: [], source: /etc/audit/rules.d/50-scope.rules:3}
+    control: {backlog: 8192, failure: 1, enabled: 2}
+```
+
+- `watches` keys each watched path, a trailing `/` dropped, with every rule on
+  it in load order: a `-w` line, or an `exit` rule naming `path=` or `dir=`
+  over every syscall. `perms` is the accesses it audits in `rwxa` order, all
+  four when the rule names none.
+- `syscalls` keys each syscall an `exit` rule names, `all` for a rule naming
+  none, with every rule on it in load order, a `-A` rule first. `arch` is
+  `b64` or `b32` for any name of those tables (`x86_64`, `i386`), `null`
+  when the rule gives none, which auditctl reads as the table it was built for.
+- `lists` keys every other list, `exclude`, `user`, `task`, `filesystem` or
+  `io_uring`, with its rules in load order.
+- `filters` are the `-F` and `-C` conditions as written, an ID field’s `-1`
+  or `4294967295` read as `unset`; `key` and `arch` are taken out.
+- `control` holds the last value of `-e` (`enabled`), `-b` (`backlog`),
+  `-f` (`failure`), `-r` (`rate`) and `--backlog_wait_time`, and `true` for
+  `-c`, `-i` and `--loginuid-immutable`.
+
+A `-D` line clears every rule before it, as it does at load. A line the op
+does not apply (`-d`, `-W`, `-R`, a malformed rule) is a diagnostic naming its
+file and line, and is left out. `audit.loaded` is absent when `auditctl` is
+not installed or exited non-zero, as without `CAP_AUDIT_CONTROL`.
 
 ## Docker daemon
 

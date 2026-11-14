@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: audit-rules-loaded
+privileged: true
+read:
+  exec: [/usr/sbin/auditctl, -l]
+parse: {plugin: formats, op: audit-rules}
+into: audit.loaded

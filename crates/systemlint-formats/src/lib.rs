@@ -6,6 +6,8 @@
 
 use std::collections::BTreeMap;
 
+mod audit;
+pub use audit::audit_rules;
 mod auth;
 pub use auth::{limits, login_defs, pam};
 mod modules;
@@ -60,6 +62,7 @@ pub fn describe() -> Describe {
     Describe::new(
         "formats",
         &[
+            ("audit-rules", &[]),
             ("csv", &[]),
             ("exec", &[]),
             ("fstab", &[]),
@@ -91,6 +94,7 @@ pub fn describe() -> Describe {
 /// Runs one op.
 pub fn op(request: Request) -> Result<Reply> {
     match request.op.as_str() {
+        "audit-rules" => Ok(audit_rules(&request.inputs)),
         "csv" => Ok(csv(&request.inputs)),
         "exec" => Ok(exec(&request.inputs)),
         "fstab" => Ok(fstab(&request.inputs)),
@@ -1287,6 +1291,7 @@ mod tests {
                 .map(|o| o.op.as_str())
                 .collect::<Vec<_>>(),
             [
+                "audit-rules",
                 "csv",
                 "exec",
                 "fstab",
