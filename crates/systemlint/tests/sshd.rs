@@ -134,7 +134,7 @@ fn each_account_gets_what_its_own_run_settled() {
 }
 
 #[test]
-fn every_ssh_rule_answers_and_the_failures_are_per_account() {
+fn a_global_setting_fails_once_and_an_account_only_where_its_match_differs() {
     let outcomes = outcomes(&document());
     assert!(
         outcomes.iter().all(|(_, _, o)| *o != Outcome::Unknown),
@@ -150,13 +150,10 @@ fn every_ssh_rule_answers_and_the_failures_are_per_account() {
 
 const FAILING: &[(&str, &str)] = &[
     ("ssh/ciphers", MAIN),
-    ("ssh/gateway-ports", "alice"),
-    ("ssh/gateway-ports", "backup"),
-    ("ssh/gateway-ports", "root"),
+    ("ssh/gateway-ports", MAIN),
     ("ssh/login-grace-time", MAIN),
     ("ssh/password-authentication", "backup"),
-    ("ssh/x11-forwarding", "alice"),
-    ("ssh/x11-forwarding", "root"),
+    ("ssh/x11-forwarding", MAIN),
 ];
 
 #[test]
@@ -175,6 +172,11 @@ fn a_weak_cipher_is_named_in_the_message() {
 
 #[test]
 fn a_host_without_sshd_gives_no_check() {
-    let document = json!({"sshd": {"global": {}, "accounts": {}}, "collectors": {"sshd": {"status": "ok", "into": "sshd"}}});
-    assert!(checks(&document).is_empty());
+    let facts = systemlint_sshd::server(&[]).unwrap().facts;
+    let document = json!({"sshd": Value::Object(facts.into_iter().collect()), "collectors": {"sshd": {"status": "ok", "into": "sshd"}}});
+    let left: Vec<_> = checks(&document)
+        .into_iter()
+        .map(|c| (c.subject_text(), c.rule, c.outcome))
+        .collect();
+    assert!(left.is_empty(), "{left:?}");
 }

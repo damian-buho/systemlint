@@ -20,51 +20,51 @@ rules:
     tags: [ssh, dev-sec-ssh-baseline:sshd-06, lynis]
   ssh/password-authentication:
     title: Passwords accepted over the network
-    fact: sshd.accounts.*.passwordauthentication
+    fact: sshd.settings.passwordauthentication.*
     expect: {const: no}
     severity: warning
     score: 6.0
-    message: "{subject} gets PasswordAuthentication {got}, so sshd accepts passwords, which can be guessed over the network"
+    message: "{subject} has PasswordAuthentication {got}, so sshd accepts passwords, which can be guessed over the network"
     fix: set PasswordAuthentication no once every user has a key
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-27]
   ssh/empty-passwords:
     title: Empty passwords accepted
-    fact: sshd.accounts.*.permitemptypasswords
+    fact: sshd.settings.permitemptypasswords.*
     expect: {const: no}
     severity: error
     score: 9.5
-    message: "{subject} gets PermitEmptyPasswords {got}, so sshd lets it log in with an empty password"
+    message: "{subject} has PermitEmptyPasswords {got}, so sshd lets it log in with an empty password"
     fix: set PermitEmptyPasswords no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-28]
   ssh/keyboard-interactive:
     title: Keyboard-interactive logins accepted
-    fact: sshd.accounts.*.kbdinteractiveauthentication
+    fact: sshd.settings.kbdinteractiveauthentication.*
     expect: {const: no}
     severity: warning
     score: 5.0
-    message: "{subject} gets KbdInteractiveAuthentication {got}, so sshd accepts keyboard-interactive logins, which through PAM ask for the password"
+    message: "{subject} has KbdInteractiveAuthentication {got}, so sshd accepts keyboard-interactive logins, which through PAM ask for the password"
     fix: set KbdInteractiveAuthentication no unless a second factor needs it
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-29]
   ssh/hostbased:
     title: Host-based authentication on
-    fact: sshd.accounts.*.hostbasedauthentication
+    fact: sshd.settings.hostbasedauthentication.*
     expect: {const: no}
     severity: warning
     score: 6.0
-    message: "{subject} gets HostbasedAuthentication {got}, so sshd trusts the client host’s word for who the user is"
+    message: "{subject} has HostbasedAuthentication {got}, so sshd trusts the client host’s word for who the user is"
     fix: set HostbasedAuthentication no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-25]
   ssh/ignore-rhosts:
     title: Users’ .rhosts files read
-    fact: sshd.accounts.*.ignorerhosts
+    fact: sshd.settings.ignorerhosts.*
     expect: {const: yes}
     severity: warning
     score: 6.0
-    message: "{subject} gets IgnoreRhosts {got}, so sshd reads users’ .rhosts and .shosts files"
+    message: "{subject} has IgnoreRhosts {got}, so sshd reads users’ .rhosts and .shosts files"
     fix: set IgnoreRhosts yes
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -96,21 +96,21 @@ rules:
     tags: [ssh, dev-sec-ssh-baseline:sshd-17, lynis]
   ssh/x11-forwarding:
     title: X11 forwarding on
-    fact: sshd.accounts.*.x11forwarding
+    fact: sshd.settings.x11forwarding.*
     expect: {const: no}
     severity: warning
     score: 4.0
-    message: "{subject} gets X11Forwarding {got}, so sshd forwards X11, which hands the server a way into the client’s display"
+    message: "{subject} has X11Forwarding {got}, so sshd forwards X11, which hands the server a way into the client’s display"
     fix: set X11Forwarding no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-42]
   ssh/gateway-ports:
     title: Forwarded ports listen on every address
-    fact: sshd.accounts.*.gatewayports
+    fact: sshd.settings.gatewayports.*
     expect: {const: no}
     severity: warning
     score: 4.5
-    message: "{subject} gets GatewayPorts {got}, so sshd lets forwarded ports listen on every address, not only on loopback"
+    message: "{subject} has GatewayPorts {got}, so sshd lets forwarded ports listen on every address, not only on loopback"
     fix: set GatewayPorts no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -118,11 +118,11 @@ rules:
     tags: [ssh, dev-sec-ssh-baseline:sshd-41, lynis]
   ssh/tunnel:
     title: Tunnel device forwarding on
-    fact: sshd.accounts.*.permittunnel
+    fact: sshd.settings.permittunnel.*
     expect: {const: no}
     severity: warning
     score: 5.0
-    message: "{subject} gets PermitTunnel {got}, so sshd allows tun device forwarding, a full network link into the host"
+    message: "{subject} has PermitTunnel {got}, so sshd allows tun device forwarding, a full network link into the host"
     fix: set PermitTunnel no
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -160,11 +160,11 @@ rules:
     tags: [ssh, dev-sec-ssh-baseline:sshd-02]
   ssh/max-auth-tries:
     title: Many authentication attempts allowed
-    fact: sshd.accounts.*.maxauthtries
+    fact: sshd.settings.maxauthtries.*
     expect: {maximum: 4}
     severity: info
     score: 2.0
-    message: "{subject} gets MaxAuthTries {got}, so sshd allows many authentication attempts per connection"
+    message: "{subject} has MaxAuthTries {got}, so sshd allows many authentication attempts per connection"
     fix: set MaxAuthTries 4 or lower
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -184,11 +184,11 @@ rules:
     tags: [ssh, dev-sec-ssh-baseline:sshd-18, lynis]
   ssh/log-level:
     title: Login keys not logged
-    fact: sshd.accounts.*.loglevel
+    fact: sshd.settings.loglevel.*
     expect: {const: verbose}
     severity: info
     score: 2.5
-    message: "{subject} gets LogLevel {got}, so sshd does not log which key each user logged in with"
+    message: "{subject} has LogLevel {got}, so sshd does not log which key each user logged in with"
     fix: set LogLevel VERBOSE
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
