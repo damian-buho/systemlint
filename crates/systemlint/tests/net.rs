@@ -287,7 +287,7 @@ fn dns_server_from_asks_each_named_server_instead_of_the_names() {
 }
 
 #[test]
-fn named_servers_are_taken_as_written_and_their_absent_fact_names_its_collector() {
+fn named_servers_count_only_ip_addresses_and_their_absent_fact_names_its_collector() {
     let probe = Collector::parse(
         "id: ns\nnetwork: true\nread: {dns: [\".\"], dns-server-from: [resolv.conf.*.nameserver.:3]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
     )
@@ -297,7 +297,7 @@ fn named_servers_are_taken_as_written_and_their_absent_fact_names_its_collector(
     )
     .unwrap();
     let collectors = [conf, probe.clone()];
-    let facts = json!({"resolv": {"conf": {"/etc/resolv.conf": {"nameserver": ["127.0.0.53", "fe80::1%eth0", "192.0.2.1", "192.0.2.2"]}}}});
+    let facts = json!({"resolv": {"conf": {"/etc/resolv.conf": {"nameserver": ["127.0.0.53", "dns.test", "fe80::1%eth0", "192.0.2.1", "192.0.2.2"]}}}});
     let named = collect::named(
         &probe,
         &collectors,
@@ -308,7 +308,7 @@ fn named_servers_are_taken_as_written_and_their_absent_fact_names_its_collector(
     assert_eq!(
         named.servers,
         ["127.0.0.53", "fe80::1%eth0", "192.0.2.1"],
-        "glibc asks the first 3"
+        "glibc asks the first 3 IP addresses, a name skipped before it counts"
     );
     let second = Collector::parse(
         "id: ns\nnetwork: true\nread: {dns: [\".\"], dns-server-from: [resolv.conf.*.nameserver.1]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
@@ -321,7 +321,11 @@ fn named_servers_are_taken_as_written_and_their_absent_fact_names_its_collector(
         &Default::default(),
     )
     .unwrap();
-    assert_eq!(one.servers, ["fe80::1%eth0"], "an index takes one item");
+    assert_eq!(
+        one.servers,
+        [] as [&str; 0],
+        "an index takes one item, here a name"
+    );
     let outcomes = json!({"rc": {"status": "error"}});
     let missing = collect::named(
         &probe,

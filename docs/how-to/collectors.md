@@ -43,7 +43,7 @@ into: apt.sources
 | `read.dns` | hostnames the core queries, each taken as fully qualified |
 | `read.dns-types` | the record types asked for each name: `A`, `AAAA`, `CAA`, `CNAME`, `MX`, `NS`, `PTR`, `SOA`, `SRV`, `TXT` [default: `A`, `AAAA`] |
 | `read.dns-server` | the IP, or `IP:port`, every query goes to [default: the `nameserver` lines of this host’s `/etc/resolv.conf`] |
-| `read.dns-server-from` | dotted fact paths, `*` a whole segment, `N` a list’s item and `:N` its first N, whose strings name servers, IPv6 `%zone` dropped; each server is asked the `read.dns` names on its own, as a `nameserver` probe, instead of resolving them; never beside `dns-server` |
+| `read.dns-server-from` | dotted fact paths, `*` a whole segment, `N` a list’s item and `:N` its first N items holding an IP address, or one with `:port`, whose strings name servers, IPv6 `%zone` dropped and any other string skipped; each server is asked the `read.dns` names on its own, as a `nameserver` probe, instead of resolving them; never beside `dns-server` |
 | `read.http` | URLs the core sends one GET to, or maps `{url, username, password-file, ca-file, body: json}` |
 | `read.order` | the order `files` reach the plugin: `path` [default], or `drop-in`, as systemd reads a conf directory set: per filename the match of the earliest glob in `files` hides the others, in name order, then each path with no wildcard in listed order |
 | `read.prefer` | `exec`: the command alone when it exited 0, else the files alone (under `--root`, with the program absent or failing); needs both `exec` and `files` |
@@ -171,8 +171,8 @@ rules are `not run`.
 The shipped `resolv-conf` collector reads `/etc/resolv.conf` with `formats
 words` into `resolv.conf.<path>`: every `nameserver` and `options` word in
 order, and the last `search` and `domain` lines. The shipped
-`resolv-nameservers` collector asks the first 3 nameservers, the ones glibc
-uses, for the root zone’s `NS` records into `resolv.probes`, and
+`resolv-nameservers` collector asks the first 3 nameservers that are IP
+addresses, the ones glibc uses, for the root zone’s `NS` records into `resolv.probes`, and
 the `resolv` ruleset fails one that answers no query
 (`resolv/nameserver-silent`) or answers `REFUSED`
 (`resolv/nameserver-refuses`), both covering Lynis NETW-2704. A

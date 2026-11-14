@@ -495,7 +495,9 @@ pub fn named(
     facts: &Map<String, Value>,
     outcomes: &Map<String, Value>,
 ) -> Result<Named, String> {
-    let resolve = |entries: &[String], paths_only: bool| -> Result<Vec<(String, String)>, String> {
+    let resolve = |entries: &[String],
+                   accept: &dyn Fn(&str) -> bool|
+     -> Result<Vec<(String, String)>, String> {
         let mut named = Vec::new();
         for entry in entries {
             let (pattern, suffix) = template(entry);
@@ -508,30 +510,39 @@ pub fn named(
                 .split('.')
                 .skip(literal.split('.').count())
                 .collect();
-            strings(start, &rest, &mut paths);
+            strings(start, &rest, accept, &mut paths);
             log::debug!(
-                "collector {}: {entry} names {} paths",
+                "collector {}: {entry} names {} accepted values",
                 collector.id,
                 paths.len()
             );
-            paths.retain(|p| {
-                !paths_only || p.starts_with('/') || {
-                    log::debug!(
-                        "collector {}: named path {p:?} is not absolute, skipped",
-                        collector.id
-                    );
-                    false
-                }
-            });
             named.extend(paths.into_iter().map(|p| (p, suffix.to_owned())));
         }
         Ok(named)
     };
+    let absolute = |p: &str| {
+        p.starts_with('/') || {
+            log::debug!(
+                "collector {}: named path {p:?} is not absolute, skipped",
+                collector.id
+            );
+            false
+        }
+    };
+    let server = |s: &str| {
+        crate::net::unscoped(s).is_ok() || {
+            log::debug!(
+                "collector {}: named server {s:?} is no IP address, skipped",
+                collector.id
+            );
+            false
+        }
+    };
     Ok(Named {
-        files: resolve(&collector.read.files_from, true)?,
-        stat: resolve(&collector.read.stat_from, true)?,
-        statfs: resolve(&collector.read.statfs_from, true)?,
-        servers: resolve(&collector.read.dns_server_from, false)?
+        files: resolve(&collector.read.files_from, &absolute)?,
+        stat: resolve(&collector.read.stat_from, &absolute)?,
+        statfs: resolve(&collector.read.statfs_from, &absolute)?,
+        servers: resolve(&collector.read.dns_server_from, &server)?
             .into_iter()
             .map(|(server, _)| server)
             .collect(),
@@ -585,29 +596,40 @@ fn execs(
     Ok(argvs)
 }
 
-/// Every string at `segments` under `value`, `*` matching each key, `N` a list’s item and `:N` its first N, a list giving each of its strings, a map its keys.
-fn strings(value: &Value, segments: &[&str], out: &mut Vec<String>) {
+/// Every string at `segments` under `value` that `accept` admits, `*` matching each key, `N` a list’s item and `:N` its first N items holding an admitted string, a list giving each of its strings, a map its keys.
+fn strings(value: &Value, segments: &[&str], accept: &dyn Fn(&str) -> bool, out: &mut Vec<String>) {
     match (segments.split_first(), value) {
-        (None, Value::String(s)) => out.push(s.clone()),
-        (None, Value::Object(map)) => out.extend(map.keys().cloned()),
-        (None, Value::Array(items)) => {
-            out.extend(items.iter().filter_map(Value::as_str).map(str::to_owned))
-        }
+        (None, Value::String(s)) => out.extend(Some(s.clone()).filter(|s| accept(s))),
+        (None, Value::Object(map)) => out.extend(map.keys().filter(|k| accept(k)).cloned()),
+        (None, Value::Array(items)) => out.extend(
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .filter(|s| accept(s))
+                .map(str::to_owned),
+        ),
         (Some((&"*", rest)), Value::Object(map)) => {
-            map.values().for_each(|v| strings(v, rest, out))
+            map.values().for_each(|v| strings(v, rest, accept, out))
         }
         (Some((key, rest)), Value::Object(map)) => map
             .get(*key)
             .into_iter()
-            .for_each(|v| strings(v, rest, out)),
+            .for_each(|v| strings(v, rest, accept, out)),
         (Some((slice, rest)), Value::Array(items)) if slice.starts_with(':') => {
-            let first = slice[1..].parse().unwrap_or(0);
-            items.iter().take(first).for_each(|v| strings(v, rest, out))
+            let mut left: usize = slice[1..].parse().unwrap_or(0);
+            for item in items {
+                if left == 0 {
+                    break;
+                }
+                let before = out.len();
+                strings(item, rest, accept, out);
+                left -= usize::from(out.len() > before);
+            }
         }
         (Some((index, rest)), Value::Array(items)) if index.parse::<usize>().is_ok() => items
             .get(index.parse::<usize>().unwrap_or_default())
             .into_iter()
-            .for_each(|v| strings(v, rest, out)),
+            .for_each(|v| strings(v, rest, accept, out)),
         _ => log::trace!(
             "named fact ends at a {} with {} segments left",
             if value.is_object() { "map" } else { "value" },
