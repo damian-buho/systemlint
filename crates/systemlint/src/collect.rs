@@ -417,22 +417,23 @@ fn missing(
     }
 }
 
-/// The paths a collector reads, stats or statfs because facts name them, each a literal base and the glob below it.
+/// The paths a collector reads, stats or statfs because facts name them, each a literal base and the glob below it, and the DNS servers it asks.
 #[derive(Debug, Default)]
 pub struct Named {
     pub files: Vec<(String, String)>,
     pub stat: Vec<(String, String)>,
     pub statfs: Vec<(String, String)>,
+    pub servers: Vec<String>,
 }
 
-/// The absolute paths at each `read.*-from` pattern with its glob, failing when a pattern’s literal prefix is absent.
+/// The absolute paths at each `read.*-from` pattern with its glob, and the servers at `read.dns-server-from`, failing when a pattern’s literal prefix is absent.
 pub fn named(
     collector: &Collector,
     collectors: &[Collector],
     facts: &Map<String, Value>,
     outcomes: &Map<String, Value>,
 ) -> Result<Named, String> {
-    let resolve = |entries: &[String]| -> Result<Vec<(String, String)>, String> {
+    let resolve = |entries: &[String], paths_only: bool| -> Result<Vec<(String, String)>, String> {
         let mut named = Vec::new();
         for entry in entries {
             let (pattern, suffix) = template(entry);
@@ -452,7 +453,7 @@ pub fn named(
                 paths.len()
             );
             paths.retain(|p| {
-                p.starts_with('/') || {
+                !paths_only || p.starts_with('/') || {
                     log::debug!(
                         "collector {}: named path {p:?} is not absolute, skipped",
                         collector.id
@@ -465,9 +466,13 @@ pub fn named(
         Ok(named)
     };
     Ok(Named {
-        files: resolve(&collector.read.files_from)?,
-        stat: resolve(&collector.read.stat_from)?,
-        statfs: resolve(&collector.read.statfs_from)?,
+        files: resolve(&collector.read.files_from, true)?,
+        stat: resolve(&collector.read.stat_from, true)?,
+        statfs: resolve(&collector.read.statfs_from, true)?,
+        servers: resolve(&collector.read.dns_server_from, false)?
+            .into_iter()
+            .map(|(server, _)| server)
+            .collect(),
     })
 }
 
@@ -858,7 +863,11 @@ pub fn read_partial(
             now: options.now,
             proxies: proxies.clone(),
         };
-        inputs.extend(crate::net::probes(&collector.read, &settings));
+        inputs.extend(crate::net::probes(
+            &collector.read,
+            &named.servers,
+            &settings,
+        ));
     }
     Ok((inputs, unreadable))
 }

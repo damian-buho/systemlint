@@ -176,6 +176,7 @@ pub struct ProbeInput {
 pub enum ProbeKind {
     Addr,
     Dns,
+    Nameserver,
     Http,
 }
 
@@ -185,6 +186,7 @@ impl ProbeKind {
         match self {
             Self::Addr => "addr",
             Self::Dns => "dns",
+            Self::Nameserver => "nameserver",
             Self::Http => "http",
         }
     }

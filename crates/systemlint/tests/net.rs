@@ -211,6 +211,115 @@ fn dns_lists_each_asked_type_and_a_missing_name_is_not_resolvable() {
     );
 }
 
+/// A DNS server on the loopback answering every query with `code` and no record.
+fn coded_dns_server(code: ResponseCode) -> SocketAddr {
+    let udp = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let address = udp.local_addr().unwrap();
+    std::thread::spawn(move || {
+        let mut buffer = [0u8; 512];
+        while let Ok((n, peer)) = udp.recv_from(&mut buffer) {
+            let query = Message::from_vec(&buffer[..n]).unwrap();
+            let mut reply = Message::response(query.metadata.id, query.metadata.op_code);
+            reply.add_query(query.queries[0].clone());
+            reply.metadata.response_code = code;
+            udp.send_to(&reply.to_vec().unwrap(), peer).unwrap();
+        }
+    });
+    address
+}
+
+/// A loopback UDP port nothing listens on, so a query to it is refused by the kernel.
+fn closed_udp_port() -> SocketAddr {
+    UdpSocket::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+}
+
+#[test]
+fn a_nameserver_answers_with_its_codes_or_is_silent_and_a_bad_address_is_an_error() {
+    let read = Collector::parse(
+        "id: d\nnetwork: true\nread: {dns: [probe.test, absent.test], dns-types: [A], dns-server-from: [resolv.conf.*.nameservers]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
+    )
+    .unwrap()
+    .read;
+    let ask = |server: String| {
+        let probe = net::nameserver(&server, &read, &settings(0));
+        (facts(&probe), probe.error)
+    };
+    assert_eq!(
+        ask(dns_server().to_string()),
+        (
+            json!({"answered": true, "codes": ["NOERROR", "NXDOMAIN"]}),
+            None
+        )
+    );
+    assert_eq!(
+        ask(coded_dns_server(ResponseCode::Refused).to_string()),
+        (json!({"answered": true, "codes": ["REFUSED"]}), None)
+    );
+    assert_eq!(
+        ask(closed_udp_port().to_string()),
+        (json!({"answered": false}), None)
+    );
+    let (bad, error) = ask("dns.test".to_owned());
+    assert_eq!(bad, json!({}));
+    assert!(error.unwrap().contains("not an IP address"));
+}
+
+#[test]
+fn dns_server_from_asks_each_named_server_instead_of_the_names() {
+    let read = Collector::parse(
+        "id: d\nnetwork: true\nread: {dns: [probe.test], dns-server-from: [resolv.conf.*.nameservers]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
+    )
+    .unwrap()
+    .read;
+    let server = dns_server().to_string();
+    let inputs = net::probes(&read, std::slice::from_ref(&server), &settings(0));
+    let targets: Vec<_> = inputs
+        .iter()
+        .map(|i| match i {
+            systemlint_protocol::Input::Probe(p) => (p.probe.key(), p.target.clone()),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(targets, [("nameserver", server)]);
+}
+
+#[test]
+fn named_servers_are_taken_as_written_and_their_absent_fact_names_its_collector() {
+    let probe = Collector::parse(
+        "id: ns\nnetwork: true\nread: {dns: [\".\"], dns-server-from: [resolv.conf.*.nameservers]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
+    )
+    .unwrap();
+    let conf = Collector::parse(
+        "id: rc\nread: {files: [/etc/resolv.conf]}\nparse: {plugin: formats, op: resolv}\ninto: resolv.conf\n",
+    )
+    .unwrap();
+    let collectors = [conf, probe.clone()];
+    let facts = json!({"resolv": {"conf": {"/etc/resolv.conf": {"nameservers": ["127.0.0.53", "fe80::1%eth0"]}}}});
+    let named = collect::named(
+        &probe,
+        &collectors,
+        facts.as_object().unwrap(),
+        &Default::default(),
+    )
+    .unwrap();
+    assert_eq!(named.servers, ["127.0.0.53", "fe80::1%eth0"]);
+    let outcomes = json!({"rc": {"status": "error"}});
+    let missing = collect::named(
+        &probe,
+        &collectors,
+        &Default::default(),
+        outcomes.as_object().unwrap(),
+    )
+    .unwrap_err();
+    assert_eq!(
+        missing,
+        "needs fact resolv.conf, and collector rc finished error"
+    );
+}
+
 /// Serves one connection: hands what it read up to the blank line to `sent`, then writes `response`.
 fn serve<S: Read + Write>(mut stream: S, response: &[u8], sent: &mpsc::Sender<String>) {
     let mut head = Vec::new();
@@ -602,6 +711,42 @@ fn a_collector_declares_network_exactly_when_it_probes_and_probes_alone() {
             .contains("dns-types")
     );
     assert!(parse("{addr: [\"kiota.ch:0\"]}", true).is_err());
+    assert!(
+        parse(
+            "{dns: [\".\"], dns-server-from: [resolv.conf.*.nameservers]}",
+            true
+        )
+        .is_ok()
+    );
+    for (read, why) in [
+        (
+            "{dns-server-from: [resolv.conf.*.nameservers]}",
+            "no addr, dns or http",
+        ),
+        (
+            "{http: [\"https://kiota.ch/\"], dns-server-from: [a.b]}",
+            "list one",
+        ),
+        (
+            "{dns: [x.test], dns-server: \"192.0.2.1\", dns-server-from: [a.b]}",
+            "keep one",
+        ),
+        (
+            "{dns: [x.test], dns-server-from: [\"{a.b}\"]}",
+            "never a {template}",
+        ),
+        (
+            "{dns: [x.test], dns-server-from: [\"*.b\"]}",
+            "starts with a wildcard",
+        ),
+        (
+            "{dns: [x.test], dns-server-from: [probes.x]}",
+            "which this collector writes",
+        ),
+    ] {
+        let error = parse(read, true).unwrap_err();
+        assert!(error.contains(why), "{read}: {error}");
+    }
     let http = |entry: &str| parse(&format!("{{http: [{entry}]}}"), true);
     assert!(http("https://kiota.ch/").is_ok());
     assert!(http("{url: \"https://kiota.ch/\", username: u, password-file: /run/p, ca-file: /etc/ca.pem, body: json}").is_ok());
@@ -630,5 +775,26 @@ fn a_collector_declares_network_exactly_when_it_probes_and_probes_alone() {
         http("{url: \"http://kiota.ch/\", ca-file: /etc/ca.pem}")
             .unwrap_err()
             .contains("not https")
+    );
+}
+
+#[test]
+fn the_closing_line_names_each_probed_nameserver_not_the_name_asked() {
+    let parse = |text: &str| Collector::parse(text).unwrap();
+    let collectors = [
+        parse(
+            "id: web\nnetwork: true\nread: {addr: [\"kiota.ch:443\"], dns: [kiota.ch]}\nparse: {plugin: formats, op: probes}\ninto: probes.web\n",
+        ),
+        parse(
+            "id: ns\nnetwork: true\nread: {dns: [\".\"], dns-server-from: [resolv.conf.*.nameservers]}\nparse: {plugin: formats, op: probes}\ninto: resolv.probes\n",
+        ),
+    ];
+    let document = json!({
+        "resolv": {"probes": {"nameserver": {"192.0.2.1": {"answered": true}, "192.0.2.2": {"answered": false}}}},
+        "collectors": {"web": {"status": "ok"}, "ns": {"status": "ok"}}
+    });
+    assert_eq!(
+        systemlint::progress::reached(&document, &collectors),
+        ["kiota.ch:443", "kiota.ch", "192.0.2.1", "192.0.2.2"]
     );
 }

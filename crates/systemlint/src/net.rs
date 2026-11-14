@@ -152,12 +152,29 @@ pub fn retry<T>(what: &str, mut once: impl FnMut() -> Result<T, Failure>) -> Res
     }
 }
 
-/// Every probe `read` lists, in its order: addr, then dns, then http.
-pub fn probes(read: &Sources, settings: &Settings) -> Vec<Input> {
+/// Every probe `read` lists, in its order: addr, then dns, or one nameserver probe per named server when `read.dns-server-from` is set, then http.
+pub fn probes(read: &Sources, servers: &[String], settings: &Settings) -> Vec<Input> {
+    let by_server = !read.dns_server_from.is_empty();
+    log::debug!(
+        "{} named DNS servers, asked one by one: {by_server}",
+        servers.len()
+    );
     let addr = read.addr.iter().map(|t| addr(t, settings));
-    let dns = read.dns.iter().map(|n| dns(n, read, settings));
+    let dns = read
+        .dns
+        .iter()
+        .filter(|_| !by_server)
+        .map(|n| dns(n, read, settings));
+    let named = servers
+        .iter()
+        .filter(|_| by_server)
+        .map(|s| nameserver(s, read, settings));
     let http = read.http.iter().map(|h| http(h, settings));
-    addr.chain(dns).chain(http).map(Input::Probe).collect()
+    addr.chain(dns)
+        .chain(named)
+        .chain(http)
+        .map(Input::Probe)
+        .collect()
 }
 
 /// A probe input from what one target answered.
@@ -281,8 +298,13 @@ pub fn nameservers(text: &str) -> Vec<SocketAddr> {
     text.lines()
         .filter_map(|l| l.trim().strip_prefix("nameserver"))
         .filter_map(|rest| rest.split_whitespace().next())
-        .filter_map(|ip| dns_server(ip.split('%').next().unwrap_or(ip)).ok())
+        .filter_map(|ip| unscoped(ip).ok())
         .collect()
+}
+
+/// `server` as [`dns_server`] reads it, an IPv6 `%zone` dropped.
+pub fn unscoped(server: &str) -> Result<SocketAddr, String> {
+    dns_server(server.split('%').next().unwrap_or(server))
 }
 
 /// The servers a `dns` probe asks, in order.
@@ -318,6 +340,49 @@ pub fn dns(name: &str, read: &Sources, settings: &Settings) -> ProbeInput {
     input(ProbeKind::Dns, name, answer)
 }
 
+/// Whether `server` answers the `read.dns` names of each `read.dns-types`: `answered` and the sorted response `codes`, as IANA names them (`NOERROR`), false when it answered none; answering some is an error.
+pub fn nameserver(server: &str, read: &Sources, settings: &Settings) -> ProbeInput {
+    let answer = unscoped(server).and_then(|address| {
+        let (mut codes, mut silent, mut asked) = (Vec::new(), 0, 0);
+        for name in &read.dns {
+            for kind in &read.dns_types {
+                asked += 1;
+                let mut local = None;
+                let reply = retry(&format!("dns {kind} {name} @{server}"), || {
+                    ask(name, kind, address, settings.timeout).inspect_err(|f| {
+                        if let Failure::Final(reason) = f {
+                            local = Some(reason.clone());
+                        }
+                    })
+                });
+                match (reply, local) {
+                    (_, Some(reason)) => return Err(reason),
+                    (Ok((code, _)), None) => codes.push(format!("{code:?}").to_ascii_uppercase()),
+                    (Err(reason), None) => {
+                        log::debug!("dns {kind} {name} @{server}: silent, {reason}");
+                        silent += 1;
+                    }
+                }
+            }
+        }
+        codes.sort();
+        codes.dedup();
+        log::debug!("dns @{server}: {silent} of {asked} queries unanswered, codes {codes:?}");
+        match silent {
+            0 => Ok(Map::from_iter([
+                ("answered".to_owned(), Value::Bool(true)),
+                ("codes".to_owned(), json!(codes)),
+            ])),
+            n if n == asked => Ok(Map::from_iter([(
+                "answered".to_owned(),
+                Value::Bool(false),
+            )])),
+            n => Err(format!("answered {} of {asked} queries", asked - n)),
+        }
+    });
+    input(ProbeKind::Nameserver, server, answer)
+}
+
 /// One query of `kind` for `name`, each server in turn until one answers: the record data, empty for NXDOMAIN.
 fn query(
     name: &str,
@@ -325,6 +390,30 @@ fn query(
     servers: &[SocketAddr],
     timeout: Duration,
 ) -> Result<Vec<String>, Failure> {
+    let (mut last, mut local) = (String::new(), true);
+    for server in servers {
+        match ask(name, kind, *server, timeout) {
+            Ok((ResponseCode::NoError, records)) => return Ok(records),
+            Ok((ResponseCode::NXDomain, _)) => return Ok(Vec::new()),
+            Ok((other, _)) => return Err(Failure::Retry(format!("{server} answered {other}"))),
+            Err(Failure::Retry(reason)) => (last, local) = (reason, false),
+            Err(Failure::Final(reason)) => last = reason,
+        }
+        log::debug!("dns {kind} {name}: {last}, local fault {local}");
+    }
+    match local {
+        true => Err(Failure::Final(last)),
+        false => Err(Failure::Retry(last)),
+    }
+}
+
+/// The reply of `server` to one query of `kind` for `name`: its response code and the sorted record data; no reply is worth another try, a local fault is final.
+fn ask(
+    name: &str,
+    kind: &str,
+    server: SocketAddr,
+    timeout: Duration,
+) -> Result<(ResponseCode, Vec<String>), Failure> {
     let rtype: RecordType = kind
         .parse()
         .map_err(|e| Failure::Final(format!("record type {kind}: {e}")))?;
@@ -342,50 +431,49 @@ fn query(
     let request = message
         .to_vec()
         .map_err(|e| Failure::Final(format!("can’t encode the query: {e}")))?;
-    let mut last = String::new();
-    for server in servers {
-        match exchange(&request, *server, timeout).and_then(|reply| {
-            Message::from_vec(&reply).map_err(|e| format!("answered no DNS message: {e}"))
-        }) {
-            Ok(reply) if reply.metadata.id != id => {
-                last = format!("{server} answered query {} for {id}", reply.metadata.id);
-            }
-            Ok(reply) => {
-                let code = reply.metadata.response_code;
-                log::debug!(
-                    "dns {kind} {name}: {server} answered {code}, {} records",
-                    reply.answers.len()
-                );
-                return match code {
-                    ResponseCode::NoError => {
-                        let mut records: Vec<String> = reply
-                            .answers
-                            .iter()
-                            .filter(|r| r.record_type() == rtype)
-                            .map(|r| r.data.to_string())
-                            .collect();
-                        records.sort();
-                        records.dedup();
-                        Ok(records)
-                    }
-                    ResponseCode::NXDomain => Ok(Vec::new()),
-                    other => Err(Failure::Retry(format!("{server} answered {other}"))),
-                };
-            }
-            Err(e) => last = format!("{server} {e}"),
-        }
-        log::debug!("dns {kind} {name}: {last}");
+    let reply = exchange(&request, server, timeout)?;
+    let reply = Message::from_vec(&reply)
+        .map_err(|e| Failure::Retry(format!("{server} answered no DNS message: {e}")))?;
+    if reply.metadata.id != id {
+        return Err(Failure::Retry(format!(
+            "{server} answered query {} for {id}",
+            reply.metadata.id
+        )));
     }
-    Err(Failure::Retry(last))
+    let code = reply.metadata.response_code;
+    log::debug!(
+        "dns {kind} {name}: {server} answered {code}, {} records",
+        reply.answers.len()
+    );
+    let mut records: Vec<String> = reply
+        .answers
+        .iter()
+        .filter(|r| r.record_type() == rtype)
+        .map(|r| r.data.to_string())
+        .collect();
+    records.sort();
+    records.dedup();
+    Ok((code, records))
 }
 
-/// The reply to `request` from `server` over UDP, again over TCP when it came back truncated.
-fn exchange(request: &[u8], server: SocketAddr, timeout: Duration) -> Result<Vec<u8>, String> {
+/// The reply to `request` from `server` over UDP, again over TCP when it came back truncated; only a socket this host can’t open is final.
+fn exchange(request: &[u8], server: SocketAddr, timeout: Duration) -> Result<Vec<u8>, Failure> {
     let bind: SocketAddr = match server {
         SocketAddr::V4(_) => "0.0.0.0:0".parse().unwrap_or_else(|_| unreachable!()),
         SocketAddr::V6(_) => "[::]:0".parse().unwrap_or_else(|_| unreachable!()),
     };
-    let udp = UdpSocket::bind(bind).map_err(|e| format!("can’t open a UDP socket: {e}"))?;
+    let udp = UdpSocket::bind(bind)
+        .map_err(|e| Failure::Final(format!("can’t open a UDP socket: {e}")))?;
+    talk(&udp, request, server, timeout).map_err(|e| Failure::Retry(format!("{server} {e}")))
+}
+
+/// [`exchange`] once its UDP socket is open.
+fn talk(
+    udp: &UdpSocket,
+    request: &[u8],
+    server: SocketAddr,
+    timeout: Duration,
+) -> Result<Vec<u8>, String> {
     udp.set_read_timeout(Some(timeout))
         .map_err(|e| e.to_string())?;
     udp.connect(server)

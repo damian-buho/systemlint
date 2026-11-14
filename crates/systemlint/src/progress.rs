@@ -28,9 +28,18 @@ pub fn commands(document: &Value, collectors: &[Collector]) -> Vec<String> {
         .collect()
 }
 
-/// Every network target a collection asked: each `addr`, `dns` and `http` of a collector that ran.
+/// Every network target a collection asked: each `addr`, `dns` name or nameserver probed, and `http` of a collector that ran.
 pub fn reached(document: &Value, collectors: &[Collector]) -> Vec<String> {
     let ran = |c: &&Collector| document["collectors"][&c.id]["status"] != "skipped";
+    let dns = |c: &Collector| match c.read.dns_server_from.is_empty() {
+        true => c.read.dns.clone(),
+        false => document
+            .as_object()
+            .and_then(|facts| crate::collect::lookup(facts, &format!("{}.nameserver", c.into)))
+            .and_then(Value::as_object)
+            .map(|servers| servers.keys().cloned().collect())
+            .unwrap_or_default(),
+    };
     collectors
         .iter()
         .filter(|c| c.network)
@@ -39,8 +48,8 @@ pub fn reached(document: &Value, collectors: &[Collector]) -> Vec<String> {
             let read = &c.read;
             read.addr
                 .iter()
-                .chain(&read.dns)
                 .cloned()
+                .chain(dns(c))
                 .chain(read.http.iter().map(|h| h.url.clone()))
         })
         .collect()

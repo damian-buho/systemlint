@@ -73,6 +73,8 @@ pub struct Read {
     pub dns_types: Vec<String>,
     #[serde(default, rename = "dns-server")]
     pub dns_server: Option<String>,
+    #[serde(default, rename = "dns-server-from")]
+    pub dns_server_from: Vec<String>,
     #[serde(default)]
     pub http: Vec<Http>,
 }
@@ -178,9 +180,11 @@ impl Read {
             && self.from().next().is_none())
     }
 
-    /// The fact paths that name paths to read or stat.
+    /// The fact paths that name paths to read or stat, or servers to ask.
     pub fn named(&self) -> impl Iterator<Item = &str> {
-        self.from().map(|entry| template(entry).0)
+        self.from()
+            .chain(&self.dns_server_from)
+            .map(|entry| template(entry).0)
     }
 }
 
@@ -285,7 +289,7 @@ impl Collector {
             }
             _ => {}
         }
-        for entry in self.read.from() {
+        for entry in self.read.from().chain(&self.read.dns_server_from) {
             let (pattern, suffix) = template(entry);
             if pattern.contains(['{', '}'])
                 || !(suffix.is_empty() || suffix.starts_with('/'))
@@ -376,6 +380,31 @@ impl Collector {
         if let Some(server) = &read.dns_server {
             crate::net::dns_server(server)
                 .map_err(|e| format!("read.dns-server {server:?}: {e}"))?;
+        }
+        match (
+            read.dns_server_from.as_slice(),
+            &read.dns_server,
+            read.dns.is_empty(),
+        ) {
+            ([], _, _) => {}
+            (_, Some(_), _) => {
+                return Err(
+                    "read.dns-server and dns-server-from both name servers; keep one".to_owned(),
+                );
+            }
+            (_, None, true) => {
+                return Err(
+                    "read.dns-server-from asks each named server the read.dns names; list one"
+                        .to_owned(),
+                );
+            }
+            (from, None, false) => {
+                if let Some(entry) = from.iter().find(|e| e.contains(['{', '}'])) {
+                    return Err(format!(
+                        "read.dns-server-from {entry:?} is a fact path, never a {{template}}"
+                    ));
+                }
+            }
         }
         for http in &read.http {
             http.validate()
