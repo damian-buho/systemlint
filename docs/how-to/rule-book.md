@@ -25,6 +25,14 @@ model how it combines them, so the subject reported is the one exposed:
 - it accepts IPv4 source routing only when both the interface key and `all`
   are on, so `ip-routing/ipv4-source-route` fails an interface only when both are
 
+## Conflicting standards
+
+A rule judges what is good for the system, not what a distribution ships: a
+stock default that exposes the host still fails. Where two standards disagree
+(NIST SP 800-63B against forced password rotation, a benchmark demanding it),
+ship each side as its own rule tagged with its standard’s control, so the user
+picks the standard they follow with `--standard` or `--tags`.
+
 ## Small rulesets
 
 One ruleset per subject a person thinks of (`ufw.yaml`, `kernel.yaml`,
