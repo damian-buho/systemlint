@@ -383,6 +383,11 @@ impl Library {
         let mut merged = BTreeMap::new();
         for parent in &ruleset.extends {
             merged.extend(self.resolve_in(parent, seen)?);
+            if self.rulesets.contains_key(parent) {
+                for (id, spec) in self.tagged(parent) {
+                    merged.entry(id).or_insert(spec);
+                }
+            }
         }
         seen.pop();
         for (id, raw) in &ruleset.rules {
@@ -437,12 +442,17 @@ impl Library {
         if !self.rulesets.contains_key(selector) {
             return Ok((BTreeMap::new(), found));
         }
-        let tagged = self.matching(selector).unwrap_or_default();
+        Ok((found, self.tagged(selector)))
+    }
+
+    /// The rules a ruleset’s name matches by ID or tag, which naming it picks beside its own.
+    fn tagged(&self, ruleset: &str) -> Picks {
+        let tagged = self.matching(ruleset).unwrap_or_default();
         log::debug!(
-            "ruleset {selector} also picks {} rules matching its name",
+            "ruleset {ruleset} also picks {} rules matching its name",
             tagged.len()
         );
-        Ok((found, tagged))
+        tagged
     }
 
     /// The rules a selector list picks: a union in order (every rule when only `!` entries), a ruleset’s overrides beating a plain ID or tag pick, `!` removing, `off` dropped.

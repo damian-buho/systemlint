@@ -215,7 +215,8 @@ An entry with `fact` defines a rule; a rule is defined in one ruleset only. Any
 other entry overrides the rule by ID, defined in a parent or anywhere else: a
 level, a score, or a partial rule whose keys win and whose `expect` merges
 keyword by keyword, dropping the inherited `message`, which may state the old
-bounds. `extends` takes rulesets, rule IDs and tag globs, flattened depth first.
+bounds. `extends` takes rulesets, rule IDs and tag globs, flattened depth first;
+a ruleset name also brings the rules tagged with it, as a selector does.
 
 `when` takes the form a rule’s does, without `*`, since a ruleset has no
 subject. It guards every rule the ruleset defines, however it is selected, and

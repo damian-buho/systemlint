@@ -212,8 +212,16 @@ fn a_ruleset_name_also_picks_its_tag() {
             "rules:\n  k/b: {fact: b, expect: {minLength: 3}, tags: [s]}\n  k/c: {fact: c, expect: {minLength: 3}}\n",
         ),
         ("o", "extends: [k]\nrules:\n  k/b: info\n"),
+        ("e", "extends: [s]\nrules:\n  s/a: error\n"),
     ]);
     assert_eq!(ids(&lib.select(&["s".into()]).unwrap()), ["k/b", "s/a"]);
+    let extended = lib.resolve("e").unwrap();
+    assert_eq!(
+        ids(&extended),
+        ["k/b", "s/a"],
+        "extends takes the same union"
+    );
+    assert_eq!(extended["s/a"].severity, Some(Severity::Error));
     assert_eq!(
         ids(&lib.select(&["k".into(), "!s".into()]).unwrap()),
         ["k/c"],
