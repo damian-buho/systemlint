@@ -159,9 +159,13 @@ active table, a `--root` run the declared one:
 | --- | --- | --- |
 | `mounts/nosuid`, `mounts/fstab-nosuid` | warning | the mount lacks `nosuid`, so a set-user-ID file left there runs with its owner’s rights |
 | `mounts/nodev`, `mounts/fstab-nodev` | warning | the mount lacks `nodev`, so a device file unpacked there opens the device it names |
+| `mounts/noexec`, `mounts/fstab-noexec` | warning | the mount lacks `noexec`, so a program dropped there runs straight from it |
 
-`noexec` is no rule: stock Debian and Ubuntu mount `/tmp` and `/dev/shm`
-without it, and any interpreter runs a script from there anyway.
+Stock Debian and Ubuntu mount `/tmp` and `/dev/shm` without `noexec`, and fail
+`mounts/noexec` all the same. An interpreter still runs a script from a
+`noexec` mount, so the rule stops dropped binaries, not scripts. Package
+installs keep working: debconf unpacks config scripts into
+`/var/cache/debconf/tmp.ci`, not `/tmp`.
 
 The `disk` ruleset judges `mounts.usage` on a live run, scored on a curve from
 warning at 90 % to error from 98 %. It leaves out read-only filesystems, which

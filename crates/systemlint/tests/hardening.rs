@@ -741,7 +741,7 @@ fn mounts(active: Option<Value>, fstab: Value) -> Vec<(String, String, Outcome)>
 }
 
 #[test]
-fn a_world_writable_mount_without_nosuid_or_nodev_fails() {
+fn a_world_writable_mount_without_nosuid_nodev_or_noexec_fails() {
     let at = |options: &[&str]| json!({"/tmp": {"options": options}, "/dev/shm": {"options": ["rw", "nosuid", "nodev"]}, "/home": {"options": ["rw"]}});
     let row = |rule: &str, subject: &str, outcome| (rule.to_owned(), subject.to_owned(), outcome);
     assert_eq!(
@@ -749,10 +749,14 @@ fn a_world_writable_mount_without_nosuid_or_nodev_fails() {
         [
             row("mounts/fstab-nodev", "/dev/shm", Outcome::Skip),
             row("mounts/fstab-nodev", "/tmp", Outcome::Skip),
+            row("mounts/fstab-noexec", "/dev/shm", Outcome::Skip),
+            row("mounts/fstab-noexec", "/tmp", Outcome::Skip),
             row("mounts/fstab-nosuid", "/dev/shm", Outcome::Skip),
             row("mounts/fstab-nosuid", "/tmp", Outcome::Skip),
             row("mounts/nodev", "/dev/shm", Outcome::Pass),
             row("mounts/nodev", "/tmp", Outcome::Pass),
+            row("mounts/noexec", "/dev/shm", Outcome::Fail),
+            row("mounts/noexec", "/tmp", Outcome::Fail),
             row("mounts/nosuid", "/dev/shm", Outcome::Pass),
             row("mounts/nosuid", "/tmp", Outcome::Fail),
         ],
@@ -763,9 +767,12 @@ fn a_world_writable_mount_without_nosuid_or_nodev_fails() {
         [
             row("mounts/fstab-nodev", "/dev/shm", Outcome::Pass),
             row("mounts/fstab-nodev", "/tmp", Outcome::Fail),
+            row("mounts/fstab-noexec", "/dev/shm", Outcome::Fail),
+            row("mounts/fstab-noexec", "/tmp", Outcome::Pass),
             row("mounts/fstab-nosuid", "/dev/shm", Outcome::Pass),
             row("mounts/fstab-nosuid", "/tmp", Outcome::Pass),
             row("mounts/nodev", "", Outcome::Skip),
+            row("mounts/noexec", "", Outcome::Skip),
             row("mounts/nosuid", "", Outcome::Skip),
         ],
         "a root run judges the declared table and skips the live one"
