@@ -87,6 +87,22 @@ check:
     - {rule: files/group-writable, subject: "path, /usr/local*", reason: staff installs into /usr/local, until: 2027-06-30}
 ```
 
+## Cron
+
+The `cron` ruleset judges the `files-cron` stats of `/etc/crontab` and the
+`/etc/cron.d`, `cron.hourly`, `cron.daily`, `cron.weekly`, `cron.monthly` and
+`cron.yearly` directories:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `cron/world-readable` | warning | one grants others any access, so every user reads the jobs root runs and any password or token written into one |
+
+Stock Debian and Ubuntu ship 0644 and 0755, so a stock host fails;
+`systemlint fix` clears the other bits. Group bits pass, as does a symlink.
+The files inside a directory are not judged, since a 0700 directory already
+hides them, nor are `cron.allow`, `cron.deny`, `at.allow` and `at.deny`, whose
+usernames `/etc/passwd` already shows to everyone.
+
 ## Temporary directories
 
 The `tmp-dirs` collector stats `/tmp`, `/var/tmp` and `/dev/shm` into

@@ -1375,3 +1375,47 @@ fn core_dumps_pass_only_with_a_hard_zero_for_everyone_and_none_raised() {
         "no PAM, so no pam_limits"
     );
 }
+
+// The cron/world-readable outcomes per path for the given stats, or with no cron facts at all on None.
+fn cron(stats: Option<Value>) -> Vec<(String, Outcome)> {
+    let mut document =
+        json!({"collectors": {"files-cron": {"status": "ok", "into": "files.cron"}}});
+    if let Some(stats) = stats {
+        document["files"] = json!({"cron": stats});
+    }
+    judge("cron", &document)
+        .into_iter()
+        .map(|(_, subject, o)| (subject, o))
+        .collect()
+}
+
+#[test]
+fn a_system_crontab_or_cron_directory_fails_once_others_may_read_it() {
+    let stat = |kind: &str, mode: &str| json!({"exists": true, "kind": kind, "mode": mode});
+    use Outcome::{Fail, Pass, Unknown};
+    for (path, kind, mode, outcome) in [
+        ("/etc/crontab", "file", "0640", Pass),
+        ("/etc/crontab", "file", "0644", Fail),
+        ("/etc/crontab", "file", "0601", Fail),
+        ("/etc/cron.d", "directory", "0750", Pass),
+        ("/etc/cron.d", "directory", "0751", Fail),
+        ("/etc/cron.yearly", "directory", "0755", Fail),
+        ("/etc/cron.daily", "symlink", "0777", Outcome::Skip),
+    ] {
+        assert_eq!(
+            cron(Some(json!({path: stat(kind, mode)}))),
+            [(path.to_owned(), outcome)],
+            "{path} {kind} {mode}"
+        );
+    }
+    let unjudged = json!({
+        "/etc/cron.d/backup": stat("file", "0644"),
+        "/etc/cron.allow": stat("file", "0644"),
+    });
+    assert_eq!(
+        cron(Some(unjudged)),
+        [],
+        "files in a directory and the allow lists"
+    );
+    assert_eq!(cron(None), [(String::new(), Unknown)]);
+}

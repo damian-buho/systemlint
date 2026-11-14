@@ -12,8 +12,9 @@ the conventions every rule under `rulesets/` follows.
 ## A finding is always real
 
 A rule fails only when the host really is exposed. Leave a check out rather
-than guess: a setting that a stock install ships, that a router or container
-host needs, or that a newer kernel ignores is no finding.
+than guess: a setting that a router or container host needs, or that a newer
+kernel ignores, is no finding. A stock install shipping it is no excuse: a
+stock default that exposes the host fails all the same.
 
 Judge the value that takes effect. When the consumer combines several keys,
 model how it combines them, so the subject reported is the one exposed:

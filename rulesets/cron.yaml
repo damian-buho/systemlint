@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: the system crontab and cron directories, kept from other users
+rules:
+  cron/world-readable:
+    title: System cron jobs readable by every user
+    fact: files.cron.*.mode
+    keys: {enum: [/etc/crontab, /etc/cron.d, /etc/cron.hourly, /etc/cron.daily, /etc/cron.weekly, /etc/cron.monthly, /etc/cron.yearly]}
+    when:
+      files.cron.*.kind: {not: {const: symlink}}
+    expect: {pattern: "^[0-7]{3}0$"}
+    severity: warning
+    score: 4.0
+    message: "{subject} has mode {got}; every user can read the jobs root runs from it, and any password or token written into one"
+    fix: chmod o-rwx /etc/crontab and each cron directory
+    remedy: {chmod: o-rwx}
+    docs: https://manpages.debian.org/unstable/cron/cron.8.en.html
+    references:
+      - {title: Lynis FILE-7524, url: "https://cisofy.com/lynis/controls/FILE-7524/"}
+    tags: [cron, files, lynis]
