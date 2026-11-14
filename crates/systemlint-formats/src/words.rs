@@ -63,6 +63,8 @@ struct Options {
     required: Option<usize>,
     #[serde(default)]
     lists: Vec<String>,
+    #[serde(default)]
+    toggles: Vec<String>,
     key: Option<Names>,
     repeat: Option<Policy>,
     directives: Option<Vec<String>>,
@@ -89,6 +91,9 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     let named = |n: &String| columns.is_some_and(|c| c.iter().flatten().any(|c| c == n));
     if let Some(bad) = keys.iter().chain(&options.lists).find(|n| !named(n)) {
         return Err(format!("with names {bad}, which no column does").into());
+    }
+    if let Some(bad) = options.toggles.iter().find(|n| !options.lists.contains(n)) {
+        return Err(format!("with.toggles names {bad}, which is no list column").into());
     }
     if columns.is_none() && (options.rest.is_some() || options.required.is_some()) {
         return Err("with.rest and with.required need with.columns".into());
@@ -252,13 +257,14 @@ fn columned(
     for (word, name) in words.iter().zip(columns) {
         let Some(name) = name else { continue };
         let value = match options.lists.contains(name) {
-            true => Value::from(
-                word.0
-                    .split(',')
-                    .filter(|w| !w.is_empty())
-                    .map(scalar)
-                    .collect::<Vec<_>>(),
-            ),
+            true => {
+                let items = word.0.split(',').filter(|w| !w.is_empty());
+                let items: Vec<&str> = match options.toggles.contains(name) {
+                    true => toggled(items),
+                    false => items.collect(),
+                };
+                Value::from(items.into_iter().map(scalar).collect::<Vec<_>>())
+            }
             false => typed(word),
         };
         record.insert(name.clone(), value);
@@ -268,6 +274,17 @@ fn columned(
         record.insert(rest.clone(), tail.iter().map(typed).collect());
     }
     Ok(record)
+}
+
+/// The items left once each `noX` cancels an earlier `X` and each `X` an earlier `noX` or `X`, as mount(8) lets the later option win.
+fn toggled<'a>(items: impl Iterator<Item = &'a str>) -> Vec<&'a str> {
+    let base = |item: &'a str| item.strip_prefix("no").unwrap_or(item);
+    let mut kept: Vec<&str> = Vec::new();
+    for item in items {
+        kept.retain(|k| base(k) != base(item));
+        kept.push(item);
+    }
+    kept
 }
 
 /// Puts `record` at the nested key `at`, keeping the first or last line and the others’ numbers in `shadowed`, or every line under `list`.
@@ -578,6 +595,10 @@ mod tests {
             (json!({"pattern": "x"}), "unknown field"),
             (json!({"key": "a"}), "no column"),
             (json!({"columns": ["a"], "lists": ["b"]}), "no column"),
+            (
+                json!({"columns": ["a"], "toggles": ["a"]}),
+                "no list column",
+            ),
             (json!({"rest": "r"}), "need with.columns"),
             (
                 json!({"columns": ["a"], "repeat": {"a": "last"}}),
@@ -595,6 +616,21 @@ mod tests {
                 .to_string();
             assert!(error.contains(says), "{with}: {error}");
         }
+    }
+
+    #[test]
+    fn toggles_keep_the_later_of_an_option_and_its_no_form() {
+        let reply = run(
+            &[file(
+                "/etc/fstab",
+                "tmpfs /tmp tmpfs suid,nosuid,nodev,dev,noexec,noexec,user,nouser,notail\n",
+            )],
+            json!({"columns": ["source", "mountpoint", "filesystem", "options"], "required": 3, "lists": ["options"], "toggles": ["options"], "key": "mountpoint"}),
+        );
+        assert_eq!(
+            reply.facts["/tmp"]["options"],
+            json!(["nosuid", "dev", "noexec", "nouser", "notail"])
+        );
     }
 
     #[test]

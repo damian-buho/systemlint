@@ -9,5 +9,5 @@ read:
 parse:
   plugin: formats
   op: words
-  with: {columns: [source, mountpoint, filesystem, options, dump, pass], required: 6, lists: [options], key: mountpoint, repeat: last, octal: true}
+  with: {columns: [source, mountpoint, filesystem, options, dump, pass], required: 6, lists: [options], toggles: [options], key: mountpoint, repeat: last, octal: true}
 into: mounts.active
