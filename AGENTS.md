@@ -12,6 +12,10 @@ A linter for operating systems: a Rust core that collects host facts and judges 
 
 Every line systemlint prints is actionable and every finding is real: zero false positives. A finding that a race, a vanished file, a short-lived process or a missing privilege can cause is a defect in systemlint, not in the host.
 
+- No fakeouts. A check this run could not make for want of a privilege (`EACCES`, `needs root`) is `not run`, naming what it needs, never `unknown`: `unknown` means the fact should be there and is not.
+- Silence for what was not asked: an opt-in collector left off (`--image-config`, `--network`) prints no block in human output, only its count.
+- A finding judges the risk, never the mere presence: a value normal for its owner (a snap’s generated unit, a container image’s own environment, a root-owned read-only path) is not a finding.
+
 ## Key facts
 
 - Cargo workspace under `crates/`: `systemlint` (core), `systemlint-protocol` (the only crate a plugin must use), `systemlint-formats`, `systemlint-apt`, `systemlint-sshd`, `systemlint-env`, `systemlint-systemd`.
