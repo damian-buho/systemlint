@@ -25,7 +25,7 @@ reads the Docker or kernel module facts yet.
 | `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `lines` | `audit.loaded./usr/sbin/auditctl` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
 | `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system`, with its `stat` | `units` | `systemd.units.<unit>` |
-| `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all` on a live host | `systemd` | `systemd.state.<unit>` |
+| `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all --output=json` on a live host | `systemd` | `systemd.state.<unit>` |
 | `ufw` | `/etc/ufw/ufw.conf` | `kv` | `ufw.conf` |
 | `ufw-binary` | the `ufw` program in `/usr/local/*bin`, `/usr/*bin` and `/*bin` | `stat` | `ufw.binary.<path>` |
 
@@ -235,8 +235,8 @@ systemd:
   `/run/systemd/system`, `/run/systemd/generator`,
   `/usr/local/lib/systemd/system`, `/usr/lib/systemd/system`,
   `/lib/systemd/system`, `/run/systemd/generator.late`.
-- `active` and `sub`: the `ACTIVE` and `SUB` columns of `systemctl
-  list-units`, live only. A unit on disk that the manager has not loaded is
+- `active` and `sub`: the `active` and `sub` fields of `systemctl
+  list-units --all --output=json`, live only. A unit on disk that the manager has not loaded is
   `inactive` and `dead`, since systemd unloads only inactive units. A unit only
   the manager knows, such as a device, carries these two alone. Under `--root`,
   or where `systemctl` fails (a container with no manager, named in the

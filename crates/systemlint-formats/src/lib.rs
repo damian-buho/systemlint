@@ -809,7 +809,15 @@ pub fn nest(
     Ok(())
 }
 
-/// Each unit’s `enabled` and `masked` from the unit directories, plus `active` and `sub` when `systemctl list-units` exited 0.
+/// One unit of `systemctl list-units --output=json`.
+#[derive(serde::Deserialize)]
+struct Listed {
+    unit: String,
+    active: String,
+    sub: String,
+}
+
+/// Each unit’s `enabled` and `masked` from the unit directories, plus `active` and `sub` when `systemctl list-units --output=json` exited 0.
 pub fn systemd(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
     let mut units: BTreeMap<String, Map<String, Value>> = BTreeMap::new();
@@ -871,22 +879,26 @@ pub fn systemd(inputs: &[Input]) -> Reply {
                 .insert("enabled".to_owned(), Value::Bool(true));
         }
     }
-    if let Some(exec) = live {
+    let listed = live.map(|e| (e, serde_json::from_str::<Vec<Listed>>(&e.stdout)));
+    if let Some((exec, Err(e))) = &listed {
+        reply.diagnostics.push(Diagnostic {
+            path: exec.argv.join(" "),
+            line: None,
+            message: format!("not systemctl’s JSON, no active state: {e}"),
+        });
+    }
+    if let Some((_, Ok(listed))) = listed {
         let mut seen = std::collections::BTreeSet::new();
-        for line in exec.stdout.lines().filter(|l| !l.trim().is_empty()) {
-            match line.split_whitespace().collect::<Vec<_>>()[..] {
-                [name, _, active, sub, ..] => {
-                    let unit = units.entry(name.to_owned()).or_default();
-                    unit.insert("active".to_owned(), Value::from(active));
-                    unit.insert("sub".to_owned(), Value::from(sub));
-                    seen.insert(name.to_owned());
-                }
-                _ => reply.diagnostics.push(Diagnostic {
-                    path: exec.argv.join(" "),
-                    line: None,
-                    message: format!("no “unit load active sub” in {line:?}"),
-                }),
-            }
+        for Listed {
+            unit: name,
+            active,
+            sub,
+        } in listed
+        {
+            let unit = units.entry(name.clone()).or_default();
+            unit.insert("active".to_owned(), Value::from(active));
+            unit.insert("sub".to_owned(), Value::from(sub));
+            seen.insert(name);
         }
         for (_, unit) in units.iter_mut().filter(|(name, _)| !seen.contains(*name)) {
             unit.insert("active".to_owned(), Value::from("inactive"));
@@ -1420,7 +1432,7 @@ mod tests {
 
     #[test]
     fn systemd_adds_the_live_state_and_marks_unloaded_units_inactive() {
-        let listed = "ufw.service loaded active exited Uncomplicated firewall\nhome.mount not-found inactive dead home.mount\n\nbroken\n";
+        let listed = r#"[{"unit":"ufw.service","load":"loaded","active":"active","sub":"exited","description":"Uncomplicated firewall"},{"unit":"home.mount","load":"not-found","active":"inactive","sub":"dead","description":"home.mount"}]"#;
         let reply = super::systemd(&[
             unit("/usr/lib/systemd/system/ufw.service", 341, None),
             unit("/usr/lib/systemd/system/clean.timer", 30, None),
@@ -1439,13 +1451,27 @@ mod tests {
             serde_json::json!({"active": "inactive", "sub": "dead"}),
             "a live-only unit claims nothing about its files"
         );
+        assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
+    }
+
+    #[test]
+    fn systemd_ignores_output_that_is_not_json_rather_than_mark_units_inactive() {
+        let reply = super::systemd(&[
+            unit("/usr/lib/systemd/system/ufw.service", 341, None),
+            exec(
+                "/bin/systemctl list-units",
+                "ufw.service loaded active exited x\n",
+                0,
+            ),
+        ]);
         assert_eq!(
-            reply
-                .diagnostics
-                .iter()
-                .map(|d| d.message.as_str())
-                .collect::<Vec<_>>(),
-            ["no “unit load active sub” in \"broken\""]
+            reply.facts["ufw.service"],
+            serde_json::json!({"enabled": false, "masked": false})
+        );
+        assert!(
+            reply.diagnostics[0]
+                .message
+                .starts_with("not systemctl’s JSON")
         );
     }
 
