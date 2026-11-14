@@ -127,21 +127,15 @@ pub fn op(request: Request) -> Result<Reply> {
 pub fn kv(inputs: &[Input]) -> Reply {
     let mut reply = Reply::default();
     for input in inputs {
-        let (path, text) = match input {
-            Input::File(file) => (file.path.clone(), file.content.as_deref()),
-            Input::Exec(exec) => (exec.argv.join(" "), Some(exec.stdout.as_str())),
-            Input::Probe(probe) => (probe.target.clone(), None),
+        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+            continue;
         };
         let mut diagnose = |line: Option<u64>, message: String| {
             reply.diagnostics.push(Diagnostic {
-                path: path.clone(),
+                path: path.to_owned(),
                 line,
                 message,
             })
-        };
-        let Some(text) = text else {
-            diagnose(None, "not UTF-8 text, skipped".to_owned());
-            continue;
         };
         for (index, line) in text.lines().enumerate() {
             let number = Some(index as u64 + 1);
@@ -607,7 +601,7 @@ pub fn resolv(inputs: &[Input]) -> Reply {
     reply
 }
 
-/// The text of a file input, or a diagnostic when it is missing or not UTF-8.
+/// The text of a file, or a zero-exit command’s stdout keyed by its program; a diagnostic otherwise.
 pub fn text<'a>(input: &'a Input, diagnostics: &mut Vec<Diagnostic>) -> Option<(&'a str, &'a str)> {
     match input {
         Input::File(FileInput {
@@ -615,6 +609,21 @@ pub fn text<'a>(input: &'a Input, diagnostics: &mut Vec<Diagnostic>) -> Option<(
             content: Some(text),
             ..
         }) => Some((path, text)),
+        Input::Exec(run) if run.exit == 0 => {
+            Some((run.argv.first().map_or("", String::as_str), &run.stdout))
+        }
+        Input::Exec(run) => {
+            diagnostics.push(Diagnostic {
+                path: input.name(),
+                line: None,
+                message: format!(
+                    "exited {}: {}",
+                    run.exit,
+                    run.stderr.lines().next().unwrap_or("")
+                ),
+            });
+            None
+        }
         Input::File(FileInput { path, .. }) => {
             diagnostics.push(Diagnostic {
                 path: path.clone(),
@@ -627,7 +636,7 @@ pub fn text<'a>(input: &'a Input, diagnostics: &mut Vec<Diagnostic>) -> Option<(
             diagnostics.push(Diagnostic {
                 path: other.name(),
                 line: None,
-                message: "not a file, skipped".to_owned(),
+                message: "not a file or command, skipped".to_owned(),
             });
             None
         }
@@ -1500,23 +1509,32 @@ mod tests {
     }
 
     #[test]
-    fn lines_keys_each_file_by_path_and_skips_a_command() {
-        let exec = Input::Exec(ExecInput {
-            argv: vec!["/bin/true".into()],
-            stdout: "x".into(),
-            stderr: String::new(),
-            exit: 0,
-        });
-        let reply = super::lines(&[file("/etc/a", "one\r\n\ntwo"), file("/etc/empty", ""), exec]);
+    fn lines_keys_each_file_by_path_and_a_command_by_program_unless_it_failed() {
+        let run = |program: &str, exit| {
+            Input::Exec(ExecInput {
+                argv: vec![program.into(), "-a".into()],
+                stdout: "x\ny\n".into(),
+                stderr: "denied\nmore".into(),
+                exit,
+            })
+        };
+        let reply = super::lines(&[
+            file("/etc/a", "one\r\n\ntwo"),
+            file("/etc/empty", ""),
+            run("/bin/ok", 0),
+            run("/bin/failed", 1),
+        ]);
         assert_eq!(reply.facts["/etc/a"], serde_json::json!(["one", "", "two"]));
         assert_eq!(reply.facts["/etc/empty"], serde_json::json!([]));
+        assert_eq!(reply.facts["/bin/ok"], serde_json::json!(["x", "y"]));
+        assert!(!reply.facts.contains_key("/bin/failed"));
         assert_eq!(
             reply
                 .diagnostics
                 .iter()
-                .map(|d| d.path.as_str())
+                .map(|d| format!("{}: {}", d.path, d.message))
                 .collect::<Vec<_>>(),
-            ["/bin/true"]
+            ["/bin/failed -a: exited 1: denied"]
         );
     }
 

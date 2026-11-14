@@ -299,6 +299,18 @@ parse: {plugin: formats, op: exec}
 into: commands.nginx-test
 ```
 
+The text ops (`lines`, `kv`, `ini`, `json`, `yaml`, `toml`, `csv`) read a
+command’s `stdout` as they read a file when it exits 0, its program path
+standing in for a file path; any other exit is a diagnostic naming the status
+and the first line of `stderr`:
+
+```yaml
+id: mounts-json
+read: {exec: [/usr/bin/findmnt, --json]}
+parse: {plugin: formats, op: json}
+into: commands.mounts
+```
+
 ## Derived facts
 
 A collector never computes a fact from other facts. A plugin op that needs
