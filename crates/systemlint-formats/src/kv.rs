@@ -34,6 +34,9 @@ struct Options {
     swap: Option<char>,
     #[serde(default)]
     strip: String,
+    section: Option<String>,
+    records: Option<char>,
+    negate: Option<String>,
 }
 
 fn equals() -> String {
@@ -56,12 +59,16 @@ pub fn kv(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     if options.swap.is_some() && options.nest.is_none() {
         return Err("kv with.swap needs with.nest".into());
     }
+    if options.negate.as_deref() == Some("") || options.section.as_deref() == Some("") {
+        return Err("kv with.negate and with.section must not be empty".into());
+    }
     let mut reply = Reply::default();
     let mut flat: Vec<(String, Value)> = Vec::new();
     for input in inputs {
         let Some((path, content)) = text(input, &mut reply.diagnostics) else {
             continue;
         };
+        let mut inside = options.section.is_none();
         for (index, raw) in content.lines().enumerate() {
             let mut diagnose = |message: String| {
                 reply.diagnostics.push(Diagnostic {
@@ -70,8 +77,18 @@ pub fn kv(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
                     message,
                 })
             };
+            if let Some(header) = &options.section {
+                if raw.starts_with(header.as_str()) {
+                    inside = true;
+                    continue;
+                }
+                if raw.trim().is_empty() || !raw.starts_with(char::is_whitespace) {
+                    inside = false;
+                }
+            }
             let line = raw.trim();
-            if line.is_empty()
+            if !inside
+                || line.is_empty()
                 || options
                     .comments
                     .iter()
@@ -79,29 +96,46 @@ pub fn kv(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
             {
                 continue;
             }
-            let split = match options.separator.as_str() {
-                WHITESPACE => Some(line.split_once(char::is_whitespace).unwrap_or((line, ""))),
-                separator => line.split_once(separator),
+            let records = match options.records {
+                Some(separator) => split_records(line, separator),
+                None => vec![line.to_owned()],
             };
-            let Some((key, value)) = split else {
-                diagnose(format!("no {} in {line:?}", options.separator));
-                continue;
-            };
-            let key = key.trim().trim_start_matches(|c| options.strip.contains(c));
-            if key.is_empty() {
-                diagnose("a value with no key".to_owned());
-                continue;
-            }
-            let value = value.trim();
-            let typed = match unquote(value) {
-                Ok(text) if value.starts_with(['"', '\'']) => Value::from(text),
-                Ok(_) => scalar(value),
-                Err(message) => {
-                    diagnose(format!("{key}: {message}"));
+            for record in records.iter().map(|r| r.trim()).filter(|r| !r.is_empty()) {
+                let split = match options.separator.as_str() {
+                    WHITESPACE => Some(
+                        record
+                            .split_once(char::is_whitespace)
+                            .unwrap_or((record, "")),
+                    ),
+                    separator => record.split_once(separator),
+                };
+                let Some((key, value)) = split else {
+                    match options.negate.as_deref() {
+                        Some(not) => flat.push(match record.strip_prefix(not) {
+                            Some(key) => (key.trim().to_owned(), Value::Bool(false)),
+                            None => (record.to_owned(), Value::Bool(true)),
+                        }),
+                        None => diagnose(format!("no {} in {record:?}", options.separator)),
+                    }
+                    continue;
+                };
+                let key = key.trim().trim_start_matches(|c| options.strip.contains(c));
+                if key.is_empty() {
+                    diagnose("a value with no key".to_owned());
                     continue;
                 }
-            };
-            flat.push((swapped(key, options.nest, options.swap), typed));
+                let value = value.trim();
+                let typed = match unquote(value) {
+                    Ok(text) if value.starts_with(['"', '\'']) => Value::from(text),
+                    Ok(_) if options.records.is_some() => scalar(&unescape(value)),
+                    Ok(_) => scalar(value),
+                    Err(message) => {
+                        diagnose(format!("{key}: {message}"));
+                        continue;
+                    }
+                };
+                flat.push((swapped(key, options.nest, options.swap), typed));
+            }
         }
     }
     let mut kept = Map::new();
@@ -129,6 +163,41 @@ pub fn kv(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     }
     reply.facts.extend(nested);
     Ok(reply)
+}
+
+/// `line` cut at each `separator` outside `"…"` and not escaped by a backslash, the escapes kept.
+fn split_records(line: &str, separator: char) -> Vec<String> {
+    let (mut records, mut current, mut quoted, mut chars) =
+        (Vec::new(), String::new(), false, line.chars());
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => {
+                current.push(c);
+                current.extend(chars.next());
+            }
+            '"' => {
+                quoted = !quoted;
+                current.push(c);
+            }
+            c if c == separator && !quoted => records.push(std::mem::take(&mut current)),
+            c => current.push(c),
+        }
+    }
+    records.push(current);
+    records
+}
+
+/// A bare value with each backslash escape replaced by the character it escapes.
+fn unescape(value: &str) -> String {
+    let (mut out, mut chars) = (String::with_capacity(value.len()), value.chars());
+    while let Some(c) = chars.next() {
+        out.push(if c == '\\' {
+            chars.next().unwrap_or(c)
+        } else {
+            c
+        });
+    }
+    out
 }
 
 /// `key` with `swap` and `nest` exchanged when `swap` comes first, as sysctl.d(5) writes `net/ipv4/conf/eth0.100/rp_filter`.
@@ -250,6 +319,34 @@ mod tests {
     }
 
     #[test]
+    fn section_records_and_negate_read_a_sudo_defaults_list() {
+        let out = "Matching Defaults entries for bob on h:\n    env_reset, secure_path=/usr/sbin\\:/bin, use_pty, env_keep+=\"LANG LC_*\", logfile=\"/var/log/a, b\", !use_pty, ! authenticate, timestamp_timeout=-1, a\\,b\n\nRunas and Command-specific defaults for bob:\n    Defaults>postgres !use_pty\n\nUser bob may run the following commands on h:\n    (root) /usr/bin/id\n";
+        let reply = run(
+            &[file("sudo", out)],
+            json!({"section": "Matching Defaults entries", "records": ",", "negate": "!", "repeat": "last"}),
+        );
+        assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
+        assert_eq!(
+            json!(reply.facts),
+            json!({
+                "env_reset": true, "secure_path": "/usr/sbin:/bin", "use_pty": false,
+                "env_keep+": "LANG LC_*", "logfile": "/var/log/a, b", "authenticate": false,
+                "timestamp_timeout": -1, "a\\,b": true,
+            }),
+            "the last of a key wins, a quoted or escaped comma splits nothing, other blocks are not read"
+        );
+        let none = run(
+            &[file(
+                "sudo",
+                "User daemon is not allowed to run sudo on h.\n",
+            )],
+            json!({"section": "Matching Defaults entries"}),
+        );
+        assert_eq!(json!(none.facts), json!({}));
+        assert!(none.diagnostics.is_empty(), "{:?}", none.diagnostics);
+    }
+
+    #[test]
     fn options_it_cannot_use_are_refused() {
         for (with, says) in [
             (json!({"pattern": "x"}), "unknown field"),
@@ -257,6 +354,9 @@ mod tests {
             (json!({"swap": "/"}), "needs with.nest"),
             (json!({"repeat": "append"}), "kv with"),
             (json!({"nest": ".."}), "kv with"),
+            (json!({"negate": ""}), "must not be empty"),
+            (json!({"section": ""}), "must not be empty"),
+            (json!({"records": ",,"}), "kv with"),
         ] {
             let error = kv(&[], with.as_object().unwrap()).unwrap_err().to_string();
             assert!(error.contains(says), "{with}: {error}");

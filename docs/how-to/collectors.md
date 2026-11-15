@@ -388,6 +388,9 @@ typed.
 | `nest` | the character that nests a key (`.` puts `net.ipv4.ip_forward` at `net` → `ipv4` → `ip_forward`) |
 | `swap` | a character exchanged with `nest` in a key where it comes first, as sysctl.d(5) writes `net/ipv4/conf/eth0.100/rp_filter`; needs `nest` |
 | `strip` | characters dropped from a key’s start, such as sysctl.d’s `-` |
+| `section` | read only the indented lines under a line starting with this literal text, up to a blank or unindented line, as `sudo --list` prints `Matching Defaults entries` |
+| `records` | the character that splits a line into several key and value records, outside `"…"` and unless escaped by a backslash; a bare value is then unescaped |
+| `negate` | a record with no separator is a flag: `true`, or `false` behind this prefix (`!authenticate`) |
 
 Kernel parameters from `sysctl -a`, or from the sysctl.d files in
 systemd-sysctl’s order when it cannot run:
