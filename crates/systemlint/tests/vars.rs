@@ -9,7 +9,7 @@ use systemlint::judge::{Outcome, compile, lint};
 use systemlint::rules::{Library, Ruleset};
 use systemlint::vars::{Supplied, apply};
 
-const NTP: &str = "vars:\n  ntp: {default: pool.ntp.org, from-env: NTP_SERVER}\n  age: {default: 90}\nwhen: {os.release.ID: '${ntp}'}\nrules:\n  t/ntp: {fact: ntp.server, expect: {const: '${ntp}'}, message: 'use ${ntp}, not {got}; costs $5 and $${ntp}'}\n  t/age: {fact: login.max-days, expect: {maximum: '${age}'}, message: 'at most ${age} days'}\n  t/all: {facts: {all: [{fact: a, expect: {const: '${age}'}}]}}\n";
+const NTP: &str = "vars:\n  ntp: {default: pool.ntp.org, from-env: NTP_SERVER}\n  age: {default: 90}\nwhen: {os.release.ID: '${ntp}'}\nrules:\n  t/ntp: {fact: ntp.server, expect: {const: '${ntp}'}, message: 'use ${ntp}, not {got}; costs $5 and $${ntp}'}\n  t/age: {fact: login.max-days, expect: {maximum: '${age}'}, message: 'at most ${age} days', fix: 'set ${age}'}\n  t/all: {facts: {all: [{fact: a, expect: {const: '${age}'}}]}}\n";
 
 fn rulesets(yaml: &str) -> BTreeMap<String, Ruleset> {
     BTreeMap::from([(
@@ -60,6 +60,7 @@ fn defaults_fill_expect_when_and_message_keeping_whole_value_types() {
         "a whole-string reference keeps the number"
     );
     assert_eq!(set.rules["t/age"]["message"], "at most 90 days");
+    assert_eq!(set.rules["t/age"]["fix"], "set 90");
     assert_eq!(
         set.rules["t/all"]["facts"]["all"][0]["expect"],
         json!({"const": 90})

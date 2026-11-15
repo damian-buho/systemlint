@@ -90,7 +90,7 @@ pub fn apply(rulesets: &mut BTreeMap<String, Ruleset>, supplied: &Supplied) -> R
         }
         for (id, raw) in &mut ruleset.rules {
             let Value::Object(entry) = raw else { continue };
-            for key in ["expect", "when", "message"] {
+            for key in ["expect", "when", "message", "fix"] {
                 if let Some(value) = entry.get_mut(key) {
                     fill(value, &values)
                         .map_err(|e| format!("ruleset {name}: rule {id}: {key}: {e}"))?;

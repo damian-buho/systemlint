@@ -236,7 +236,7 @@ schema reads (`when os.release.ID is “fedora” and os.release.ID_LIKE is none
 ### Variables
 
 A ruleset declares `vars`, and `${name}` fills the strings of its own entries’
-`expect`, `when` and `message`, and of its ruleset `when`, as it loads:
+`expect`, `when`, `message` and `fix`, and of its ruleset `when`, as it loads:
 
 ```yaml
 vars:
