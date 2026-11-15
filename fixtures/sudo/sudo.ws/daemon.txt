@@ -1,0 +1,1 @@
+User daemon is not allowed to run sudo on 902fe9baf3e0.

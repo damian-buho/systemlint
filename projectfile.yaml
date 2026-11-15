@@ -115,11 +115,15 @@ org:
           - fixtures/sshd/sshd-T.txt
           - fixtures/sshd/accounts/
           - fixtures/*/apt-config-dump.txt
+          - fixtures/sudo/sudo.ws/
+          - fixtures/sudo/sudo-rs/
       fd:
         include:
           - fixtures/sshd/sshd-T.txt
           - fixtures/sshd/accounts/
           - fixtures/*/apt-config-dump.txt
+          - fixtures/sudo/sudo.ws/
+          - fixtures/sudo/sudo-rs/
     readme:
       download: latest/download
       installation:

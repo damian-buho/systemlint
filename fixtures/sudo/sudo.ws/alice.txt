@@ -1,0 +1,5 @@
+Matching Defaults entries for alice on 902fe9baf3e0:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty
+
+User alice may run the following commands on 902fe9baf3e0:
+    (ALL : ALL) NOPASSWD: ALL

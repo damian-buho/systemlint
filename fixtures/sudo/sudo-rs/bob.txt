@@ -1,0 +1,3 @@
+User bob may run the following commands on 902fe9baf3e0:
+    (root) /usr/bin/printf a,b, NOPASSWD: /usr/bin/id, PASSWD: /usr/bin/w
+    (postgres) /usr/bin/psql

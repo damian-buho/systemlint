@@ -1,0 +1,2 @@
+User alice may run the following commands on 902fe9baf3e0:
+    (ALL : ALL) NOPASSWD: ALL

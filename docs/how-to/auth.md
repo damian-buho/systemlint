@@ -75,3 +75,34 @@ auth:
 applies pam_limits. Password expiry (`PASS_MAX_DAYS`) has no rule here: NIST
 SP 800-63B advises against forced rotation, so it belongs to a standard that
 demands it, tagged with that standard’s control.
+
+## sudo
+
+The `sudo` ruleset asks sudo itself, as root on a live host, what each account
+may run, so includes, aliases, group grants and the implementation the host
+runs (classic sudo or sudo-rs, which Ubuntu 26.04 installs as `sudo`) are
+settled the way sudo settles them; under `--root` or unprivileged its rules
+are `Not run`.
+
+| Collector | Runs | Op | Facts at |
+| --- | --- | --- | --- |
+| `sudo-binary` | stats `sudo` in the usual `bin` directories | `stat` | `sudo.binary.<path>` |
+| `sudo-grants` | `sudo --list --other-user=<account>` for every passwd account but uid 0, one reply each (`exec-from` `split`) | `match` | `sudo.grants.<account>.<line>` |
+| `sudoers-check` | `visudo --check` | `exec` | `sudo.check` |
+
+Each grant line sudo prints, such as `(ALL : ALL) NOPASSWD: ALL`, keys its
+`runas` and `commands`; an account sudo allows nothing has none. The core
+reads the output through a pipe, which sudo never wraps, so a long grant
+stays one line.
+
+| Rule | Fails when |
+| --- | --- |
+| `sudo/nopasswd` | a grant to the account carries the `NOPASSWD` tag, so a program running as it gets the rights unasked |
+| `sudo/invalid-sudoers` | `visudo --check` exits non-zero: both implementations skip a line they cannot parse and run on without it |
+
+The ruleset is not applicable without `sudo` on disk. The tag is matched
+where sudo prints one, after the runas list or a comma and a blank; under
+sudo-rs, which prints an escaped comma bare, a command argument written as
+`x\, NOPASSWD: y` would read as a tag. `Defaults` (`use_pty`, `logfile`,
+`timestamp_timeout`, `!authenticate`) are not judged yet: sudo-rs lists none,
+and classic sudo prints them as one comma list.

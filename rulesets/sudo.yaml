@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: sudo grants that skip the password, and sudoers lines sudo skips as broken
+tags: [default]
+when: {sudo.binary: {minProperties: 1}}
+rules:
+  sudo/nopasswd:
+    title: Account runs sudo commands without a password
+    fact: sudo.grants.*
+    expect: {additionalProperties: {properties: {commands: {not: {pattern: "(^|, )NOPASSWD: "}}}}}
+    severity: warning
+    score: 6.0
+    message: "{subject} may run commands through sudo without its password, so any program running as {subject}, a browser exploit or a package’s install script, gets those rights unasked"
+    fix: remove the NOPASSWD tag from the grant to {subject} in /etc/sudoers or /etc/sudoers.d, editing it with visudo
+    docs: https://www.sudo.ws/docs/man/sudoers.man/
+    tags: [sudo, cis-ubuntu-26.04:5.2.4, stig-ubuntu-26.04:UBTU-24-300020]
+  sudo/invalid-sudoers:
+    title: sudoers file sudo cannot parse
+    fact: sudo.check.exit-status
+    expect: {const: 0}
+    severity: warning
+    score: 4.0
+    message: "visudo --check exits {got}, so sudo skips the broken lines and runs without the grants or limits they were written to set"
+    fix: run visudo --check as root and fix the line it names
+    docs: https://www.sudo.ws/docs/man/visudo.man/
+    tags: [sudo]

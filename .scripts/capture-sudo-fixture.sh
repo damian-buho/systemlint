@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Usage: capture-sudo-fixture.sh IMAGE ACCOUNT… (ubuntu:26.04 alice bob carol dave daemon): writes fixtures/sudo/<sudo>/<account>.txt per sudo implementation from the sudo-grants collector’s argv.
+# Usage: capture-sudo-fixture.sh IMAGE ACCOUNT… (ubuntu:26.04 alice bob carol dave daemon): writes fixtures/sudo/<sudo>/<account>.txt per sudo implementation from the sudo-grants collector’s argv, read through a pipe as the core reads it.
 
 set -euo pipefail
 
@@ -20,18 +20,19 @@ timeout --kill-after=30s 900s docker run --rm --cpus 2 --memory 1g --user 0 --en
   --mount "type=bind,source=${here}/fixtures/sudo,target=/fixture" "${image}" bash -c '
   set -e
   apt-get update --quiet=2 >/dev/null
-  apt-get install --yes --quiet=2 --no-install-recommends sudo >/dev/null
+  apt-get install --yes --quiet=2 --no-install-recommends sudo sudo-rs >/dev/null
   cp /fixture/etc/sudoers.d/* /etc/sudoers.d/
   chmod 0440 /etc/sudoers.d/*
   for account in "$@"; do id "${account}" >/dev/null 2>&1 || useradd "${account}"; done
   usermod --append --groups sudo carol
-  for sudo in /usr/bin/sudo.ws /usr/lib/cargo/bin/sudo; do
-    out="/fixture/$(basename "$(dirname "${sudo}")")-$(basename "${sudo}")"
+  for pair in sudo.ws:/usr/bin/sudo.ws sudo-rs:/usr/lib/cargo/bin/sudo; do
+    sudo="${pair#*:}"
+    out="/fixture/${pair%%:*}"
     mkdir --parents "${out}"
     for account in "$@"; do
       read -r -a run <<<"${ARGV//\{key\}/${account}}"
       run[0]="${sudo}"
-      LC_ALL=C "${run[@]}" > "${out}/${account}.txt" 2>/dev/null
+      LC_ALL=C "${run[@]}" 2>/dev/null | cat > "${out}/${account}.txt"
     done
     echo "${sudo}: $(cat "${out}"/*.txt | wc --lines) lines" >&2
   done

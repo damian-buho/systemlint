@@ -14,5 +14,7 @@ LICENSES/
 fixtures/*/apt-config-dump.txt
 fixtures/sshd/accounts/
 fixtures/sshd/sshd-T.txt
+fixtures/sudo/sudo-rs/
+fixtures/sudo/sudo.ws/
 # <<< user-patterns
 

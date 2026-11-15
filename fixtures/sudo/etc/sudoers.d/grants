@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+alice ALL=(ALL:ALL) NOPASSWD: ALL
+bob ALL=(root) /usr/bin/printf a\,b, NOPASSWD: /usr/bin/id, PASSWD: /usr/bin/w
+bob ALL=(postgres) /usr/bin/psql
+dave ALL=(root) /usr/bin/printf NOPASSWD\:x

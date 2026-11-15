@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: sudo-binary
+read:
+  stat: [/usr/local/*bin/sudo, /usr/*bin/sudo, /*bin/sudo]
+parse: {plugin: formats, op: stat}
+into: sudo.binary

@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: sudo-grants
+read:
+  exec-from:
+    each: accounts.passwd
+    keep: {properties: {uid: {not: {const: 0}}}}
+    argv: [/usr/bin/sudo, --list, '--other-user={key}']
+    split: true
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^    (?P<key>\((?P<runas>[^)]*)\) (?P<commands>.+))$'}
+into: sudo.grants
+privileged: true
