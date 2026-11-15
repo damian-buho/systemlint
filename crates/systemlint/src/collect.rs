@@ -483,7 +483,7 @@ pub struct Named {
     pub stat: Vec<(String, String)>,
     pub statfs: Vec<(String, String)>,
     pub servers: Vec<String>,
-    pub execs: Vec<Vec<String>>,
+    pub execs: Vec<(String, Vec<String>)>,
 }
 
 /// The absolute paths at each `read.*-from` pattern with its glob, and the servers at `read.dns-server-from`, failing when a pattern’s literal prefix is absent.
@@ -558,7 +558,7 @@ fn execs(
     collectors: &[Collector],
     facts: &Map<String, Value>,
     outcomes: &Map<String, Value>,
-) -> Result<Vec<Vec<String>>, String> {
+) -> Result<Vec<(String, Vec<String>)>, String> {
     let Some(entries) = lookup(facts, &from.each) else {
         return Err(missing(collector, &from.each, collectors, outcomes));
     };
@@ -581,7 +581,10 @@ fn execs(
                 from.each
             );
         } else {
-            argvs.push(from.argv.iter().map(|a| a.replace("{key}", key)).collect());
+            argvs.push((
+                key.clone(),
+                from.argv.iter().map(|a| a.replace("{key}", key)).collect(),
+            ));
         }
     }
     log::debug!(
@@ -662,6 +665,56 @@ fn run(
     now: &str,
 ) -> Result<Finished, Failure> {
     let (inputs, unreadable) = read_partial(collector, options, named)?;
+    if !collector.read.exec_from.as_ref().is_some_and(|f| f.split) {
+        let (value, diagnostics, redacted, hashed) =
+            call(collector, plugin, facts, inputs, options, now)?;
+        return Ok((value, diagnostics, redacted, hashed, unreadable));
+    }
+    let keys: HashMap<&[String], &str> = named
+        .execs
+        .iter()
+        .map(|(key, argv)| (argv.as_slice(), key.as_str()))
+        .collect();
+    let (mut split, mut diagnostics, mut redacted, mut hashed) =
+        (Map::new(), Vec::new(), Vec::new(), 0);
+    for input in inputs {
+        let key = match &input {
+            Input::Exec(run) => keys.get(run.argv.as_slice()).copied(),
+            _ => None,
+        }
+        .unwrap_or_default()
+        .to_owned();
+        let (value, mut said, marked, count) =
+            call(collector, plugin, facts.clone(), vec![input], options, now)?;
+        log::debug!(
+            "collector {}: the reply for {key} lands at {}.{key}",
+            collector.id,
+            collector.into
+        );
+        let escaped = key.replace('~', "~0").replace('/', "~1");
+        redacted.extend(marked.into_iter().map(|p| format!("/{escaped}{p}")));
+        diagnostics.append(&mut said);
+        hashed += count;
+        split.insert(key, value);
+    }
+    Ok((
+        Value::Object(split),
+        diagnostics,
+        redacted,
+        hashed,
+        unreadable,
+    ))
+}
+
+/// One request to `plugin` over `inputs`: its facts with secrets hashed and redacted, its diagnostics, the redacted pointers and the hashed count.
+fn call(
+    collector: &Collector,
+    plugin: &Plugin,
+    facts: BTreeMap<String, Value>,
+    inputs: Vec<Input>,
+    options: &Options,
+    now: &str,
+) -> Result<(Value, Vec<Diagnostic>, Vec<String>, usize), Failure> {
     let request = Request {
         protocol: PROTOCOL,
         op: collector.parse.op.clone(),
@@ -711,7 +764,7 @@ fn run(
             None => log::debug!("collector {}: redact {pointer} names no fact", collector.id),
         }
     }
-    Ok((value, reply.diagnostics, redacted, hashed, unreadable))
+    Ok((value, reply.diagnostics, redacted, hashed))
 }
 
 /// The JSON Pointer of every string under `value`, appended to `out`.
@@ -1016,7 +1069,12 @@ pub fn read_partial(
     };
     ordered.extend(files.into_values());
     let mut inputs: Vec<Input> = ordered.into_iter().map(Input::File).collect();
-    for argv in collector.read.exec.iter().chain(&named.execs) {
+    for argv in collector
+        .read
+        .exec
+        .iter()
+        .chain(named.execs.iter().map(|(_, argv)| argv))
+    {
         match options.live {
             false => log::debug!(
                 "collector {}: {} not run under --root",

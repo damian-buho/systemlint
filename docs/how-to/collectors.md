@@ -26,7 +26,7 @@ into: apt.sources
 | `read.stat` | absolute globs whose files are passed with their `stat` and no content |
 | `read.statfs` | absolute globs whose paths are passed with the `statfs` of the filesystem holding them; a path the run may not reach is left out (`partial` makes it unknown), and one that gives no answer within the timeout fails the collector |
 | `read.exec` | an argv list run without a shell, live mode only; the program is an absolute path |
-| `read.exec-from` | `each`, a dotted fact path to a map; `argv`, run once per key, `{key}` replaced by it; `keep`, a JSON Schema the key’s value must pass. Live mode only, never inline; a key holding a comma, `=`, a blank or a control character is left out, so it can’t add a field to a `key=value` list. The `sshd` collector runs `sshd -T -C user={key},…` over `accounts.passwd` |
+| `read.exec-from` | `each`, a dotted fact path to a map; `argv`, run once per key, `{key}` replaced by it; `keep`, a JSON Schema the key’s value must pass. Live mode only, never inline; a key holding a comma, `=`, a blank or a control character is left out, so it can’t add a field to a `key=value` list. `split: true`, as its only read, runs the op once per command and lands each reply at `into.<key>`. The `sshd` collector runs `sshd -T -C user={key},…` over `accounts.passwd`; `sudo-grants` splits `sudo --list` per account |
 | `read.image-config` | `true` to pass the file given with `--image-config`; skipped without one |
 | `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files`; `{pattern}/glob` globs below each, as `{accounts.passwd.*.home}/.ssh/*` |
 | `read.stat-from` | the same, naming files to pass with their `stat` |

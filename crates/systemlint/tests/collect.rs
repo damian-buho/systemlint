@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use systemlint::collect::{
     HashKey, Named, Options, REDACTED, SCHEMA, base64, collect, collect_reporting, inputs,
     read_partial, rfc3339,
@@ -192,6 +192,11 @@ const PLUGINS: &[(&str, &str, &str)] = &[
         r#"printf '%s\n' '{"facts":{"a":1}}'"#,
     ),
     ("same-b", r#"[{"op":"parse"}]"#, "exit 4"),
+    (
+        "splitter",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"secret":"s","kept":1},"redact":["/secret"]}'"#,
+    ),
 ];
 
 fn plugins() -> Vec<Plugin> {
@@ -645,6 +650,36 @@ fn exec_from_runs_once_per_kept_entry_and_only_live() {
             .contains("/bin/echo on a live host only"),
         "{doc}"
     );
+}
+
+#[test]
+fn exec_from_split_lands_one_reply_per_key_from_one_input_each() {
+    let users = collector("id: users\nparse: {plugin: users, op: parse}\ninto: accounts.passwd\n");
+    let split = collector(
+        "id: split\nread:\n  exec-from:\n    each: accounts.passwd\n    keep: {anyOf: [{properties: {uid: {const: 0}}}, {properties: {shell: {not: {pattern: /nologin$}}}}]}\n    argv: [/bin/echo, 'user={key}']\n    split: true\nparse: {plugin: splitter, op: parse}\ninto: per.account\n",
+    );
+    let doc = collect(&[split, users], &plugins(), &options(true));
+    assert_eq!(doc["collectors"]["split"]["status"], "ok", "{doc}");
+    assert_eq!(
+        doc["per"]["account"],
+        json!({"alice": {"secret": "[redacted]", "kept": 1}, "root": {"secret": "[redacted]", "kept": 1}})
+    );
+    assert_eq!(
+        doc["collectors"]["split"]["redacted"],
+        json!(["/alice/secret", "/root/secret"])
+    );
+    assert_eq!(
+        request("splitter")["inputs"].as_array().unwrap().len(),
+        1,
+        "one command per call"
+    );
+    for (read, why) in [
+        ("exec: [/bin/true]", "read nothing else"),
+        ("files: [/etc/os-release]", "read nothing else"),
+    ] {
+        let error = Collector::parse(&format!("id: c\nread:\n  {read}\n  exec-from: {{each: accounts.passwd, argv: [/bin/echo, '{{key}}'], split: true}}\nparse: {{plugin: p, op: o}}\ninto: x\n")).unwrap_err();
+        assert!(error.contains(why), "{read}: {error}");
+    }
 }
 
 #[test]

@@ -95,6 +95,9 @@ pub struct ExecFrom {
     #[serde(default)]
     pub keep: Option<serde_json::Map<String, serde_json::Value>>,
     pub argv: Vec<String>,
+    /// Runs the op once per command and lands each reply at `into.<key>`.
+    #[serde(default)]
+    pub split: bool,
 }
 
 /// The order `read.files` reach the plugin in.
@@ -381,6 +384,11 @@ impl Collector {
             if let Some(keep) = &from.keep {
                 crate::judge::schema(keep)
                     .map_err(|e| format!("read.exec-from keep is no valid schema: {e}"))?;
+            }
+            if from.split && (self.read.exec.is_some() || !self.read.commands_only()) {
+                return Err(
+                    "read.exec-from split lands one reply per key; read nothing else".to_owned(),
+                );
             }
         }
         for entry in self.read.from().chain(&self.read.dns_server_from) {
