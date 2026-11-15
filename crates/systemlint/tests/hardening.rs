@@ -1529,3 +1529,142 @@ fn a_system_crontab_or_cron_directory_fails_once_others_may_read_it() {
     );
     assert_eq!(cron(None), [(String::new(), Unknown)]);
 }
+
+// The module names the kernel-modules ruleset defines, in the file’s spelling.
+fn modules() -> Vec<String> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets/kernel-modules.yaml");
+    let ruleset: Value =
+        systemlint::yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    ruleset["rules"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .filter_map(|id| id.strip_prefix("kernel-modules/"))
+        .filter(|m| *m != "builtin" && !m.ends_with("-loaded") && !m.ends_with("-blacklist"))
+        .map(str::to_owned)
+        .collect()
+}
+
+// The outcome of each kernel-modules rule on module m, keyed by the rule’s suffix.
+fn module(m: &str, kernel: Value) -> BTreeMap<String, Outcome> {
+    judge("kernel-modules", &json!({"kernel": kernel}))
+        .into_iter()
+        .filter_map(|(rule, _, outcome)| {
+            let tail = rule.strip_prefix(&format!("kernel-modules/{m}"))?;
+            (tail.is_empty() || tail.starts_with('-')).then(|| (tail.to_owned(), outcome))
+        })
+        .collect()
+}
+
+#[test]
+fn every_kernel_module_rule_passes_when_turned_away_and_fails_when_loadable() {
+    use Outcome::{Fail, Pass, Skip, Unknown};
+    let names = modules();
+    assert_eq!(names.len(), 16, "{names:?}");
+    for m in &names {
+        let k = m.replace('-', "_");
+        let host = |command: Value, blacklist: Value, loaded: Value| json!({"shipped": {m.as_str(): {}}, "install": {k.as_str(): {"command": command}}, "blacklist": blacklist, "loaded": loaded});
+        let outcomes = |a, b, c| {
+            BTreeMap::from([
+                (String::new(), a),
+                ("-blacklist".to_owned(), b),
+                ("-loaded".to_owned(), c),
+            ])
+        };
+        assert_eq!(
+            module(
+                m,
+                host(json!(["/bin/false"]), json!({k.as_str(): {}}), json!({}))
+            ),
+            outcomes(Pass, Pass, Pass),
+            "{m}: turned away, blacklisted, not loaded"
+        );
+        assert_eq!(
+            module(
+                m,
+                host(json!(["/usr/bin/true"]), json!({}), json!({k.as_str(): {}}))
+            ),
+            outcomes(Pass, Fail, Fail),
+            "{m}: /usr/bin/true passes as CIS accepts it"
+        );
+        for command in [
+            json!(["/sbin/modprobe", "--ignore-install", k]),
+            json!(["/bin/falsey"]),
+            json!([]),
+        ] {
+            assert_eq!(
+                module(m, host(command.clone(), json!({}), json!({})))[""],
+                Fail,
+                "{m}: {command}"
+            );
+        }
+        let unshipped = json!({"shipped": {}, "install": {}, "blacklist": {}});
+        assert_eq!(
+            module(m, unshipped),
+            outcomes(Skip, Skip, Skip),
+            "{m}: not shipped, under --root"
+        );
+        assert_eq!(
+            module(m, json!({"shipped": {m.as_str(): {}}, "loaded": {}})),
+            outcomes(Unknown, Unknown, Pass),
+            "{m}: a failed modprobe collector is unknown, never a finding"
+        );
+    }
+}
+
+#[test]
+fn only_the_listed_kernel_modules_run_by_default() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets/kernel-modules.yaml");
+    let parsed = systemlint::yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let library = Library::new(BTreeMap::from([("kernel-modules".to_owned(), parsed)])).unwrap();
+    let picked = library.select_for(&[]).unwrap().rules;
+    let default: Vec<&str> = picked
+        .keys()
+        .map(|id| id.trim_start_matches("kernel-modules/"))
+        .collect();
+    let mut expected: Vec<String> = [
+        "cramfs", "freevxfs", "hfs", "hfsplus", "jffs2", "udf", "dccp", "rds", "sctp", "tipc",
+    ]
+    .iter()
+    .flat_map(|m| [m.to_string(), format!("{m}-loaded")])
+    .chain(
+        [
+            "firewire-core-loaded",
+            "atm-loaded",
+            "can-loaded",
+            "builtin",
+        ]
+        .map(str::to_owned),
+    )
+    .collect();
+    expected.sort();
+    assert_eq!(default, expected);
+    assert!(
+        library.definitions.values().all(|spec| spec
+            .tags
+            .iter()
+            .any(|t| t.starts_with("cis-ubuntu-26.04:"))
+            || spec.tags == ["default", "kernel"]),
+        "every module rule but builtin carries its CIS control"
+    );
+}
+
+#[test]
+fn a_builtin_module_from_the_default_list_is_a_finding() {
+    let checks = judge(
+        "kernel-modules",
+        &json!({"kernel": {"builtin": {"sctp": {}, "unix": {}, "squashfs": {}}}}),
+    );
+    let builtin: Vec<_> = checks
+        .into_iter()
+        .filter(|(rule, _, _)| rule == "kernel-modules/builtin")
+        .collect();
+    assert_eq!(
+        builtin,
+        [(
+            "kernel-modules/builtin".to_owned(),
+            "sctp".to_owned(),
+            Outcome::Fail
+        )]
+    );
+}

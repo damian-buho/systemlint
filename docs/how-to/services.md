@@ -10,8 +10,9 @@ Thirteen collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
-`ufw.service`, and `services` judges the sandbox of each unit; no shipped rule
-reads the Docker or kernel module facts yet.
+`ufw.service`, `services` judges the sandbox of each unit, and
+`kernel-modules` judges the module facts; no shipped rule reads the Docker
+facts yet.
 
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
@@ -87,6 +88,26 @@ in kmod’s order: a name in `/etc` hides the same name below it, then name
 order. Either way a name is spelled as kmod spells it, `-` read as `_`
 (`key-underscores`, `usb_storage`); a rule on `usb-storage` guards on
 `shipped` under one spelling and judges `install` under the other. `loaded` is a live fact, absent under `--root`.
+
+The `kernel-modules` ruleset gives each module CIS Ubuntu 26.04 lists three
+rules, all tagged with its control:
+
+- `kernel-modules/<module>` fails a shipped module whose `install` line is
+  missing or runs anything but `/bin/false` or `/bin/true`, with or without
+  `/usr`; it skips a module no kernel ships.
+- `kernel-modules/<module>-loaded` fails a module in `/proc/modules`; it skips
+  under `--root`.
+- `kernel-modules/<module>-blacklist` fails a shipped module with no
+  `blacklist` line. A blacklist stops loading by alias only, so this rule never
+  runs by default.
+
+By default the first two run for cramfs, freevxfs, hfs, hfsplus, jffs2, udf,
+dccp, rds, sctp and tipc. For firewire-core, atm and can only `-loaded` runs,
+since a host may need them. overlay, squashfs (Docker, snaps) and usb-storage
+run only when their tag is named, as in `--tags 'cis-ubuntu-26.04:*'`.
+`kernel-modules/builtin` fails a module from the default list that some kernel
+builds in, since no `modprobe.d` line can keep it out of that kernel; CIS
+counts that as passing, so it carries no CIS tag.
 
 ## Kernel audit rules
 
