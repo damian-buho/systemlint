@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Kernel parameters, modules and audit rules, Docker, systemd units, running services, listening sockets, ufw and nftables
+# Kernel parameters, modules and audit rules, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables
 
 Seventeen collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd`, `nftables` on `systemlint-firewall`, `processes-services`
@@ -328,6 +328,28 @@ then never starts ufw at boot; a host with no `ufw.service` unit has no check.
 `ufw/service-failed` fails a `ufw.service` whose `active` state is `failed`,
 which loaded no rules either; under `--root`, where no unit carries `active`,
 it answers `skip` rather than `unknown`.
+
+## Plain-text servers
+
+The `plaintext-servers` ruleset judges servers that carry logins or files in
+plain text with little or no authentication, by whether they run, never by
+the package: Ubuntu’s telnetd installs its `inetd.conf` line commented out.
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `plaintext-servers/nis-unit` | error | `ypserv`, `yppasswdd` or `ypxfrd` is enabled or active |
+| `plaintext-servers/tftp-unit` | warning | `tftpd-hpa`, `atftpd` or a `tftp` unit is enabled or active |
+| `plaintext-servers/login-unit` | error | a `telnet`, `rsh`, `rlogin` or `rexec` socket unit is enabled or active |
+| `plaintext-servers/inetd` | error | an active `inetd.conf` or `inetd.d` line serves telnet, login, shell, exec, tftp, talk, ntalk or a debugging service (echo, discard, chargen, daytime, time) while `inetd.service`, `openbsd-inetd.service` or `inetutils-inetd.service` is enabled or active |
+| `plaintext-servers/xinetd` | error | an `xinetd.d` file for one of those services lacks `disable = yes` while `xinetd.service` is enabled or active |
+
+A masked unit passes. The `inetd-services` collector reads `inetd.conf` and
+`inetd.d` through `words` columns keyed by service, so `127.0.0.1:telnet`
+counts as telnet; `xinetd-services` keeps each `xinetd.d` file’s `service`
+and `disable` words, its first block only, and `xinetd-conf` the `enabled` and
+`disabled` lists of `xinetd.conf`, which skip the xinetd rule when set, since
+they decide instead of `disable`. `xinetd.service` runs without
+`-inetd_compat`, so `inetd.conf` lines count only for an inetd unit.
 
 ## Running services
 

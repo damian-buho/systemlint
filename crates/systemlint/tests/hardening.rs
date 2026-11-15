@@ -629,6 +629,181 @@ fn a_trust_file_fails_only_when_it_names_a_host_and_an_r_server_reads_it() {
     );
 }
 
+// The (rule, subject, outcome) checks of the plaintext-servers ruleset over units, inetd services, xinetd files and xinetd.conf.
+fn plaintext(
+    state: Value,
+    inetd: Value,
+    xinetd: Value,
+    conf: Value,
+) -> Vec<(String, String, Outcome)> {
+    let document = json!({"systemd": {"state": state}, "inetd": {"services": inetd}, "xinetd": {"services": xinetd, "conf": conf}, "collectors": {
+        "systemd-state": {"status": "ok", "into": "systemd.state"},
+        "inetd-services": {"status": "ok", "into": "inetd.services"},
+        "xinetd-services": {"status": "ok", "into": "xinetd.services"},
+        "xinetd-conf": {"status": "ok", "into": "xinetd.conf"}}});
+    judge("plaintext-servers", &document)
+}
+
+#[test]
+fn a_plaintext_server_unit_fails_once_enabled_or_running_and_never_masked() {
+    let unit = |enabled: bool, masked: bool, active: Option<&str>| {
+        let mut state = json!({"enabled": enabled, "masked": masked});
+        if let Some(active) = active {
+            state["active"] = json!(active);
+        }
+        state
+    };
+    let state = json!({
+        "ypserv.service": unit(false, false, Some("inactive")),
+        "yppasswdd.service": unit(true, false, Some("inactive")),
+        "ypxfrd.service": unit(false, false, Some("activating")),
+        "tftpd-hpa.service": unit(true, true, Some("inactive")),
+        "atftpd.socket": unit(false, false, None),
+        "telnet.socket": unit(false, false, Some("active")),
+        "ssh.service": unit(true, false, Some("active"))});
+    assert_eq!(
+        plaintext(state, json!({}), json!({}), json!({})),
+        [
+            (
+                "plaintext-servers/login-unit".into(),
+                "telnet.socket".into(),
+                Outcome::Fail
+            ),
+            (
+                "plaintext-servers/nis-unit".into(),
+                "yppasswdd.service".into(),
+                Outcome::Fail
+            ),
+            (
+                "plaintext-servers/nis-unit".into(),
+                "ypserv.service".into(),
+                Outcome::Pass
+            ),
+            (
+                "plaintext-servers/nis-unit".into(),
+                "ypxfrd.service".into(),
+                Outcome::Fail
+            ),
+            (
+                "plaintext-servers/tftp-unit".into(),
+                "atftpd.socket".into(),
+                Outcome::Pass
+            ),
+            (
+                "plaintext-servers/tftp-unit".into(),
+                "tftpd-hpa.service".into(),
+                Outcome::Pass
+            ),
+        ],
+        "a masked unit cannot start, and with no manager only the links count"
+    );
+}
+
+#[test]
+fn an_inetd_line_fails_only_for_a_plaintext_service_while_an_inetd_runs() {
+    let line = json!({"path": "/etc/inetd.conf", "line": 1});
+    let inetd = json!({"shell": line, "127.0.0.1:telnet": line, "ftp": line, "telnets": line});
+    let checks = |state: Value| plaintext(state, inetd.clone(), json!({}), json!({}));
+    assert_eq!(
+        checks(json!({"inetutils-inetd.service": {"enabled": true, "masked": false}})),
+        [
+            (
+                "plaintext-servers/inetd".into(),
+                "127.0.0.1:telnet".into(),
+                Outcome::Fail
+            ),
+            (
+                "plaintext-servers/inetd".into(),
+                "shell".into(),
+                Outcome::Fail
+            ),
+        ],
+        "ftp and telnets are no service on the list, and a host prefix still names telnet"
+    );
+    assert_eq!(
+        checks(json!({"inetd.service": {"enabled": false, "masked": false, "active": "active"}}))
+            .len(),
+        2,
+        "running though not enabled"
+    );
+    assert_eq!(
+        checks(json!({"inetd.service": {"enabled": false, "masked": false, "active": "inactive"}})),
+        [
+            (
+                "plaintext-servers/inetd".into(),
+                "127.0.0.1:telnet".into(),
+                Outcome::Skip
+            ),
+            (
+                "plaintext-servers/inetd".into(),
+                "shell".into(),
+                Outcome::Skip
+            ),
+        ],
+        "a line no inetd reads exposes nothing"
+    );
+    assert_eq!(
+        checks(json!({})).len(),
+        2,
+        "no inetd unit at all is no inetd running, never unknown"
+    );
+    assert!(
+        checks(json!({}))
+            .iter()
+            .all(|(_, _, o)| *o == Outcome::Skip)
+    );
+}
+
+#[test]
+fn an_xinetd_file_fails_without_disable_yes_unless_xinetd_is_off_or_lists_its_own() {
+    let on = json!({"xinetd.service": {"enabled": true, "masked": false}});
+    let files = json!({
+        "/etc/xinetd.d/echo": {"service": ["echo"], "disable": ["=", "yes"]},
+        "/etc/xinetd.d/telnet": {"service": ["telnet"]},
+        "/etc/xinetd.d/tftp": {"service": ["tftp"], "disable": ["=", "no"]},
+        "/etc/xinetd.d/rsync": {"service": ["rsync"]}});
+    let conf = json!({"/etc/xinetd.conf": {}});
+    let outcomes = |state: Value, conf: Value| {
+        plaintext(state, json!({}), files.clone(), conf)
+            .into_iter()
+            .map(|(_, s, o)| (s, o))
+            .collect::<Vec<_>>()
+    };
+    let all = |o: Outcome| {
+        vec![
+            (
+                "/etc/xinetd.d/echo".to_owned(),
+                if o == Outcome::Fail { Outcome::Pass } else { o },
+            ),
+            ("/etc/xinetd.d/rsync".to_owned(), Outcome::Skip),
+            ("/etc/xinetd.d/telnet".to_owned(), o),
+            ("/etc/xinetd.d/tftp".to_owned(), o),
+        ]
+    };
+    assert_eq!(outcomes(on.clone(), conf.clone()), all(Outcome::Fail));
+    assert_eq!(
+        outcomes(
+            json!({"xinetd.service": {"enabled": false, "masked": false}}),
+            conf
+        ),
+        all(Outcome::Skip),
+        "xinetd off"
+    );
+    assert_eq!(
+        outcomes(
+            on,
+            json!({"/etc/xinetd.conf": {"disabled": ["=", "telnet"]}})
+        ),
+        all(Outcome::Skip),
+        "a defaults list decides instead of disable"
+    );
+    assert_eq!(
+        outcomes(json!({}), json!({"/etc/xinetd.conf": {}})),
+        all(Outcome::Skip),
+        "no xinetd unit"
+    );
+}
+
 // The outcome of apt/security-suite for an os-release and the given sources, absent on None.
 fn security(release: Value, sources: Option<Value>) -> Outcome {
     let mut document = json!({"os": {"release": release}, "collectors": {"os-release": {"status": "ok", "into": "os.release"}, "apt-sources": {"status": "ok", "into": "apt.sources"}}});

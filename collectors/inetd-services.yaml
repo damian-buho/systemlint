@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: inetd-services
+read:
+  files: [/etc/inetd.conf, /etc/inetd.d/*]
+parse:
+  plugin: formats
+  op: words
+  with: {columns: [service, socket, protocol, wait, user, server], rest: arguments, required: 6, key: service}
+into: inetd.services

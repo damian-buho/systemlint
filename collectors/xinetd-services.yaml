@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: xinetd-services
+read:
+  files: [/etc/xinetd.d/*]
+parse: {plugin: formats, op: words, with: {directives: [service, disable]}}
+into: xinetd.services
