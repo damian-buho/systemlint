@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "systemlint-firewall"
+description = "systemlint plugin: the packet filter each address family and hook gets from the nftables ruleset"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+systemlint-formats.workspace = true
+systemlint-protocol.workspace = true

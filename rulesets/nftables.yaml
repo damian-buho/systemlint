@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: An enabled nftables service whose ruleset filters nothing sent to the host, or that failed to load it
+tags: [default]
+when: {/systemd/state/nftables.service/enabled: true}
+rules:
+  nftables/ipv4-input-open:
+    title: nftables enabled but IPv4 input unfiltered
+    fact: nftables.hooks.ipv4.input
+    expect: &filtered
+      anyOf:
+        - {properties: {policy: {const: drop}}}
+        - {properties: {drops: {const: true}}}
+    severity: error
+    score: 7.0
+    message: "nftables.service is enabled, yet no chain on the IPv4 input hook has a drop policy or reaches a drop or reject rule, so the host accepts every IPv4 packet sent to it"
+    fix: "give the input chain in /etc/nftables.conf policy drop after accepting lo, established traffic and the ports you serve, then run systemctl reload nftables.service"
+    docs: https://wiki.nftables.org/wiki-nftables/index.php/Simple_ruleset_for_a_server
+    references:
+      - {title: Lynis FIRE-4540, url: "https://cisofy.com/lynis/controls/FIRE-4540/"}
+    tags: [nftables, firewall, lynis]
+  nftables/ipv6-input-open:
+    title: nftables enabled but IPv6 input unfiltered
+    fact: nftables.hooks.ipv6.input
+    when: {sysctl.settings.net.ipv6.conf.all.disable_ipv6: {not: {const: 1}}}
+    expect: *filtered
+    severity: error
+    score: 7.0
+    message: "nftables.service is enabled, yet no chain on the IPv6 input hook has a drop policy or reaches a drop or reject rule, so the host accepts every IPv6 packet sent to it"
+    fix: "filter IPv6 too: an inet table covers both families, an ip table IPv4 alone; then run systemctl reload nftables.service"
+    docs: https://wiki.nftables.org/wiki-nftables/index.php/Nftables_families
+    references:
+      - {title: Lynis FIRE-4540, url: "https://cisofy.com/lynis/controls/FIRE-4540/"}
+    tags: [nftables, firewall, lynis]
+  nftables/service-failed:
+    title: nftables enabled but its service failed
+    fact: systemd.state.*.active
+    keys: {const: nftables.service}
+    when: {systemd.state.*: {required: [active]}}
+    expect: {not: {const: failed}}
+    severity: error
+    score: 7.0
+    message: "nftables.service failed, so the ruleset in /etc/nftables.conf is not loaded and the host runs without its firewall"
+    fix: run nft --check --file /etc/nftables.conf for the error, fix the line it names, then run systemctl restart nftables.service
+    docs: https://www.netfilter.org/projects/nftables/manpage.html
+    tags: [nftables, firewall, systemd]

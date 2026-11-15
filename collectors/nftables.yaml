@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: nftables
+live: true
+privileged: true
+read:
+  exec: [/usr/sbin/nft, --json, list, ruleset]
+parse: {plugin: firewall, op: nftables}
+into: nftables.hooks

@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+table ip filter {
+	chain INPUT {
+		type filter hook input priority filter; policy accept;
+	}
+	chain FORWARD {
+		type filter hook forward priority filter; policy drop;
+		counter jump DOCKER-ISOLATION
+	}
+	chain DOCKER-ISOLATION {
+		iifname "docker0" oifname != "docker0" counter return
+		counter drop
+	}
+}
+table ip6 filter {
+	chain INPUT {
+		type filter hook input priority filter; policy accept;
+		meta l4proto tcp th dport vmap { 23 : drop, 80 : accept }
+	}
+}
+table inet scratch {
+	chain trap {
+		drop
+	}
+}
+table bridge filter {
+	chain input {
+		type filter hook input priority filter; policy drop;
+	}
+}

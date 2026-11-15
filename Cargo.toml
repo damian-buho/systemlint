@@ -31,6 +31,7 @@ serde_json = "=1.0.154"
 sha2 = { version = "=0.11.1", default-features = false }
 systemlint-apt = { path = "crates/systemlint-apt" }
 systemlint-env = { path = "crates/systemlint-env" }
+systemlint-firewall = { path = "crates/systemlint-firewall" }
 systemlint-formats = { path = "crates/systemlint-formats" }
 systemlint-protocol = { path = "crates/systemlint-protocol" }
 systemlint-sshd = { path = "crates/systemlint-sshd" }

@@ -1636,6 +1636,7 @@ dependencies = [
  "sha2",
  "systemlint-apt",
  "systemlint-env",
+ "systemlint-firewall",
  "systemlint-formats",
  "systemlint-protocol",
  "systemlint-sshd",
@@ -1657,6 +1658,15 @@ dependencies = [
 
 [[package]]
 name = "systemlint-env"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "systemlint-formats",
+ "systemlint-protocol",
+]
+
+[[package]]
+name = "systemlint-firewall"
 version = "0.0.0"
 dependencies = [
  "serde_json",

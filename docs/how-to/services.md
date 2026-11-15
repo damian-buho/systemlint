@@ -4,13 +4,15 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Kernel parameters, modules and audit rules, Docker, systemd units and ufw
+# Kernel parameters, modules and audit rules, Docker, systemd units, ufw and nftables
 
-Fourteen collectors record service configuration as facts, `systemd-units` on
-`systemlint-systemd` and the rest on `systemlint-formats`. The `kernel`,
+Fifteen collectors record service configuration as facts, `systemd-units` on
+`systemlint-systemd`, `nftables` on `systemlint-firewall` and the rest on
+`systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
-`ufw.service`, `services` judges the sandbox of each unit, and
+`ufw.service`, `nftables` judges the loaded nftables ruleset and the state of
+`nftables.service`, `services` judges the sandbox of each unit, and
 `kernel-modules` judges the module facts, and `audit` the audit rules; no shipped rule reads the Docker
 facts yet.
 
@@ -30,6 +32,7 @@ facts yet.
 | `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all --output=json` on a live host | `systemd` | `systemd.state.<unit>` |
 | `ufw` | `/etc/ufw/ufw.conf` | `kv` | `ufw.conf` |
 | `ufw-binary` | the `ufw` program in `/usr/local/*bin`, `/usr/*bin` and `/*bin` | `stat` | `ufw.binary.<path>` |
+| `nftables` | `/usr/sbin/nft --json list ruleset` on a live host, as root | `nftables` | `nftables.hooks.<family>.<hook>` |
 
 ## sysctl
 
@@ -302,3 +305,37 @@ then never starts ufw at boot; a host with no `ufw.service` unit has no check.
 `ufw/service-failed` fails a `ufw.service` whose `active` state is `failed`,
 which loaded no rules either; under `--root`, where no unit carries `active`,
 it answers `skip` rather than `unknown`.
+
+## nftables
+
+`nftables.hooks` holds the filter each address family gets on each netfilter
+hook, from every base chain of the loaded ruleset, iptables-nft’s included:
+
+```yaml
+nftables:
+  hooks:
+    ipv4:
+      input: {policy: drop, drops: false, chains: [inet filter input]}
+      forward: {policy: accept, drops: false, chains: []}
+    ipv6:
+      input: {policy: drop, drops: false, chains: [inet filter input]}
+```
+
+- The families are `ipv4` and `ipv6`: an `ip` table counts for IPv4, an `ip6`
+  table for IPv6, an `inet` table for both; `arp`, `bridge` and `netdev` tables
+  count for neither. Each family has all five hooks, `prerouting`, `input`,
+  `forward`, `output` and `postrouting`, with no chain on it when none is.
+- `policy`: `drop` when any base chain on the hook has that policy, since
+  a packet must pass every base chain on its hook.
+- `drops`: some rule in a base chain on the hook, or in a chain it reaches
+  through `jump` or `goto`, holds a `drop` or `reject` verdict, a verdict map’s
+  included. A chain no hook reaches counts nowhere.
+
+The collector needs `CAP_NET_ADMIN`; unprivileged, or under `--root`, its rules
+are `Not run`. The `nftables` ruleset applies once `nftables.service` is
+enabled: `nftables/ipv4-input-open` and `nftables/ipv6-input-open` fail an
+input hook with neither a drop policy nor a reachable drop or reject, the IPv6
+one only while `net.ipv6.conf.all.disable_ipv6` is not 1, and
+`nftables/service-failed` fails a `nftables.service` that failed to load its
+ruleset. Docker’s own drops sit on the forward hook, so they never pass an
+open input hook.
