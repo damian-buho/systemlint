@@ -97,7 +97,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "options" => flags(&request.inputs, &request.with),
         "passwd" => passwd_with(&request.inputs, &request.with),
         "probes" => Ok(probes(&request.inputs)),
-        "shadow" => Ok(shadow(&request.inputs)),
+        "shadow" => shadow_with(&request.inputs, &request.with),
         "stat" => Ok(stat(&request.inputs)),
         "statfs" => Ok(statfs(&request.inputs)),
         "systemd" => Ok(systemd(&request.inputs)),
@@ -114,7 +114,7 @@ const TEXT_OPS: [&str; 11] = [
 ];
 
 /// The family ops that take typed options under `with`.
-const WITH_OPS: [&str; 5] = ["kv", "match", "options", "passwd", "words"];
+const WITH_OPS: [&str; 6] = ["kv", "match", "options", "passwd", "shadow", "words"];
 
 /// The typed options of `op` from `with`, or an error naming what is wrong.
 pub fn options<T: serde::de::DeserializeOwned>(op: &str, with: &Map<String, Value>) -> Result<T> {
@@ -391,12 +391,27 @@ fn passwd_entry(parts: &[&str]) -> std::result::Result<Map<String, Value>, Strin
     ]))
 }
 
-/// A shadow(5) line’s facts, the hash reduced to its word.
+/// The shadow(5) ageing fields after the password, by their fact names.
+const AGEING: [&str; 6] = [
+    "last-change",
+    "min-days",
+    "max-days",
+    "warn-days",
+    "inactive-days",
+    "expire-day",
+];
+
+/// A shadow(5) line’s facts, the hash reduced to its word, each ageing field a number of days or `null` when empty.
 fn shadow_entry(parts: &[&str]) -> std::result::Result<Map<String, Value>, String> {
-    Ok(Map::from_iter([(
-        "password".to_owned(),
-        Value::from(password(parts[1])),
-    )]))
+    let mut facts = Map::from_iter([("password".to_owned(), Value::from(password(parts[1])))]);
+    for (index, name) in AGEING.iter().enumerate() {
+        let value = match parts[index + 2] {
+            "" => Value::Null,
+            _ => id(parts, index + 2, name)?,
+        };
+        facts.insert((*name).to_owned(), value);
+    }
+    Ok(facts)
 }
 
 /// Every entry of a colon-separated account database keyed by name, its `line`, and the later lines repeating the name, which glibc never reads, in `shadowed`.
@@ -494,6 +509,35 @@ pub fn passwd_with(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply>
 /// Every account of shadow(5) files by name, with no hash.
 pub fn shadow(inputs: &[Input]) -> Reply {
     accounts(inputs, 9, shadow_entry)
+}
+
+/// `shadow`’s options: `passwd`, the passwd(5) input whose accounts deferring to shadow must each have a line.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ShadowOptions {
+    passwd: Option<String>,
+}
+
+/// [`shadow`] over every input but `with.passwd`, plus `{password: missing}` for each account there that defers with `x` and has no shadow line, as pwck(8) reports it.
+pub fn shadow_with(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
+    let ShadowOptions { passwd: named } = options("shadow", with)?;
+    let Some(named) = named else {
+        return Ok(shadow(inputs));
+    };
+    let (listed, files): (Vec<Input>, Vec<Input>) =
+        inputs.iter().cloned().partition(|i| i.name() == named);
+    let mut reply = shadow(&files);
+    if files.is_empty() {
+        return Ok(reply);
+    }
+    let accounts = passwd(&listed);
+    for (name, entry) in accounts.facts {
+        if entry["password"] == "shadow" && !reply.facts.contains_key(&name) {
+            let missing = Map::from_iter([("password".to_owned(), Value::from("missing"))]);
+            reply.facts.insert(name, Value::Object(missing));
+        }
+    }
+    Ok(reply)
 }
 
 /// The text of a file, or a zero-exit command’s stdout keyed by its program; a diagnostic otherwise.
@@ -1774,6 +1818,49 @@ mod tests {
                 ("root", "hash")
             ]
         );
+    }
+
+    #[test]
+    fn shadow_types_ageing_as_days_or_null() {
+        let shadowed = shadow(&[file(
+            "/etc/shadow",
+            "root:*:20000:0:99999:7:::\nbob:$6$x:0:1:365:7:45:20500:\nbad:*:soon::::::\n",
+        )]);
+        assert_eq!(
+            json!(shadowed.facts["root"]),
+            json!({"password": "locked", "last-change": 20000, "min-days": 0, "max-days": 99999, "warn-days": 7,
+                   "inactive-days": null, "expire-day": null, "line": 1, "shadowed": []})
+        );
+        assert_eq!(shadowed.facts["bob"]["last-change"], 0);
+        assert_eq!(shadowed.facts["bob"]["expire-day"], 20500);
+        assert!(!shadowed.facts.contains_key("bad"));
+        assert_eq!(
+            shadowed.diagnostics[0].message,
+            "last-change \"soon\" is not a number"
+        );
+    }
+
+    #[test]
+    fn shadow_marks_passwd_accounts_deferring_to_it_without_a_line() {
+        let users = file(
+            "/etc/passwd",
+            "root:x:0:0::/root:/bin/sh\nghost:x:9:9::/:/bin/sh\nold:*:8:8::/:/bin/sh\n",
+        );
+        let lines = file("/etc/shadow", "root:*:20000:0:99999:7:::\n");
+        let with = Map::from_iter([("passwd".to_owned(), json!("/etc/passwd"))]);
+        let reply = shadow_with(&[users.clone(), lines], &with).unwrap();
+        assert_eq!(json!(reply.facts["ghost"]), json!({"password": "missing"}));
+        assert_eq!(reply.facts["root"]["password"], "locked");
+        assert!(
+            !reply.facts.contains_key("old"),
+            "a hash in passwd defers to nothing"
+        );
+        let unread = shadow_with(std::slice::from_ref(&users), &with).unwrap();
+        assert!(
+            unread.facts.is_empty(),
+            "no shadow file read, so nothing is missing from it"
+        );
+        assert!(shadow_with(&[users], &Map::from_iter([("x".to_owned(), json!(1))])).is_err());
     }
 
     #[test]

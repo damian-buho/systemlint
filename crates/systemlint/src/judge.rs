@@ -803,10 +803,10 @@ fn elide(text: &str) -> String {
     )
 }
 
-/// An offending value as a finding shows it: a string quoted, a list of scalars as words, absent or empty as none.
+/// An offending value as a finding shows it: a string quoted, a list of scalars as words, absent, null or empty as none.
 pub fn describe(value: Option<&Value>) -> String {
     match value {
-        None => "none".to_owned(),
+        None | Some(Value::Null) => "none".to_owned(),
         Some(Value::String(s)) => format!("“{}”", elide(s)),
         Some(Value::Array(items)) if items.is_empty() => "none".to_owned(),
         Some(Value::Array(items)) if items.iter().all(|i| i.is_string() || i.is_number()) => elide(

@@ -4,7 +4,7 @@
 
 id: accounts-shadow
 read:
-  files: [/etc/shadow]
+  files: [/etc/shadow, /etc/passwd]
 privileged: true
-parse: {plugin: formats, op: shadow}
+parse: {plugin: formats, op: shadow, with: {passwd: /etc/passwd}}
 into: accounts.shadow

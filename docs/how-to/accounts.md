@@ -22,7 +22,7 @@ systemlint check --root /mnt/image --tags accounts
 | --- | --- | --- | --- |
 | `accounts-passwd` | `/etc/passwd`, `/etc/shells` | `passwd` with `shells: /etc/shells` | `accounts.passwd.<name>` |
 | `accounts-group` | `/etc/group` | `words` on `:`, the password field dropped | `accounts.group.<name>` |
-| `accounts-shadow` | `/etc/shadow`, root only | `shadow` | `accounts.shadow.<name>` |
+| `accounts-shadow` | `/etc/shadow`, `/etc/passwd`, root only | `shadow` with `passwd: /etc/passwd` | `accounts.shadow.<name>` |
 
 ```yaml
 accounts:
@@ -31,7 +31,8 @@ accounts:
   group:
     sudo: {gid: 27, members: [alice], path: /etc/group, line: 28, shadowed: []}
   shadow:
-    root: {password: locked, line: 1, shadowed: []}
+    root: {password: locked, last-change: 20000, min-days: 0, max-days: 99999, warn-days: 7, inactive-days: null, expire-day: null, line: 1, shadowed: []}
+    ghost: {password: missing}
 ```
 
 - Each entry is keyed by its name, from the first line holding it, as glibc
@@ -41,6 +42,13 @@ accounts:
   `/etc/shadow`, `empty`, `locked` for a leading `!` or `*`, else `hash`. A
   group carries no `password`: `accounts-group` drops the field, whose hash
   belongs in `/etc/gshadow`.
+- A shadow entry’s ageing fields are numbers of days, as shadow(5) writes
+  them, and `null` where the field is empty, which turns that limit off:
+  `last-change` and `expire-day` count days since 1970-01-01, `min-days`,
+  `max-days`, `warn-days` and `inactive-days` are lengths.
+- With `passwd`, an account that `/etc/passwd` defers to shadow with `x` but
+  that has no `/etc/shadow` line gets `{password: missing}`, the entry pwck(8)
+  reports as broken. No account is missing when no shadow file was read.
 - `login-shell` is true when the shell is empty or listed in `/etc/shells`,
   as getusershell(3) reads it, and without that file only for `/bin/sh` and
   `/bin/csh`; the `sshd` collector runs for these accounts and root.
@@ -62,6 +70,25 @@ accounts:
 | `accounts/group-repeated` | a name appears on a later line of `/etc/group` |
 | `accounts/passwd-empty-password` | the password field in `/etc/passwd` is empty |
 | `accounts/shadow-empty-password` | `/etc/passwd` defers to `/etc/shadow`, whose password is empty |
+| `accounts/shadow-missing` | `/etc/passwd` defers to `/etc/shadow`, which has no line for the account |
+
+The rules only CIS Ubuntu 26.04 asks for carry `'!default'` and run with
+`--tags 'cis-ubuntu-26.04:*'` or `--tags accounts`. Each ageing rule judges an
+account with a usable password hash, and an empty field fails it. Each bound
+is a ruleset var whose default is CIS’s number, so a site with its own
+standard sets it, daily rotation included (`--var password-max-days=1`, or
+`check.vars` in the config):
+
+| Rule | CIS | Fails when (var, default) |
+| --- | --- | --- |
+| `accounts/password-max-days` | 5.4.1.1 | `max-days` is below 1 or above `password-max-days` (365) |
+| `accounts/password-min-days` | 5.4.1.2 | `min-days` is below `password-min-days` (1) |
+| `accounts/password-warn-days` | 5.4.1.3 | `warn-days` is below `password-warn-days` (7) |
+| `accounts/password-inactive-days` | 5.4.1.5 | `inactive-days` is above `password-inactive-days` (45) |
+| `accounts/no-shell-unlocked` | 5.4.2.8 | an account other than root has no login shell, and its shadow password is a hash or empty |
+
+NIST SP 800-63B advises against forced password expiry, so
+`password-max-days` is a CIS choice, not a default.
 
 The two `unique` rules fail every account or group holding the shared value
 and name the others in the message, see

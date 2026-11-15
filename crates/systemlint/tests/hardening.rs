@@ -8,6 +8,7 @@ use std::path::Path;
 use serde_json::{Value, json};
 use systemlint::judge::{Outcome, compile, lint};
 use systemlint::rules::Library;
+use systemlint::vars::{Supplied, apply};
 
 // Every check of one shipped ruleset over a document, as (rule, subject, outcome).
 fn judge(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome)> {
@@ -19,9 +20,38 @@ fn judge(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome)> {
 
 // Like judge, with each check’s score.
 fn scored(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome, Option<f64>)> {
+    checks(ruleset, document)
+        .into_iter()
+        .map(|c| (c.rule.clone(), c.subject_label(), c.outcome, c.score))
+        .collect()
+}
+
+// The messages one rule of a shipped ruleset prints over a document.
+fn judge_messages(ruleset: &str, document: &Value, rule: &str) -> Vec<String> {
+    checks(ruleset, document)
+        .into_iter()
+        .filter(|c| c.rule == rule)
+        .filter_map(|c| c.message)
+        .collect()
+}
+
+// Every check of one shipped ruleset over a document.
+fn checks(ruleset: &str, document: &Value) -> Vec<systemlint::judge::Check> {
+    checks_with(ruleset, document, json!({}))
+}
+
+// Like checks, its vars filled from `config` as `check.vars` gives them, else their defaults.
+fn checks_with(ruleset: &str, document: &Value, config: Value) -> Vec<systemlint::judge::Check> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../rulesets/{ruleset}.yaml"));
     let parsed = systemlint::yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-    let library = Library::new(BTreeMap::from([(ruleset.to_owned(), parsed)])).unwrap();
+    let mut rulesets = BTreeMap::from([(ruleset.to_owned(), parsed)]);
+    let supplied = Supplied {
+        config: config.as_object().unwrap().clone(),
+        env: |_| None,
+        ..Supplied::default()
+    };
+    apply(&mut rulesets, &supplied).unwrap();
+    let library = Library::new(rulesets).unwrap();
     let rules: Vec<_> = library
         .select(&[ruleset.to_owned()])
         .unwrap()
@@ -29,9 +59,6 @@ fn scored(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome, Opti
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
     lint(document, &rules, &[], "2026-11-12")
-        .into_iter()
-        .map(|c| (c.rule.clone(), c.subject_label(), c.outcome, c.score))
-        .collect()
 }
 
 // A facts document holding the given sysctl settings, nested by their dots.
@@ -725,6 +752,98 @@ fn an_empty_password_fails_where_the_system_reads_it() {
         account_rule("accounts/shadow-empty-password", &unprivileged),
         [(String::new(), Outcome::Unknown)],
         "an unprivileged run never reads as a pass"
+    );
+}
+
+#[test]
+fn shadow_ageing_fails_past_each_cis_bound_and_only_for_a_usable_password() {
+    let age = |password: &str, max: Value, min: Value, warn: Value, inactive: Value| json!({"password": password, "max-days": max, "min-days": min, "warn-days": warn, "inactive-days": inactive});
+    let document = accounts(
+        json!({}),
+        json!({}),
+        json!({"edge": age("hash", json!(365), json!(1), json!(7), json!(45)),
+               "past": age("hash", json!(366), json!(0), json!(6), json!(46)),
+               "unset": age("hash", Value::Null, Value::Null, Value::Null, Value::Null),
+               "low": age("hash", json!(0), json!(1), json!(7), json!(0)),
+               "daemon": age("locked", json!(99999), json!(0), json!(0), Value::Null)}),
+    );
+    let expected = [
+        ("daemon".into(), Outcome::Skip),
+        ("edge".into(), Outcome::Pass),
+        ("low".into(), Outcome::Pass),
+        ("past".into(), Outcome::Fail),
+        ("unset".into(), Outcome::Fail),
+    ];
+    for rule in ["min-days", "warn-days", "inactive-days"] {
+        assert_eq!(
+            account_rule(&format!("accounts/password-{rule}"), &document),
+            expected,
+            "{rule}"
+        );
+    }
+    let mut zero = expected.clone();
+    zero[2].1 = Outcome::Fail;
+    assert_eq!(
+        account_rule("accounts/password-max-days", &document),
+        zero,
+        "a maximum of 0 expires every password at once"
+    );
+    let daily: Vec<_> = checks_with("accounts", &document, json!({"password-max-days": 1}))
+        .into_iter()
+        .filter(|c| c.rule == "accounts/password-max-days")
+        .map(|c| (c.subject_label(), c.outcome))
+        .collect();
+    assert_eq!(
+        daily,
+        [
+            ("daemon".into(), Outcome::Skip),
+            ("edge".into(), Outcome::Fail),
+            ("low".into(), Outcome::Fail),
+            ("past".into(), Outcome::Fail),
+            ("unset".into(), Outcome::Fail),
+        ],
+        "a site asking for daily rotation sets the bound to 1"
+    );
+    let message = judge_messages("accounts", &document, "accounts/password-max-days");
+    assert!(
+        message
+            .iter()
+            .any(|m| m == "unset’s maximum password age in days is none, where 1 to 365 is asked"),
+        "{message:?}"
+    );
+}
+
+#[test]
+fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
+    let entry = |shell: bool, password: &str| json!({"uid": 1, "password": password, "login-shell": shell, "shadowed": []});
+    let document = accounts(
+        json!({"root": entry(false, "shadow"), "mail": entry(false, "shadow"), "nobody": entry(false, "shadow"),
+               "alice": entry(true, "shadow"), "inline": entry(false, "hash"), "ghost": entry(false, "shadow")}),
+        json!({}),
+        json!({"root": {"password": "hash"}, "mail": {"password": "hash"}, "nobody": {"password": "locked"},
+               "alice": {"password": "hash"}, "inline": {"password": "hash"}, "ghost": {"password": "missing"}}),
+    );
+    assert_eq!(
+        account_rule("accounts/shadow-missing", &document),
+        [
+            ("alice".into(), Outcome::Pass),
+            ("ghost".into(), Outcome::Fail),
+            ("inline".into(), Outcome::Pass),
+            ("mail".into(), Outcome::Pass),
+            ("nobody".into(), Outcome::Pass),
+            ("root".into(), Outcome::Pass),
+        ]
+    );
+    assert_eq!(
+        account_rule("accounts/no-shell-unlocked", &document),
+        [
+            ("alice".into(), Outcome::Skip),
+            ("ghost".into(), Outcome::Pass),
+            ("inline".into(), Outcome::Skip),
+            ("mail".into(), Outcome::Fail),
+            ("nobody".into(), Outcome::Pass),
+        ],
+        "root is CIS’s exception, and an inline passwd hash never reads shadow"
     );
 }
 
