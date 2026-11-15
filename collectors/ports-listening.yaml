@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: ports-listening
+live: true
+read:
+  files: [/proc/net/tcp, /proc/net/tcp6, /proc/net/udp, /proc/net/udp6]
+parse: {plugin: proc, op: sockets}
+into: ports

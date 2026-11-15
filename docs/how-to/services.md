@@ -4,11 +4,11 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Kernel parameters, modules and audit rules, Docker, systemd units, running services, ufw and nftables
+# Kernel parameters, modules and audit rules, Docker, systemd units, running services, listening sockets, ufw and nftables
 
-Sixteen collectors record service configuration as facts, `systemd-units` on
+Seventeen collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd`, `nftables` on `systemlint-firewall`, `processes-services`
-on `systemlint-proc` and the rest on `systemlint-formats`. The `kernel`,
+and `ports-listening` on `systemlint-proc` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
 `ufw.service`, `nftables` judges the loaded nftables ruleset and the state of
@@ -330,6 +330,30 @@ Reading another user’s maps needs root; unprivileged, or under `--root`, the
 rule is `Not run`. `restart/replaced-code` fails an `active` service still
 running a replaced file; an `activating` one, as a oneshot `apt` upgrading its
 own library, is about to exit and is skipped.
+
+## Listening sockets
+
+`ports` holds, per protocol and port, the addresses a socket listens on, from
+`/proc/net/{tcp,tcp6,udp,udp6}`:
+
+```yaml
+ports:
+  "tcp:22": {addresses: [0.0.0.0, "::"]}
+  "udp:5353": {addresses: [0.0.0.0, 224.0.0.251, "::"]}
+```
+
+- A TCP socket counts in the `LISTEN` state, a UDP one while unconnected, so it
+  takes datagrams from anyone; IPv4 and IPv6 share one key, an IPv4-mapped IPv6
+  address shown as IPv4.
+- The tables need no privilege, but they are the network namespace systemlint
+  runs in: inside a container they list the container’s sockets. Under `--root`
+  the rules are `Not run`.
+
+The `ports` rules fail a listener on any address outside `127.0.0.0/8` and
+`::1`, for services that answer whoever reaches them: `ports/docker-api-plain`
+(TCP 2375, Docker’s API without TLS), `ports/cups-browsed` (UDP 631, legacy
+CUPS browsing, CVE-2024-47176) and `ports/memcached-udp` (UDP 11211, a
+reflection amplifier).
 
 ## nftables
 

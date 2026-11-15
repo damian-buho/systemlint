@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Sockets listening beyond the loopback for a service that answers anyone who reaches it
+tags: [default]
+rules:
+  ports/docker-api-plain:
+    title: The Docker API listens beyond the loopback without TLS
+    fact: ports.*.addresses
+    keys: {const: "tcp:2375"}
+    expect: &loopback {items: {pattern: "^(127\\.|::1$)"}}
+    severity: error
+    score: 9.8
+    message: "{subject} listens on {got}, Docker’s plain-text API, so whoever reaches it runs containers as root on this host"
+    fix: drop the tcp://…:2375 host from dockerd’s -H flags or daemon.json hosts, or serve it on 2376 with --tlsverify
+    docs: https://docs.docker.com/engine/security/protect-access/
+    references:
+      - {title: Lynis NETW-3012, url: "https://cisofy.com/lynis/controls/NETW-3012/"}
+    tags: [docker, network, lynis]
+  ports/cups-browsed:
+    title: cups-browsed takes printer announcements from the network
+    fact: ports.*.addresses
+    keys: {const: "udp:631"}
+    expect: *loopback
+    severity: error
+    score: 9.0
+    message: "{subject} listens on {got}, cups-browsed’s legacy CUPS browsing, so any host that reaches it can add a printer whose driver runs commands here"
+    fix: set BrowseRemoteProtocols dnssd in /etc/cups/cups-browsed.conf and run systemctl restart cups-browsed, or remove cups-browsed
+    docs: https://www.cve.org/CVERecord?id=CVE-2024-47176
+    references:
+      - {title: Lynis NETW-3012, url: "https://cisofy.com/lynis/controls/NETW-3012/"}
+    tags: [printing, network, lynis]
+  ports/memcached-udp:
+    title: memcached answers UDP beyond the loopback
+    fact: ports.*.addresses
+    keys: {const: "udp:11211"}
+    expect: *loopback
+    severity: error
+    score: 7.5
+    message: "{subject} listens on {got}, memcached’s UDP protocol, which answers a spoofed request with replies thousands of times its size"
+    fix: start memcached with -U 0 (UDP off, the default since memcached 1.5.6), or -l 127.0.0.1
+    docs: https://www.cve.org/CVERecord?id=CVE-2018-1000115
+    references:
+      - {title: Lynis NETW-3012, url: "https://cisofy.com/lynis/controls/NETW-3012/"}
+    tags: [network, lynis]

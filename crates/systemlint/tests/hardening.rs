@@ -2042,3 +2042,55 @@ fn a_running_service_fails_from_its_first_replaced_file_and_a_stopping_one_never
         "no active state from the manager is unknown, never a finding"
     );
 }
+
+// The outcomes of the ports rules for one port’s listening addresses.
+fn ports(port: &str, addresses: Value) -> Vec<(String, Outcome)> {
+    judge("ports", &json!({"ports": {port: {"addresses": addresses}}}))
+        .into_iter()
+        .map(|(rule, _, o)| (rule, o))
+        .collect()
+}
+
+#[test]
+fn a_plain_listener_fails_from_its_first_address_beyond_the_loopback() {
+    for (port, rule) in [
+        ("tcp:2375", "ports/docker-api-plain"),
+        ("udp:631", "ports/cups-browsed"),
+        ("udp:11211", "ports/memcached-udp"),
+    ] {
+        let one = |o| vec![(rule.to_owned(), o)];
+        assert_eq!(
+            ports(port, json!(["127.0.0.1", "127.255.255.255", "::1"])),
+            one(Outcome::Pass),
+            "{port}"
+        );
+        assert_eq!(
+            ports(port, json!(["127.0.0.1", "128.0.0.1"])),
+            one(Outcome::Fail),
+            "{port}"
+        );
+        assert_eq!(
+            ports(port, json!(["0.0.0.0"])),
+            one(Outcome::Fail),
+            "{port}"
+        );
+        assert_eq!(ports(port, json!(["::"])), one(Outcome::Fail), "{port}");
+        assert_eq!(ports(port, json!(["::10"])), one(Outcome::Fail), "{port}");
+        assert_eq!(
+            ports(port, json!(["10.0.0.127"])),
+            one(Outcome::Fail),
+            "{port}"
+        );
+    }
+    assert_eq!(ports("tcp:2376", json!(["0.0.0.0"])), vec![], "TLS port");
+    assert_eq!(
+        ports("tcp:631", json!(["0.0.0.0"])),
+        vec![],
+        "cupsd, not cups-browsed"
+    );
+    assert_eq!(
+        ports("tcp:11211", json!(["0.0.0.0"])),
+        vec![],
+        "memcached over TCP"
+    );
+}
