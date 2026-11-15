@@ -69,6 +69,7 @@ accounts:
 | `accounts/user-repeated` | a name appears on a later line of `/etc/passwd` |
 | `accounts/group-repeated` | a name appears on a later line of `/etc/group` |
 | `accounts/passwd-empty-password` | the password field in `/etc/passwd` is empty |
+| `accounts/passwd-hash` | `/etc/passwd`, which every user can read, holds the password hash |
 | `accounts/shadow-empty-password` | `/etc/passwd` defers to `/etc/shadow`, whose password is empty |
 | `accounts/shadow-missing` | `/etc/passwd` defers to `/etc/shadow`, which has no line for the account |
 

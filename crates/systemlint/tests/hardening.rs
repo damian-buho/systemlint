@@ -732,6 +732,16 @@ fn an_empty_password_fails_where_the_system_reads_it() {
         ]
     );
     assert_eq!(
+        account_rule("accounts/passwd-hash", &document),
+        [
+            ("inline".into(), Outcome::Fail),
+            ("locked".into(), Outcome::Pass),
+            ("open".into(), Outcome::Pass),
+            ("viashadow".into(), Outcome::Pass),
+        ],
+        "only a hash fails: empty is passwd-empty-password’s finding"
+    );
+    assert_eq!(
         account_rule("accounts/shadow-empty-password", &document),
         [
             ("inline".into(), Outcome::Skip),

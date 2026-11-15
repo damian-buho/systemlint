@@ -82,6 +82,16 @@ rules:
     references:
       - {title: Lynis AUTH-9283, url: "https://cisofy.com/lynis/controls/AUTH-9283/"}
     tags: [accounts, lynis]
+  accounts/passwd-hash:
+    title: An account keeps its password hash in /etc/passwd
+    fact: accounts.passwd.*.password
+    expect: {not: {const: hash}}
+    severity: error
+    score: 7.0
+    message: "{subject} keeps its password hash in /etc/passwd, which every local user can read, so anyone on the host can crack it offline"
+    fix: run pwconv to move the hash into /etc/shadow, then passwd {subject} to set a new password, since the old one may already be cracked
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pwconv.8.html
+    tags: [accounts, cis-ubuntu-26.04:7.2.1, stig-ubuntu-26.04:UBTU-24-400220, dev-sec-linux-baseline:os-03b]
   accounts/shadow-empty-password:
     title: An account has an empty password in /etc/shadow
     fact: accounts.shadow.*.password
