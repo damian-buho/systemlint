@@ -217,6 +217,17 @@ impl Read {
             && self.from().next().is_none())
     }
 
+    /// Whether commands are all it reads, so an absent program leaves it nothing.
+    pub fn commands_only(&self) -> bool {
+        self.runs()
+            && self.files.is_empty()
+            && self.stat.is_empty()
+            && self.statfs.is_empty()
+            && !self.image_config
+            && self.from().next().is_none()
+            && !self.probes()
+    }
+
     /// Whether a command is listed, plain or one per fact entry.
     pub fn runs(&self) -> bool {
         self.exec.is_some() || self.exec_from.is_some()

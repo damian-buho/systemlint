@@ -23,10 +23,11 @@ const RETRIES: u32 = 8;
 /// The most paths one glob’s `**` may name before it fails.
 pub const WALK_CAP: usize = 1_000_000;
 
-/// Why a read failed: the kernel refused the action and path in `Denied`, anything else in `Other`.
+/// Why a read failed: the kernel refused the action and path in `Denied`, a program not installed in `Absent`, anything else in `Other`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Failure {
     Denied(String),
+    Absent(String),
     Other(String),
 }
 
@@ -59,6 +60,7 @@ impl From<Failure> for String {
     fn from(failure: Failure) -> Self {
         match failure {
             Failure::Denied(what) => format!("can’t {what}: permission denied"),
+            Failure::Absent(program) => format!("{program} is not installed"),
             Failure::Other(reason) => reason,
         }
     }

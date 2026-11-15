@@ -655,13 +655,32 @@ fn a_collector_with_files_keeps_them_under_root_without_its_exec() {
 }
 
 #[test]
-fn an_absent_program_reaches_the_plugin_as_exit_127() {
+fn an_absent_program_skips_a_command_only_collector() {
     let c = collector(
-        "id: absent\nread:\n  exec: [/nonexistent/systemlint-test, -T]\nparse: {plugin: absent, op: parse}\ninto: absent\n",
+        "id: gone\nread:\n  exec: [/nonexistent/systemlint-test, -T]\nparse: {plugin: absent, op: parse}\ninto: gone\n",
+    );
+    let doc = collect(&[c], &plugins(), &options(true));
+    assert_eq!(doc["collectors"]["gone"]["status"], "skipped", "{doc}");
+    assert_eq!(
+        doc["collectors"]["gone"]["reason"],
+        "needs /nonexistent/systemlint-test, which is not installed"
+    );
+}
+
+#[test]
+fn an_absent_program_reaches_the_plugin_as_exit_127_beside_a_path() {
+    let c = collector(
+        "id: absent\nread:\n  stat: [/etc]\n  exec: [/nonexistent/systemlint-test, -T]\nparse: {plugin: absent, op: parse}\ninto: absent\n",
     );
     let doc = collect(&[c], &plugins(), &options(true));
     assert_eq!(doc["collectors"]["absent"]["status"], "ok", "{doc}");
-    let exec = request("absent")["inputs"][0].clone();
+    let inputs = request("absent")["inputs"].as_array().unwrap().clone();
+    assert_eq!(inputs.len(), 2, "{inputs:?}");
+    let exec = inputs
+        .iter()
+        .find(|i| i.get("argv").is_some())
+        .unwrap()
+        .clone();
     assert_eq!(
         (exec["exit"].as_i64(), exec["stdout"].as_str()),
         (Some(127), Some(""))

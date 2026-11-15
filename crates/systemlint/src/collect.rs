@@ -375,6 +375,10 @@ fn record(
             );
             json!({"status": "skipped", "reason": reason})
         }
+        Err(Failure::Absent(program)) => {
+            log::debug!("collector {} skipped: {program} is absent", collector.id);
+            json!({"status": "skipped", "reason": format!("needs {program}, which is not installed")})
+        }
         Err(Failure::Other(reason)) => {
             log::debug!("collector {} failed: {reason}", collector.id);
             error(reason)
@@ -1046,14 +1050,18 @@ pub fn read_partial(
     Ok((inputs, unreadable))
 }
 
-/// Runs one command, an absent program passed as exit 127.
+/// Runs one command, an absent program `Absent` when only commands are read, else passed as exit 127.
 fn execute(
     collector: &Collector,
     argv: &[String],
     root: &Root,
     options: &Options,
-) -> Result<ExecInput, String> {
-    if matches!(root.stat(&argv[0]), Err(e) if e.kind() == io::ErrorKind::NotFound) {
+) -> Result<ExecInput, Failure> {
+    let absent = matches!(root.stat(&argv[0]), Err(e) if e.kind() == io::ErrorKind::NotFound);
+    if absent && collector.read.commands_only() {
+        return Err(Failure::Absent(argv[0].clone()));
+    }
+    if absent {
         log::debug!(
             "collector {}: {} is absent, passed as exit 127",
             collector.id,
