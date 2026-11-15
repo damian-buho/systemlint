@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: rhosts-users
+read:
+  stat-from: ['{accounts.passwd.*.home}/.rhosts']
+parse: {plugin: formats, op: stat}
+into: rhosts.users
+privileged: true

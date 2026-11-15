@@ -134,6 +134,35 @@ and their OpenSSH accepts a group-writable `.ssh` when that group holds its
 owner alone. A symlink passes, its booleans being false; its target is not
 followed.
 
+## Users’ .netrc
+
+The `netrc-files` collector (root) stats each `/etc/passwd` home’s `.netrc`
+into `netrc.files.<path>`. The `netrc` ruleset judges them:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `netrc/readable` | error | every user can read it, and with it the plain-text passwords it holds |
+
+Group bits pass, for the reason above; a symlink is skipped.
+
+## Host trust files
+
+`rhosts-system` stats `/etc/hosts.equiv` into `rhosts.system`, `rhosts-users`
+(root) each `/etc/passwd` home’s `.rhosts` into `rhosts.users`, and
+`rhosts-readers` the rsh and rlogin servers (`in.rshd`, `in.rlogind`) into
+`rhosts.readers`. The `rhosts` ruleset applies only where one of those servers
+is installed, since nothing else on a current host reads these files; sshd’s
+use of `.rhosts` is `ssh/ignore-rhosts`.
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `rhosts/hosts-equiv` | error | `/etc/hosts.equiv` is not empty, so the hosts it names log in as any matching local user without a password |
+| `rhosts/user-file` | error | a `.rhosts` is not empty, so the users it names log in as its owner without a password |
+
+An empty file trusts nobody and passes; a symlink is skipped, since `ruserok`
+refuses any that does not lead to a regular file, and linking it to
+`/dev/null` is the usual way to switch one off.
+
 ## Mounts
 
 Two collectors read the mount table, each keyed by mount point with its

@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: CPU flaws the running kernel reports as unmitigated
+tags: [default]
+rules:
+  cpu/vulnerable:
+    title: The kernel reports a CPU flaw as unmitigated
+    fact: cpu.vulnerabilities.*
+    expect: {not: {contains: {pattern: "^Vulnerable"}}}
+    severity: warning
+    score: 5.0
+    message: "{subject} reads {got}, so code on this host, or in a guest, can read memory it should not through that flaw"
+    fix: install the CPU microcode package and the newest kernel, reboot, and drop mitigations=off or the flaw’s own off switch from the kernel command line
+    docs: https://docs.kernel.org/admin-guide/hw-vuln/index.html
+    tags: [cpu, dev-sec-linux-baseline:os-12]

@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: each user’s ~/.netrc, whose passwords are plain text, kept from other users
+tags: [default]
+rules:
+  netrc/readable:
+    title: A ~/.netrc readable by every user
+    fact: netrc.files.*.mode
+    when: {netrc.files.*.kind: file}
+    expect: {pattern: "^[0-7]{3}[0-3]$"}
+    severity: error
+    score: 7.0
+    message: "{subject} has mode {got}, so every user can read the plain-text passwords it holds for the machines its owner logs in to"
+    fix: chmod 0600 the file, and change any password it held
+    remedy: {chmod: o-r}
+    docs: https://manpages.debian.org/unstable/ftp/netrc.5.en.html
+    tags: [files, dev-sec-linux-baseline:os-09]

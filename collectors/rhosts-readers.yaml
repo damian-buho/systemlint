@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: rhosts-readers
+read:
+  stat: [/usr/local/*bin/in.rshd, /usr/local/*bin/in.rlogind, /usr/*bin/in.rshd, /usr/*bin/in.rlogind, /*bin/in.rshd, /*bin/in.rlogind]
+parse: {plugin: formats, op: stat}
+into: rhosts.readers

@@ -114,6 +114,20 @@ run only when their tag is named, as in `--tags 'cis-ubuntu-26.04:*'`.
 builds in, since no `modprobe.d` line can keep it out of that kernel; CIS
 counts that as passing, so it carries no CIS tag.
 
+## CPU vulnerabilities
+
+The `cpu-vulnerabilities` collector (`live`) reads each file under
+`/sys/devices/system/cpu/vulnerabilities/` into `cpu.vulnerabilities.<path>`,
+its lines as the running kernel reports them. The `cpu` ruleset judges them:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `cpu/vulnerable` | warning | a line starts with `Vulnerable`, so the flaw is unmitigated on this CPU, microcode and kernel |
+
+`Not affected`, `Unknown` and any `Mitigation`, even one noting `SMT
+vulnerable`, pass. Under `--root` the rule is `Not run`, since `/sys` there
+is not the running kernel’s.
+
 ## Kernel audit rules
 
 `audit.rules` holds the rules of each file augenrules loads from

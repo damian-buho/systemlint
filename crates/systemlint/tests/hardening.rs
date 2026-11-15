@@ -491,6 +491,144 @@ fn a_world_writable_temporary_directory_fails_only_without_the_sticky_bit() {
     assert_eq!(tmp(None), [Outcome::Unknown]);
 }
 
+// The (subject, outcome) pairs of one rule over `facts` nested at `into`, its collector ok, or with no facts on None.
+fn collected(rule: &str, id: &str, into: &str, facts: Option<Value>) -> Vec<(String, Outcome)> {
+    let ruleset = rule.split('/').next().unwrap();
+    let mut document = json!({"collectors": {id: {"status": "ok", "into": into}}});
+    if let Some(facts) = facts {
+        let (top, rest) = into.split_once('.').unwrap();
+        document[top] = json!({rest: facts});
+    }
+    judge(ruleset, &document)
+        .into_iter()
+        .filter(|(r, _, _)| r == rule)
+        .map(|(_, s, o)| (s, o))
+        .collect()
+}
+
+#[test]
+fn a_cpu_flaw_fails_only_when_the_kernel_reports_it_vulnerable() {
+    let flaw = |line: &str| {
+        collected(
+            "cpu/vulnerable",
+            "cpu-vulnerabilities",
+            "cpu.vulnerabilities",
+            Some(json!({"/sys/devices/system/cpu/vulnerabilities/mds": [line]})),
+        )[0]
+        .1
+    };
+    assert_eq!(flaw("Not affected"), Outcome::Pass);
+    assert_eq!(
+        flaw("Mitigation: Clear CPU buffers; SMT vulnerable"),
+        Outcome::Pass,
+        "mitigated, SMT aside"
+    );
+    assert_eq!(
+        flaw("Unknown: Dependent on hypervisor status"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        flaw("Vulnerable: Clear CPU buffers attempted, no microcode"),
+        Outcome::Fail
+    );
+    assert_eq!(flaw("Vulnerable"), Outcome::Fail);
+    assert_eq!(
+        collected(
+            "cpu/vulnerable",
+            "cpu-vulnerabilities",
+            "cpu.vulnerabilities",
+            None
+        ),
+        [(String::new(), Outcome::Unknown)]
+    );
+}
+
+#[test]
+fn a_netrc_fails_once_every_user_can_read_it() {
+    let netrc = |mode: &str, kind: &str| {
+        collected(
+            "netrc/readable",
+            "netrc-files",
+            "netrc.files",
+            Some(json!({"/home/bob/.netrc": {"exists": true, "kind": kind, "mode": mode}})),
+        )[0]
+        .1
+    };
+    assert_eq!(netrc("0600", "file"), Outcome::Pass);
+    assert_eq!(
+        netrc("0673", "file"),
+        Outcome::Pass,
+        "a user’s own group holds that user alone, and write without read leaks nothing"
+    );
+    assert_eq!(netrc("0604", "file"), Outcome::Fail);
+    assert_eq!(
+        netrc("0777", "symlink"),
+        Outcome::Skip,
+        "a link’s own mode means nothing"
+    );
+    assert_eq!(
+        collected(
+            "netrc/readable",
+            "netrc-files",
+            "netrc.files",
+            Some(json!({}))
+        ),
+        [],
+        "no home holds a .netrc"
+    );
+}
+
+// The outcomes of the rhosts rules, by rule, for the server binaries found and the trust files' stats.
+fn rhosts(readers: &[&str], system: Value, users: Value) -> Vec<(String, Outcome)> {
+    let readers: serde_json::Map<String, Value> = readers
+        .iter()
+        .map(|p| ((*p).to_owned(), json!({"exists": true, "kind": "file"})))
+        .collect();
+    let document = json!({"rhosts": {"readers": readers, "system": system, "users": users}, "collectors": {
+        "rhosts-readers": {"status": "ok", "into": "rhosts.readers"},
+        "rhosts-system": {"status": "ok", "into": "rhosts.system"},
+        "rhosts-users": {"status": "ok", "into": "rhosts.users"}}});
+    judge("rhosts", &document)
+        .into_iter()
+        .map(|(r, _, o)| (r, o))
+        .collect()
+}
+
+#[test]
+fn a_trust_file_fails_only_when_it_names_a_host_and_an_r_server_reads_it() {
+    let stat = |path: &str, size: u64, kind: &str| json!({path: {"exists": true, "kind": kind, "size": size}});
+    let hosts = |size| stat("/etc/hosts.equiv", size, "file");
+    let user = |size, kind| stat("/home/bob/.rhosts", size, kind);
+    assert_eq!(
+        rhosts(&[], hosts(10), user(10, "file")),
+        [
+            ("rhosts/hosts-equiv".into(), Outcome::NotApplicable),
+            ("rhosts/user-file".into(), Outcome::NotApplicable)
+        ],
+        "nothing reads them without an rsh or rlogin server"
+    );
+    assert_eq!(
+        rhosts(&["/usr/sbin/in.rshd"], hosts(0), user(0, "file")),
+        [
+            ("rhosts/hosts-equiv".into(), Outcome::Pass),
+            ("rhosts/user-file".into(), Outcome::Pass)
+        ],
+        "an empty file trusts nobody"
+    );
+    assert_eq!(
+        rhosts(&["/usr/sbin/in.rlogind"], hosts(1), user(1, "file")),
+        [
+            ("rhosts/hosts-equiv".into(), Outcome::Fail),
+            ("rhosts/user-file".into(), Outcome::Fail)
+        ]
+    );
+    assert_eq!(
+        rhosts(&["/usr/sbin/in.rshd"], json!({}), user(9, "symlink")),
+        [("rhosts/user-file".into(), Outcome::Skip)],
+        "a link to /dev/null disables it, and ruserok refuses any link that is no regular file"
+    );
+}
+
 // The outcome of apt/security-suite for an os-release and the given sources, absent on None.
 fn security(release: Value, sources: Option<Value>) -> Outcome {
     let mut document = json!({"os": {"release": release}, "collectors": {"os-release": {"status": "ok", "into": "os.release"}, "apt-sources": {"status": "ok", "into": "apt.sources"}}});
