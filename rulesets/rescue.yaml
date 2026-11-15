@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Rescue and emergency shells that open without asking for the root password
+tags: [default]
+when: {systemd.units: {minProperties: 1}}
+rules:
+  rescue/no-sulogin:
+    title: Rescue shell opens without sulogin
+    fact: systemd.units.*.sections.Service.ExecStart
+    keys: {enum: [rescue.service, emergency.service]}
+    expect: {type: array, items: {anyOf: [{const: ""}, {pattern: sulogin}]}}
+    severity: warning
+    score: 5.0
+    message: "{subject} starts {got} rather than sulogin, so anyone at the console who boots into its target gets a root shell without the root password"
+    fix: "run systemctl revert {subject}, which drops its local copy and drop-ins; if it still fails, the packaged unit was edited: reinstall the package that ships it"
+    docs: https://www.freedesktop.org/software/systemd/man/latest/systemd.special.html#rescue.target
+    references:
+      - {title: Lynis BOOT-5260, url: "https://cisofy.com/lynis/controls/BOOT-5260/"}
+    tags: [systemd, boot, lynis]

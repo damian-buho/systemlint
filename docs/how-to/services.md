@@ -264,6 +264,14 @@ The rule covers part of
 [`systemd-analyze security`](https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html),
 whose exposure score it does not reproduce.
 
+### Rescue shells
+
+`rescue/no-sulogin` fails `rescue.service` or `emergency.service` when an
+`ExecStart=` it would run names no `sulogin`, so a console that boots into
+`rescue.target` gets a root shell unasked. Stock units run
+`systemd-sulogin-shell` and pass. A reset with no command after it passes
+too: systemd refuses a service with no `ExecStart=`, so no shell opens.
+
 ## systemd unit state
 
 `systemd.state` keys each unit by its name, timers, sockets and the other unit

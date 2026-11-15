@@ -2182,3 +2182,52 @@ fn a_host_without_sudo_finds_sudo_defaults_not_applicable() {
         "{outcomes:?}"
     );
 }
+
+// The outcomes of rescue/no-sulogin, by unit, for each unit's merged ExecStart list.
+fn rescue(units: &[(&str, Value)]) -> Vec<(String, Outcome)> {
+    let units: serde_json::Map<_, _> = units
+        .iter()
+        .map(|(name, exec)| {
+            (
+                (*name).to_owned(),
+                json!({"sections": {"Service": {"ExecStart": exec}}}),
+            )
+        })
+        .collect();
+    judge("rescue", &json!({"systemd": {"units": units}}))
+        .into_iter()
+        .map(|(_, subject, o)| (subject, o))
+        .collect()
+}
+
+#[test]
+fn a_rescue_shell_fails_only_once_its_effective_command_skips_sulogin() {
+    let one = |exec: Value| rescue(&[("rescue.service", exec)]);
+    let rescue_is = |o| vec![("rescue.service".to_owned(), o)];
+    assert_eq!(
+        one(json!(["-/usr/lib/systemd/systemd-sulogin-shell rescue"])),
+        rescue_is(Outcome::Pass)
+    );
+    assert_eq!(
+        one(json!([
+            "",
+            "-/usr/lib/systemd/systemd-sulogin-shell rescue"
+        ])),
+        rescue_is(Outcome::Pass)
+    );
+    assert_eq!(
+        one(json!([""])),
+        rescue_is(Outcome::Pass),
+        "a reset with no command leaves a unit systemd refuses to start"
+    );
+    assert_eq!(one(json!(["", "/bin/bash"])), rescue_is(Outcome::Fail));
+    assert_eq!(
+        rescue(&[
+            ("emergency.service", json!(["/bin/sh"])),
+            ("ssh.service", json!(["/usr/sbin/sshd -D"]))
+        ]),
+        [("emergency.service".to_owned(), Outcome::Fail)],
+        "only the rescue and emergency units are judged"
+    );
+    assert!(rescue(&[("ssh.service", json!(["/usr/sbin/sshd -D"]))]).is_empty());
+}
