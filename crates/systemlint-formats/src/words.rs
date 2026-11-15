@@ -65,6 +65,8 @@ struct Options {
     lists: Vec<String>,
     #[serde(default)]
     toggles: Vec<String>,
+    #[serde(default)]
+    implies: BTreeMap<String, Vec<String>>,
     key: Option<Names>,
     repeat: Option<Policy>,
     directives: Option<Vec<String>>,
@@ -94,6 +96,9 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     }
     if let Some(bad) = options.toggles.iter().find(|n| !options.lists.contains(n)) {
         return Err(format!("with.toggles names {bad}, which is no list column").into());
+    }
+    if !options.implies.is_empty() && options.toggles.is_empty() {
+        return Err("with.implies needs with.toggles".into());
     }
     if columns.is_none() && (options.rest.is_some() || options.required.is_some()) {
         return Err("with.rest and with.required need with.columns".into());
@@ -260,7 +265,7 @@ fn columned(
             true => {
                 let items = word.0.split(',').filter(|w| !w.is_empty());
                 let items: Vec<&str> = match options.toggles.contains(name) {
-                    true => toggled(items),
+                    true => toggled(items, &options.implies),
                     false => items.collect(),
                 };
                 Value::from(items.into_iter().map(scalar).collect::<Vec<_>>())
@@ -276,13 +281,19 @@ fn columned(
     Ok(record)
 }
 
-/// The items left once each `noX` cancels an earlier `X` and each `X` an earlier `noX` or `X`, as mount(8) lets the later option win.
-fn toggled<'a>(items: impl Iterator<Item = &'a str>) -> Vec<&'a str> {
+/// The items left once each `noX` cancels an earlier `X` and each `X` an earlier `noX` or `X`, an item's `implies` following it, as mount(8) lets the later option win.
+fn toggled<'a>(
+    items: impl Iterator<Item = &'a str>,
+    implies: &'a BTreeMap<String, Vec<String>>,
+) -> Vec<&'a str> {
     let base = |item: &'a str| item.strip_prefix("no").unwrap_or(item);
     let mut kept: Vec<&str> = Vec::new();
     for item in items {
-        kept.retain(|k| base(k) != base(item));
-        kept.push(item);
+        let implied = implies.get(item).into_iter().flatten().map(String::as_str);
+        for one in std::iter::once(item).chain(implied) {
+            kept.retain(|k| base(k) != base(one));
+            kept.push(one);
+        }
     }
     kept
 }
@@ -599,6 +610,10 @@ mod tests {
                 json!({"columns": ["a"], "toggles": ["a"]}),
                 "no list column",
             ),
+            (
+                json!({"columns": ["a"], "lists": ["a"], "implies": {"user": ["nosuid"]}}),
+                "needs with.toggles",
+            ),
             (json!({"rest": "r"}), "need with.columns"),
             (
                 json!({"columns": ["a"], "repeat": {"a": "last"}}),
@@ -630,6 +645,29 @@ mod tests {
         assert_eq!(
             reply.facts["/tmp"]["options"],
             json!(["nosuid", "dev", "noexec", "nouser", "notail"])
+        );
+    }
+
+    #[test]
+    fn implies_adds_options_a_later_one_still_overrides() {
+        let reply = run(
+            &[file(
+                "/etc/fstab",
+                "a /a tmpfs suid,user\nb /b tmpfs user,suid\nc /c tmpfs exec,owner\n",
+            )],
+            json!({"columns": ["source", "mountpoint", "filesystem", "options"], "required": 3, "lists": ["options"], "toggles": ["options"], "implies": {"user": ["noexec", "nosuid", "nodev"], "owner": ["nosuid", "nodev"]}, "key": "mountpoint"}),
+        );
+        assert_eq!(
+            reply.facts["/a"]["options"],
+            json!(["user", "noexec", "nosuid", "nodev"])
+        );
+        assert_eq!(
+            reply.facts["/b"]["options"],
+            json!(["user", "noexec", "nodev", "suid"])
+        );
+        assert_eq!(
+            reply.facts["/c"]["options"],
+            json!(["exec", "owner", "nosuid", "nodev"])
         );
     }
 

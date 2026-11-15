@@ -142,7 +142,7 @@ Two collectors read the mount table, each keyed by mount point with its
 | Collector | Into | Reads |
 | --- | --- | --- |
 | `mounts-active` | `mounts.active` | `/proc/self/mounts` on a live host (`formats words`), the top of a stacked mount point winning; `options` holds the mount’s and its filesystem’s |
-| `mounts-fstab` | `mounts.fstab` | `/etc/fstab` (`formats words`), `options` as written; the `fstab-*` rules count what `user`, `users`, `owner` and `group` imply, and fail an explicit `suid`, `dev` or `exec` |
+| `mounts-fstab` | `mounts.fstab` | `/etc/fstab` (`formats words`), `options` with the later option winning and what `user`, `users`, `owner` and `group` imply added after them, so `suid,user` reads `nosuid` and `user,suid` keeps `suid` |
 
 A third, `mounts-usage`, statfs each active mount point on a live host into
 `mounts.usage.<point>`: `blocks` and `inodes` used, in whole percent rounded up

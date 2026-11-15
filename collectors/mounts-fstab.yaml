@@ -8,5 +8,5 @@ read:
 parse:
   plugin: formats
   op: words
-  with: {columns: [source, mountpoint, filesystem, options, dump, pass], required: 3, lists: [options], toggles: [options], key: mountpoint, repeat: last, octal: true}
+  with: {columns: [source, mountpoint, filesystem, options, dump, pass], required: 3, lists: [options], toggles: [options], implies: {user: [noexec, nosuid, nodev], users: [noexec, nosuid, nodev], owner: [nosuid, nodev], group: [nosuid, nodev]}, key: mountpoint, repeat: last, octal: true}
 into: mounts.fstab

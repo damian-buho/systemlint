@@ -729,6 +729,22 @@ fn an_empty_password_fails_where_the_system_reads_it() {
 }
 
 // A facts document holding the given mount tables, `active` skipped as under --root unless given.
+// The facts formats words makes of an fstab text, as the shipped mounts-fstab collector asks.
+fn fstab_facts(text: &str) -> Value {
+    let yaml = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../collectors/mounts-fstab.yaml"),
+    )
+    .unwrap();
+    let collector = systemlint::collector::Collector::parse(&yaml).unwrap();
+    let file = serde_json::from_value(json!({"path": "/etc/fstab", "content": text})).unwrap();
+    let reply = systemlint_formats::words(
+        &[systemlint_protocol::Input::File(file)],
+        &collector.parse.with,
+    )
+    .unwrap();
+    json!(reply.facts)
+}
+
 fn mounts(active: Option<Value>, fstab: Value) -> Vec<(String, String, Outcome)> {
     let mut document = json!({"mounts": {"fstab": fstab}, "collectors": {"mounts-fstab": {"status": "ok", "into": "mounts.fstab"}, "mounts-active": {"status": "skipped", "reason": "live", "into": "mounts.active"}}});
     if let Some(active) = active {
@@ -778,11 +794,14 @@ fn a_world_writable_mount_without_nosuid_nodev_or_noexec_fails() {
         "a root run judges the declared table and skips the live one"
     );
     let declared = |options: &[&str]| {
-        mounts(None, json!({"/tmp": {"options": options}}))
-            .into_iter()
-            .filter(|(rule, _, _)| rule.starts_with("mounts/fstab-"))
-            .map(|(rule, _, outcome)| (rule, outcome))
-            .collect::<Vec<_>>()
+        mounts(
+            None,
+            fstab_facts(&format!("tmpfs /tmp tmpfs {}\n", options.join(","))),
+        )
+        .into_iter()
+        .filter(|(rule, _, _)| rule.starts_with("mounts/fstab-"))
+        .map(|(rule, _, outcome)| (rule, outcome))
+        .collect::<Vec<_>>()
     };
     let fstab = |nodev, noexec, nosuid| {
         vec![
@@ -806,6 +825,16 @@ fn a_world_writable_mount_without_nosuid_nodev_or_noexec_fails() {
         declared(&["users", "exec", "suid", "dev"]),
         fstab(Fail, Fail, Fail),
         "a later option undoes what users implies"
+    );
+    assert_eq!(
+        declared(&["exec", "suid", "dev", "user"]),
+        fstab(Pass, Pass, Pass),
+        "user undoes an earlier suid, dev and exec"
+    );
+    assert_eq!(
+        declared(&["nosuid", "nodev", "noexec", "suid"]),
+        fstab(Pass, Pass, Fail),
+        "a later suid undoes nosuid"
     );
     assert!(
         mounts(Some(json!({"/": {"options": ["rw"]}})), json!({})).is_empty(),
