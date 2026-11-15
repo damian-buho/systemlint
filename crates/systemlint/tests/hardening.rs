@@ -578,6 +578,42 @@ fn a_netrc_fails_once_every_user_can_read_it() {
     );
 }
 
+#[test]
+fn a_home_fails_once_others_reach_it_and_a_user_owns_it() {
+    let home = |mode: &str, kind: &str, uid: u64| {
+        collected(
+            "home/open-to-others",
+            "home-directories",
+            "home.directories",
+            Some(json!({"/home/bob": {"exists": true, "kind": kind, "mode": mode, "uid": uid}})),
+        )[0]
+        .1
+    };
+    assert_eq!(home("0750", "directory", 1000), Outcome::Pass);
+    assert_eq!(home("0751", "directory", 1000), Outcome::Fail);
+    assert_eq!(home("0755", "directory", 60000), Outcome::Fail);
+    assert_eq!(
+        home("0755", "directory", 999),
+        Outcome::Skip,
+        "a service account’s home"
+    );
+    assert_eq!(
+        home("0755", "directory", 60001),
+        Outcome::Skip,
+        "nobody and the dynamic uids"
+    );
+    assert_eq!(
+        home("0755", "directory", 0),
+        Outcome::Skip,
+        "a root-owned /usr/sbin or /var/www"
+    );
+    assert_eq!(
+        home("0777", "symlink", 1000),
+        Outcome::Skip,
+        "a link’s own mode means nothing"
+    );
+}
+
 // The outcomes of the rhosts rules, by rule, for the server binaries found and the trust files' stats.
 fn rhosts(readers: &[&str], system: Value, users: Value) -> Vec<(String, Outcome)> {
     let readers: serde_json::Map<String, Value> = readers

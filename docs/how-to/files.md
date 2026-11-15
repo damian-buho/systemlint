@@ -115,6 +115,22 @@ world-writable by design. The `tmp` ruleset judges them:
 
 A directory no other user can write, or an absent one, passes.
 
+## Home directories
+
+The `home-directories` collector stats each `/etc/passwd` home into
+`home.directories.<path>`, with no privilege, since `/home` is searchable by
+everyone. The `home` ruleset judges them:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `home/open-to-others` | warning | a home owned by a uid from `uid-min` (1000) to `uid-max` (60000) grants others any access, so they list it and read what its owner leaves readable |
+
+The uid is the directory’s owner, not the account’s, so a service account
+whose home is root’s `/usr/sbin` or `/var/www` is skipped, as are `nobody`
+(65534) and the uids systemd gives dynamic users. The two bounds are ruleset
+vars, set with `check.vars` where `/etc/login.defs` moves `UID_MIN` or
+`UID_MAX`. A symlink is skipped; its target is not followed.
+
 ## Users’ SSH directories
 
 Two collectors stat each `/etc/passwd` home’s `.ssh` (`read.stat-from`

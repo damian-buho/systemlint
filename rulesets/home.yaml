@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: each user’s home directory, kept from other users
+tags: [default]
+vars:
+  uid-min: {default: 1000}
+  uid-max: {default: 60000}
+rules:
+  home/open-to-others:
+    title: A home directory other users can enter or read
+    fact: home.directories.*.mode
+    when:
+      home.directories.*.kind: directory
+      home.directories.*.uid: {minimum: "${uid-min}", maximum: "${uid-max}"}
+    expect: {pattern: "^[0-7]{3}0$"}
+    severity: warning
+    score: 4.0
+    message: "{subject} has mode {got}, so every user can list it and read whatever its owner leaves readable there"
+    fix: chmod o-rwx the directory, and set HOME_MODE 0750 in /etc/login.defs for new accounts
+    remedy: {chmod: o-rwx}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
+    references:
+      - {title: Lynis HOME-9304, url: "https://cisofy.com/lynis/controls/HOME-9304/"}
+    tags: [files, lynis]
