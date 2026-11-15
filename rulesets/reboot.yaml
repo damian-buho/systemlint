@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: updates that take effect only after a reboot
+tags: [default]
+rules:
+  reboot/required:
+    title: An update waits for a reboot
+    fact: reboot.required.*.exists
+    expect: {const: false}
+    severity: warning
+    score: 5.0
+    message: "{subject} is present, so an installed kernel or core library update, a security fix among them, is not running until the host reboots"
+    fix: reboot the host; /run/reboot-required.pkgs names the packages that asked for it
+    docs: https://github.com/mvo5/unattended-upgrades/blob/master/README.md
+    references:
+      - {title: Lynis KRNL-5830, url: "https://cisofy.com/lynis/controls/KRNL-5830/"}
+    tags: [kernel, lynis]

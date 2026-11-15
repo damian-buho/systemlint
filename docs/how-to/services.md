@@ -128,6 +128,21 @@ its lines as the running kernel reports them. The `cpu` ruleset judges them:
 vulnerable`, pass. Under `--root` the rule is `Not run`, since `/sys` there
 is not the running kernel’s.
 
+## Pending reboot
+
+The `reboot-required` collector (`live`) stats `/run/reboot-required` into
+`reboot.required.<path>`, the flag Debian and Ubuntu package hooks write once
+an installed kernel or core library update needs a reboot to run. The `reboot`
+ruleset judges it:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `reboot/required` | warning | `/run/reboot-required` exists |
+
+A host without the file, or whose packages never write it, has no check.
+Under `--root` the rule is `Not run`, since `/run` there is not the running
+host’s. A service still running replaced code is `restart/replaced-code`.
+
 ## Kernel audit rules
 
 `audit.rules` holds the rules of each file augenrules loads from

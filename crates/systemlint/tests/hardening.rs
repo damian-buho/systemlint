@@ -579,6 +579,25 @@ fn a_netrc_fails_once_every_user_can_read_it() {
 }
 
 #[test]
+fn a_pending_reboot_fails_only_while_its_flag_file_exists() {
+    let reboot = |facts| {
+        collected(
+            "reboot/required",
+            "reboot-required",
+            "reboot.required",
+            facts,
+        )
+    };
+    assert_eq!(
+        reboot(Some(
+            json!({"/run/reboot-required": {"exists": true, "kind": "file"}})
+        )),
+        [("/run/reboot-required".to_owned(), Outcome::Fail)]
+    );
+    assert_eq!(reboot(Some(json!({}))), [], "no update asked for a reboot");
+}
+
+#[test]
 fn a_home_fails_once_others_reach_it_and_a_user_owns_it() {
     let home = |mode: &str, kind: &str, uid: u64| {
         collected(
