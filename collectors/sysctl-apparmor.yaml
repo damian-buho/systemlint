@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: sysctl-apparmor
+privileged: true
+read:
+  exec: [/usr/sbin/sysctl, --all, --pattern, '^kernel\.apparmor_restrict_unprivileged_']
+parse:
+  plugin: formats
+  op: kv
+  with: {repeat: last, nest: ".", swap: /, strip: "-"}
+into: sysctl.apparmor

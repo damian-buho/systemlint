@@ -89,3 +89,14 @@ rules:
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [kernel, sysctl, lynis]
+  kernel/apparmor-unconfined:
+    title: Unconfined users may switch AppArmor profile to get user namespaces
+    fact: sysctl.apparmor.kernel.apparmor_restrict_unprivileged_unconfined
+    when: {sysctl.apparmor: {required: [kernel], properties: {kernel: {required: [apparmor_restrict_unprivileged_userns], properties: {apparmor_restrict_unprivileged_userns: {const: 1}}}}}}
+    expect: {const: 1}
+    severity: warning
+    score: 5.0
+    message: "kernel.apparmor_restrict_unprivileged_unconfined is {got}, so an unprivileged process can move itself into a permissive profile with aa-exec and create the user namespaces kernel.apparmor_restrict_unprivileged_userns denies it"
+    fix: set kernel.apparmor_restrict_unprivileged_unconfined = 1
+    docs: https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
+    tags: [kernel, sysctl, cis-ubuntu-26.04:1.3.1.4]

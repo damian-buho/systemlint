@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Kernel parameters, modules and audit rules, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables
 
-Seventeen collectors record service configuration as facts, `systemd-units` on
+Eighteen collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd`, `nftables` on `systemlint-firewall`, `processes-services`
 and `ports-listening` on `systemlint-proc` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
@@ -19,6 +19,7 @@ facts yet.
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
 | `sysctl` | `/usr/sbin/sysctl -a` on a live host, else the `sysctl.d` directories and `/etc/sysctl.conf` | `kv` | `sysctl.settings` |
+| `sysctl-apparmor` | `/usr/sbin/sysctl --all --pattern '^kernel\.apparmor_restrict_unprivileged_'` on a live host, as root | `kv` | `sysctl.apparmor` |
 | `kernel-modules-shipped` | `modules.order` of every kernel in `/lib/modules` | `match` | `kernel.shipped.<module>` |
 | `kernel-modules-builtin` | `modules.builtin` of every kernel in `/lib/modules` | `match` | `kernel.builtin.<module>` |
 | `kernel-modules-blacklist` | `/usr/sbin/modprobe --showconfig` on a live host, else the `modprobe.d` files | `words` | `kernel.blacklist.<module>` |
@@ -49,6 +50,10 @@ prints it. A whole number becomes a number, anything else stays a string.
 an unprivileged run cannot read some keys (`kernel.cad_pid`, the
 `stable_secret` of each interface), and a rule on one of them answers
 `unknown`.
+
+The AppArmor keys are root-only, so `sysctl-apparmor` reads them alone as a
+`privileged` collector: unprivileged, `kernel/apparmor-unconfined` is `Not
+run`, and a kernel without AppArmor’s user namespace restriction skips it.
 
 The files are applied as systemd-sysctl applies them (`read.order: drop-in`): one file per name, from
 the highest of `/etc/sysctl.d`, `/run/sysctl.d`, `/usr/local/lib/sysctl.d`,
