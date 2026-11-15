@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: unattended-upgrades-binary
+read:
+  stat: [/usr/local/*bin/unattended-upgrade, /usr/*bin/unattended-upgrade, /*bin/unattended-upgrade]
+parse: {plugin: formats, op: stat}
+into: unattended-upgrades.binary

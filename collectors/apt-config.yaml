@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: apt-config
+read:
+  exec:
+    - /usr/bin/apt-config
+    - dump
+    - --no-empty
+    - --format
+    - "%f='%v'%n"
+    - APT::Get::AllowUnauthenticated
+    - APT::Install-Recommends
+    - APT::Install-Suggests
+    - APT::Periodic::Update-Package-Lists
+    - APT::Periodic::Unattended-Upgrade
+    - Acquire::AllowInsecureRepositories
+    - Acquire::AllowWeakRepositories
+    - Acquire::AllowDowngradeToInsecureRepositories
+    - Acquire::Check-Date
+    - Unattended-Upgrade::Remove-Unused-Dependencies
+    - Unattended-Upgrade::Remove-Unused-Kernel-Packages
+parse:
+  plugin: formats
+  op: kv
+  with: {comments: [], repeat: last}
+into: apt.config

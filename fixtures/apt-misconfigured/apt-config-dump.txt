@@ -1,0 +1,7 @@
+APT::Get::AllowUnauthenticated='1'
+APT::Install-Recommends='1'
+APT::Install-Suggests='0'
+Acquire::AllowInsecureRepositories='yes'
+Acquire::AllowWeakRepositories='true'
+Acquire::AllowDowngradeToInsecureRepositories='on'
+Acquire::Check-Date='false'

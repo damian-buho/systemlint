@@ -114,10 +114,12 @@ org:
         include:
           - fixtures/sshd/sshd-T.txt
           - fixtures/sshd/accounts/
+          - fixtures/*/apt-config-dump.txt
       fd:
         include:
           - fixtures/sshd/sshd-T.txt
           - fixtures/sshd/accounts/
+          - fixtures/*/apt-config-dump.txt
     readme:
       download: latest/download
       installation:

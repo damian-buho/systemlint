@@ -146,3 +146,66 @@ rules:
     references:
       - {title: Lynis PKGS-7388, url: "https://cisofy.com/lynis/controls/PKGS-7388/"}
     tags: [apt, lynis]
+  apt/allow-unauthenticated:
+    title: apt installs unsigned packages
+    fact: apt.config
+    expect: {patternProperties: {"(?i)^apt::get::allowunauthenticated$": {not: {pattern: &true "(?i)^(\\s*\\+?(0x)?0*1|yes|true|with|on|enable)$"}}}}
+    severity: error
+    score: 9.5
+    message: "APT::Get::AllowUnauthenticated is on, so apt-get installs a package it could not verify, from any mirror or attacker in the path, without asking"
+    fix: remove APT::Get::AllowUnauthenticated from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "false"
+    docs: https://manpages.debian.org/unstable/apt/apt-get.8.en.html
+    tags: [apt, stig-ubuntu-26.04:UBTU-24-300001]
+  apt/allow-insecure-repositories:
+    title: apt reads unsigned repositories
+    fact: apt.config
+    expect: {patternProperties: {"(?i)^acquire::allowinsecurerepositories$": {not: {pattern: *true}}}}
+    severity: error
+    score: 9.5
+    message: "Acquire::AllowInsecureRepositories is on, so apt update accepts package lists with no valid signature, and a mirror or attacker in the path chooses what gets installed"
+    fix: remove Acquire::AllowInsecureRepositories from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "0"
+    docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
+    tags: [apt, cis-ubuntu-26.04:1.2.1.12]
+  apt/allow-weak-repositories:
+    title: apt trusts weakly signed repositories
+    fact: apt.config
+    expect: {patternProperties: {"(?i)^acquire::allowweakrepositories$": {not: {pattern: *true}}}}
+    severity: error
+    score: 7.5
+    message: "Acquire::AllowWeakRepositories is on, so apt update accepts package lists signed with a broken hash or key, which an attacker can forge"
+    fix: remove Acquire::AllowWeakRepositories from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "0"
+    docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
+    tags: [apt, cis-ubuntu-26.04:1.2.1.13]
+  apt/allow-downgrade-to-insecure:
+    title: apt drops a repository’s signature when it vanishes
+    fact: apt.config
+    expect: {patternProperties: {"(?i)^acquire::allowdowngradetoinsecurerepositories$": {not: {pattern: *true}}}}
+    severity: error
+    score: 8.0
+    message: "Acquire::AllowDowngradeToInsecureRepositories is on, so an attacker in the path who strips a signed repository’s signature has apt read it unsigned"
+    fix: remove Acquire::AllowDowngradeToInsecureRepositories from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "0"
+    docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
+    tags: [apt, cis-ubuntu-26.04:1.2.1.14]
+  apt/check-date-off:
+    title: apt accepts Release files dated in the future
+    fact: apt.config
+    expect: {patternProperties: {"(?i)^acquire::check-date$": {not: {pattern: &false "(?i)^(|\\s*[+-]?(0x0+|0+)|no|false|without|off|disable)$"}}}}
+    severity: warning
+    score: 5.0
+    message: "Acquire::Check-Date is off, so apt stops checking a Release file’s date, and a mirror can serve metadata held back from updates without apt noticing"
+    fix: remove Acquire::Check-Date from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "true"
+    docs: https://manpages.debian.org/unstable/apt/apt.conf.5.en.html
+    tags: [apt, cis-ubuntu-26.04:1.2.1.15]
+  apt/weak-dependencies:
+    title: apt installs recommended and suggested packages
+    fact: apt.config
+    expect:
+      allOf:
+        - {not: {patternProperties: {"(?i)^apt::install-recommends$": {not: {pattern: *false}}}}}
+        - {patternProperties: {"(?i)^apt::install-suggests$": {not: {pattern: *true}}}}
+    severity: info
+    score: 2.0
+    message: "APT::Install-Recommends or APT::Install-Suggests is on, so every install pulls in packages nobody asked for, each one more to patch"
+    fix: set APT::Install-Recommends "0"; and APT::Install-Suggests "0"; in a file under /etc/apt/apt.conf.d/
+    docs: https://manpages.debian.org/unstable/apt/apt.conf.5.en.html
+    tags: [apt, '!default', cis-ubuntu-26.04:1.2.1.2]

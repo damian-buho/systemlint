@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: An installed unattended-upgrades that apt’s daily run never starts, or that keeps what it replaced
+tags: [default]
+when: {unattended-upgrades.binary: {minProperties: 1}}
+rules:
+  unattended-upgrades/off:
+    title: unattended-upgrades installed but never run
+    fact: apt.config
+    expect: {not: {patternProperties: {"(?i)^apt::periodic::unattended-upgrade$": {const: "0"}}}}
+    severity: warning
+    score: 5.5
+    message: "APT::Periodic::Unattended-Upgrade is 0 or unset, so apt’s daily run never starts unattended-upgrades and security updates wait for someone to install them"
+    fix: set APT::Periodic::Unattended-Upgrade "1"; in /etc/apt/apt.conf.d/20auto-upgrades, as dpkg-reconfigure unattended-upgrades writes it
+    docs: https://manpages.debian.org/unstable/unattended-upgrades/unattended-upgrade.8.en.html
+    references:
+      - {title: Lynis PKGS-7420, url: "https://cisofy.com/lynis/controls/PKGS-7420/"}
+    tags: [apt, lynis]
+  unattended-upgrades/stale-lists:
+    title: unattended-upgrades runs on package lists never refreshed
+    fact: apt.config
+    when: {apt.config: {not: {patternProperties: {"(?i)^apt::periodic::unattended-upgrade$": {const: "0"}}}}}
+    expect: {not: {patternProperties: {"(?i)^apt::periodic::update-package-lists$": {const: "0"}}}}
+    severity: warning
+    score: 5.5
+    message: "APT::Periodic::Update-Package-Lists is 0 or unset, so unattended-upgrades runs daily against old package lists and finds no new security update"
+    fix: set APT::Periodic::Update-Package-Lists "1"; in /etc/apt/apt.conf.d/20auto-upgrades, as dpkg-reconfigure unattended-upgrades writes it
+    docs: https://manpages.debian.org/unstable/unattended-upgrades/unattended-upgrade.8.en.html
+    references:
+      - {title: Lynis PKGS-7420, url: "https://cisofy.com/lynis/controls/PKGS-7420/"}
+    tags: [apt, lynis]
+  unattended-upgrades/keeps-replaced:
+    title: unattended-upgrades keeps the packages it replaced
+    fact: apt.config
+    expect:
+      allOf:
+        - {not: {patternProperties: {"(?i)^unattended-upgrade::remove-unused-dependencies$": {not: {pattern: "(?i)^(\\s*\\+?(0x)?0*1|yes|true|with|on|enable)$"}}}}}
+        - {patternProperties: {"(?i)^unattended-upgrade::remove-unused-kernel-packages$": {not: {pattern: "(?i)^(|\\s*[+-]?(0x0+|0+)|no|false|without|off|disable)$"}}}}
+    severity: info
+    score: 2.0
+    message: "Unattended-Upgrade::Remove-Unused-Dependencies is off or Remove-Unused-Kernel-Packages is off, so dependencies and kernels an upgrade replaced stay installed"
+    fix: set Unattended-Upgrade::Remove-Unused-Dependencies "true"; and Unattended-Upgrade::Remove-Unused-Kernel-Packages "true"; in /etc/apt/apt.conf.d/50unattended-upgrades
+    docs: https://manpages.debian.org/unstable/unattended-upgrades/unattended-upgrade.8.en.html
+    tags: [apt, '!default', stig-ubuntu-26.04:UBTU-24-700320]

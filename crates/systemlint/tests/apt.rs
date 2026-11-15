@@ -12,7 +12,10 @@ use systemlint::collector::Collector;
 use systemlint::judge::{Check, Outcome, compile, lint};
 use systemlint::rules::Library;
 use systemlint::source::Root;
-use systemlint_protocol::{Describe, PROTOCOL, Reply, Request};
+use systemlint_protocol::{Describe, ExecInput, Input, PROTOCOL, Reply, Request};
+
+// The rules of the apt ruleset a default run selects.
+const DEFAULT_RULES: usize = 16;
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -41,7 +44,13 @@ fn document(root: &str) -> Value {
     };
     let mut facts = Map::new();
     let mut outcomes = Map::new();
-    for id in ["os-release", "apt-lists", "apt-sources", "apt-installed"] {
+    for id in [
+        "os-release",
+        "apt-lists",
+        "apt-sources",
+        "apt-installed",
+        "apt-config",
+    ] {
         let c = collector(id);
         let (describe, op): (Describe, fn(Request) -> systemlint_protocol::Result<Reply>) =
             match c.parse.plugin.as_str() {
@@ -70,7 +79,10 @@ fn document(root: &str) -> Value {
             op: c.parse.op.clone(),
             root: "/".to_owned(),
             now: Some(rfc3339(options.now)),
-            inputs: inputs(&c, &options).unwrap(),
+            inputs: match &c.read.exec {
+                Some(argv) => vec![captured(root, argv)],
+                None => inputs(&c, &options).unwrap(),
+            },
             facts: given,
             with: c.parse.with.clone(),
         };
@@ -89,6 +101,20 @@ fn document(root: &str) -> Value {
     Value::Object(facts)
 }
 
+// A command collector's input as the fixture's capture holds it (.scripts/capture-apt-config-fixture.sh).
+fn captured(root: &str, argv: &[String]) -> Input {
+    let path = repository()
+        .join("fixtures")
+        .join(root)
+        .join("apt-config-dump.txt");
+    Input::Exec(ExecInput {
+        argv: argv.to_vec(),
+        stdout: std::fs::read_to_string(path).unwrap(),
+        stderr: String::new(),
+        exit: 0,
+    })
+}
+
 fn checks(document: &Value) -> Vec<Check> {
     let ruleset = systemlint::yaml::from_str(
         &std::fs::read_to_string(repository().join("rulesets/apt.yaml")).unwrap(),
@@ -96,12 +122,12 @@ fn checks(document: &Value) -> Vec<Check> {
     .unwrap();
     let library = Library::new(BTreeMap::from([("apt".to_owned(), ruleset)])).unwrap();
     let rules: Vec<_> = library
-        .select(&["apt".to_owned()])
+        .select(&["default".to_owned()])
         .unwrap()
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
-    assert_eq!(rules.len(), 11);
+    assert_eq!(rules.len(), DEFAULT_RULES);
     lint(document, &rules, &[], "2026-11-11")
 }
 
@@ -147,7 +173,8 @@ fn the_apt_rules_apply_to_debian_ubuntu_and_their_derivatives_alone() {
                 "{release}: {outcomes:?}"
             ),
             false => assert!(
-                checks.len() == 11 && outcomes.iter().all(|o| *o == Outcome::NotApplicable),
+                checks.len() == DEFAULT_RULES
+                    && outcomes.iter().all(|o| *o == Outcome::NotApplicable),
                 "{release}: {outcomes:?}"
             ),
         }
@@ -214,6 +241,11 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
         "/etc/apt/sources.list.d/mirror.list:5",
     );
     let mut expected = [
+        ("apt/allow-downgrade-to-insecure", String::new()),
+        ("apt/allow-insecure-repositories", String::new()),
+        ("apt/allow-unauthenticated", String::new()),
+        ("apt/allow-weak-repositories", String::new()),
+        ("apt/check-date-off", String::new()),
         ("apt/duplicate", format!("{list}:5")),
         ("apt/duplicate", mirror.to_owned()),
         ("apt/https", format!("{list}:5")),

@@ -11,6 +11,7 @@
 .env
 .secrets/
 LICENSES/
+fixtures/*/apt-config-dump.txt
 fixtures/sshd/accounts/
 fixtures/sshd/sshd-T.txt
 # <<< user-patterns

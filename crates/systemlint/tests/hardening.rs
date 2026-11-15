@@ -1668,3 +1668,202 @@ fn a_builtin_module_from_the_default_list_is_a_finding() {
         )]
     );
 }
+
+// A Debian-like facts document whose apt-config dump printed `config`, or failed with None.
+fn apt_config(config: Option<Value>) -> Value {
+    let status = if config.is_some() { "ok" } else { "error" };
+    let mut document = json!({"os": {"release": {"ID": "ubuntu"}}, "unattended-upgrades": {"binary": {"/usr/bin/unattended-upgrade": {"kind": "file"}}}, "collectors": {"os-release": {"status": "ok", "into": "os.release"}, "apt-config": {"status": status, "into": "apt.config"}, "unattended-upgrades-binary": {"status": "ok", "into": "unattended-upgrades.binary"}}});
+    if let Some(config) = config {
+        document["apt"] = json!({"config": config});
+    }
+    document
+}
+
+// The outcome of one rule of a ruleset over apt-config's keys.
+fn apt_rule(ruleset: &str, rule: &str, config: Option<Value>) -> Outcome {
+    judge(ruleset, &apt_config(config))
+        .into_iter()
+        .find(|(r, _, _)| r == rule)
+        .unwrap_or_else(|| panic!("{rule} gave no check"))
+        .2
+}
+
+#[test]
+fn an_apt_switch_fails_only_on_a_value_apt_reads_as_the_unsafe_one() {
+    let on = [
+        "1", "01", "0x1", "+1", "yes", "TRUE", "with", "On", "enable",
+    ];
+    let off = [
+        "0", "", "-0", "0x0", "no", "False", "without", "OFF", "disable",
+    ];
+    let ignored = ["2", "-1", "maybe", "0x"];
+    let unsafe_when_on = [
+        (
+            "apt/allow-unauthenticated",
+            "APT::Get::AllowUnauthenticated",
+        ),
+        (
+            "apt/allow-insecure-repositories",
+            "Acquire::AllowInsecureRepositories",
+        ),
+        (
+            "apt/allow-weak-repositories",
+            "Acquire::AllowWeakRepositories",
+        ),
+        (
+            "apt/allow-downgrade-to-insecure",
+            "Acquire::AllowDowngradeToInsecureRepositories",
+        ),
+    ];
+    for (rule, key) in unsafe_when_on {
+        let one = |value: &str| apt_rule("apt", rule, Some(json!({key: value})));
+        assert_eq!(
+            apt_rule("apt", rule, Some(json!({}))),
+            Outcome::Pass,
+            "{rule} unset"
+        );
+        on.iter()
+            .for_each(|v| assert_eq!(one(v), Outcome::Fail, "{rule} {v:?}"));
+        off.iter()
+            .chain(&ignored)
+            .for_each(|v| assert_eq!(one(v), Outcome::Pass, "{rule} {v:?}"));
+        let lower = key.to_lowercase();
+        assert_eq!(
+            apt_rule("apt", rule, Some(json!({lower: "1"}))),
+            Outcome::Fail,
+            "{rule} lowercase"
+        );
+        assert_eq!(
+            apt_rule("apt", rule, None),
+            Outcome::Unknown,
+            "{rule} with apt-config failed"
+        );
+    }
+    let check_date = |value: &str| {
+        apt_rule(
+            "apt",
+            "apt/check-date-off",
+            Some(json!({"Acquire::Check-Date": value})),
+        )
+    };
+    assert_eq!(
+        apt_rule("apt", "apt/check-date-off", Some(json!({}))),
+        Outcome::Pass
+    );
+    off.iter()
+        .for_each(|v| assert_eq!(check_date(v), Outcome::Fail, "check-date {v:?}"));
+    on.iter()
+        .chain(&ignored)
+        .for_each(|v| assert_eq!(check_date(v), Outcome::Pass, "check-date {v:?}"));
+    let mut debian_only = apt_config(Some(json!({"APT::Get::AllowUnauthenticated": "1"})));
+    debian_only["os"]["release"] = json!({"ID": "fedora"});
+    assert!(
+        judge("apt", &debian_only)
+            .iter()
+            .all(|(_, _, o)| *o == Outcome::NotApplicable)
+    );
+}
+
+#[test]
+fn weak_dependencies_fail_until_recommends_is_off_and_suggests_stays_off() {
+    let weak = |config: Value| apt_rule("apt", "apt/weak-dependencies", Some(config));
+    assert_eq!(weak(json!({})), Outcome::Fail, "apt recommends by default");
+    assert_eq!(weak(json!({"APT::Install-Recommends": "0"})), Outcome::Pass);
+    assert_eq!(
+        weak(json!({"APT::Install-Recommends": "2"})),
+        Outcome::Fail,
+        "apt ignores 2 and recommends"
+    );
+    assert_eq!(
+        weak(json!({"APT::Install-Recommends": "0", "APT::Install-Suggests": "0"})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        weak(json!({"APT::Install-Recommends": "false", "APT::Install-Suggests": "1"})),
+        Outcome::Fail
+    );
+}
+
+#[test]
+fn unattended_upgrades_fail_off_or_on_stale_lists_and_only_where_installed() {
+    let run = |rule: &str, config: Value| apt_rule("unattended-upgrades", rule, Some(config));
+    let on = json!({"APT::Periodic::Unattended-Upgrade": "1", "APT::Periodic::Update-Package-Lists": "1"});
+    assert_eq!(run("unattended-upgrades/off", on.clone()), Outcome::Pass);
+    assert_eq!(run("unattended-upgrades/stale-lists", on), Outcome::Pass);
+    assert_eq!(
+        run("unattended-upgrades/off", json!({})),
+        Outcome::Fail,
+        "unset is 0"
+    );
+    assert_eq!(
+        run(
+            "unattended-upgrades/off",
+            json!({"APT::Periodic::Unattended-Upgrade": "0"})
+        ),
+        Outcome::Fail
+    );
+    for interval in ["always", "1d", "00", "12h"] {
+        assert_eq!(
+            run(
+                "unattended-upgrades/off",
+                json!({"APT::Periodic::Unattended-Upgrade": interval})
+            ),
+            Outcome::Pass,
+            "{interval}"
+        );
+    }
+    let stale = json!({"APT::Periodic::Unattended-Upgrade": "1", "APT::Periodic::Update-Package-Lists": "0"});
+    assert_eq!(run("unattended-upgrades/stale-lists", stale), Outcome::Fail);
+    assert_eq!(
+        run(
+            "unattended-upgrades/stale-lists",
+            json!({"APT::Periodic::Unattended-Upgrade": "1"})
+        ),
+        Outcome::Fail,
+        "unset lists"
+    );
+    assert_eq!(
+        run("unattended-upgrades/stale-lists", json!({})),
+        Outcome::Skip,
+        "off is the other rule’s finding"
+    );
+    let mut absent = apt_config(Some(json!({})));
+    absent["unattended-upgrades"]["binary"] = json!({});
+    assert!(
+        judge("unattended-upgrades", &absent)
+            .iter()
+            .all(|(_, _, o)| *o == Outcome::NotApplicable)
+    );
+}
+
+#[test]
+fn unattended_upgrades_keep_replaced_packages_until_both_removals_are_on() {
+    let keeps = |config: Value| {
+        apt_rule(
+            "unattended-upgrades",
+            "unattended-upgrades/keeps-replaced",
+            Some(config),
+        )
+    };
+    assert_eq!(
+        keeps(json!({})),
+        Outcome::Fail,
+        "unused dependencies stay by default"
+    );
+    assert_eq!(
+        keeps(json!({"Unattended-Upgrade::Remove-Unused-Dependencies": "true"})),
+        Outcome::Pass,
+        "kernels go by default"
+    );
+    assert_eq!(
+        keeps(
+            json!({"Unattended-Upgrade::Remove-Unused-Dependencies": "true", "Unattended-Upgrade::Remove-Unused-Kernel-Packages": "false"})
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        keeps(json!({"Unattended-Upgrade::Remove-Unused-Dependencies": "maybe"})),
+        Outcome::Fail,
+        "an unread value keeps the default"
+    );
+}

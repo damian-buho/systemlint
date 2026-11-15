@@ -8,8 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The `systemlint-apt` plugin and its three collectors read apt’s configuration
 and cache, and the `apt` ruleset judges them; every input is a file, so a live
-host and `--root` give the same facts. A fourth collector asks apt itself for
-the pending upgrades, on a live host only.
+host and `--root` give the same facts. Two more ask apt itself, on a live host
+only: for the pending upgrades, and for the effective value of the settings the
+rules judge.
 
 ```sh
 systemlint check --tags apt
@@ -24,6 +25,8 @@ systemlint check --root /mnt/image --tags apt
 | `apt-sources` | `/etc/apt/sources.list`, `sources.list.d/*.sources` and `*.list` | `apt.sources.<path>:<line>` |
 | `apt-installed` | `/var/lib/dpkg/status` | `apt.installed.<package>` |
 | `apt-upgrades` | `apt-get --simulate dist-upgrade`, live only, `formats match` | `apt.upgrades.<package>` |
+| `apt-config` | `apt-config dump` of the keys the rules judge, live only, `formats kv` | `apt.config.<key>` |
+| `unattended-upgrades-binary` | `unattended-upgrade` in the usual `bin` directories, `formats stat` | `unattended-upgrades.binary.<path>` |
 
 `apt-sources` needs `os.release` and `apt.lists`, so it runs after both.
 
@@ -68,6 +71,15 @@ rule matches a pending security fix with `pattern` on `origins` ending
 rules are `unknown`, never a clean pass. apt resolves against the cached
 lists, so the answer is as fresh as the last `apt update`.
 
+`apt.config` holds each judged key apt has a value for, spelled as apt
+first read it (apt compares keys without case, so the rules do too), each value
+as text: apt settles `apt.conf`, `apt.conf.d` in name order and its compiled
+defaults itself, and an unset key is absent. The collector names its keys, so
+nothing else of apt’s configuration, such as a proxy URL with a password in
+it, enters the facts. A rule reads a boolean as apt’s `StringToBool` does
+(`1`, `yes`, `true`, `with`, `on`, `enable` without case, a number through
+`strtol`), and any other value as apt’s default for the key.
+
 `release-age-days` is no fetch time: apt records none, and a stable release’s
 base suite keeps the `Date:` it shipped with. A Release is stale for apt only
 once its `Valid-Until` passes.
@@ -98,6 +110,28 @@ security fixes never arrive. It judges Debian and Ubuntu releases that carry a
 `UBUNTU_CODENAME` or `DEBIAN_CODENAME`, such as Linux Mint, Pop!_OS and LMDE;
 testing, unstable, rolling derivatives such as Kali, and derivatives that
 publish no security suite, such as Raspbian, answer `skip`.
+
+The rules over `apt.config` judge what apt does with its settings, so an
+unset key passes where apt’s default is safe:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `apt/allow-unauthenticated` | error | `APT::Get::AllowUnauthenticated` is on |
+| `apt/allow-insecure-repositories` | error | `Acquire::AllowInsecureRepositories` is on |
+| `apt/allow-weak-repositories` | error | `Acquire::AllowWeakRepositories` is on |
+| `apt/allow-downgrade-to-insecure` | error | `Acquire::AllowDowngradeToInsecureRepositories` is on |
+| `apt/check-date-off` | warning | `Acquire::Check-Date` is off |
+| `apt/weak-dependencies` | info | `APT::Install-Recommends` is not off, or `APT::Install-Suggests` is on; CIS only, out of `default` |
+
+The `unattended-upgrades` ruleset applies where `unattended-upgrade` is on
+disk. `unattended-upgrades/off` (warning) fails when
+`APT::Periodic::Unattended-Upgrade` is `0` or unset, as `apt.systemd.daily`
+reads it; `unattended-upgrades/stale-lists` (warning) fails when it runs while
+`APT::Periodic::Update-Package-Lists` is `0` or unset, so it upgrades against
+old lists; `unattended-upgrades/keeps-replaced` (info, STIG only, out of
+`default`) fails unless both `Unattended-Upgrade::Remove-Unused-Dependencies`
+and `Remove-Unused-Kernel-Packages` are on. Whether `apt-daily.timer` and
+`apt-daily-upgrade.timer` fire is not judged yet.
 
 A vendor that publishes one suite for every release, such as `xenial` for
 all Ubuntu versions, fails `apt/stale-suite` by design; waive it:
