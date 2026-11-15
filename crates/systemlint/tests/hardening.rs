@@ -2094,3 +2094,91 @@ fn a_plain_listener_fails_from_its_first_address_beyond_the_loopback() {
         "memcached over TCP"
     );
 }
+
+// The outcome of one sudo-defaults rule for one account’s Defaults, with the ruleset vars in `config`.
+fn sudo_defaults(rule: &str, defaults: Value, config: Value) -> Option<Outcome> {
+    let document = json!({"sudo": {"binary": {"/usr/bin/sudo": {}}, "version": {"1.9.17p2": {}}, "defaults": {"bob": defaults}}});
+    checks_with("sudo-defaults", &document, config)
+        .into_iter()
+        .find(|c| c.rule == format!("sudo-defaults/{rule}"))
+        .map(|c| c.outcome)
+}
+
+#[test]
+fn sudo_defaults_fail_from_their_edge_and_an_unset_key_keeps_the_safe_default() {
+    let at = |rule: &str, defaults: Value| sudo_defaults(rule, defaults, json!({})).unwrap();
+    let on = json!({"env_reset": true});
+    assert_eq!(at("no-authenticate", on.clone()), Outcome::Pass);
+    assert_eq!(
+        at("no-authenticate", json!({"authenticate": true})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        at("no-authenticate", json!({"authenticate": false})),
+        Outcome::Fail
+    );
+    assert_eq!(
+        at("no-pty", on.clone()),
+        Outcome::Pass,
+        "use_pty is on by default since sudo 1.9.14"
+    );
+    assert_eq!(at("no-pty", json!({"use_pty": false})), Outcome::Fail);
+    assert_eq!(
+        at("use-pty", on.clone()),
+        Outcome::Fail,
+        "CIS asks for it spelled out"
+    );
+    assert_eq!(at("use-pty", json!({"use_pty": true})), Outcome::Pass);
+    assert_eq!(at("logfile", on.clone()), Outcome::Fail);
+    assert_eq!(at("logfile", json!({"logfile": false})), Outcome::Fail);
+    assert_eq!(
+        at("logfile", json!({"logfile": "/var/log/sudo.log"})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        at("timestamp-timeout", on.clone()),
+        Outcome::Pass,
+        "unset is the build default, 15 or less"
+    );
+    for (minutes, outcome) in [
+        (json!(0), Outcome::Pass),
+        (json!(15), Outcome::Pass),
+        (json!(16), Outcome::Fail),
+        (json!(-1), Outcome::Fail),
+        (json!("2.5"), Outcome::Pass),
+    ] {
+        assert_eq!(
+            at("timestamp-timeout", json!({"timestamp_timeout": minutes})),
+            outcome,
+            "{minutes}"
+        );
+    }
+    let strict = |minutes: i64| {
+        sudo_defaults(
+            "timestamp-timeout",
+            json!({"timestamp_timeout": minutes}),
+            json!({"sudo-timestamp-timeout": 5}),
+        )
+        .unwrap()
+    };
+    assert_eq!((strict(5), strict(6)), (Outcome::Pass, Outcome::Fail));
+    assert_eq!(
+        sudo_defaults("use-pty", json!({}), json!({})),
+        Some(Outcome::Skip),
+        "an account sudo does not allow"
+    );
+}
+
+#[test]
+fn a_host_without_sudo_finds_sudo_defaults_not_applicable() {
+    let document = json!({"sudo": {"binary": {}}, "collectors": {"sudo-binary": {"status": "ok", "into": "sudo.binary"}, "sudo-version": {"status": "skipped", "into": "sudo.version"}, "sudo-defaults": {"status": "skipped", "into": "sudo.defaults"}}});
+    let outcomes: Vec<_> = checks("sudo-defaults", &document)
+        .into_iter()
+        .map(|c| c.outcome)
+        .collect();
+    assert_eq!(outcomes.len(), 5);
+    assert!(
+        outcomes.iter().all(|o| *o == Outcome::NotApplicable),
+        "{outcomes:?}"
+    );
+}

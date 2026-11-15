@@ -17,46 +17,55 @@ fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-// Each account's grants as the shipped collector parses `.scripts/capture-sudo-fixture.sh ubuntu:26.04 alice bob carol dave daemon` under `sudo`.
-fn grants(sudo: &str) -> Value {
+// The shipped collector `id`’s parse of one captured `file` of `.scripts/capture-sudo-fixture.sh ubuntu:26.04 alice bob carol dave daemon` under `sudo`.
+fn parsed(id: &str, sudo: &str, file: &str) -> Value {
     let collector = Collector::parse(
-        &std::fs::read_to_string(repository().join("collectors/sudo-grants.yaml")).unwrap(),
+        &std::fs::read_to_string(repository().join(format!("collectors/{id}.yaml"))).unwrap(),
     )
     .unwrap();
-    let argv = collector.read.exec_from.clone().unwrap().argv;
-    let mut grants = Map::new();
-    for account in ACCOUNTS {
-        let stdout = std::fs::read_to_string(
-            repository().join(format!("fixtures/sudo/{sudo}/{account}.txt")),
-        )
-        .unwrap();
-        let input = Input::Exec(ExecInput {
-            argv: argv.iter().map(|a| a.replace("{key}", account)).collect(),
-            stdout,
-            stderr: String::new(),
-            exit: 0,
-        });
-        let request = Request {
-            protocol: PROTOCOL,
-            op: collector.parse.op.clone(),
-            root: "/".to_owned(),
-            now: None,
-            inputs: vec![input],
-            facts: BTreeMap::new(),
-            with: collector.parse.with.clone(),
-        };
-        let reply = systemlint_formats::op(request).unwrap();
-        assert!(
-            reply.diagnostics.is_empty(),
-            "{sudo} {account}: {:?}",
-            reply.diagnostics
-        );
-        grants.insert(
-            account.to_owned(),
-            Value::Object(reply.facts.into_iter().collect()),
-        );
-    }
-    Value::Object(grants)
+    let argv = match &collector.read.exec_from {
+        Some(each) => each.argv.iter().map(|a| a.replace("{key}", file)).collect(),
+        None => collector.read.exec.clone().unwrap(),
+    };
+    let stdout =
+        std::fs::read_to_string(repository().join(format!("fixtures/sudo/{sudo}/{file}.txt")))
+            .unwrap();
+    let input = Input::Exec(ExecInput {
+        argv,
+        stdout,
+        stderr: String::new(),
+        exit: 0,
+    });
+    let request = Request {
+        protocol: PROTOCOL,
+        op: collector.parse.op.clone(),
+        root: "/".to_owned(),
+        now: None,
+        inputs: vec![input],
+        facts: BTreeMap::new(),
+        with: collector.parse.with.clone(),
+    };
+    let reply = systemlint_formats::op(request).unwrap();
+    assert!(
+        reply.diagnostics.is_empty(),
+        "{id} {sudo} {file}: {:?}",
+        reply.diagnostics
+    );
+    Value::Object(reply.facts.into_iter().collect())
+}
+
+// Each account's facts from the shipped collector `id` under `sudo`.
+fn accounts(id: &str, sudo: &str) -> Value {
+    let facts: Map<String, Value> = ACCOUNTS
+        .iter()
+        .map(|a| ((*a).to_owned(), parsed(id, sudo, a)))
+        .collect();
+    Value::Object(facts)
+}
+
+// Each account's grants as the shipped collector parses them under `sudo`.
+fn grants(sudo: &str) -> Value {
+    accounts("sudo-grants", sudo)
 }
 
 // The sudo ruleset's (rule, subject, outcome) over grants and visudo's exit status, with sudo on disk or not.
@@ -125,5 +134,80 @@ fn a_sudoers_visudo_rejects_fails_and_a_host_without_sudo_is_not_judged() {
         judged(grants("sudo-rs"), Some(1), false)
             .iter()
             .all(|(_, _, o)| *o == Outcome::NotApplicable)
+    );
+}
+
+// The sudo-defaults ruleset's (rule, subject, outcome) over the captures under `sudo`, standard-only rules included.
+fn defaults(sudo: &str) -> Vec<(String, String, Outcome)> {
+    let document = json!({
+        "sudo": {"binary": {"/usr/bin/sudo": {"kind": "file"}}, "version": parsed("sudo-version", sudo, "version"), "defaults": accounts("sudo-defaults", sudo)},
+        "collectors": {"sudo-version": {"status": "ok", "into": "sudo.version"}, "sudo-defaults": {"status": "ok", "into": "sudo.defaults"}},
+    });
+    let text = std::fs::read_to_string(repository().join("rulesets/sudo-defaults.yaml"))
+        .unwrap()
+        .replace("\"${sudo-timestamp-timeout}\"", "15")
+        .replace("${sudo-timestamp-timeout}", "15");
+    let ruleset = systemlint::yaml::from_str(&text).unwrap();
+    let library = Library::new(BTreeMap::from([("sudo-defaults".to_owned(), ruleset)])).unwrap();
+    let rules: Vec<_> = library
+        .select(&["sudo".to_owned()])
+        .unwrap()
+        .into_iter()
+        .map(|(id, spec)| compile(&id, spec).unwrap())
+        .collect();
+    let mut checks: Vec<_> = lint(&document, &rules, &[], "2026-11-15")
+        .into_iter()
+        .filter(|c| c.outcome != Outcome::Pass && c.outcome != Outcome::Skip)
+        .map(|c| (c.rule.clone(), c.subject_label(), c.outcome))
+        .collect();
+    checks.sort();
+    checks
+}
+
+#[test]
+fn classic_sudo_defaults_fail_the_accounts_they_apply_to() {
+    assert_eq!(
+        parsed("sudo-defaults", "sudo.ws", "dave"),
+        json!({
+            "env_reset": true, "mail_badpass": true,
+            "secure_path": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin",
+            "use_pty": false, "env_keep+": "LANG LC_*", "logfile": "/var/log/sudo log",
+        }),
+        "Defaults:dave !use_pty comes after the global use_pty and wins"
+    );
+    let fail = |rule: &str, subject: &str| {
+        (
+            format!("sudo-defaults/{rule}"),
+            subject.to_owned(),
+            Outcome::Fail,
+        )
+    };
+    assert_eq!(
+        defaults("sudo.ws"),
+        [
+            fail("logfile", "alice"),
+            fail("logfile", "bob"),
+            fail("logfile", "carol"),
+            fail("no-authenticate", "bob"),
+            fail("no-pty", "dave"),
+            fail("timestamp-timeout", "bob"),
+            fail("use-pty", "dave"),
+        ],
+        "daemon may not run sudo, so it has no Defaults to judge"
+    );
+}
+
+#[test]
+fn sudo_rs_prints_no_defaults_so_the_ruleset_is_not_applicable() {
+    assert_eq!(
+        parsed("sudo-version", "sudo.ws", "version"),
+        json!({"1.9.17p2": {}})
+    );
+    assert_eq!(parsed("sudo-version", "sudo-rs", "version"), json!({}));
+    let judged = defaults("sudo-rs");
+    assert!(!judged.is_empty());
+    assert!(
+        judged.iter().all(|(_, _, o)| *o == Outcome::NotApplicable),
+        "{judged:?}"
     );
 }

@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: sudo Defaults that let a grant run without a password or a terminal of its own, as classic sudo applies them to each account
+tags: [default]
+when: {sudo.binary: {minProperties: 1}, sudo.version: {minProperties: 1}}
+vars:
+  sudo-timestamp-timeout: {default: 15}
+rules:
+  sudo-defaults/no-authenticate:
+    title: sudo runs commands without asking for a password
+    fact: sudo.defaults.*
+    when: {sudo.defaults.*: {minProperties: 1}}
+    expect: {properties: {authenticate: {not: {const: false}}}}
+    severity: error
+    score: 7.5
+    message: "{subject} has !authenticate in its sudo Defaults, so any program running as {subject} gets every right sudo grants it unasked"
+    fix: remove !authenticate from the Defaults lines in /etc/sudoers and /etc/sudoers.d that apply to {subject}, editing them with visudo
+    docs: https://www.sudo.ws/docs/man/sudoers.man/
+    tags: [sudo, cis-ubuntu-26.04:5.2.5, stig-ubuntu-26.04:UBTU-24-300021]
+  sudo-defaults/no-pty:
+    title: sudo runs commands on the caller’s terminal
+    fact: sudo.defaults.*
+    when: {sudo.defaults.*: {minProperties: 1}}
+    expect: {properties: {use_pty: {not: {const: false}}}}
+    severity: warning
+    score: 4.0
+    message: "{subject} has !use_pty in its sudo Defaults, so a command run as root shares {subject}’s terminal, and a process it leaves behind can type into it"
+    fix: remove !use_pty from the Defaults lines in /etc/sudoers and /etc/sudoers.d that apply to {subject}, editing them with visudo
+    docs: https://www.sudo.ws/docs/man/sudoers.man/
+    tags: [sudo]
+  sudo-defaults/use-pty:
+    title: sudo Defaults do not set use_pty
+    fact: sudo.defaults.*
+    when: {sudo.defaults.*: {minProperties: 1}}
+    expect: {required: [use_pty], properties: {use_pty: {const: true}}}
+    severity: info
+    score: 2.0
+    message: "{subject}’s sudo Defaults do not set use_pty, which CIS asks for spelled out whatever the build’s default"
+    fix: add Defaults use_pty to /etc/sudoers with visudo
+    docs: https://www.sudo.ws/docs/man/sudoers.man/
+    tags: [sudo, cis-ubuntu-26.04:5.2.2, '!default']
+  sudo-defaults/logfile:
+    title: sudo keeps no log file of its own
+    fact: sudo.defaults.*
+    when: {sudo.defaults.*: {minProperties: 1}}
+    expect: {required: [logfile], properties: {logfile: {type: string, pattern: "^/"}}}
+    severity: info
+    score: 2.0
+    message: "{subject}’s sudo Defaults set no logfile, so sudo logs only to syslog"
+    fix: add Defaults logfile="/var/log/sudo.log" to /etc/sudoers with visudo
+    docs: https://www.sudo.ws/docs/man/sudoers.man/
+    tags: [sudo, cis-ubuntu-26.04:5.2.3, '!default']
+  sudo-defaults/timestamp-timeout:
+    title: sudo remembers a password for too long
+    fact: sudo.defaults.*
+    when: {sudo.defaults.*: {minProperties: 1}}
+    expect: {properties: {timestamp_timeout: {anyOf: [{type: integer, minimum: 0, maximum: "${sudo-timestamp-timeout}"}, {type: string, pattern: "^[0-9]+\\.[0-9]+$"}]}}}
+    severity: info
+    score: 2.0
+    message: "{subject}’s sudo timestamp_timeout is {got} minutes, where 0 to ${sudo-timestamp-timeout} is asked; -1 never asks again"
+    fix: set Defaults timestamp_timeout=${sudo-timestamp-timeout} in /etc/sudoers with visudo
+    docs: https://www.sudo.ws/docs/man/sudoers.man/
+    tags: [sudo, cis-ubuntu-26.04:5.2.6, '!default']

@@ -1,2 +1,2 @@
-User carol may run the following commands on 902fe9baf3e0:
+User carol may run the following commands on 1315431d6ff9:
     (ALL : ALL) ALL

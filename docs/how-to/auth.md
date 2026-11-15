@@ -103,6 +103,34 @@ stays one line.
 The ruleset is not applicable without `sudo` on disk. The tag is matched
 where sudo prints one, after the runas list or a comma and a blank; under
 sudo-rs, which prints an escaped comma bare, a command argument written as
-`x\, NOPASSWD: y` would read as a tag. `Defaults` (`use_pty`, `logfile`,
-`timestamp_timeout`, `!authenticate`) are not judged yet: sudo-rs lists none,
-and classic sudo prints them as one comma list.
+`x\, NOPASSWD: y` would read as a tag.
+
+### sudo Defaults
+
+The `sudo-defaults` ruleset judges the `Defaults` classic sudo applies to each
+account, read from the same `sudo --list` output, so a `Defaults:alice` line
+fails alice alone. sudo-rs prints no `Defaults`, so on it the ruleset is not
+applicable.
+
+| Collector | Runs | Op | Facts at |
+| --- | --- | --- | --- |
+| `sudo-version` | `sudo --version`; only classic sudo prints `Sudo version` | `match` | `sudo.version.<version>` |
+| `sudo-defaults` | `sudo --list --other-user=<account>` for every passwd account but uid 0 | `kv` | `sudo.defaults.<account>.<setting>` |
+
+`kv` reads the comma list under `Matching Defaults entries`: a flag is `true`,
+`!flag` is `false`, a later entry of a key wins (`Defaults:dave !use_pty`
+after a global `use_pty`), and a value is unescaped (`secure_path` reads
+`/usr/sbin:/bin`). Runas and command bound `Defaults` (`Defaults>postgres`,
+`Defaults!/usr/bin/id`) are not read. An account sudo allows nothing has no
+`Defaults` and no check.
+
+| Rule | Fails when | Tag |
+| --- | --- | --- |
+| `sudo-defaults/no-authenticate` | `!authenticate`: every grant runs without a password | CIS 5.2.5, STIG UBTU-24-300021 |
+| `sudo-defaults/no-pty` | `!use_pty`: the command shares the caller’s terminal (on by default since sudo 1.9.14) | |
+| `sudo-defaults/use-pty` | `use_pty` is not spelled out, *standard-only* | CIS 5.2.2 |
+| `sudo-defaults/logfile` | no `logfile`, *standard-only* | CIS 5.2.3 |
+| `sudo-defaults/timestamp-timeout` | `timestamp_timeout` is negative (never asks again) or above the `sudo-timestamp-timeout` var, 15, *standard-only* | CIS 5.2.6 |
+
+An unset `timestamp_timeout` passes, the build default being 15 at most; a
+fractional value (`2.5`) reads as text and passes unjudged.

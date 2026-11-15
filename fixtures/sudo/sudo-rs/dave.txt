@@ -1,2 +1,2 @@
-User dave may run the following commands on 902fe9baf3e0:
+User dave may run the following commands on 1315431d6ff9:
     (root) /usr/bin/printf NOPASSWD:x

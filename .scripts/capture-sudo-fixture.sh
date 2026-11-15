@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Usage: capture-sudo-fixture.sh IMAGE ACCOUNT… (ubuntu:26.04 alice bob carol dave daemon): writes fixtures/sudo/<sudo>/<account>.txt per sudo implementation from the sudo-grants collector’s argv, read through a pipe as the core reads it.
+# Usage: capture-sudo-fixture.sh IMAGE ACCOUNT… (ubuntu:26.04 alice bob carol dave daemon): writes fixtures/sudo/<sudo>/<account>.txt per sudo implementation from the sudo-grants collector’s argv, and version.txt from sudo --version, read through a pipe as the core reads it.
 
 set -euo pipefail
 
@@ -29,6 +29,7 @@ timeout --kill-after=30s 900s docker run --rm --cpus 2 --memory 1g --user 0 --en
     sudo="${pair#*:}"
     out="/fixture/${pair%%:*}"
     mkdir --parents "${out}"
+    LC_ALL=C "${sudo}" --version 2>/dev/null | cat > "${out}/version.txt"
     for account in "$@"; do
       read -r -a run <<<"${ARGV//\{key\}/${account}}"
       run[0]="${sudo}"

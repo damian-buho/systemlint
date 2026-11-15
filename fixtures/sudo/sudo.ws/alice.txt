@@ -1,5 +1,8 @@
-Matching Defaults entries for alice on 902fe9baf3e0:
-    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty
+Matching Defaults entries for alice on 1315431d6ff9:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty, env_keep+="LANG LC_*"
 
-User alice may run the following commands on 902fe9baf3e0:
+Runas and Command-specific defaults for alice:
+    Defaults>postgres !use_pty    Defaults!/usr/bin/id !use_pty
+
+User alice may run the following commands on 1315431d6ff9:
     (ALL : ALL) NOPASSWD: ALL

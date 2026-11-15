@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+Defaults env_keep += "LANG LC_*"
+Defaults:bob !authenticate, timestamp_timeout=-1
+Defaults:dave logfile="/var/log/sudo log", !use_pty
+Defaults>postgres !use_pty
+Defaults!/usr/bin/id !use_pty
