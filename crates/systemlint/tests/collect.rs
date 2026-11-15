@@ -39,6 +39,11 @@ const PLUGINS: &[(&str, &str, &str)] = &[
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
     ),
     (
+        "optin",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
+    ),
+    (
         "live",
         r#"[{"op":"parse"}]"#,
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
@@ -1161,14 +1166,14 @@ fn a_partial_collector_keeps_what_it_may_read_and_names_the_rest() {
 
 #[test]
 fn a_containers_collector_runs_only_when_asked() {
-    let yaml = "id: dump\ncontainers: true\nread:\n  files: [/etc/os-release]\nparse: {plugin: dump, op: parse}\ninto: dump\n";
+    let yaml = "id: optin\ncontainers: true\nread:\n  files: [/etc/os-release]\nparse: {plugin: optin, op: parse}\ninto: optin\n";
     let off = collect(&[collector(yaml)], &plugins(), &options(false));
-    assert_eq!(off["collectors"]["dump"]["status"], "skipped", "{off}");
-    assert_eq!(off["collectors"]["dump"]["opt-in"], true, "{off}");
+    assert_eq!(off["collectors"]["optin"]["status"], "skipped", "{off}");
+    assert_eq!(off["collectors"]["optin"]["opt-in"], true, "{off}");
     let asked = Options {
         containers: true,
         ..options(false)
     };
     let on = collect(&[collector(yaml)], &plugins(), &asked);
-    assert_eq!(on["collectors"]["dump"]["status"], "ok", "{on}");
+    assert_eq!(on["collectors"]["optin"]["status"], "ok", "{on}");
 }
