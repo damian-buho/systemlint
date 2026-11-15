@@ -1638,6 +1638,7 @@ dependencies = [
  "systemlint-env",
  "systemlint-firewall",
  "systemlint-formats",
+ "systemlint-proc",
  "systemlint-protocol",
  "systemlint-sshd",
  "systemlint-systemd",
@@ -1684,6 +1685,15 @@ dependencies = [
  "serde_json",
  "systemlint-protocol",
  "toml",
+]
+
+[[package]]
+name = "systemlint-proc"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "systemlint-formats",
+ "systemlint-protocol",
 ]
 
 [[package]]

@@ -33,6 +33,7 @@ systemlint-apt = { path = "crates/systemlint-apt" }
 systemlint-env = { path = "crates/systemlint-env" }
 systemlint-firewall = { path = "crates/systemlint-firewall" }
 systemlint-formats = { path = "crates/systemlint-formats" }
+systemlint-proc = { path = "crates/systemlint-proc" }
 systemlint-protocol = { path = "crates/systemlint-protocol" }
 systemlint-sshd = { path = "crates/systemlint-sshd" }
 systemlint-systemd = { path = "crates/systemlint-systemd" }

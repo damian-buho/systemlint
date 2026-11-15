@@ -1,0 +1,6 @@
+55d0-55e0 r-xp 00001000 08:01 131 /usr/bin/app
+7f10-7f20 r-xp 00028000 08:01 132 /usr/lib/x86_64-linux-gnu/libssl.so.3 (deleted)
+7f20-7f30 r--p 00000000 08:01 133 /usr/lib/locale/locale-archive (deleted)
+7f30-7f40 r-xs 00000000 00:01 134 /memfd:jit (deleted)
+7f40-7f50 rw-s 00000000 00:1a 135 /dev/shm/app.0 (deleted)
+7ffd-7ffe rw-p 00000000 00:00 0 [stack]

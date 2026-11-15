@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Running services that still execute code an upgrade replaced on disk
+tags: [default]
+rules:
+  restart/replaced-code:
+    title: A service still runs a library or program replaced on disk
+    fact: processes.services.*.replaced
+    when: {systemd.state.*.active: active}
+    expect: {maxItems: 0}
+    severity: warning
+    score: 5.0
+    message: "{subject} still runs {got}, deleted from disk since it started, so the fix an upgrade shipped there has not reached it"
+    fix: run systemctl restart {subject}
+    docs: https://man7.org/linux/man-pages/man5/proc_pid_maps.5.html
+    references:
+      - {title: Lynis LOGG-2190, url: "https://cisofy.com/lynis/controls/LOGG-2190/"}
+    tags: [services, lynis]

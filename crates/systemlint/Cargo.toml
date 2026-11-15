@@ -36,5 +36,6 @@ systemlint-apt.workspace = true
 systemlint-env.workspace = true
 systemlint-firewall.workspace = true
 systemlint-formats.workspace = true
+systemlint-proc.workspace = true
 systemlint-sshd.workspace = true
 systemlint-systemd.workspace = true

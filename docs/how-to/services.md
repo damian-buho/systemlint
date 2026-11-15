@@ -4,15 +4,15 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Kernel parameters, modules and audit rules, Docker, systemd units, ufw and nftables
+# Kernel parameters, modules and audit rules, Docker, systemd units, running services, ufw and nftables
 
-Fifteen collectors record service configuration as facts, `systemd-units` on
-`systemlint-systemd`, `nftables` on `systemlint-firewall` and the rest on
-`systemlint-formats`. The `kernel`,
+Sixteen collectors record service configuration as facts, `systemd-units` on
+`systemlint-systemd`, `nftables` on `systemlint-firewall`, `processes-services`
+on `systemlint-proc` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
 `ufw.service`, `nftables` judges the loaded nftables ruleset and the state of
-`nftables.service`, `services` judges the sandbox of each unit, and
+`nftables.service`, `restart` judges the code each running service holds, `services` judges the sandbox of each unit, and
 `kernel-modules` judges the module facts, and `audit` the audit rules; no shipped rule reads the Docker
 facts yet.
 
@@ -33,6 +33,7 @@ facts yet.
 | `ufw` | `/etc/ufw/ufw.conf` | `kv` | `ufw.conf` |
 | `ufw-binary` | the `ufw` program in `/usr/local/*bin`, `/usr/*bin` and `/*bin` | `stat` | `ufw.binary.<path>` |
 | `nftables` | `/usr/sbin/nft --json list ruleset` on a live host, as root | `nftables` | `nftables.hooks.<family>.<hook>` |
+| `processes-services` | `/proc/*/cgroup` and `/proc/*/maps` on a live host, as root | `services` | `processes.services.<unit>` |
 
 ## sysctl
 
@@ -305,6 +306,30 @@ then never starts ufw at boot; a host with no `ufw.service` unit has no check.
 `ufw/service-failed` fails a `ufw.service` whose `active` state is `failed`,
 which loaded no rules either; under `--root`, where no unit carries `active`,
 it answers `skip` rather than `unknown`.
+
+## Running services
+
+`processes.services` holds, per system service with a running process, its
+process IDs and the files they still execute that are gone from disk:
+
+```yaml
+processes:
+  services:
+    nginx.service: {pids: [812, 813], replaced: [/usr/lib/x86_64-linux-gnu/libssl.so.3]}
+```
+
+- A process belongs to the service whose `system.slice` cgroup holds it; a
+  container’s processes and user sessions are left out.
+- `replaced` lists each executable mapping in `/proc/<pid>/maps` that the
+  kernel marks `(deleted)` under `/usr`, `/bin`, `/sbin`, `/lib*` or `/opt`: an
+  upgrade renames a new file over the old one, and the running process keeps
+  the old one. Data files, `memfd` and `/dev/shm` mappings are not code an
+  upgrade replaced, so they are left out.
+
+Reading another user’s maps needs root; unprivileged, or under `--root`, the
+rule is `Not run`. `restart/replaced-code` fails an `active` service still
+running a replaced file; an `activating` one, as a oneshot `apt` upgrading its
+own library, is about to exit and is skipped.
 
 ## nftables
 

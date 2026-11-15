@@ -1986,3 +1986,59 @@ fn unattended_upgrades_keep_replaced_packages_until_both_removals_are_on() {
         "an unread value keeps the default"
     );
 }
+
+// The outcomes of restart/replaced-code for one service’s replaced paths and its systemd state.
+fn restart(replaced: Option<Value>, state: Value) -> Vec<(String, Outcome)> {
+    let mut document = json!({"systemd": {"state": state}});
+    if let Some(replaced) = replaced {
+        document["processes"] =
+            json!({"services": {"app.service": {"pids": [10], "replaced": replaced}}});
+    }
+    judge("restart", &document)
+        .into_iter()
+        .map(|(_, subject, o)| (subject, o))
+        .collect()
+}
+
+#[test]
+fn a_running_service_fails_from_its_first_replaced_file_and_a_stopping_one_never() {
+    let running = |active: &str| json!({"app.service": {"enabled": true, "masked": false, "active": active, "sub": "x"}});
+    let app = |o| vec![("app.service".to_owned(), o)];
+    assert_eq!(
+        restart(Some(json!([])), running("active")),
+        app(Outcome::Pass)
+    );
+    assert_eq!(
+        restart(Some(json!(["/usr/lib/libssl.so.3"])), running("active")),
+        app(Outcome::Fail)
+    );
+    assert_eq!(
+        restart(Some(json!(["/usr/lib/libssl.so.3"])), running("activating")),
+        app(Outcome::Skip),
+        "a oneshot still running, as apt upgrading itself, is about to exit"
+    );
+    assert_eq!(
+        restart(
+            Some(json!(["/usr/lib/libssl.so.3"])),
+            running("deactivating")
+        ),
+        app(Outcome::Skip)
+    );
+    let mut root = json!({"systemd": {"state": running("active")}});
+    root["collectors"]["processes-services"] =
+        json!({"status": "skipped", "into": "processes.services", "reason": "live only"});
+    let skipped = checks("restart", &root);
+    assert_eq!(
+        (skipped[0].outcome, skipped[0].collector.as_deref()),
+        (Outcome::Unknown, Some("processes-services")),
+        "--root or an unprivileged run reads no process, which the report prints as not run"
+    );
+    assert_eq!(
+        restart(
+            Some(json!(["/usr/lib/libssl.so.3"])),
+            json!({"app.service": {"enabled": true, "masked": false}})
+        ),
+        app(Outcome::Unknown),
+        "no active state from the manager is unknown, never a finding"
+    );
+}
