@@ -534,6 +534,29 @@ fn hash_adds_digests_to_regular_files_alone() {
 }
 
 #[test]
+fn the_root_itself_stats_like_any_path() {
+    let c =
+        collector("id: dump\nread:\n  stat: [/]\nparse: {plugin: dump, op: parse}\ninto: dump\n");
+    for live in [false, true] {
+        let inputs = systemlint::collect::inputs(&c, &options(live)).unwrap();
+        let found: Vec<_> = inputs
+            .iter()
+            .map(|i| match i {
+                systemlint_protocol::Input::File(f) => {
+                    (f.path.clone(), f.stat.clone().unwrap().kind)
+                }
+                _ => panic!("{i:?}"),
+            })
+            .collect();
+        assert_eq!(
+            found,
+            [("/".to_owned(), systemlint_protocol::FileKind::Directory)],
+            "live {live}"
+        );
+    }
+}
+
+#[test]
 fn an_absent_path_reaches_the_plugin_from_an_inline_collector_alone() {
     let mut c = collector(
         "id: dump\nread:\n  stat: [/etc/absent, /usr/lib/os-release]\nparse: {plugin: dump, op: parse}\ninto: dump\n",

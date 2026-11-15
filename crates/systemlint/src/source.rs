@@ -182,6 +182,10 @@ impl Root {
             }
             found = next;
         }
+        found
+            .iter_mut()
+            .filter(|p| p.is_empty())
+            .for_each(|p| p.push('/'));
         found.sort();
         found.dedup();
         log::debug!("glob {base}{pattern} names {} paths", found.len());
