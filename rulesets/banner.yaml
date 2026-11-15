@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Login banners and messages of the day that a user other than root can rewrite
+tags: [default]
+rules:
+  banner/writable:
+    title: Login banner writable by other users
+    facts:
+      all:
+        - {fact: banner.*.*.world-writable, expect: {const: false}}
+        - {fact: banner.*.*.group-writable, expect: {const: false}}
+    severity: warning
+    score: 4.0
+    message: "{subject} is writable by its group or by every user, who can then show a forged notice to everyone who logs in and ask for their password"
+    fix: chmod go-w the file
+    remedy: {chmod: go-w}
+    docs: https://manpages.debian.org/unstable/manpages/motd.5.en.html
+    tags: [banner, cis-ubuntu-26.04:1.6.6, cis-ubuntu-26.04:1.6.7, cis-ubuntu-26.04:1.6.8, cis-ubuntu-26.04:1.6.9, cis-ubuntu-26.04:1.6.10]
+  banner/owner:
+    title: Login banner not owned by root
+    fact: banner.*.*.uid
+    expect: {const: 0}
+    severity: warning
+    score: 4.0
+    message: "{subject} is owned by uid {got}, so that user can show a forged notice to everyone who logs in"
+    fix: chown root the file
+    remedy: {chown: 0}
+    docs: https://manpages.debian.org/unstable/manpages/motd.5.en.html
+    tags: [banner, cis-ubuntu-26.04:1.6.6, cis-ubuntu-26.04:1.6.7, cis-ubuntu-26.04:1.6.8, cis-ubuntu-26.04:1.6.9, cis-ubuntu-26.04:1.6.10]

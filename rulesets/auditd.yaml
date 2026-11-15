@@ -99,6 +99,18 @@ rules:
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [default, audit, cis-ubuntu-26.04:6.2.4.1]
+  auditd/log-owner:
+    title: Audit log not owned by root
+    fact: auditd.logs.*.uid
+    when: {auditd.logs.*.kind: file}
+    expect: {const: 0}
+    severity: warning
+    score: 5.0
+    message: "{subject} is owned by uid {got}, so that user can rewrite or truncate the audit records"
+    fix: chown root the file
+    remedy: {chown: 0}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [default, audit, cis-ubuntu-26.04:6.2.4.2]
   auditd/log-directory-mode:
     title: Audit log directory open too widely
     fact: auditd.logs.*.mode

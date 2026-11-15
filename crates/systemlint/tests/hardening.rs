@@ -837,7 +837,7 @@ fn audit_logs_fail_once_other_users_read_them_or_the_group_writes_the_directory(
     let mode = |kind: &str, mode: &str| {
         auditd(json!({"auditd": {"logs": {"/var/log/audit/x": {"exists": true, "kind": kind, "mode": mode}}}}))
             .into_iter()
-            .filter(|(r, _, o)| r.starts_with("auditd/log-") && *o != Outcome::Skip)
+            .filter(|(r, _, o)| r.starts_with("auditd/log-") && r.ends_with("-mode") && *o != Outcome::Skip)
             .map(|(r, _, o)| (r, o))
             .collect::<Vec<_>>()
     };
@@ -893,6 +893,78 @@ fn audit_logs_fail_once_other_users_read_them_or_the_group_writes_the_directory(
             .iter()
             .all(|(_, _, o)| *o == Outcome::NotApplicable),
         "a host without auditd"
+    );
+}
+
+#[test]
+fn an_audit_log_owned_by_anyone_but_root_fails_and_its_directory_is_left_to_the_mode_rule() {
+    let owner = |kind: &str, uid: Option<u32>| {
+        let mut stat = json!({"exists": true, "kind": kind, "mode": "0600"});
+        if let Some(uid) = uid {
+            stat["uid"] = json!(uid);
+        }
+        auditd(json!({"auditd": {"logs": {"/var/log/audit/x": stat}}}))
+            .into_iter()
+            .find(|(r, _, _)| r == "auditd/log-owner")
+            .map(|c| c.2)
+    };
+    assert_eq!(owner("file", Some(0)), Some(Outcome::Pass));
+    assert_eq!(owner("file", Some(1)), Some(Outcome::Fail));
+    assert_eq!(owner("file", None), Some(Outcome::Unknown));
+    assert_eq!(owner("directory", Some(1)), Some(Outcome::Skip));
+}
+
+// The banner rules’ outcomes over the given banner.files stats.
+fn banner(stats: Value) -> Vec<(String, String, Outcome)> {
+    judge(
+        "banner",
+        &json!({"banner": {"files": stats}, "collectors": {"banner-files": {"status": "ok", "into": "banner.files"}}}),
+    )
+}
+
+#[test]
+fn a_banner_fails_once_its_group_or_others_may_write_it_or_root_does_not_own_it() {
+    let stat = |uid: u32, group: bool, world: bool| json!({"uid": uid, "group-writable": group, "world-writable": world});
+    let outcomes = |s: Value| -> Vec<(String, Outcome)> {
+        banner(json!({"/etc/issue": s}))
+            .into_iter()
+            .map(|(r, _, o)| (r, o))
+            .collect()
+    };
+    assert_eq!(
+        outcomes(stat(0, false, false)),
+        [
+            ("banner/owner".to_owned(), Outcome::Pass),
+            ("banner/writable".to_owned(), Outcome::Pass)
+        ]
+    );
+    assert_eq!(
+        outcomes(stat(0, true, false)),
+        [
+            ("banner/owner".to_owned(), Outcome::Pass),
+            ("banner/writable".to_owned(), Outcome::Fail)
+        ]
+    );
+    assert_eq!(
+        outcomes(stat(0, false, true)),
+        [
+            ("banner/owner".to_owned(), Outcome::Pass),
+            ("banner/writable".to_owned(), Outcome::Fail)
+        ]
+    );
+    assert_eq!(
+        outcomes(stat(1000, false, false)),
+        [
+            ("banner/owner".to_owned(), Outcome::Fail),
+            ("banner/writable".to_owned(), Outcome::Pass)
+        ]
+    );
+    assert_eq!(
+        outcomes(json!({})),
+        [
+            ("banner/owner".to_owned(), Outcome::Unknown),
+            ("banner/writable".to_owned(), Outcome::Unknown)
+        ]
     );
 }
 

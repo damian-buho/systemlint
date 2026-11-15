@@ -232,6 +232,7 @@ only its two mode rules carry `default`, the others the CIS control alone:
 | `auditd/full-disk` | info | `disk_full_action` is not `halt` or `single`, or `disk_error_action` not `syslog`, `single` or `halt` |
 | `auditd/low-space` | info | `space_left_action` is not `email`, `exec`, `single` or `halt`, or `admin_space_left_action` not `single` or `halt` |
 | `auditd/log-mode` | warning | an audit log is wider than 0640 |
+| `auditd/log-owner` | warning | an audit log is not owned by uid 0 |
 | `auditd/log-directory-mode` | warning | `/var/log/audit` is group-writable or reaches other users |
 
 auditd compares keywords and values without case (`auditd-config.c`), so the

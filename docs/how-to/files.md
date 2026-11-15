@@ -24,7 +24,7 @@ Each collector passes its `read.stat` globs to the `stat` op of
 
 | Collector | Stats | Facts at |
 | --- | --- | --- |
-| `files-shadow` | `/etc/shadow`, `/etc/gshadow` and their `-` backups | `files.shadow.<path>` |
+| `files-shadow` | `/etc/shadow`, `/etc/gshadow` and their `-` backups, `/etc/security/opasswd` and `opasswd.old` | `files.shadow.<path>` |
 | `files-sudoers` | `/etc/sudoers`, `/etc/sudoers.d` and every file in it | `files.sudoers.<path>` |
 | `files-cron` | `/etc/crontab`, every `/etc/cron.*` and every file in one | `files.cron.<path>` |
 | `files-sshd` | `/etc/ssh/sshd_config`, `sshd_config.d` and its files, the public host keys | `files.sshd.<path>` |
@@ -32,6 +32,12 @@ Each collector passes its `read.stat` globs to the `stat` op of
 | `files-apt-keyrings` | `/etc/apt/trusted.gpg`, `trusted.gpg.d`, `/etc/apt/keyrings`, `/usr/share/keyrings` and their files | `files.apt-keyrings.<path>` |
 | `files-path` | `/usr`, `/usr/local`, the directories of Debian’s default `PATH`, `/snap/bin` included, and every absolute `PATH` entry of a system file, a `/etc/default` or `EnvironmentFile=` file, or a unit | `files.path.<path>` |
 | `files-search-path` | every absolute `LD_LIBRARY_PATH` and `PYTHONPATH` entry of a system file, a `/etc/default` or `EnvironmentFile=` file, or a unit | `files.search-path.<path>` |
+| `files-accounts` | `/etc/passwd`, `/etc/group`, their `-` backups and `/etc/shells` | `files.accounts.<path>` |
+| `files-apt-sources` | `/etc/apt/sources.list`, `sources.list.d` and its files, and the `auth.conf.d` directory | `files.apt-sources.<path>` |
+| `files-apt-auth` | `/etc/apt/auth.conf` and every file in `auth.conf.d` | `files.apt-auth.<path>` |
+| `files-boot` | `/boot/grub/grub.cfg` and `user.cfg` | `files.boot.<path>` |
+| `files-audit-config` | `/etc/audit`, its `.conf` files, `rules.d` and `plugins.d` and their files | `files.audit-config.<path>` |
+| `files-audit-tools` | `auditctl`, `aureport`, `ausearch`, `autrace`, `auditd` and `augenrules` in `/usr/sbin` or `/usr/bin` | `files.audit-tools.<path>` |
 
 A stat holds `kind` (`file`, `directory`, `symlink`, `other`), `mode` as four
 octal digits, `uid`, `gid`, `size`, and the `world-writable`,
@@ -73,6 +79,10 @@ depends on its environment, which these collectors do not read.
 | `files/owner` | error | any of them is not owned by uid 0 |
 | `files/shadow-mode` | error | a shadow file is more open than 0640 |
 | `files/ssh-host-key-mode` | error | a private host key is more open than 0640 |
+| `files/apt-auth-readable` | error | an APT credentials file is readable by others |
+| `files/accounts-mode` | info | an account database is more open than 0644 (CIS only) |
+| `files/bootloader-readable` | info | a GRUB configuration file grants its group or others any access (CIS only) |
+| `files/audit-config-mode` | info | an audit configuration file is more open than 0640 (CIS only) |
 
 A subject of the first three rules is the group and the path, such as
 `sudoers, /etc/sudoers.d/deploy`. “0640 or stricter” means no execute bit, no
@@ -86,6 +96,20 @@ check:
   waivers:
     - {rule: files/group-writable, subject: "path, /usr/local*", reason: staff installs into /usr/local, until: 2027-06-30}
 ```
+
+## Login banners
+
+The `banner-files` collector stats `/etc/motd`, `/etc/motd.d` and its files,
+`/run/motd.dynamic`, `/etc/issue` and `/etc/issue.net` into
+`banner.files.<path>`, and `banner-sshd` stats each absolute path sshd’s
+`Banner` names (`sshd.settings.banner`) into `banner.sshd.<path>`, so it runs
+only where the `sshd` collector did. They sit outside `files`, since nobody
+becomes root through a banner. The `banner` ruleset judges both:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `banner/writable` | warning | its group or others may write it, so they can show every user a forged notice at login |
+| `banner/owner` | warning | it is not owned by uid 0 |
 
 ## Cron
 
