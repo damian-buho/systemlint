@@ -58,6 +58,8 @@ struct Options {
     separator: Option<String>,
     #[serde(default = "hash")]
     comments: Vec<String>,
+    #[serde(default, rename = "inline-comments")]
+    inline_comments: bool,
     columns: Option<Vec<Option<String>>>,
     rest: Option<String>,
     required: Option<usize>,
@@ -100,6 +102,9 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     if !options.implies.is_empty() && options.toggles.is_empty() {
         return Err("with.implies needs with.toggles".into());
     }
+    if options.inline_comments && options.separator.is_some() {
+        return Err("with.inline-comments needs whitespace words, not with.separator".into());
+    }
     if columns.is_none() && (options.rest.is_some() || options.required.is_some()) {
         return Err("with.rest and with.required need with.columns".into());
     }
@@ -123,7 +128,12 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
         };
         let mut per_path: Vec<Value> = Vec::new();
         let mut directives = Map::new();
-        for (number, line) in records(content, options.separator.as_deref(), &options.comments) {
+        for (number, line) in records(
+            content,
+            options.separator.as_deref(),
+            &options.comments,
+            options.inline_comments,
+        ) {
             let mut diagnose = |message: String| {
                 reply.diagnostics.push(Diagnostic {
                     path: path.to_owned(),
@@ -350,11 +360,12 @@ fn slot(slot: &mut Value, mut record: Map<String, Value>, repeat: Repeat) {
     }
 }
 
-/// Each record of `content` with its first line number: whitespace words with `\` joining the next line, or fields split on `separator`; comments and blank lines left out.
+/// Each record of `content` with its first line number: whitespace words with `\` joining the next line, or fields split on `separator`; comments and blank lines left out, `inline` cutting a line at any marker as Linux-PAM does.
 fn records(
     content: &str,
     separator: Option<&str>,
     comments: &[String],
+    inline: bool,
 ) -> Vec<(u64, std::result::Result<Vec<Word>, String>)> {
     let mut out = Vec::new();
     let (mut joined, mut start) = (String::new(), 0);
@@ -378,7 +389,13 @@ fn records(
         if joined.is_empty() {
             start = number;
         }
-        if let Some(head) = raw.strip_suffix('\\') {
+        let cut = comments
+            .iter()
+            .filter_map(|c| raw.find(c.as_str()))
+            .min()
+            .filter(|_| inline);
+        let raw = cut.map_or(raw, |at| &raw[..at]);
+        if let Some(head) = raw.strip_suffix('\\').filter(|_| cut.is_none()) {
             joined.push_str(head);
             joined.push(' ');
             continue;
@@ -553,6 +570,30 @@ mod tests {
     }
 
     #[test]
+    fn inline_comments_cut_a_line_at_any_marker_and_end_it() {
+        let reply = run(
+            &[file(
+                "/etc/pam.d/su",
+                "auth sufficient pam_rootok.so#trust\nauth required pam_wheel.so use_uid # group=x \\\nauth required pam_unix.so\nauth required pam_exec.so [a#b]\n",
+            )],
+            json!({"columns": ["type", "control", "module"], "rest": "arguments", "required": 2, "inline-comments": true}),
+        );
+        assert_eq!(
+            json!(reply.facts),
+            json!({"/etc/pam.d/su": [
+                {"type": "auth", "control": "sufficient", "module": "pam_rootok.so", "arguments": [], "line": 1},
+                {"type": "auth", "control": "required", "module": "pam_wheel.so", "arguments": ["use_uid"], "line": 2},
+                {"type": "auth", "control": "required", "module": "pam_unix.so", "arguments": [], "line": 3},
+            ]})
+        );
+        assert_eq!(
+            lines(&reply),
+            [Some(4)],
+            "a cut inside brackets leaves them open"
+        );
+    }
+
+    #[test]
     fn directives_filter_lines_by_their_first_word_and_commands_count() {
         let showconfig = Input::Exec(ExecInput {
             argv: vec!["/usr/sbin/modprobe".into(), "--showconfig".into()],
@@ -613,6 +654,10 @@ mod tests {
             (
                 json!({"columns": ["a"], "lists": ["a"], "implies": {"user": ["nosuid"]}}),
                 "needs with.toggles",
+            ),
+            (
+                json!({"separator": ":", "inline-comments": true}),
+                "not with.separator",
             ),
             (json!({"rest": "r"}), "need with.columns"),
             (

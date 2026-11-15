@@ -8,5 +8,5 @@ read:
 parse:
   plugin: formats
   op: words
-  with: {columns: [type, control, module], rest: arguments, required: 2}
+  with: {columns: [type, control, module], rest: arguments, required: 2, inline-comments: true}
 into: auth.pam

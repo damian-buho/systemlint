@@ -32,7 +32,7 @@ auth:
   pam:
     /etc/pam.d/common-auth:
       - {line: 17, type: auth, control: "success=1 default=ignore", module: pam_unix.so, arguments: [nullok]}
-      - {line: 21, include: common-account}
+      - {line: 21, type: "@include", control: common-account, arguments: []}
   limits:
     /etc/security/limits.conf:
       - {domain: "*", type: hard, item: core, value: 0, line: 52}
@@ -51,8 +51,9 @@ auth:
   an `@include` line is `{type: "@include", control: <file>}`. The rules
   compare the type and control without case and the module by its
   filename, as Linux-PAM does, so `-Auth Sufficient /lib/security/pam_permit.so`
-  fails like `auth sufficient pam_permit.so`. A `#` opens a comment only at
-  the start of a word, where Linux-PAM cuts a line at any `#`.
+  fails like `auth sufficient pam_permit.so`. A `#` anywhere cuts the line,
+  inside a word or brackets too, and a cut line never continues on the next,
+  as Linux-PAM reads it (`inline-comments`).
 - `limits` lists each file’s entries in order, as written: pam_limits gives a
   user’s own line precedence over a group’s and a group’s over `*`, so a rule
   judges every file’s list rather than one winning line, and compares `type`

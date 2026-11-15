@@ -336,6 +336,7 @@ the next one.
 | --- | --- |
 | `separator` | split each line on this string instead, keeping empty fields, as `:` tables need; a comment then only opens a line |
 | `comments` | the markers that open a comment [default: `["#"]`] |
+| `inline-comments` | a marker anywhere, inside a word or brackets, cuts the line, which then never joins the next, as Linux-PAM reads pam.d |
 | `directives` | keep only the lines whose first word is one of these |
 | `columns` | name each word in order, `null` dropping one; without it, each input path maps every first word to the list of words after it |
 | `required` | the fewest words a line may have [default: every column]; a line with fewer, or with more and no `rest`, is a diagnostic |
@@ -414,6 +415,7 @@ given on the line; a flag followed by another flag, or by nothing, holds `[]`.
 | --- | --- |
 | `split` | flags whose values split on `,` into separate items, as `-S execve,execveat` |
 | `comments` | the markers that open a comment [default: `["#"]`] |
+| `inline-comments` | a marker anywhere, inside a word or brackets, cuts the line, which then never joins the next, as Linux-PAM reads pam.d |
 
 The audit rules the kernel runs:
 
