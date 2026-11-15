@@ -4,9 +4,12 @@
 
 id: kernel-modules-blacklist
 read:
+  files: [/etc/modprobe.d/*.conf, /run/modprobe.d/*.conf, /usr/local/lib/modprobe.d/*.conf, /usr/lib/modprobe.d/*.conf, /lib/modprobe.d/*.conf]
+  order: drop-in
   exec: [/usr/sbin/modprobe, --showconfig]
+  prefer: exec
 parse:
   plugin: formats
   op: words
-  with: {directives: [blacklist], columns: [null, module], key: module}
+  with: {directives: [blacklist], columns: [null, module], key: module, key-underscores: true}
 into: kernel.blacklist

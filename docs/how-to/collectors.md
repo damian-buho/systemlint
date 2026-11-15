@@ -347,6 +347,7 @@ the next one.
 | `toggles` | list columns where a later `X` or `noX` drops an earlier `X` or `noX`, as mount(8) lets the later option win |
 | `implies` | per toggled item, the items it implies, each placed after it so a later option still overrides (`user: [noexec, nosuid, nodev]`) |
 | `key` | a column, or a list of them for nested keys, keying records across every input instead of listing them per path; each record gets its `path` and `line` |
+| `key-underscores` | read `-` as `_` in each key, as kmod spells module names |
 | `repeat` | for a key seen again: `first` [default] or `last`, the other lines’ numbers in the kept record’s `shadowed`, or `list` keeping every record; without `columns`, also `append`, joining the words, and a map giving a policy per first word, `*` for the rest |
 | `octal` | decode `\040`-style escapes, as fstab(5) and the kernel’s mount tables write a space |
 

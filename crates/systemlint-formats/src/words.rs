@@ -70,6 +70,8 @@ struct Options {
     #[serde(default)]
     implies: BTreeMap<String, Vec<String>>,
     key: Option<Names>,
+    #[serde(default, rename = "key-underscores")]
+    key_underscores: bool,
     repeat: Option<Policy>,
     directives: Option<Vec<String>>,
     #[serde(default)]
@@ -101,6 +103,9 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     }
     if !options.implies.is_empty() && options.toggles.is_empty() {
         return Err("with.implies needs with.toggles".into());
+    }
+    if options.key_underscores && keys.is_empty() {
+        return Err("with.key-underscores needs with.key".into());
     }
     if options.inline_comments && options.separator.is_some() {
         return Err("with.inline-comments needs whitespace words, not with.separator".into());
@@ -184,6 +189,9 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
             let mut at = Vec::new();
             for key in &keys {
                 match record.remove(key) {
+                    Some(Value::String(s)) if options.key_underscores => {
+                        at.push(s.replace('-', "_"))
+                    }
                     Some(Value::String(s)) => at.push(s),
                     Some(Value::Number(n)) => at.push(n.to_string()),
                     _ => at.clear(),
@@ -620,6 +628,22 @@ mod tests {
     }
 
     #[test]
+    fn key_underscores_spell_a_dash_and_an_underscore_alike() {
+        let reply = run(
+            &[file(
+                "/etc/modprobe.d/a.conf",
+                "blacklist usb-storage\nblacklist usb_storage\nblacklist a-b-c\n",
+            )],
+            json!({"directives": ["blacklist"], "columns": [null, "module"], "key": "module", "key-underscores": true}),
+        );
+        assert_eq!(
+            reply.facts.keys().collect::<Vec<_>>(),
+            ["a_b_c", "usb_storage"]
+        );
+        assert_eq!(reply.facts["usb_storage"]["shadowed"], json!([2]));
+    }
+
+    #[test]
     fn nested_keys_and_list_keep_every_record() {
         let reply = run(
             &[file("/f", "options a x=1\noptions a y=2\noptions b z\n")],
@@ -658,6 +682,10 @@ mod tests {
             (
                 json!({"separator": ":", "inline-comments": true}),
                 "not with.separator",
+            ),
+            (
+                json!({"columns": ["a"], "key-underscores": true}),
+                "needs with.key",
             ),
             (json!({"rest": "r"}), "need with.columns"),
             (

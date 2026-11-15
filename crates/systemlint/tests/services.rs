@@ -71,6 +71,22 @@ fn sysctl_under_root_applies_the_files_in_systemd_order() {
 }
 
 #[test]
+fn modprobe_d_under_root_answers_in_kmod_order_and_spelling() {
+    assert_eq!(
+        facts("kernel-modules-blacklist"),
+        json!({
+            "pcspkr": {"path": "/usr/lib/modprobe.d/50-stock.conf", "line": 5, "shadowed": []},
+            "usb_storage": {"path": "/etc/modprobe.d/cis.conf", "line": 6, "shadowed": []},
+        }),
+        "/etc’s cis.conf hides /usr/lib’s, so floppy is not blacklisted"
+    );
+    assert_eq!(
+        facts("kernel-modules-install"),
+        json!({"usb_storage": {"command": ["/bin/false"], "path": "/etc/modprobe.d/cis.conf", "line": 5, "shadowed": []}})
+    );
+}
+
+#[test]
 fn ufw_conf_and_binary_land_where_the_ufw_ruleset_reads_them() {
     assert_eq!(facts("ufw"), json!({"ENABLED": "no", "LOGLEVEL": "low"}));
     assert_eq!(

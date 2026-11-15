@@ -18,8 +18,8 @@ reads the Docker or kernel module facts yet.
 | `sysctl` | `/usr/sbin/sysctl -a` on a live host, else the `sysctl.d` directories and `/etc/sysctl.conf` | `kv` | `sysctl.settings` |
 | `kernel-modules-shipped` | `modules.order` of every kernel in `/lib/modules` | `match` | `kernel.shipped.<module>` |
 | `kernel-modules-builtin` | `modules.builtin` of every kernel in `/lib/modules` | `match` | `kernel.builtin.<module>` |
-| `kernel-modules-blacklist` | `/usr/sbin/modprobe --showconfig` on a live host | `words` | `kernel.blacklist.<module>` |
-| `kernel-modules-install` | `/usr/sbin/modprobe --showconfig` on a live host | `words` | `kernel.install.<module>` |
+| `kernel-modules-blacklist` | `/usr/sbin/modprobe --showconfig` on a live host, else the `modprobe.d` files | `words` | `kernel.blacklist.<module>` |
+| `kernel-modules-install` | `/usr/sbin/modprobe --showconfig` on a live host, else the `modprobe.d` files | `words` | `kernel.install.<module>` |
 | `kernel-modules-loaded` | `/proc/modules` on a live host | `words` | `kernel.loaded.<module>` |
 | `audit-rules` | `/etc/audit/rules.d/*.rules` | `lines` | `audit.rules.<file>` |
 | `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `lines` | `audit.loaded./usr/sbin/auditctl` |
@@ -80,12 +80,13 @@ kernel:
   as numbers and `state` (`Live`, `Loading`, `Unloading`).
 
 `blacklist` and `install` come from `modprobe --showconfig`, kmod’s merged view
-of every `modprobe.d` file in the order it reads them, so a name there is
-spelled as kmod spells it, `-` read as `_` (`usb_storage`); a rule on
-`usb-storage` guards on `shipped` under one spelling and judges `install` under
-the other. Under `--root` no command runs, so their rules print as `Not run`;
-a host with no `modprobe` has empty `blacklist` and `install` and, with no
-kmod, ships no modules either. `loaded` is a live fact, absent under `--root`.
+of every `modprobe.d` file in the order it reads them. Under `--root`, or when
+`modprobe` fails or is absent, they come from the `.conf` files in
+`/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `modprobe.d` instead,
+in kmod’s order: a name in `/etc` hides the same name below it, then name
+order. Either way a name is spelled as kmod spells it, `-` read as `_`
+(`key-underscores`, `usb_storage`); a rule on `usb-storage` guards on
+`shipped` under one spelling and judges `install` under the other. `loaded` is a live fact, absent under `--root`.
 
 ## Kernel audit rules
 

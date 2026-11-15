@@ -176,13 +176,7 @@ pub fn collect_reporting(
             outcomes.insert(collector.id.clone(), outcome);
             continue;
         }
-        if collector.read.runs()
-            && !options.live
-            && collector.read.files.is_empty()
-            && collector.read.stat.is_empty()
-            && collector.read.statfs.is_empty()
-            && collector.read.from().next().is_none()
-        {
+        if collector.read.commands_only() && !options.live {
             log::debug!("collector {} skipped: exec under --root", collector.id);
             outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": format!("runs {} on a live host only, and --root {} was given", collector.read.program(), options.root.path().display())}));
             continue;
