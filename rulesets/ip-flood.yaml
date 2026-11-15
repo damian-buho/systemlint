@@ -29,3 +29,13 @@ rules:
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [ip-flood, sysctl, lynis]
+  ip-flood/bogus-icmp-errors:
+    title: Bogus ICMP error replies logged
+    fact: sysctl.settings.net.ipv4.icmp_ignore_bogus_error_responses
+    expect: {const: 1}
+    severity: info
+    score: 2.0
+    message: "net.ipv4.icmp_ignore_bogus_error_responses is {got}, so the kernel logs a warning for every malformed ICMP error a router or sender returns, and a flood of them fills the log"
+    fix: set net.ipv4.icmp_ignore_bogus_error_responses = 1, the kernel default
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-flood, sysctl, cis-ubuntu-26.04:3.3.1.6, dev-sec-linux-baseline:sysctl-03]

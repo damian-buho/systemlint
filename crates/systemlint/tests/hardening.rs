@@ -180,6 +180,13 @@ fn every_sysctl_rule_passes_at_its_edge_fails_beyond_it_and_is_unknown_unset() {
             1,
             0,
         ),
+        (
+            "ip-flood",
+            "ip-flood/bogus-icmp-errors",
+            "net.ipv4.icmp_ignore_bogus_error_responses",
+            1,
+            0,
+        ),
     ];
     for (ruleset, rule, dotted, pass, fail) in edges {
         assert_eq!(
@@ -288,6 +295,79 @@ fn ipv4_source_routing_fails_an_interface_only_when_all_allows_it_too() {
     );
     assert_eq!(route(1, 0), [("eth0".to_owned(), Outcome::Pass)]);
     assert_eq!(route(1, 1), [("eth0".to_owned(), Outcome::Fail)]);
+}
+
+// Every check of one ip-routing rule over the given net.ipv4.conf map, as (subject, outcome).
+fn ipv4_conf(rule: &str, conf: Value) -> Vec<(String, Outcome)> {
+    judge(
+        "ip-routing",
+        &sysctl(json!({"net": {"ipv4": {"conf": conf}}})),
+    )
+    .into_iter()
+    .filter(|(r, _, _)| r == rule)
+    .map(|(_, s, o)| (s, o))
+    .collect()
+}
+
+#[test]
+fn route_localnet_fails_any_interface_but_loopback_that_sets_it() {
+    let conf = json!({"all": {"route_localnet": 0}, "eth0": {"route_localnet": 1}, "lo": {"route_localnet": 1}, "wlan0": {}});
+    assert_eq!(
+        ipv4_conf("ip-routing/route-localnet", conf),
+        [
+            ("all".to_owned(), Outcome::Pass),
+            ("eth0".to_owned(), Outcome::Fail),
+            ("wlan0".to_owned(), Outcome::Unknown)
+        ]
+    );
+}
+
+#[test]
+fn secure_redirects_judge_only_all_and_default() {
+    let conf = json!({"all": {"secure_redirects": 0}, "default": {"secure_redirects": 1}, "eth0": {"secure_redirects": 1}});
+    assert_eq!(
+        ipv4_conf("ip-routing/ipv4-secure-redirects", conf),
+        [
+            ("all".to_owned(), Outcome::Pass),
+            ("default".to_owned(), Outcome::Fail)
+        ]
+    );
+}
+
+// The outcome of kernel/apparmor-unconfined over the sysctl-apparmor facts.
+fn apparmor_unconfined(facts: Value) -> Vec<Outcome> {
+    let document = json!({"sysctl": {"settings": {}, "apparmor": facts}, "collectors": {"sysctl": {"status": "ok", "into": "sysctl.settings"}, "sysctl-apparmor": {"status": "ok", "into": "sysctl.apparmor"}}});
+    judge("kernel", &document)
+        .into_iter()
+        .filter(|(r, _, _)| r == "kernel/apparmor-unconfined")
+        .map(|(_, _, o)| o)
+        .collect()
+}
+
+#[test]
+fn apparmor_unconfined_is_judged_only_where_user_namespaces_are_restricted() {
+    let both = |userns: u8, unconfined: u8| json!({"kernel": {"apparmor_restrict_unprivileged_userns": userns, "apparmor_restrict_unprivileged_unconfined": unconfined}});
+    assert_eq!(apparmor_unconfined(both(1, 1)), [Outcome::Pass]);
+    assert_eq!(apparmor_unconfined(both(1, 0)), [Outcome::Fail]);
+    assert_eq!(
+        apparmor_unconfined(both(0, 0)),
+        [Outcome::Skip],
+        "user namespaces open anyway"
+    );
+    assert_eq!(
+        apparmor_unconfined(json!({"kernel": {"apparmor_restrict_unprivileged_unconfined": 0}})),
+        [Outcome::Skip],
+        "a kernel without the restriction"
+    );
+    assert_eq!(
+        apparmor_unconfined(json!({})),
+        [Outcome::Skip],
+        "a kernel without AppArmor"
+    );
+    assert_eq!(
+        apparmor_unconfined(json!({"kernel": {"apparmor_restrict_unprivileged_userns": 1}})),
+        [Outcome::Unknown]
+    );
 }
 
 // A document with the ufw collectors' facts: the binary paths found and ufw.conf, absent with None, and no unit state.

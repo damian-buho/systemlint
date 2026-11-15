@@ -48,3 +48,25 @@ rules:
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [ip-routing, sysctl, lynis]
+  ip-routing/ipv4-secure-redirects:
+    title: IPv4 redirects from listed gateways accepted
+    fact: sysctl.settings.net.ipv4.conf.*.secure_redirects
+    keys: {enum: [all, default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.conf.{subject}.secure_redirects is {got}; the benchmark asks it off, though it only narrows the redirects ip-routing/ipv4-redirects already judges"
+    fix: set net.ipv4.conf.all.secure_redirects = 0 and net.ipv4.conf.default.secure_redirects = 0
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.10, cis-ubuntu-26.04:3.3.1.11, dev-sec-linux-baseline:sysctl-15, '!default']
+  ip-routing/route-localnet:
+    title: Loopback addresses routed from the network
+    fact: sysctl.settings.net.ipv4.conf.*.route_localnet
+    keys: {not: {const: lo}}
+    expect: {const: 0}
+    severity: error
+    score: 7.0
+    message: "{subject} sets route_localnet {got}, so a packet from the link addressed to 127.0.0.1 is delivered, and services bound to loopback only answer anyone next to this host"
+    fix: set net.ipv4.conf.all.route_localnet = 0 and net.ipv4.conf.default.route_localnet = 0, then each listed interface’s key; on a Kubernetes node, run kube-proxy with --iptables-localhost-nodeports=false
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.19]
