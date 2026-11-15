@@ -6,12 +6,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Kernel parameters, modules and audit rules, Docker, systemd units and ufw
 
-Thirteen collectors record service configuration as facts, `systemd-units` on
+Fourteen collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
 `ufw.service`, `services` judges the sandbox of each unit, and
-`kernel-modules` judges the module facts; no shipped rule reads the Docker
+`kernel-modules` judges the module facts, and `audit` the audit rules; no shipped rule reads the Docker
 facts yet.
 
 | Collector | Reads | Op | Facts at |
@@ -22,8 +22,9 @@ facts yet.
 | `kernel-modules-blacklist` | `/usr/sbin/modprobe --showconfig` on a live host, else the `modprobe.d` files | `words` | `kernel.blacklist.<module>` |
 | `kernel-modules-install` | `/usr/sbin/modprobe --showconfig` on a live host, else the `modprobe.d` files | `words` | `kernel.install.<module>` |
 | `kernel-modules-loaded` | `/proc/modules` on a live host | `words` | `kernel.loaded.<module>` |
-| `audit-rules` | `/etc/audit/rules.d/*.rules` | `lines` | `audit.rules.<file>` |
-| `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `lines` | `audit.loaded./usr/sbin/auditctl` |
+| `audit-rules` | `/etc/audit/rules.d/*.rules` | `options` | `audit.rules.<file>` |
+| `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `options` | `audit.loaded./usr/sbin/auditctl` |
+| `auditd-binary` | `auditd` in `/usr/local/sbin`, `/usr/sbin`, `/sbin` and their `bin` siblings | `stat` | `auditd.binary` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
 | `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system`, with its `stat` | `units` | `systemd.units.<unit>` |
 | `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all --output=json` on a live host | `systemd` | `systemd.state.<unit>` |
@@ -153,6 +154,28 @@ a rule over `audit.rules` accepts every spelling auditctl does. The lines
 are not applied: a `-D` does not clear the lines before it and a `never` rule
 does not shadow a later `always`. `audit.loaded` is absent when `auditctl` is
 not installed, and the collector fails when it exits non-zero.
+
+The `audit` ruleset applies once `auditd` is on disk and carries no `default`
+tag, since only a standard asks for it: `--tags audit` or
+`--tags 'cis-ubuntu-26.04:*'` runs it. It gives each CIS Ubuntu 26.04 control
+from 6.2.3.1 to 6.2.3.35 one rule, but 6.2.3.3 (the sudo log file is set in
+sudoers, which no collector reads yet) and 6.2.3.10 (every setuid program,
+a join with the `setuid` inventory). A rule binds `audit.*`, so the files
+and the loaded set each pass or fail on their own, and asks for what gets
+recorded rather than the spelling CIS prints:
+
+- a file or directory passes on a `-w` watch or an `-a always,exit` rule
+  with `-F path=` or `-F dir=`, whose access holds `w` and `a` (`x` for a
+  program run)
+- a syscall passes when some `-a always,exit` line on each architecture CIS
+  names (`arch=b64`, `arch=b32`) lists it, alone, grouped or split over lines
+- filters that only narrow a rule (`auid>=1000`, `-C uid!=euid`, `a0=0x0`)
+  and the `-k` key are not asked for, so a broader rule passes, and a
+  narrower one passes too; for 6.2.3.11 an `exit=` filter must be the one
+  error asked for, or absent
+- `audit/continue-on-error` asks for `-c` and `audit/immutable` for `-e 2`
+  with no `-e 0` or `-e 1` anywhere; both judge `audit.rules` alone, since
+  `auditctl -l` prints neither
 
 ## Docker daemon
 
