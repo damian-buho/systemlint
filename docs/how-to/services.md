@@ -210,6 +210,32 @@ recorded rather than the spelling CIS prints:
   with no `-e 0` or `-e 1` anywhere; both judge `audit.rules` alone, since
   `auditctl -l` prints neither
 
+## Audit daemon
+
+`auditd-conf` (root) reads `/etc/audit/auditd.conf` through `kv` into
+`auditd.conf`, the last line of a key winning, as auditd reads it, and
+`auditd-logs` (root) stats `/var/log/audit` and every entry in it into
+`auditd.logs.<path>`. The `auditd` ruleset applies once auditd is on disk;
+only its two mode rules carry `default`, the others the CIS control alone:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `auditd/disabled` | info | `auditd.service` is not enabled |
+| `auditd/inactive` | info | `auditd.service` is not active |
+| `auditd/no-rules` | info | auditd is active and `auditctl -l` lists no `-a` or `-w` rule |
+| `auditd/deletes-logs` | info | `max_log_file_action` is not `keep_logs` |
+| `auditd/full-disk` | info | `disk_full_action` is not `halt` or `single`, or `disk_error_action` not `syslog`, `single` or `halt` |
+| `auditd/low-space` | info | `space_left_action` is not `email`, `exec`, `single` or `halt`, or `admin_space_left_action` not `single` or `halt` |
+| `auditd/log-mode` | warning | an audit log is wider than 0640 |
+| `auditd/log-directory-mode` | warning | `/var/log/audit` is group-writable or reaches other users |
+
+auditd compares keywords and values without case (`auditd-config.c`), so the
+rules match `(?i)`; an unset key takes auditd’s default (`rotate`, `suspend`,
+`ignore`), which fails. Under `--root` no unit has an active state, so
+`auditd/inactive` and `auditd/no-rules` are skipped. Ubuntu’s stock
+`auditd.conf` fails `deletes-logs`, `full-disk` and `low-space`: CIS trades
+availability for a complete record, a choice only the host’s owner can make.
+
 ## Docker daemon
 
 `docker.daemon` is `/etc/docker/daemon.json` as it stands, so

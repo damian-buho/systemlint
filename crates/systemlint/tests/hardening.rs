@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use systemlint::judge::{Outcome, compile, lint};
 use systemlint::rules::Library;
 use systemlint::vars::{Supplied, apply};
+use systemlint_protocol::{ExecInput, Input};
 
 // Every check of one shipped ruleset over a document, as (rule, subject, outcome).
 fn judge(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome)> {
@@ -575,6 +576,243 @@ fn a_netrc_fails_once_every_user_can_read_it() {
         ),
         [],
         "no home holds a .netrc"
+    );
+}
+
+// The auditd rules’ outcomes, by rule then subject, with auditd on disk and `facts` merged in.
+fn auditd(facts: Value) -> Vec<(String, String, Outcome)> {
+    let mut document = json!({"auditd": {"binary": {"/usr/sbin/auditd": {"exists": true}}}, "collectors": {
+        "auditd-binary": {"status": "ok", "into": "auditd.binary"},
+        "auditd-conf": {"status": "ok", "into": "auditd.conf"},
+        "auditd-logs": {"status": "ok", "into": "auditd.logs"},
+        "audit-rules-loaded": {"status": "ok", "into": "audit.loaded"},
+        "systemd-state": {"status": "ok", "into": "systemd.state"}}});
+    for (top, value) in facts.as_object().unwrap() {
+        match document.get_mut(top).and_then(Value::as_object_mut) {
+            Some(map) => map.extend(value.as_object().unwrap().clone()),
+            None => document[top] = value.clone(),
+        }
+    }
+    judge("auditd", &document)
+}
+
+// One auditd rule’s outcome over auditd.conf as the kv op reads `text`.
+fn auditd_conf(rule: &str, text: &str) -> Outcome {
+    let file =
+        serde_json::from_value(json!({"path": "/etc/audit/auditd.conf", "content": text})).unwrap();
+    let with = json!({"repeat": "last"});
+    let conf = systemlint_formats::kv(&[Input::File(file)], with.as_object().unwrap())
+        .unwrap()
+        .facts;
+    let checks: Vec<_> = auditd(json!({"auditd": {"conf": conf}}))
+        .into_iter()
+        .filter(|(r, _, _)| r == rule)
+        .collect();
+    assert_eq!(checks.len(), 1, "{rule} over {text:?}");
+    checks[0].2
+}
+
+#[test]
+fn auditd_conf_fails_ubuntus_stock_actions_and_reads_keys_and_values_without_case() {
+    let stock = "max_log_file_action = ROTATE\nspace_left_action = SYSLOG\nadmin_space_left_action = SUSPEND\ndisk_full_action = SUSPEND\ndisk_error_action = SUSPEND\n";
+    for rule in [
+        "auditd/deletes-logs",
+        "auditd/full-disk",
+        "auditd/low-space",
+    ] {
+        assert_eq!(
+            auditd_conf(rule, stock),
+            Outcome::Fail,
+            "{rule} on Ubuntu’s stock auditd.conf"
+        );
+        assert_eq!(
+            auditd_conf(rule, ""),
+            Outcome::Fail,
+            "{rule} unset takes auditd’s default"
+        );
+    }
+    assert_eq!(
+        auditd_conf("auditd/deletes-logs", "max_log_file_action = keep_logs\n"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        auditd_conf("auditd/deletes-logs", "MAX_LOG_FILE_ACTION = KEEP_LOGS\n"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        auditd_conf(
+            "auditd/deletes-logs",
+            "max_log_file_action = keep_logs\nmax_log_file_action = rotate\n"
+        ),
+        Outcome::Fail,
+        "the last line wins"
+    );
+    let full = |full: &str, error: &str| {
+        auditd_conf(
+            "auditd/full-disk",
+            &format!("disk_full_action = {full}\ndisk_error_action = {error}\n"),
+        )
+    };
+    assert_eq!(full("halt", "syslog"), Outcome::Pass);
+    assert_eq!(full("SINGLE", "single"), Outcome::Pass);
+    assert_eq!(full("rotate", "halt"), Outcome::Fail);
+    assert_eq!(full("halt", "suspend"), Outcome::Fail);
+    let low = |space: &str, admin: &str| {
+        auditd_conf(
+            "auditd/low-space",
+            &format!("space_left_action = {space}\nadmin_space_left_action = {admin}\n"),
+        )
+    };
+    assert_eq!(low("email", "single"), Outcome::Pass);
+    assert_eq!(low("exec", "halt"), Outcome::Pass);
+    assert_eq!(low("syslog", "single"), Outcome::Fail);
+    assert_eq!(low("email", "suspend"), Outcome::Fail);
+}
+
+#[test]
+fn auditd_fails_disabled_or_stopped_and_an_empty_rule_list_only_while_it_runs() {
+    let unit = |state: Value| {
+        auditd(json!({"systemd": {"state": {"auditd.service": state, "ssh.service": {"enabled": false, "active": "inactive"}}}}))
+            .into_iter()
+            .filter(|(r, _, _)| r == "auditd/disabled" || r == "auditd/inactive")
+            .map(|(r, _, o)| (r, o))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        unit(json!({"enabled": true, "active": "active"})),
+        [
+            ("auditd/disabled".to_owned(), Outcome::Pass),
+            ("auditd/inactive".to_owned(), Outcome::Pass)
+        ]
+    );
+    assert_eq!(
+        unit(json!({"enabled": false, "active": "failed"})),
+        [
+            ("auditd/disabled".to_owned(), Outcome::Fail),
+            ("auditd/inactive".to_owned(), Outcome::Fail)
+        ]
+    );
+    assert_eq!(
+        unit(json!({"enabled": true})),
+        [
+            ("auditd/disabled".to_owned(), Outcome::Pass),
+            ("auditd/inactive".to_owned(), Outcome::Skip)
+        ],
+        "under --root no unit has an active state"
+    );
+    let listed = |stdout: &str, active: &str| {
+        let run = ExecInput {
+            argv: vec!["/usr/sbin/auditctl".into(), "-l".into()],
+            stdout: stdout.into(),
+            stderr: String::new(),
+            exit: 0,
+        };
+        let with = json!({"split": ["-a", "-S"]});
+        let loaded = systemlint_formats::flags(&[Input::Exec(run)], with.as_object().unwrap())
+            .unwrap()
+            .facts;
+        auditd(json!({"audit": {"loaded": loaded}, "systemd": {"state": {"auditd.service": {"enabled": true, "active": active}}}}))
+            .into_iter()
+            .find(|(r, _, _)| r == "auditd/no-rules")
+            .unwrap()
+            .2
+    };
+    assert_eq!(listed("No rules\n", "active"), Outcome::Fail);
+    assert_eq!(listed("", "active"), Outcome::Fail);
+    assert_eq!(
+        listed("-w /etc/sudoers -p wa -k scope\n", "active"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        listed("-a always,exit -F arch=b64 -S execve -F key=x\n", "active"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        listed("No rules\n", "inactive"),
+        Outcome::Skip,
+        "a stopped auditd is auditd/inactive"
+    );
+    let rooted = auditd(json!({"systemd": {"state": {"auditd.service": {"enabled": true}}}}));
+    assert_eq!(
+        rooted
+            .iter()
+            .find(|(r, _, _)| r == "auditd/no-rules")
+            .map(|c| c.2),
+        Some(Outcome::Skip),
+        "under --root no unit has an active state"
+    );
+    let unitless = auditd(json!({"systemd": {"state": {}}}));
+    assert_eq!(
+        unitless
+            .iter()
+            .find(|(r, _, _)| r == "auditd/no-rules")
+            .map(|c| c.2),
+        Some(Outcome::Skip),
+        "auditd on disk with no unit"
+    );
+}
+
+#[test]
+fn audit_logs_fail_once_other_users_read_them_or_the_group_writes_the_directory() {
+    let mode = |kind: &str, mode: &str| {
+        auditd(json!({"auditd": {"logs": {"/var/log/audit/x": {"exists": true, "kind": kind, "mode": mode}}}}))
+            .into_iter()
+            .filter(|(r, _, o)| r.starts_with("auditd/log-") && *o != Outcome::Skip)
+            .map(|(r, _, o)| (r, o))
+            .collect::<Vec<_>>()
+    };
+    let file = |m| mode("file", m);
+    let directory = |m| mode("directory", m);
+    assert_eq!(
+        file("0640"),
+        [("auditd/log-mode".to_owned(), Outcome::Pass)]
+    );
+    assert_eq!(
+        file("0600"),
+        [("auditd/log-mode".to_owned(), Outcome::Pass)]
+    );
+    assert_eq!(
+        file("0644"),
+        [("auditd/log-mode".to_owned(), Outcome::Fail)]
+    );
+    assert_eq!(
+        file("0660"),
+        [("auditd/log-mode".to_owned(), Outcome::Fail)]
+    );
+    assert_eq!(
+        file("0740"),
+        [("auditd/log-mode".to_owned(), Outcome::Fail)]
+    );
+    assert_eq!(
+        directory("0750"),
+        [("auditd/log-directory-mode".to_owned(), Outcome::Pass)]
+    );
+    assert_eq!(
+        directory("2750"),
+        [("auditd/log-directory-mode".to_owned(), Outcome::Pass)]
+    );
+    assert_eq!(
+        directory("0700"),
+        [("auditd/log-directory-mode".to_owned(), Outcome::Pass)]
+    );
+    assert_eq!(
+        directory("0770"),
+        [("auditd/log-directory-mode".to_owned(), Outcome::Fail)]
+    );
+    assert_eq!(
+        directory("0751"),
+        [("auditd/log-directory-mode".to_owned(), Outcome::Fail)]
+    );
+    assert_eq!(
+        mode("symlink", "0777"),
+        [],
+        "a link’s own mode means nothing"
+    );
+    assert!(
+        judge("auditd", &json!({"auditd": {"binary": {}, "logs": {"/var/log/audit/x": {"kind": "file", "mode": "0666"}}}, "collectors": {}}))
+            .iter()
+            .all(|(_, _, o)| *o == Outcome::NotApplicable),
+        "a host without auditd"
     );
 }
 

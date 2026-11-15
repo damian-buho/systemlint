@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: auditd-logs
+read:
+  stat: [/var/log/audit, /var/log/audit/*]
+parse: {plugin: formats, op: stat}
+into: auditd.logs
+privileged: true
