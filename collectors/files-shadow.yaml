@@ -4,6 +4,6 @@
 
 id: files-shadow
 read:
-  stat: [/etc/shadow, /etc/shadow-, /etc/gshadow, /etc/gshadow-]
+  stat: [/etc/shadow, /etc/shadow-, /etc/gshadow, /etc/gshadow-, /etc/security/opasswd, /etc/security/opasswd.old]
 parse: {plugin: formats, op: stat}
 into: files.shadow

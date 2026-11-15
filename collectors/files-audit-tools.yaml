@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: files-audit-tools
+read:
+  stat: [/usr/*bin/auditctl, /usr/*bin/aureport, /usr/*bin/ausearch, /usr/*bin/autrace, /usr/*bin/auditd, /usr/*bin/augenrules]
+parse: {plugin: formats, op: stat}
+into: files.audit-tools

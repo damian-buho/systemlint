@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: files-apt-auth
+read:
+  stat: [/etc/apt/auth.conf, /etc/apt/auth.conf.d/*]
+parse: {plugin: formats, op: stat}
+into: files.apt-auth

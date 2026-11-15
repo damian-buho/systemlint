@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: files-audit-config
+read:
+  stat: [/etc/audit, /etc/audit/*.conf, /etc/audit/rules.d, /etc/audit/rules.d/*.rules, /etc/audit/plugins.d, /etc/audit/plugins.d/*.conf]
+parse: {plugin: formats, op: stat}
+into: files.audit-config

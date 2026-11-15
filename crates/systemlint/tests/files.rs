@@ -16,7 +16,7 @@ use systemlint::rules::Library;
 use systemlint::source::Root;
 use systemlint_protocol::{PROTOCOL, Request};
 
-const COLLECTORS: [&str; 7] = [
+const COLLECTORS: [&str; 13] = [
     "files-shadow",
     "files-sudoers",
     "files-cron",
@@ -24,6 +24,12 @@ const COLLECTORS: [&str; 7] = [
     "files-ssh-host-keys",
     "files-apt-keyrings",
     "files-path",
+    "files-accounts",
+    "files-apt-sources",
+    "files-apt-auth",
+    "files-boot",
+    "files-audit-config",
+    "files-audit-tools",
 ];
 
 fn repository() -> PathBuf {
@@ -33,8 +39,16 @@ fn repository() -> PathBuf {
 // A root whose modes git cannot keep, rebuilt with explicit modes on every run.
 fn root() -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("files-root");
-    let entries: [(&str, Option<&str>, u32); 13] = [
+    let entries: [(&str, Option<&str>, u32); 17] = [
         ("etc", None, 0o755),
+        ("etc/passwd", Some("root:x:0:0::/root:/bin/sh\n"), 0o644),
+        ("etc/apt", None, 0o755),
+        ("etc/apt/auth.conf.d", None, 0o755),
+        (
+            "etc/apt/auth.conf.d/private.conf",
+            Some("machine example.invalid login a password b\n"),
+            0o644,
+        ),
         ("etc/shadow", Some(""), 0o640),
         ("etc/gshadow", Some(""), 0o640),
         ("etc/sudoers", Some("root ALL=(ALL) ALL\n"), 0o440),
@@ -129,7 +143,7 @@ fn checks(document: &Value) -> Vec<Check> {
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
-    assert_eq!(rules.len(), 5);
+    assert_eq!(rules.len(), 9);
     lint(document, &rules, &[], "2026-11-11")
 }
 
@@ -159,6 +173,10 @@ fn a_0644_host_key_and_a_0666_sudoers_drop_in_fail_and_nothing_else_does() {
         found,
         [
             (
+                "files/apt-auth-readable",
+                "/etc/apt/auth.conf.d/private.conf".to_owned()
+            ),
+            (
                 "files/group-writable",
                 "sudoers, /etc/sudoers.d/deploy".to_owned()
             ),
@@ -183,7 +201,7 @@ fn a_0644_host_key_and_a_0666_sudoers_drop_in_fail_and_nothing_else_does() {
     );
     let root = rustix::process::geteuid().is_root();
     let owners: Vec<_> = checks.iter().filter(|c| c.rule == "files/owner").collect();
-    assert_eq!(owners.len(), 11);
+    assert_eq!(owners.len(), 14);
     assert!(
         owners.iter().all(|c| c.is_failing() != root),
         "a test file is owned by the runner: root passes, anyone else fails"
@@ -205,6 +223,63 @@ fn the_shadow_and_host_key_patterns_take_0640_or_stricter_at_every_edge() {
         .map(|c| c.subject_text())
         .collect();
     assert_eq!(failing, ["0641", "0644", "0650", "0660", "0740", "4640"]);
+}
+
+#[test]
+fn each_mode_cap_fails_the_first_mode_beyond_it_and_leaves_symlinks_alone() {
+    let cases = [
+        (
+            "accounts",
+            "files/accounts-mode",
+            ["0644", "0444", "0600"],
+            ["0645", "0654", "0744", "2644"],
+        ),
+        (
+            "apt-auth",
+            "files/apt-auth-readable",
+            ["0640", "0603", "0600"],
+            ["0644", "0604", "0605", "0607"],
+        ),
+        (
+            "boot",
+            "files/bootloader-readable",
+            ["0600", "0400", "0700"],
+            ["0610", "0601", "0640", "4600"],
+        ),
+        (
+            "audit-config",
+            "files/audit-config-mode",
+            ["0640", "0600", "0440"],
+            ["0641", "0644", "0650", "0740"],
+        ),
+    ];
+    for (group, rule, pass, fail) in cases {
+        let mut document = json!({"files": {group: {"/link": {"kind": "symlink", "mode": "0777", "uid": 0, "world-writable": false, "group-writable": false}}}, "collectors": {format!("files-{group}"): {"status": "ok", "into": format!("files.{group}")}}});
+        for mode in pass.iter().chain(fail.iter()) {
+            document["files"][group][*mode] = json!({"kind": "file", "mode": mode, "uid": 0, "world-writable": false, "group-writable": false});
+        }
+        let judged: Vec<(String, Outcome)> = checks(&document)
+            .into_iter()
+            .filter(|c| c.rule == rule)
+            .map(|c| (c.subject_text(), c.outcome))
+            .collect();
+        for mode in pass {
+            assert!(
+                judged.contains(&(mode.to_owned(), Outcome::Pass)),
+                "{rule} at {mode}: {judged:?}"
+            );
+        }
+        for mode in fail {
+            assert!(
+                judged.contains(&(mode.to_owned(), Outcome::Fail)),
+                "{rule} at {mode}: {judged:?}"
+            );
+        }
+        assert!(
+            judged.contains(&("/link".to_owned(), Outcome::Skip)),
+            "{rule} on a symlink: {judged:?}"
+        );
+    }
 }
 
 #[test]

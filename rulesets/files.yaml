@@ -68,3 +68,51 @@ rules:
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://man.openbsd.org/sshd#FILES
     tags: [files, ssh]
+  files/apt-auth-readable:
+    title: APT repository credentials readable by every user
+    fact: files.apt-auth.*.mode
+    when: {files.apt-auth.*.kind: file}
+    expect: {pattern: "^[0-7]{3}[0-3]$"}
+    severity: error
+    score: 7.5
+    message: "{subject} has mode {got}, so every user reads the logins and passwords APT uses for private repositories and proxies"
+    fix: chmod 0640 the file, or 0600
+    remedy: {chmod: o-r}
+    docs: https://manpages.debian.org/unstable/apt/apt_auth.conf.5.en.html
+    tags: [files, apt, cis-ubuntu-26.04:1.2.1.6]
+  files/accounts-mode:
+    title: Account database more open than 0644
+    fact: files.accounts.*.mode
+    when: {files.accounts.*.kind: file}
+    expect: {pattern: "^0[0246][04][04]$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0644 or stricter, with no execute or special bit"
+    fix: chmod 0644 the file
+    remedy: {chmod: "u-xs,g-wxs,o-wxt"}
+    docs: https://manpages.debian.org/unstable/manpages/passwd.5.en.html
+    tags: [files, cis-ubuntu-26.04:7.1.1, cis-ubuntu-26.04:7.1.2, cis-ubuntu-26.04:7.1.3, cis-ubuntu-26.04:7.1.4, cis-ubuntu-26.04:7.1.9, '!default']
+  files/bootloader-readable:
+    title: Bootloader configuration readable by other users
+    fact: files.boot.*.mode
+    when: {files.boot.*.kind: file}
+    expect: {pattern: "^0[0-7]00$"}
+    severity: info
+    score: 2.0
+    message: "{subject} has mode {got}; the benchmark asks 0600, so a GRUB password hash in it reaches no other user"
+    fix: chmod 0600 the file, and keep it so across update-grub with a password set in /etc/grub.d
+    remedy: {chmod: "g-rwxs,o-rwxt"}
+    docs: https://www.gnu.org/software/grub/manual/grub/html_node/Authentication-and-authorisation.html
+    tags: [files, boot, cis-ubuntu-26.04:1.4.2, '!default']
+  files/audit-config-mode:
+    title: Audit configuration readable by other users
+    fact: files.audit-config.*.mode
+    when: {files.audit-config.*.kind: file}
+    expect: {pattern: "^0[0246][04]0$"}
+    severity: info
+    score: 2.0
+    message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so other users cannot read what is watched and plan around it"
+    fix: chmod 0640 the file
+    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [files, audit, cis-ubuntu-26.04:6.2.4.5, '!default']
