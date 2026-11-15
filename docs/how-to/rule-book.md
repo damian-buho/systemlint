@@ -39,7 +39,9 @@ picks the standard they follow with `--tags`.
 A ruleset that hardens the host carries `tags: [default]`, so a bare
 `systemlint check` runs it. A practice ruleset (performance, stability, an
 opinionated profile) leaves it out and runs when its tag is named; a category
-is a tag, never a field.
+is a tag, never a field. A rule only a standard asks for, with no exposure
+behind it on a common host, carries `'!default'` and its control tag, so it
+stays in its subject’s ruleset and runs when that standard is named.
 
 ## Small rulesets
 

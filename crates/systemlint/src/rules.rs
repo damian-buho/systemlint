@@ -216,19 +216,34 @@ fn entry(raw: &Value) -> Result<Spec, String> {
     }
 }
 
+/// `base` tags then `own`, where an own `!tag` drops that tag from `base`.
+fn tagged(base: Vec<String>, own: Vec<String>) -> Vec<String> {
+    let (drop, own): (Vec<_>, Vec<_>) = own.into_iter().partition(|t| t.starts_with('!'));
+    let mut tags: Vec<String> = base
+        .into_iter()
+        .filter(|t| !drop.iter().any(|d| d[1..] == *t))
+        .collect();
+    for tag in own {
+        if !tags.contains(&tag) {
+            tags.push(tag);
+        }
+    }
+    if !drop.is_empty() {
+        log::debug!("tags {drop:?} dropped, leaving {tags:?}");
+    }
+    tags
+}
+
 /// A ruleset’s entry as a spec, a definition taking the ruleset’s own tags first.
 fn defined(ruleset: &Ruleset, raw: &Value) -> Result<Spec, String> {
     let mut spec = entry(raw)?;
     if spec.defines() {
-        let own = std::mem::take(&mut spec.tags);
-        spec.tags = ruleset.tags.clone();
-        spec.tags
-            .extend(own.into_iter().filter(|t| !ruleset.tags.contains(t)));
+        spec.tags = tagged(ruleset.tags.clone(), std::mem::take(&mut spec.tags));
     }
     Ok(spec)
 }
 
-/// `over` on top of `base`: set fields win, `expect` merges keyword by keyword and drops the inherited message, tags and references add up.
+/// `over` on top of `base`: set fields win, `expect` merges keyword by keyword and drops the inherited message, tags and references add up, an `!tag` removing one.
 fn merge(base: Spec, over: Spec) -> Spec {
     let expect_changed = over.expect.is_some();
     let subject_changed = over.fact.is_some() || over.facts.is_some();
@@ -240,13 +255,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         (b, o) => o.or(b),
     };
     let score_set = over.score.is_some();
-    let mut tags = base.tags;
-    tags.extend(
-        over.tags
-            .into_iter()
-            .filter(|t| !tags.contains(t))
-            .collect::<Vec<_>>(),
-    );
+    let tags = tagged(base.tags, over.tags);
     let mut references = base.references;
     references.extend(
         over.references

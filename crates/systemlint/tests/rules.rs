@@ -459,6 +459,29 @@ fn no_selector_runs_the_default_tag_and_counts_the_rest_per_ruleset() {
 }
 
 #[test]
+fn a_bang_tag_drops_an_inherited_tag_from_a_definition_or_an_override() {
+    let lib = Library::new(BTreeMap::from([
+        (
+            "mods".to_owned(),
+            systemlint::yaml::from_str("tags: [default, kernel]\nrules:\n  mods/a: {fact: a, expect: {minimum: 1}}\n  mods/b: {fact: b, expect: {minimum: 1}, tags: [cis, '!default']}\n").unwrap(),
+        ),
+        (
+            "site".to_owned(),
+            systemlint::yaml::from_str("rules:\n  mods/a: {tags: ['!default', '!absent']}\n").unwrap(),
+        ),
+    ]))
+    .unwrap();
+    assert_eq!(lib.definitions["mods/b"].tags, ["kernel", "cis"]);
+    assert_eq!(ids(&lib.select_for(&[]).unwrap().rules), ["mods/a"]);
+    let site = lib.select_for(&["site".into()]).unwrap();
+    assert_eq!(
+        site.rules["mods/a"].tags,
+        ["kernel"],
+        "a dropped tag that was never there is ignored"
+    );
+}
+
+#[test]
 fn no_rule_tagged_default_selects_nothing_rather_than_failing() {
     let lib = Library::new(BTreeMap::from([(
         "mine".to_owned(),

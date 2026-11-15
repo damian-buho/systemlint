@@ -218,7 +218,10 @@ keyword by keyword, dropping the inherited `message`, which may state the old
 bounds. `extends` takes rulesets, rule IDs and tag globs, flattened depth first;
 a ruleset name also brings the rules tagged with it, as a selector does.
 `tags` go to every rule the ruleset defines, before the rule’s own, so the
-shipped rulesets carry `tags: [default]` once rather than on each rule.
+shipped rulesets carry `tags: [default]` once rather than on each rule. A
+rule’s own `!tag` drops an inherited one, so `tags: ['!default']` keeps a
+rule a standard asks for out of the default run, and an override’s `!tag`
+does the same to the rule it overrides.
 
 `when` takes the form a rule’s does, without `*`, since a ruleset has no
 subject. It guards every rule the ruleset defines, however it is selected, and
