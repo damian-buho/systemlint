@@ -7,6 +7,7 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value, json};
+use systemlint_formats::proc::{CONTAINER, cgroup, owner, parent, pid_file};
 use systemlint_formats::{Sections, mask, parse_ini, text, unit_files, unquote};
 use systemlint_protocol::{Describe, Diagnostic, Input, Reply, Request, Result};
 
@@ -39,14 +40,8 @@ pub const SEARCH_PATHS: [(&str, &str); 3] = [
 /// The ld.so preload list, read as a system-wide `LD_PRELOAD`.
 pub const PRELOAD: &str = "/etc/ld.so.preload";
 
-/// What a container’s environment is keyed by, before its name or short ID.
-pub const CONTAINER: &str = "container:";
-
 /// Where Docker keeps each container’s `config.v2.json`, one directory per full ID.
 pub const DOCKER_CONTAINERS: &str = "/var/lib/docker/containers/";
-
-/// Leaf prefixes of the cgroup scopes container engines create, before the container ID.
-pub const CONTAINER_SCOPES: [&str; 4] = ["docker-", "libpod-", "cri-containerd-", "crio-"];
 
 /// The ops this plugin offers.
 pub fn describe() -> Describe {
@@ -349,42 +344,6 @@ pub fn units(inputs: &[Input]) -> Reply {
     reply
 }
 
-/// What owns a cgroup: a system service by its unit name, or a container by `container:` and the first 12 characters of its ID.
-pub fn owner(cgroup: &str) -> Option<String> {
-    let leaf = cgroup.rsplit('/').next()?;
-    if let Some(id) = CONTAINER_SCOPES
-        .iter()
-        .find_map(|p| leaf.strip_prefix(p))
-        .and_then(|rest| rest.strip_suffix(".scope"))
-    {
-        return Some(format!("{CONTAINER}{}", &id[..id.len().min(12)]));
-    }
-    (cgroup.starts_with("/system.slice/") && leaf.ends_with(".service")).then(|| leaf.to_owned())
-}
-
-/// The unified (or systemd v1) cgroup path in a `/proc/<pid>/cgroup` text.
-pub fn cgroup(text: &str) -> Option<&str> {
-    let lines: Vec<(&str, &str)> = text
-        .lines()
-        .filter_map(|l| l.split_once(':').and_then(|(_, rest)| rest.split_once(':')))
-        .collect();
-    lines
-        .iter()
-        .find(|(c, _)| c.is_empty())
-        .or_else(|| lines.iter().find(|(c, _)| *c == "name=systemd"))
-        .map(|(_, path)| *path)
-}
-
-/// The parent PID in a `/proc/<pid>/stat` text, read after the command name’s closing parenthesis.
-pub fn parent(stat: &str) -> Option<u32> {
-    stat.rsplit_once(')')?
-        .1
-        .split_whitespace()
-        .nth(1)?
-        .parse()
-        .ok()
-}
-
 /// The environment of each service’s top process, the lowest PID whose parent sits outside its cgroup, from `/proc/<pid>/{environ,cgroup,stat}`; containers are left to [`containers`].
 pub fn processes(inputs: &[Input]) -> Reply {
     environments(inputs, false)
@@ -424,13 +383,7 @@ fn environments(inputs: &[Input], containers: bool) -> Reply {
             }
             continue;
         }
-        let mut parts = path.trim_start_matches('/').split('/');
-        if let (Some("proc"), Some(Ok(pid)), Some(file), None) = (
-            parts.next(),
-            parts.next().map(str::parse::<u32>),
-            parts.next(),
-            parts.next(),
-        ) {
+        if let Some((pid, file)) = pid_file(path) {
             procs.entry(pid).or_default().insert(file, text);
         }
     }
@@ -729,36 +682,6 @@ mod tests {
             kept.facts["app.service"]["environment-files"],
             json!(["/etc/default/app"])
         );
-    }
-
-    #[test]
-    fn owner_names_system_services_and_containers_only() {
-        assert_eq!(
-            owner("/system.slice/nginx.service").as_deref(),
-            Some("nginx.service")
-        );
-        assert_eq!(
-            owner("/system.slice/docker-0123456789abcdef0123.scope").as_deref(),
-            Some("container:0123456789ab")
-        );
-        assert_eq!(
-            owner("/kubepods.slice/kubepods-pod1.slice/cri-containerd-abc.scope").as_deref(),
-            Some("container:abc")
-        );
-        assert_eq!(
-            owner("/user.slice/user-1000.slice/user@1000.service/app.slice/foo.service"),
-            None
-        );
-        assert_eq!(owner("/init.scope"), None);
-        assert_eq!(
-            cgroup("0::/system.slice/a.service\n"),
-            Some("/system.slice/a.service")
-        );
-        assert_eq!(
-            cgroup("12:cpu:/x\n1:name=systemd:/system.slice/b.service\n"),
-            Some("/system.slice/b.service")
-        );
-        assert_eq!(parent("42 (a b) c) S 7 42 42"), Some(7));
     }
 
     #[test]

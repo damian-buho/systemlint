@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 pub mod deb822;
 mod kv;
 mod options;
+pub mod proc;
 mod words;
 pub use deb822::deb822;
 pub use kv::kv;
