@@ -31,6 +31,7 @@ into: apt.sources
 | `read.files-from` | dotted fact paths, `*` a whole segment, whose strings name files to read, as `env.units.*.environment-files`; `{pattern}/glob` globs below each, as `{accounts.passwd.*.home}/.ssh/*` |
 | `read.stat-from` | the same, naming files to pass with their `stat` |
 | `read.stat-keep` | a JSON Schema over each `stat`: only the stats it admits reach the plugin, as `{properties: {setuid: {const: true}}}` keeps a walk of `/usr/**` to its set-user-ID files; needs `stat` or `stat-from` |
+| `read.stat-absent` | `true` passes a stat path that does not exist as absent, which `formats stat` records as `exists: false`, as an inline collector always does; needs `stat` or `stat-from` |
 | `read.stat-parents` | `true` stats every directory above each kept stat, `/` left out, into the same request, so a rule can judge who may replace the file; needs `stat` or `stat-from` |
 | `read.statfs-from` | the same, naming paths to pass with their `statfs`, as `mounts.active` |
 | `read.hash` | `sha256`, `sha512` or both: adds the file’s lowercase hex digest to the `stat` of each regular file; needs `stat` or `stat-from` |

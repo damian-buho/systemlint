@@ -981,7 +981,7 @@ pub fn read_partial(
                     .or_insert_with(|| blank(&path))
                     .stat = Some(stat);
             }
-            Err(e) if gone(&e) && collector.inline => {
+            Err(e) if gone(&e) && (collector.inline || collector.read.stat_absent) => {
                 log::debug!(
                     "collector {}: {path} is absent, passed as absent",
                     collector.id

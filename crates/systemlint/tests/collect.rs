@@ -430,6 +430,20 @@ fn stat_parents_adds_every_directory_above_a_kept_stat_but_root() {
 }
 
 #[test]
+fn stat_absent_passes_a_missing_path_as_absent() {
+    let absent = collector(
+        "id: absent\nread:\n  stat: [/usr, /nonexistent-home]\n  stat-absent: true\nparse: {plugin: absent, op: parse}\ninto: kept\n",
+    );
+    let doc = collect(&[absent], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["absent"]["status"], "ok", "{doc}");
+    let inputs = request("absent")["inputs"].as_array().unwrap().clone();
+    assert_eq!(inputs.len(), 2, "{inputs:?}");
+    assert_eq!(inputs[0]["path"], "/nonexistent-home");
+    assert_eq!(inputs[0]["absent"], true, "{inputs:?}");
+    assert_eq!(inputs[1]["stat"]["kind"], "directory", "{inputs:?}");
+}
+
+#[test]
 fn stat_keep_passes_only_the_stats_its_schema_admits() {
     let keeper = collector(
         "id: keeper\nread:\n  files: [/etc/os-release]\n  stat: [/etc/os-release, /usr]\n  stat-keep: {properties: {kind: {const: directory}}}\nparse: {plugin: keeper, op: parse}\ninto: kept\n",
@@ -449,6 +463,7 @@ fn stat_keep_passes_only_the_stats_its_schema_admits() {
         ("stat: [/x]\n  stat-keep: {type: 5}", "no valid schema"),
         ("stat: [/usr/**/x]", "whole last component"),
         ("stat-parents: true", "list the files under read.stat"),
+        ("stat-absent: true", "list the files under read.stat"),
     ] {
         let error = Collector::parse(&format!(
             "id: c\nread:\n  {read}\nparse: {{plugin: p, op: o}}\ninto: out\n"

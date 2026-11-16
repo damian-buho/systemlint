@@ -65,6 +65,9 @@ pub struct Read {
     pub stat_keep: Option<serde_json::Map<String, serde_json::Value>>,
     #[serde(default, rename = "stat-parents")]
     pub stat_parents: bool,
+    /// A missing stat path lands as `exists: false`, as an inline collector’s does.
+    #[serde(default, rename = "stat-absent")]
+    pub stat_absent: bool,
     #[serde(default)]
     pub hash: Vec<Digest>,
     #[serde(default)]
@@ -331,6 +334,12 @@ impl Collector {
         {
             return Err(
                 "read.hash adds digests to stats; list the files under read.stat or read.stat-from"
+                    .to_owned(),
+            );
+        }
+        if self.read.stat_absent && self.read.stat.is_empty() && self.read.stat_from.is_empty() {
+            return Err(
+                "read.stat-absent records missing stats; list the files under read.stat or read.stat-from"
                     .to_owned(),
             );
         }
