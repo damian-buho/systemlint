@@ -4,6 +4,9 @@
 
 description: OpenSSH server settings that weaken authentication, forwarding or cryptography, after dev-sec ssh-baseline
 tags: [default]
+vars:
+  ssh-max-auth-tries: {default: 4}
+  ssh-login-grace-time: {default: 60}
 rules:
   ssh/root-login:
     title: Root may log in with a password
@@ -161,11 +164,11 @@ rules:
   ssh/max-auth-tries:
     title: Many authentication attempts allowed
     fact: sshd.settings.maxauthtries.*
-    expect: {maximum: 4}
+    expect: {maximum: "${ssh-max-auth-tries}"}
     severity: info
     score: 2.0
     message: "{subject} has MaxAuthTries {got}, so sshd allows many authentication attempts per connection"
-    fix: set MaxAuthTries 4 or lower
+    fix: set MaxAuthTries ${ssh-max-auth-tries} or lower
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -173,11 +176,11 @@ rules:
   ssh/login-grace-time:
     title: Unauthenticated connections kept open long
     fact: sshd.global.*.logingracetime
-    expect: {minimum: 1, maximum: 60}
+    expect: {minimum: 1, maximum: "${ssh-login-grace-time}"}
     severity: info
     score: 1.5
     message: "{subject} sets LoginGraceTime {got}, so it keeps unauthenticated connections open for long, 0 meaning forever"
-    fix: set LoginGraceTime between 1 and 60 seconds
+    fix: set LoginGraceTime between 1 and ${ssh-login-grace-time} seconds
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}

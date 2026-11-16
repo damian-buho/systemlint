@@ -62,11 +62,23 @@ fn document() -> Value {
 }
 
 fn checks(document: &Value) -> Vec<Check> {
+    checks_with(document, json!({}))
+}
+
+// Like checks, the ruleset’s vars filled from `config` as `check.vars` gives them, else their defaults.
+fn checks_with(document: &Value, config: Value) -> Vec<Check> {
     let ruleset = systemlint::yaml::from_str(
         &std::fs::read_to_string(repository().join("rulesets/ssh.yaml")).unwrap(),
     )
     .unwrap();
-    let library = Library::new(BTreeMap::from([("ssh".to_owned(), ruleset)])).unwrap();
+    let mut rulesets = BTreeMap::from([("ssh".to_owned(), ruleset)]);
+    let supplied = systemlint::vars::Supplied {
+        config: config.as_object().unwrap().clone(),
+        env: |_| None,
+        ..Default::default()
+    };
+    systemlint::vars::apply(&mut rulesets, &supplied).unwrap();
+    let library = Library::new(rulesets).unwrap();
     let rules: Vec<_> = library
         .select(&["ssh".to_owned()])
         .unwrap()
@@ -179,4 +191,38 @@ fn a_host_without_sshd_gives_no_check() {
         .map(|c| (c.subject_text(), c.rule, c.outcome))
         .collect();
     assert!(left.is_empty(), "{left:?}");
+}
+
+#[test]
+fn the_auth_tries_and_grace_time_bounds_are_vars_judged_at_their_edge() {
+    let document = |tries: u64, grace: u64| json!({"sshd": {"settings": {"maxauthtries": {MAIN: tries}}, "global": {MAIN: {"logingracetime": grace}}}, "collectors": {"sshd": {"status": "ok", "into": "sshd"}}});
+    let outcome = |document: &Value, config: Value, rule: &str| {
+        let found: Vec<Outcome> = checks_with(document, config)
+            .into_iter()
+            .filter(|c| c.rule == rule)
+            .map(|c| c.outcome)
+            .collect();
+        assert_eq!(found.len(), 1, "{rule}: {found:?}");
+        found[0]
+    };
+    let (tries, grace) = ("ssh/max-auth-tries", "ssh/login-grace-time");
+    assert_eq!(outcome(&document(4, 60), json!({}), tries), Outcome::Pass);
+    assert_eq!(outcome(&document(5, 60), json!({}), tries), Outcome::Fail);
+    assert_eq!(outcome(&document(4, 60), json!({}), grace), Outcome::Pass);
+    assert_eq!(outcome(&document(4, 61), json!({}), grace), Outcome::Fail);
+    assert_eq!(
+        outcome(&document(4, 0), json!({}), grace),
+        Outcome::Fail,
+        "0 keeps a connection forever"
+    );
+    let strict = json!({"ssh-max-auth-tries": 3, "ssh-login-grace-time": 30});
+    assert_eq!(
+        outcome(&document(4, 30), strict.clone(), tries),
+        Outcome::Fail
+    );
+    assert_eq!(
+        outcome(&document(3, 31), strict.clone(), grace),
+        Outcome::Fail
+    );
+    assert_eq!(outcome(&document(3, 30), strict, tries), Outcome::Pass);
 }

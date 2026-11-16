@@ -100,9 +100,12 @@ thresholds are systemlint’s own.
 | `ssh/x11-forwarding` | sshd-42 | warning | `X11Forwarding` is not `no` |
 | `ssh/gateway-ports` | sshd-41 | warning | `GatewayPorts` is not `no` |
 | `ssh/tunnel` | sshd-38 | warning | `PermitTunnel` is not `no` |
-| `ssh/max-auth-tries` | sshd-19 | info | `MaxAuthTries` is over 4 |
-| `ssh/login-grace-time` | sshd-18 | info | `LoginGraceTime` is 0 (no limit) or over 60 seconds |
+| `ssh/max-auth-tries` | sshd-19 | info | `MaxAuthTries` is over `ssh-max-auth-tries` (4) |
+| `ssh/login-grace-time` | sshd-18 | info | `LoginGraceTime` is 0 (no limit) or over `ssh-login-grace-time` (60) seconds |
 | `ssh/log-level` | sshd-13 | info | `LogLevel` is not `VERBOSE` |
+
+The two bounds are ruleset vars defaulting to dev-sec’s numbers, so a site
+with its own standard sets them (`--var ssh-max-auth-tries=3`).
 
 Ubuntu’s shipped `sshd_config` sets `X11Forwarding yes` and keeps the
 defaults `PasswordAuthentication yes`, `MaxAuthTries 6`, `LoginGraceTime 120`
