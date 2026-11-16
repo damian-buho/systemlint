@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: interfaces-flags
+live: true
+read:
+  exec: [/usr/sbin/ip, -o, link, show]
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^[0-9]+: (?P<key>[^:@ ]+)[^<]*<(?P<flags>[^>]*)>'}
+into: interfaces.flags

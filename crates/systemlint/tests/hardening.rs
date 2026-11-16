@@ -6191,3 +6191,56 @@ fn a_service_left_open_fails_only_once_it_listens_beyond_the_loopback_unguarded(
     assert_eq!(docker(false), Outcome::Pass);
     assert_eq!(docker(true), Outcome::Fail);
 }
+
+#[test]
+fn grpck_promiscuous_links_and_an_unsynchronized_clock_fail_and_pass_at_their_edge() {
+    let grpck = |status: i64| {
+        the(
+            "accounts/grpck",
+            &facts(&[("accounts.grpck", json!({"exit-status": status}))]),
+        )
+    };
+    assert_eq!(grpck(0), Outcome::Pass);
+    assert_eq!(grpck(2), Outcome::Fail);
+    let links = |text: &str| {
+        let run = Input::Exec(serde_json::from_value(json!({"argv": ["/usr/sbin/ip", "-o", "link", "show"], "exit": 0, "stdout": text, "stderr": ""})).unwrap());
+        let with = json!({"pattern": "^[0-9]+: (?P<key>[^:@ ]+)[^<]*<(?P<flags>[^>]*)>"});
+        let flags = systemlint_formats::r#match(&[run], with.as_object().unwrap())
+            .unwrap()
+            .facts;
+        let document = facts(&[("interfaces.flags", serde_json::to_value(flags).unwrap())]);
+        judge("interfaces", &document)
+            .into_iter()
+            .map(|(_, s, o)| (s, o))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        links(
+            "2: eth0: <BROADCAST,MULTICAST,PROMISC,UP,LOWER_UP> mtu 1500 qdisc fq state UP\n159: vethcd8e246@if2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state UP\n"
+        ),
+        [
+            ("eth0".to_owned(), Outcome::Fail),
+            ("vethcd8e246".to_owned(), Outcome::Pass)
+        ],
+        "a bridge port counts promiscuity without the flag"
+    );
+    let clock = |conf: Value| {
+        the(
+            "timesync/unsynchronized",
+            &facts(&[("timesync.timedatectl", conf)]),
+        )
+    };
+    assert_eq!(
+        clock(json!({"NTP": "yes", "NTPSynchronized": "yes"})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        clock(json!({"NTP": "yes", "NTPSynchronized": "no"})),
+        Outcome::Fail
+    );
+    assert_eq!(
+        clock(json!({"NTP": "no", "NTPSynchronized": "no"})),
+        Outcome::Skip,
+        "time sync off is another rule’s finding"
+    );
+}

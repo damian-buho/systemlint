@@ -279,3 +279,15 @@ rules:
     fix: run passwd --lock root, once every administrator reaches root through sudo
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/passwd.1.html
     tags: [accounts, stig-ubuntu-26.04:UBTU-24-400110, '!default']
+  accounts/grpck:
+    title: grpck finds the group files inconsistent
+    fact: accounts.grpck.exit-status
+    expect: {const: 0}
+    severity: warning
+    score: 3.0
+    message: "grpck --read-only exits {got}, so /etc/group and /etc/gshadow hold a malformed line, a duplicate name or a member with no account, which tools read differently"
+    fix: run grpck as root and fix each line it names, or let it fix them with grpck without --read-only
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/grpck.8.html
+    references:
+      - {title: Lynis AUTH-9216, url: "https://cisofy.com/lynis/controls/AUTH-9216/"}
+    tags: [accounts, lynis]

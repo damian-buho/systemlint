@@ -391,6 +391,13 @@ The rule covers part of
 [`systemd-analyze security`](https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html),
 whose exposure score it does not reproduce.
 
+### Promiscuous interfaces
+
+`interfaces/promiscuous` (Lynis NETW-3015) fails an interface whose flags,
+which the live `interfaces-flags` collector matches from `ip -o link show`,
+hold `PROMISC`. A bridge port counts promiscuity without the flag, so
+Docker’s veth pairs pass.
+
 ### Services left open
 
 Each ruleset applies where its server is on disk (`redis-binary`,
@@ -556,6 +563,9 @@ not.
   `systemd-timesyncd.service`, `ntpsec.service` or `ntp.service`, and
   `timesync/stig-chrony-makestep` (600180) a `chrony.conf` with no
   `makestep 1 -1` line while chrony is installed.
+- `timesync/unsynchronized` (Lynis TIME-3106, TIME-3185) fails while
+  `timedatectl show`, read live by `timedatectl` through `kv`, reports
+  `NTP=yes` and `NTPSynchronized` other than `yes`.
 - `timesync/none-running` (Lynis TIME-3104) fails while none of
   `systemd-timesyncd`, chrony, ntpsec, ntp or openntpd is active, and skips
   under `--root`, where no unit has an active state.

@@ -138,3 +138,17 @@ rules:
     references:
       - {title: Lynis TIME-3104, url: "https://cisofy.com/lynis/controls/TIME-3104/"}
     tags: [timesync, lynis]
+  timesync/unsynchronized:
+    title: The clock is not synchronized though time sync is on
+    fact: timesync.timedatectl
+    when: {timesync.timedatectl.NTP: "yes"}
+    expect: {required: [NTPSynchronized], properties: {NTPSynchronized: {const: "yes"}}}
+    severity: info
+    score: 2.0
+    message: "timedatectl reports NTP=yes but NTPSynchronized={got}, so the kernel has not marked the clock synchronized: no time server answers, or the daemon has only just started"
+    fix: read the time daemon’s log (journalctl --unit systemd-timesyncd or chronyc sources) and let it reach a server
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/timedatectl.1.html
+    references:
+      - {title: Lynis TIME-3106, url: "https://cisofy.com/lynis/controls/TIME-3106/"}
+      - {title: Lynis TIME-3185, url: "https://cisofy.com/lynis/controls/TIME-3185/"}
+    tags: [timesync, lynis]

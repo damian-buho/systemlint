@@ -94,6 +94,7 @@ standard sets it, daily rotation included (`--var password-max-days=1`, or
 | `accounts/useradd-inactive` | 5.4.1.5 | `INACTIVE` in `/etc/default/useradd`, read by `auth-useradd` through `kv`, is unset, negative or above `password-inactive-days` (45) |
 | `accounts/stig-useradd-inactive` | STIG 200260 | `INACTIVE` is unset, negative or above `stig-password-inactive-days` (35) |
 | `accounts/stig-root-unlocked` | STIG 400110 | root’s shadow password is not `locked` |
+| `accounts/grpck` | Lynis AUTH-9216 | `grpck --read-only`, run as root by `accounts-grpck`, exits non-zero (in `default`) |
 | `accounts/system-login-shell` | 5.4.2.7 | an account other than root, halt, sync, shutdown and nfsnobody, below `uid-min` (1000) or uid 65534, has a login shell |
 | `accounts/no-shell-unlocked` | 5.4.2.8 | an account other than root has no login shell, and its shadow password is a hash or empty |
 

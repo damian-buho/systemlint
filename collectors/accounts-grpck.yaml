@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: accounts-grpck
+read:
+  exec: [/usr/sbin/grpck, --read-only]
+parse: {plugin: formats, op: exec}
+into: accounts.grpck
+privileged: true
