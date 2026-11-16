@@ -265,6 +265,9 @@ carry `default`, the others the CIS control alone:
 | `auditd/stig-log-mode` | info | an audit log is wider than 0600 (STIG only) |
 | `auditd/stig-log-group` | info | an audit log is in a group other than root (STIG only) |
 | `auditd/stig-space-left` | info | `space_left_action` is not `email`, or `space_left` is not a share of 25% or more (STIG only) |
+| `auditd/max-log-file` | info | `max_log_file` is below `audit-max-log-file` (8 MB, auditd’s default; the benchmark leaves the size to the site, CIS 6.2.2.1) |
+| `auditd/log-group` | info | `log_group` is not `root` or `adm` (CIS 6.2.4.3) |
+| `auditd/log-file-group` | info | an audit log is in a group other than root or adm (CIS 6.2.4.3) |
 | `auditd/stig-mail-account` | info | `action_mail_acct` is set to an account other than `root` (STIG only) |
 | `auditd/stig-no-remote` | info | `au-remote.conf` does not set `active = yes`, or `audisp-remote.conf` names no `remote_server`, both read by `auditd-remote` through `kv` (STIG only) |
 
@@ -671,6 +674,12 @@ The `logs-files` collector (privileged, since `/var/log/private` is 0700) stats
 | `logs/directory-group` | info | `/var/log` is not in group `syslog` (STIG only) |
 | `logs/syslog-owner` | info | `/var/log/syslog` is not owned by user `syslog` (STIG only) |
 | `logs/syslog-group` | info | `/var/log/syslog` is not in group `adm` (STIG only) |
+| `logs/cis-login-records-mode` | info | `wtmp`, `btmp`, `lastlog`, a rotation of them or `README` is more open than 0664 (CIS 6.1.3.1) |
+| `logs/cis-readable-mode` | info | a file in `/var/log/apt`, or a `cloud-init.log`, `localmessages` or `waagent.log` file, is more open than 0644 (CIS 6.1.3.1) |
+| `logs/cis-group-mode` | info | an `sssd`, `SSSD`, `gdm` or `gdm3` file is more open than 0660 (CIS 6.1.3.1) |
+| `logs/cis-mode` | info | any other log file is more open than 0640 (CIS 6.1.3.1) |
+
+The CIS script also names owners and groups per file; those rows stay open.
 
 The `rsyslog` ruleset, without `default` (`--tags rsyslog`), applies where an
 `rsyslogd` program is on disk, which the `rsyslog-binary` collector stats into

@@ -205,7 +205,7 @@ rules:
   mounts/proc-hidepid:
     title: Every user sees every process
     fact: mounts.active./proc.options
-    when: {mounts: {required: [active]}}
+    when: {mounts: {required: [active], properties: {active: {required: [/proc]}}}}
     expect: {contains: {pattern: "^hidepid=([12]|noaccess|invisible)$"}}
     severity: info
     score: 1.0

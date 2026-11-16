@@ -41,3 +41,66 @@ rules:
     references:
       - {title: Lynis HOME-9306, url: "https://cisofy.com/lynis/controls/HOME-9306/"}
     tags: [files, lynis]
+  home/dot-file-mode:
+    title: A dot file in a home more open than 0644
+    fact: home.dots.*.mode
+    keys: {not: {pattern: "/\\.bash_history$"}}
+    when: {home.dots.*.kind: file}
+    expect: {pattern: "^0[0246][04][04]$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0644 or stricter, so no other user changes what its owner’s shell or tools run"
+    fix: chmod 0644 the file, or 0600 if it holds anything private
+    remedy: {chmod: "u-xs,g-wxs,o-wxt"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/bash.1.html#files
+    tags: [files, cis-ubuntu-26.04:7.2.10, '!default']
+  home/history-mode:
+    title: A shell history readable by other users
+    fact: home.dots.*.mode
+    keys: {pattern: "/\\.bash_history$"}
+    when: {home.dots.*.kind: file}
+    expect: {pattern: "^0[0246]00$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0600, since a history holds the commands, and the passwords typed into them, of its owner"
+    fix: chmod 0600 the file
+    remedy: {chmod: "u-xs,g-rwxs,o-rwxt"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/bash.1.html#files
+    tags: [files, cis-ubuntu-26.04:7.2.10, '!default']
+  home/forward:
+    title: A user forwards their mail with ~/.forward
+    fact: home.dots.*.kind
+    keys: {pattern: "/\\.forward$"}
+    expect: {not: {}}
+    severity: info
+    score: 1.0
+    message: "{subject} exists, so the local mail of its owner leaves the host, or is piped into a command the mail system runs"
+    fix: remove {subject}, and set the forward in /etc/aliases if the site wants one
+    docs: https://www.postfix.org/local.8.html
+    tags: [files, cis-ubuntu-26.04:7.2.10, '!default']
+  home/dot-directory-mode:
+    title: A dot directory in a home more open than 0750
+    fact: home.dots.*.mode
+    keys: {not: {pattern: "/\\.ssh$"}}
+    when: {home.dots.*.kind: directory}
+    expect: {pattern: "^0[0-7][0145]0$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0750 or stricter, so no other user reads its owner’s configuration, keys or cached sessions"
+    fix: chmod 0750 the directory, or 0700
+    remedy: {chmod: "g-w,o-rwx"}
+    docs: https://specifications.freedesktop.org/basedir-spec/latest/
+    tags: [files, cis-ubuntu-26.04:7.2.11, '!default']
+  home/ssh-directory-mode:
+    title: ~/.ssh more open than 0700
+    fact: home.dots.*.mode
+    keys: {pattern: "/\\.ssh$"}
+    when: {home.dots.*.kind: directory}
+    expect: {pattern: "^0[0-7]00$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0700, so neither the owner’s group nor other users reach its keys"
+    fix: chmod 0700 the directory
+    remedy: {chmod: "g-rwx,o-rwx"}
+    docs: https://man.openbsd.org/ssh#FILES
+    tags: [files, ssh, cis-ubuntu-26.04:7.2.11, '!default']

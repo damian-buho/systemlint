@@ -202,6 +202,18 @@ whose home is root’s `/usr/sbin` or `/var/www` is skipped, as are `nobody`
 (65534) and the uids systemd gives dynamic users. The two bounds are ruleset
 vars, set with `check.vars` where `/etc/login.defs` moves `UID_MIN` or
 `UID_MAX`. A symlink is skipped; its target is not followed.
+The `home-dots` collector (privileged) stats every dot file and dot
+directory at the top of each home into `home.dots`, for the CIS rules out of
+`default` (7.2.10, 7.2.11):
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `home/dot-file-mode` | info | a dot file but `.bash_history` is more open than 0644, or executable |
+| `home/history-mode` | info | `.bash_history` is more open than 0600 |
+| `home/forward` | info | a `.forward` exists |
+| `home/dot-directory-mode` | info | a dot directory but `.ssh` is more open than 0750 |
+| `home/ssh-directory-mode` | info | `.ssh` is more open than 0700 |
+
 `home/not-owned` is judged per account instead, so a home two accounts share
 fails for the one that does not own it, and an account whose home was never
 made is skipped.

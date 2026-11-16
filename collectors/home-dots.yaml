@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: home-dots
+read:
+  stat-from: ['{accounts.passwd.*.home}/.*']
+  stat-keep: {properties: {kind: {enum: [file, directory]}}}
+parse: {plugin: formats, op: stat}
+into: home.dots
+privileged: true

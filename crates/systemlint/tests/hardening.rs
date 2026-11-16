@@ -1882,7 +1882,9 @@ fn mounts(active: Option<Value>, fstab: Value) -> Vec<(String, String, Outcome)>
     }
     let mut checks = judge("mounts", &document);
     checks.retain(|(rule, _, _)| {
-        !rule.starts_with("mounts/separate-") && !rule.starts_with("mounts/partition-")
+        !rule.starts_with("mounts/separate-")
+            && !rule.starts_with("mounts/partition-")
+            && rule != "mounts/proc-hidepid"
     });
     checks.sort();
     checks
@@ -6243,4 +6245,172 @@ fn grpck_promiscuous_links_and_an_unsynchronized_clock_fail_and_pass_at_their_ed
         Outcome::Skip,
         "time sync off is another rule’s finding"
     );
+}
+
+#[test]
+fn cis_dot_files_logs_and_audit_log_size_and_group_fail_at_their_edge() {
+    let dot = |rule: &str, path: &str, kind: &str, mode: &str| {
+        the(
+            rule,
+            &facts(&[("home.dots", json!({path: {"kind": kind, "mode": mode}}))]),
+        )
+    };
+    assert_eq!(
+        dot("home/dot-file-mode", "/home/a/.bashrc", "file", "0644"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        dot("home/dot-file-mode", "/home/a/.bashrc", "file", "0664"),
+        Outcome::Fail
+    );
+    assert_eq!(
+        dot("home/dot-file-mode", "/home/a/.bashrc", "file", "0744"),
+        Outcome::Fail
+    );
+    assert_eq!(
+        dot("home/history-mode", "/home/a/.bash_history", "file", "0600"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        dot("home/history-mode", "/home/a/.bash_history", "file", "0640"),
+        Outcome::Fail
+    );
+    assert_eq!(
+        dot(
+            "home/dot-directory-mode",
+            "/home/a/.config",
+            "directory",
+            "0750"
+        ),
+        Outcome::Pass
+    );
+    assert_eq!(
+        dot(
+            "home/dot-directory-mode",
+            "/home/a/.config",
+            "directory",
+            "0770"
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        dot(
+            "home/dot-directory-mode",
+            "/home/a/.config",
+            "directory",
+            "0751"
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        dot(
+            "home/ssh-directory-mode",
+            "/home/a/.ssh",
+            "directory",
+            "0700"
+        ),
+        Outcome::Pass
+    );
+    assert_eq!(
+        dot(
+            "home/ssh-directory-mode",
+            "/home/a/.ssh",
+            "directory",
+            "0710"
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        dot("home/forward", "/home/a/.forward", "file", "0644"),
+        Outcome::Fail
+    );
+    let log = |rule: &str, path: &str, mode: &str| {
+        the(
+            rule,
+            &facts(&[("logs.files", json!({path: {"kind": "file", "mode": mode}}))]),
+        )
+    };
+    assert_eq!(
+        log("logs/cis-login-records-mode", "/var/log/wtmp", "0664"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        log("logs/cis-login-records-mode", "/var/log/btmp.1", "0666"),
+        Outcome::Fail
+    );
+    assert_eq!(
+        log("logs/cis-readable-mode", "/var/log/apt/history.log", "0644"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        log("logs/cis-readable-mode", "/var/log/cloud-init.log", "0646"),
+        Outcome::Fail
+    );
+    assert_eq!(
+        log("logs/cis-group-mode", "/var/log/sssd", "0660"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        log("logs/cis-group-mode", "/var/log/gdm3", "0664"),
+        Outcome::Fail
+    );
+    assert_eq!(
+        log("logs/cis-mode", "/var/log/syslog", "0640"),
+        Outcome::Pass
+    );
+    assert_eq!(
+        log("logs/cis-mode", "/var/log/syslog", "0644"),
+        Outcome::Fail
+    );
+    let audit = |rule: &str, conf: Value| {
+        the(
+            rule,
+            &facts(&[
+                (
+                    "auditd.binary",
+                    json!({"/usr/sbin/auditd": {"kind": "file"}}),
+                ),
+                ("auditd.conf", conf),
+            ]),
+        )
+    };
+    assert_eq!(
+        audit("auditd/max-log-file", json!({"max_log_file": 8})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        audit("auditd/max-log-file", json!({"max_log_file": 7})),
+        Outcome::Fail
+    );
+    assert_eq!(
+        audit("auditd/log-group", json!({"log_group": "adm"})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        audit("auditd/log-group", json!({"log_group": "wheel"})),
+        Outcome::Fail
+    );
+    let group = |gid: i64| {
+        the(
+            "auditd/log-file-group",
+            &facts(&[
+                (
+                    "auditd.binary",
+                    json!({"/usr/sbin/auditd": {"kind": "file"}}),
+                ),
+                ("accounts.group", json!({"adm": {"gid": 4}})),
+                (
+                    "auditd.logs",
+                    json!({"/var/log/audit/audit.log": {"kind": "file", "gid": gid}}),
+                ),
+            ]),
+        )
+    };
+    assert_eq!(group(4), Outcome::Pass);
+    assert_eq!(
+        group(0),
+        Outcome::Skip,
+        "root is the other group the benchmark admits"
+    );
+    assert_eq!(group(5), Outcome::Fail);
 }

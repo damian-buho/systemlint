@@ -5,6 +5,7 @@
 description: An audit daemon that is missing, not running, records nothing or nothing before it starts, drops records when its disk fills, or lets other users read its logs
 vars:
   audit-backlog-limit: {default: 8192}
+  audit-max-log-file: {default: 8}
 rules:
   auditd/not-installed:
     title: No audit daemon on disk
@@ -225,3 +226,36 @@ rules:
     fix: set action_mail_acct = root in /etc/audit/auditd.conf, and forward root’s mail to the administrators
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, stig-ubuntu-26.04:UBTU-24-900980]
+  auditd/max-log-file:
+    title: Audit logs rotate below the site’s size
+    fact: auditd.conf
+    when: {auditd.binary: {minProperties: 1}}
+    expect: {patternProperties: {"(?i)^max_log_file$": {type: integer, minimum: "${audit-max-log-file}"}}}
+    severity: info
+    score: 1.0
+    message: "max_log_file in /etc/audit/auditd.conf is below ${audit-max-log-file} MB, so each audit log holds less than the site asks before it rotates"
+    fix: set max_log_file = ${audit-max-log-file} or more in /etc/audit/auditd.conf, then run systemctl restart auditd.service
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [audit, cis-ubuntu-26.04:6.2.2.1]
+  auditd/log-group:
+    title: auditd writes its logs for a group other than root or adm
+    fact: auditd.conf
+    when: {auditd.binary: {minProperties: 1}}
+    expect: {patternProperties: {"(?i)^log_group$": {enum: [root, adm, 0]}}}
+    severity: info
+    score: 1.0
+    message: "log_group in /etc/audit/auditd.conf is not root or adm, so that group reads every audit record"
+    fix: set log_group = adm, or root, in /etc/audit/auditd.conf, then run systemctl restart auditd.service
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [audit, cis-ubuntu-26.04:6.2.4.3]
+  auditd/log-file-group:
+    title: An audit log in a group other than root or adm
+    fact: auditd.logs.*.gid
+    same: accounts.group.adm.gid
+    when: {auditd.binary: {minProperties: 1}, auditd.logs.*.kind: file, auditd.logs.*.gid: {not: {const: 0}}}
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}, neither root nor adm ({same}), so that group reads every audit record"
+    fix: chgrp adm the file, and set log_group = adm in /etc/audit/auditd.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [audit, cis-ubuntu-26.04:6.2.4.3]

@@ -75,3 +75,55 @@ rules:
     fix: chgrp adm /var/log/syslog
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
     tags: [logging, stig-ubuntu-26.04:UBTU-24-700130, '!default']
+  logs/cis-login-records-mode:
+    title: A login record more open than 0664
+    fact: logs.files.*.mode
+    keys: {pattern: "/((lastlog|wtmp|btmp)([.-][^/]*)?|README)$"}
+    when: {logs.files.*.kind: file}
+    expect: {pattern: "^0[0246][0246][04]$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0664 or stricter for wtmp, btmp and lastlog"
+    fix: chmod 0664 the file, and set its mode in the create line of /etc/logrotate.d/wtmp or btmp
+    remedy: {chmod: "ugo-xst,o-w"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
+    tags: [logging, cis-ubuntu-26.04:6.1.3.1, '!default']
+  logs/cis-readable-mode:
+    title: An apt, cloud-init or agent log more open than 0644
+    fact: logs.files.*.mode
+    keys: {pattern: "(/apt/[^/]+|/(cloud-init\\.log|localmessages|waagent\\.log)[^/]*)$"}
+    when: {logs.files.*.kind: file}
+    expect: {pattern: "^0[0246][04][04]$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0644 or stricter"
+    fix: chmod 0644 the file
+    remedy: {chmod: "u-xs,g-wxs,o-wxt"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
+    tags: [logging, cis-ubuntu-26.04:6.1.3.1, '!default']
+  logs/cis-group-mode:
+    title: An SSSD or GDM log more open than 0660
+    fact: logs.files.*.mode
+    keys: {pattern: "/(SSSD|sssd|gdm|gdm3)$"}
+    when: {logs.files.*.kind: file}
+    expect: {pattern: "^0[0246][0246]0$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0660 or stricter"
+    fix: chmod 0660 the file
+    remedy: {chmod: "ugo-xst,o-rw"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
+    tags: [logging, cis-ubuntu-26.04:6.1.3.1, '!default']
+  logs/cis-mode:
+    title: A log file more open than 0640
+    fact: logs.files.*.mode
+    keys: {not: {pattern: "/((lastlog|wtmp|btmp)([.-][^/]*)?|README)$|(/apt/[^/]+|/(cloud-init\\.log|localmessages|waagent\\.log)[^/]*)$|/(SSSD|sssd|gdm|gdm3)$"}}
+    when: {logs.files.*.kind: file}
+    expect: {pattern: "^0[0246][04]0$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0640 or stricter for every log it names no other mode for"
+    fix: chmod 0640 the file, and set the mode its writer creates it with (rsyslog $FileCreateMode, logrotate create)
+    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
+    tags: [logging, cis-ubuntu-26.04:6.1.3.1, '!default']
