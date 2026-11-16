@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: timesyncd-drop-ins
+read:
+  files: [/etc/systemd/timesyncd.conf.d/*.conf, /run/systemd/timesyncd.conf.d/*.conf, /usr/local/lib/systemd/timesyncd.conf.d/*.conf, /usr/lib/systemd/timesyncd.conf.d/*.conf]
+  order: drop-in
+parse: {plugin: formats, op: kv, with: {comments: ["#", ";", "["], repeat: last}}
+into: timesyncd.drop-ins

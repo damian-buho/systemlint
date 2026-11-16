@@ -473,6 +473,34 @@ under `/usr/*bin`: `ypbind`, `ypwhich`, `ypcat`, `ypmatch` (NIS), `netkit-rsh`,
 own name, never an alternatives link such as `/usr/bin/rsh`, which
 openssh-client may point at `ssh`.
 
+## Time synchronisation
+
+The `timesync` ruleset, also without `default` (`--tags timesync` or
+`--tags 'cis-ubuntu-26.04:2.3.*'`), judges whichever time daemon is installed.
+A unit counts as installed when its file is on disk and not masked; one only
+the manager knows, as chrony’s `Conflicts=` makes `ntpsec.service` known, does
+not.
+
+- `systemd-timesyncd`, while chrony, ntpsec and openntpd are not installed:
+  `timesync/timesyncd-off` fails it when not both enabled and active, and
+  `timesync/timesyncd-no-server` when `NTP=` and `FallbackNTP=` are both empty
+  or unset. The `timesyncd-main` collector reads the highest of
+  `timesyncd.conf`, the `timesyncd-drop-ins` collector its drop-in directories
+  in systemd’s order, each into `timesyncd.main` and `timesyncd.drop-ins`, the
+  last assignment winning; a drop-in key, empty included, overrides the main
+  file.
+- chrony: `timesync/chrony-off` fails `chrony.service` when not both enabled
+  and active, and `timesync/chrony-no-server` when no `server` or `pool` line
+  is in `chrony.conf`, which the `chrony-conf` collector reads into
+  `chrony.conf`, or in a file its `confdir` and `sourcedir` lines name, which
+  `chrony-sources` reads into `chrony.sources`.
+
+```yaml
+chrony:
+  conf:
+    /etc/chrony/chrony.conf: {server: [0.ubuntu.pool.ntp.org, iburst], sourcedir: [/etc/chrony/sources.d]}
+```
+
 ## Running services
 
 `processes.services` holds, per system service with a running process, its

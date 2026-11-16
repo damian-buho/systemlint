@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: chrony-sources
+read:
+  files-from: ['{chrony.conf.*.sourcedir}/*.sources', '{chrony.conf.*.confdir}/*.conf']
+parse: {plugin: formats, op: words, with: {comments: ['#', '!', ';', '%'], directives: [server, pool], repeat: append}}
+into: chrony.sources

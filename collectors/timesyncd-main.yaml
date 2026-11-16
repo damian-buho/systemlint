@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: timesyncd-main
+read:
+  files: ['/etc/systemd/timesyncd.con?', '/run/systemd/timesyncd.con?', '/usr/local/lib/systemd/timesyncd.con?', '/usr/lib/systemd/timesyncd.con?']
+  order: drop-in
+parse: {plugin: formats, op: kv, with: {comments: ["#", ";", "["], repeat: last}}
+into: timesyncd.main

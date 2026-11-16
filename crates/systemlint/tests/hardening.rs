@@ -4457,3 +4457,158 @@ fn every_client_binary_the_collector_stats_fails_exactly_one_clients_rule() {
         "an alternatives link names no client"
     );
 }
+
+#[test]
+fn timesyncd_passes_only_on_a_last_assignment_naming_a_server_and_applies_only_without_chrony() {
+    let unit = |chrony: Option<bool>| {
+        let mut state = json!({"systemd-timesyncd.service": {"enabled": true, "masked": false, "active": "active"}});
+        if let Some(masked) = chrony {
+            state["chrony.service"] = json!({"enabled": !masked, "masked": masked});
+        }
+        state
+    };
+    let server = |timesyncd: Value, chrony: Option<bool>| {
+        outcomes(
+            "timesync",
+            "timesync/timesyncd-no-server",
+            &json!({"timesyncd": timesyncd, "systemd": {"state": unit(chrony)}}),
+        )
+    };
+    let main = |m: Value| json!({"main": m, "drop-ins": {}});
+    assert_eq!(
+        server(main(json!({"NTP": "a.example"})), None),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        server(main(json!({"FallbackNTP": "b.example"})), None),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        server(main(json!({"NTP": ""})), None),
+        [Outcome::Fail],
+        "empty"
+    );
+    assert_eq!(server(main(json!({})), None), [Outcome::Fail], "unset");
+    assert_eq!(
+        server(
+            json!({"main": {"NTP": "a.example"}, "drop-ins": {"NTP": ""}}),
+            None
+        ),
+        [Outcome::Fail],
+        "a drop-in resets the list"
+    );
+    assert_eq!(
+        server(
+            json!({"main": {"NTP": ""}, "drop-ins": {"NTP": "a.example"}}),
+            None
+        ),
+        [Outcome::Pass],
+        "a drop-in overrides the main file"
+    );
+    assert_eq!(
+        server(main(json!({})), Some(false)),
+        [Outcome::Skip],
+        "chrony keeps the clock"
+    );
+    assert_eq!(
+        server(main(json!({})), Some(true)),
+        [Outcome::Fail],
+        "chrony masked"
+    );
+    let known = json!({"active": "inactive", "sub": "dead"});
+    let mut conflicts = unit(None);
+    conflicts["ntpsec.service"] = known.clone();
+    conflicts["chrony.service"] = known;
+    assert_eq!(
+        outcomes(
+            "timesync",
+            "timesync/timesyncd-no-server",
+            &json!({"timesyncd": main(json!({})), "systemd": {"state": conflicts}}),
+        ),
+        [Outcome::Fail],
+        "a unit only the manager knows is not installed"
+    );
+    let running = |enabled: bool, active: &str, chrony: Option<bool>| {
+        let mut state = unit(chrony);
+        state["systemd-timesyncd.service"] =
+            json!({"enabled": enabled, "masked": false, "active": active});
+        outcomes(
+            "timesync",
+            "timesync/timesyncd-off",
+            &json!({"systemd": {"state": state}}),
+        )
+    };
+    assert_eq!(running(true, "active", None), [Outcome::Pass]);
+    assert_eq!(running(true, "inactive", None), [Outcome::Fail]);
+    assert_eq!(running(false, "active", None), [Outcome::Fail]);
+    assert_eq!(running(false, "inactive", Some(false)), [Outcome::Skip]);
+}
+
+#[test]
+fn chrony_passes_on_a_server_or_pool_in_its_config_or_source_files_and_while_enabled_and_running() {
+    let state = |masked: bool, enabled: bool, active: &str| json!({"chrony.service": {"enabled": enabled, "masked": masked, "active": active}});
+    let server = |conf: Value, sources: Value, masked: bool| {
+        outcomes(
+            "timesync",
+            "timesync/chrony-no-server",
+            &json!({"chrony": {"conf": conf, "sources": sources},
+                    "systemd": {"state": state(masked, true, "active")},
+                    "collectors": {"chrony-conf": {"status": "ok", "into": "chrony.conf"},
+                                   "chrony-sources": {"status": "ok", "into": "chrony.sources"}}}),
+        )
+    };
+    let conf = json!({"/etc/chrony/chrony.conf": {"sourcedir": ["/etc/chrony/sources.d"]}});
+    assert_eq!(server(conf.clone(), json!({}), false), [Outcome::Fail]);
+    assert_eq!(
+        server(
+            conf.clone(),
+            json!({"/etc/chrony/sources.d/a.sources": {"pool": ["1.ntp.ubuntu.com"]}}),
+            false
+        ),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        server(
+            json!({"/etc/chrony/chrony.conf": {"server": ["10.0.0.1", "iburst"]}}),
+            json!({}),
+            false
+        ),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        server(json!({}), json!({}), false),
+        [Outcome::Fail],
+        "no chrony.conf"
+    );
+    assert_eq!(
+        server(conf, json!({}), true),
+        [Outcome::Skip],
+        "chrony masked"
+    );
+    assert_eq!(
+        outcomes(
+            "timesync",
+            "timesync/chrony-off",
+            &json!({"systemd": {"state": {"chrony.service": {"active": "inactive", "sub": "dead"}}}}),
+        ),
+        [Outcome::Skip],
+        "a chrony.service only the manager knows is not installed"
+    );
+    let running = |enabled: bool, active: &str| {
+        outcomes(
+            "timesync",
+            "timesync/chrony-off",
+            &json!({"systemd": {"state": state(false, enabled, active)}}),
+        )
+    };
+    assert_eq!(running(true, "active"), [Outcome::Pass]);
+    assert_eq!(running(true, "failed"), [Outcome::Fail]);
+    assert_eq!(running(false, "active"), [Outcome::Fail]);
+    let under_root =
+        json!({"systemd": {"state": {"chrony.service": {"enabled": true, "masked": false}}}});
+    assert_eq!(
+        outcomes("timesync", "timesync/chrony-off", &under_root),
+        [Outcome::Pass],
+        "--root reads no active state"
+    );
+}

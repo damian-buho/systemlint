@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Time synchronisation daemons left off or with no time server named
+tags: [timesync]
+rules:
+  timesync/timesyncd-no-server:
+    title: systemd-timesyncd names no time server
+    fact: timesyncd
+    when: &timesyncd
+      systemd.state:
+        required: [systemd-timesyncd.service]
+        properties:
+          systemd-timesyncd.service: &installed {required: [masked], properties: {masked: {const: false}}}
+          chrony.service: &absent {not: *installed}
+          ntpsec.service: *absent
+          openntpd.service: *absent
+    expect:
+      anyOf:
+        - {required: [drop-ins], properties: {drop-ins: {required: [NTP], properties: {NTP: {not: {const: ""}}}}}}
+        - {required: [main], properties: {drop-ins: {not: {required: [NTP]}}, main: {required: [NTP], properties: {NTP: {not: {const: ""}}}}}}
+        - {required: [drop-ins], properties: {drop-ins: {required: [FallbackNTP], properties: {FallbackNTP: {not: {const: ""}}}}}}
+        - {required: [main], properties: {drop-ins: {not: {required: [FallbackNTP]}}, main: {required: [FallbackNTP], properties: {FallbackNTP: {not: {const: ""}}}}}}
+    severity: info
+    score: 1.0
+    message: "timesyncd.conf and its drop-ins leave NTP= and FallbackNTP= empty or unset, so the clock follows the compiled-in servers or the network’s DHCP offer, not one the site chose"
+    fix: set NTP= to the site’s time servers in /etc/systemd/timesyncd.conf.d/60-ntp.conf, under [Time]
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/timesyncd.conf.5.html
+    tags: [timesync, cis-ubuntu-26.04:2.3.2.1]
+  timesync/timesyncd-off:
+    title: systemd-timesyncd is the time daemon but is not enabled and running
+    fact: systemd.state.*
+    keys: {const: systemd-timesyncd.service}
+    when: *timesyncd
+    expect: &on {required: [enabled], properties: {enabled: {const: true}, active: {const: active}}}
+    severity: info
+    score: 2.0
+    message: "{subject} is not both enabled and running, and no other time daemon is installed, so the clock drifts and log times stop matching other hosts’"
+    fix: run systemctl unmask {subject}, then systemctl enable --now {subject}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
+    tags: [timesync, cis-ubuntu-26.04:2.3.2.2]
+  timesync/chrony-no-server:
+    title: chrony names no time server
+    when: &chrony
+      systemd.state:
+        required: [chrony.service]
+        properties: {chrony.service: *installed}
+    facts:
+      any:
+        - {fact: chrony.conf, expect: &source {not: {additionalProperties: {not: {anyOf: [{required: [server]}, {required: [pool]}]}}}}}
+        - {fact: chrony.sources, expect: *source}
+    severity: info
+    score: 1.0
+    message: "chrony.conf and the files its confdir and sourcedir lines name hold no server or pool line, so chrony has no time source to follow"
+    fix: add server or pool lines naming the site’s time servers to /etc/chrony/sources.d/site.sources, and a sourcedir /etc/chrony/sources.d line to chrony.conf if it has none
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
+    tags: [timesync, cis-ubuntu-26.04:2.3.3.1]
+  timesync/chrony-off:
+    title: chrony is installed but not enabled and running
+    fact: systemd.state.*
+    keys: {const: chrony.service}
+    when: *chrony
+    expect: *on
+    severity: info
+    score: 2.0
+    message: "{subject} is not both enabled and running, so the clock drifts and log times stop matching other hosts’"
+    fix: run systemctl enable --now {subject}, or mask it if another time daemon keeps the clock
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/chronyd.8.html
+    tags: [timesync, cis-ubuntu-26.04:2.3.3.3]
