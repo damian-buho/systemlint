@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: banner-text
+read:
+  files: [/etc/motd, /etc/motd.d/*, /etc/issue, /etc/issue.d/*, /usr/lib/issue.d/*, /run/issue.d/*, /etc/issue.net]
+parse: {plugin: formats, op: lines}
+into: banner-text

@@ -106,12 +106,15 @@ The `banner-files` collector stats `/etc/motd`, `/etc/motd.d` and its files,
 `banner.files.<path>`, and `banner-sshd` stats each absolute path sshd’s
 `Banner` names (`sshd.settings.banner`) into `banner.sshd.<path>`, so it runs
 only where the `sshd` collector did. They sit outside `files`, since nobody
-becomes root through a banner. The `banner` ruleset judges both:
+becomes root through a banner. `banner-text` reads the lines of the motd and
+issue files, `issue.d` included, into `banner-text.<path>`, outside `banner`
+so no stat rule binds them. The `banner` ruleset judges them:
 
 | Rule | Severity | Fails when |
 | --- | --- | --- |
 | `banner/writable` | warning | its group or others may write it, so they can show every user a forged notice at login |
 | `banner/owner` | warning | it is not owned by uid 0 |
+| `banner/discloses-system` | info | it holds an agetty `\s`, `\r`, `\v` or `\m` escape, either case, not after an escaping backslash (CIS 1.6.1 to 1.6.3, *standard-only*; CIS also asks for no `ID` of `os-release`, left out) |
 
 ## Cron
 

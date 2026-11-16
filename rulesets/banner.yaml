@@ -5,6 +5,16 @@
 description: Login banners and messages of the day that a user other than root can rewrite
 tags: [default]
 rules:
+  banner/discloses-system:
+    title: Login banner names the system
+    fact: banner-text.*
+    expect: {not: {contains: {pattern: '(?i)(^|[^\\])(\\\\)*\\[vrms]'}}}
+    severity: info
+    score: 1.0
+    message: "{subject} holds an agetty escape (\\s, \\r, \\v or \\m), so whoever reaches the login prompt reads the operating system, kernel release or architecture"
+    fix: remove the \s, \r, \v and \m escapes from the file
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/agetty.8.html
+    tags: ['!default', banner, cis-ubuntu-26.04:1.6.1, cis-ubuntu-26.04:1.6.2, cis-ubuntu-26.04:1.6.3]
   banner/writable:
     title: Login banner writable by other users
     facts:

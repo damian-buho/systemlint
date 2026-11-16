@@ -933,12 +933,15 @@ fn an_audit_log_owned_by_anyone_but_root_fails_and_its_directory_is_left_to_the_
     assert_eq!(owner("directory", Some(1)), Some(Outcome::Skip));
 }
 
-// The banner rules’ outcomes over the given banner.files stats.
+// The banner stat rules’ outcomes over the given banner.files stats.
 fn banner(stats: Value) -> Vec<(String, String, Outcome)> {
     judge(
         "banner",
         &json!({"banner": {"files": stats}, "collectors": {"banner-files": {"status": "ok", "into": "banner.files"}}}),
     )
+    .into_iter()
+    .filter(|(r, _, _)| r != "banner/discloses-system")
+    .collect()
 }
 
 #[test]
@@ -4325,4 +4328,37 @@ fn apparmor_fails_off_disk_unloaded_unstarted_and_each_profile_short_of_enforce(
             ("snap.firefox.firefox".to_owned(), Outcome::Fail)
         ]
     );
+}
+
+#[test]
+fn a_banner_fails_on_an_agetty_escape_naming_the_system_but_not_on_an_escaped_backslash() {
+    let banner = |text: &str| {
+        let file = serde_json::from_value(json!({"path": "/etc/issue", "content": text})).unwrap();
+        let lines = systemlint_formats::lines(&[Input::File(file)]).facts;
+        let document = json!({"banner-text": lines, "collectors": {"banner-text": {"status": "ok", "into": "banner-text"}}});
+        judge("banner", &document)
+            .into_iter()
+            .filter(|(r, _, _)| r == "banner/discloses-system")
+            .map(|(_, _, o)| o)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        banner("Ubuntu 26.04 LTS \\n \\l\n"),
+        [Outcome::Pass],
+        "hostname and tty are left out"
+    );
+    assert_eq!(banner("Authorised use only.\n"), [Outcome::Pass]);
+    assert_eq!(banner("Kernel \\r on \\m\n"), [Outcome::Fail]);
+    assert_eq!(
+        banner("\\S{PRETTY_NAME}\n"),
+        [Outcome::Fail],
+        "agetty reads \\S too"
+    );
+    assert_eq!(banner("\\v\n"), [Outcome::Fail]);
+    assert_eq!(
+        banner("C:\\\\share\n"),
+        [Outcome::Pass],
+        "an escaped backslash shows a backslash"
+    );
+    assert_eq!(banner("C:\\\\\\share\n"), [Outcome::Fail]);
 }
