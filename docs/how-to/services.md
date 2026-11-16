@@ -398,6 +398,17 @@ and `disable` words, its first block only, and `xinetd-conf` the `enabled` and
 they decide instead of `disable`. `xinetd.service` runs without
 `-inetd_compat`, so `inetd.conf` lines count only for an inetd unit.
 
+## Services not in use
+
+The `unused-services` ruleset carries no `default` tag: it runs with
+`--tags unused-services` or `--tags 'cis-ubuntu-26.04:2.1.*'`, since a host
+may serve any of these on purpose. Each rule fails one of CIS 2.1.1 to 2.1.20’s
+units while enabled or active and not masked, by unit, never by package:
+`autofs`, `avahi-daemon`, Kea DHCP, `named`, `dnsmasq`, `vsftpd`, `slapd`,
+`dovecot`, `nfs-server`, `cups`, `rpcbind`, `rsync`, `smbd`, `snmpd`,
+`inetutils-inetd`, `squid`, `apache2` and `nginx`, `xinetd`. NIS and TFTP
+(2.1.10, 2.1.17) are `plaintext-servers` rules, in `default`.
+
 ## Running services
 
 `processes.services` holds, per system service with a running process, its

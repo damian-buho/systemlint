@@ -3707,3 +3707,48 @@ fn sshd_offers_a_post_quantum_key_exchange() {
         [Outcome::Fail]
     );
 }
+
+#[test]
+fn every_unused_service_fails_enabled_or_running_and_passes_masked_or_off() {
+    let rules: Value = ruleset_yaml("unused-services");
+    for (rule, spec) in rules["rules"].as_object().unwrap() {
+        for unit in spec["keys"]["enum"].as_array().unwrap() {
+            let unit = unit.as_str().unwrap();
+            let one = |enabled: bool, masked: bool, active: &str| {
+                let state = json!({unit: {"enabled": enabled, "masked": masked, "active": active},
+                                   "ssh.service": {"enabled": true, "masked": false, "active": "active"}});
+                outcomes(
+                    "unused-services",
+                    rule,
+                    &json!({"systemd": {"state": state}}),
+                )
+            };
+            assert_eq!(
+                one(true, false, "inactive"),
+                [Outcome::Fail],
+                "{rule} {unit} enabled"
+            );
+            assert_eq!(
+                one(false, false, "activating"),
+                [Outcome::Fail],
+                "{rule} {unit} starting"
+            );
+            assert_eq!(
+                one(false, false, "inactive"),
+                [Outcome::Pass],
+                "{rule} {unit} off"
+            );
+            assert_eq!(
+                one(true, true, "inactive"),
+                [Outcome::Pass],
+                "{rule} {unit} masked"
+            );
+        }
+        let absent = outcomes(
+            "unused-services",
+            rule,
+            &json!({"systemd": {"state": {"ssh.service": {"enabled": true}}}}),
+        );
+        assert!(absent.is_empty(), "{rule}: no unit, no check");
+    }
+}

@@ -1,0 +1,210 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Network services a CIS benchmark asks to leave off unless the host serves them on purpose
+tags: [services]
+rules:
+  unused-services/autofs:
+    title: The automounter is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [autofs.service]}
+    expect: &off
+      anyOf:
+        - {properties: {masked: {const: true}}, required: [masked]}
+        - properties:
+            enabled: {const: false}
+            active: {not: {enum: [active, activating, reloading]}}
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the automounter mounts removable media and network shares on access, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/automount.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.1]
+  unused-services/avahi:
+    title: The Avahi mDNS daemon is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [avahi-daemon.service, avahi-daemon.socket]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the Avahi mDNS daemon announces this host and its services to the local network, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/avahi-daemon.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.2]
+  unused-services/dhcp-server:
+    title: A Kea DHCP server is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [kea-dhcp-ddns-server.service, kea-dhcp4-server.service, kea-dhcp6-server.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: a Kea DHCP server hands out addresses and routes to any host on the network, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://kea.readthedocs.io/
+    tags: [services, cis-ubuntu-26.04:2.1.3]
+  unused-services/dns-server:
+    title: The BIND DNS server is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [named.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the BIND DNS server answers DNS queries from the network, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/named.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.4]
+  unused-services/dnsmasq:
+    title: Dnsmasq is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [dnsmasq.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: dnsmasq serves DNS and DHCP to the network, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/dnsmasq.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.5]
+  unused-services/ftp-server:
+    title: The vsftpd FTP server is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [vsftpd.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the vsftpd FTP server serves files over FTP, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/vsftpd.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.6]
+  unused-services/ldap-server:
+    title: The slapd LDAP server is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [slapd.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the slapd LDAP server serves a directory to the network, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/slapd.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.7]
+  unused-services/mail-access-server:
+    title: The Dovecot IMAP and POP3 server is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [dovecot.service, dovecot.socket]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the Dovecot IMAP and POP3 server serves mailboxes to the network, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://doc.dovecot.org/
+    tags: [services, cis-ubuntu-26.04:2.1.8]
+  unused-services/nfs-server:
+    title: The NFS server is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [nfs-server.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the NFS server exports file systems to the network, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/nfsd.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.9]
+  unused-services/print-server:
+    title: The CUPS print server is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [cups.service, cups.socket]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the CUPS print server takes print jobs and serves its web interface, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/cupsd.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.11]
+  unused-services/rpcbind:
+    title: Rpcbind is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [rpcbind.service, rpcbind.socket]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: rpcbind maps RPC programs to ports for any host that asks, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/rpcbind.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.12]
+  unused-services/rsync:
+    title: The rsync daemon is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [rsync.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the rsync daemon serves files over the rsync protocol, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/rsyncd.conf.5.html
+    tags: [services, cis-ubuntu-26.04:2.1.13]
+  unused-services/samba:
+    title: The Samba file server is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [smbd.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the Samba file server shares files over SMB, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/smbd.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.14]
+  unused-services/snmp:
+    title: The SNMP daemon is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [snmpd.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the SNMP daemon answers SNMP queries about this host, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/snmpd.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.15]
+  unused-services/telnet-server:
+    title: Inetutils-inetd is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [inetutils-inetd.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: inetutils-inetd starts the telnet server and other inetd services, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/inetutils-inetd.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.16]
+  unused-services/web-proxy:
+    title: The Squid proxy is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [squid.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: the Squid proxy relays web traffic for its clients, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/squid.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.18]
+  unused-services/web-server:
+    title: A web server is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [apache2.service, apache2.socket, nginx.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: a web server serves HTTP to the network, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://httpd.apache.org/docs/current/misc/security_tips.html
+    tags: [services, cis-ubuntu-26.04:2.1.19]
+  unused-services/xinetd:
+    title: Xinetd is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [xinetd.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running: xinetd starts network services on demand, a service to leave off unless this host offers it"
+    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/xinetd.8.html
+    tags: [services, cis-ubuntu-26.04:2.1.20]
