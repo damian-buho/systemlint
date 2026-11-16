@@ -21,7 +21,10 @@ The core reads every file and runs every command; each plugin is a separate stat
 ## Features
 
 - Rules that know which hosts they are for
+- Fast, read-only collection
+- Fixes it makes itself, and only ones that take access away
 - Findings a person, a pipeline and a screen reader can read
+- Rules that cite the standards they satisfy
 
 It also inherits the features of B19 / Ubuntu — see [Features](docs/FEATURES.md) for the full list.
 
@@ -89,7 +92,7 @@ Clone the repository and run `make` — every build step, target and entry point
 - [Plugin protocol v1](docs/how-to/protocol.md)
 - [Rule book: how to write a shipped rule](docs/how-to/rule-book.md)
 - [Rules and rulesets](docs/how-to/rules.md)
-- [Kernel parameters, Docker, systemd units and ufw](docs/how-to/services.md)
+- [Kernel parameters, modules and audit rules, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables](docs/how-to/services.md)
 - [OpenSSH server](docs/how-to/sshd.md)
 
 ## Policies

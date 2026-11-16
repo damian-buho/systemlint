@@ -23,7 +23,10 @@ El núcleo lee cada archivo y ejecuta cada orden; cada complemento es un binario
 ## Características
 
 - Reglas que saben para qué hosts son
+- Recolección rápida y de solo lectura
+- Arreglos que hace por sí mismo, y solo los que quitan acceso
 - Hallazgos que leen una persona, un pipeline y un lector de pantalla
+- Reglas que citan los estándares que cumplen
 
 También hereda las características de B19 / Ubuntu; consulta [Características](FEATURES.md) para ver la lista completa.
 
@@ -91,7 +94,7 @@ Clona el repositorio y ejecuta `make`: cada paso de compilación, destino y punt
 - [Plugin protocol v1](../how-to/protocol.md)
 - [Rule book: how to write a shipped rule](../how-to/rule-book.md)
 - [Rules and rulesets](../how-to/rules.md)
-- [Kernel parameters, Docker, systemd units and ufw](../how-to/services.md)
+- [Kernel parameters, modules and audit rules, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables](../how-to/services.md)
 - [OpenSSH server](../how-to/sshd.md)
 
 ## Políticas

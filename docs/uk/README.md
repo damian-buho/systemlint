@@ -23,7 +23,10 @@ Systemlint збирає факти про хост, кореневу файло�
 ## Можливості
 
 - Правила, які знають, для яких хостів вони написані
+- Швидкий збір лише для читання
+- Виправлення, які він робить сам, і лише ті, що забирають доступ
 - Знахідки, які прочитає людина, конвеєр і екранний читач
+- Правила, що посилаються на стандарти, яким вони відповідають
 
 Також успадковує можливості B19 / Ubuntu — повний перелік див. у [Можливості](FEATURES.md).
 
@@ -91,7 +94,7 @@ docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEA
 - [Plugin protocol v1](../how-to/protocol.md)
 - [Rule book: how to write a shipped rule](../how-to/rule-book.md)
 - [Rules and rulesets](../how-to/rules.md)
-- [Kernel parameters, Docker, systemd units and ufw](../how-to/services.md)
+- [Kernel parameters, modules and audit rules, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables](../how-to/services.md)
 - [OpenSSH server](../how-to/sshd.md)
 
 ## Політики
