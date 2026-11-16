@@ -4,11 +4,21 @@
 
 description: An installed ufw firewall left switched off, or never started at boot
 tags: [default]
-when: {ufw.binary: {minProperties: 1}}
 rules:
+  ufw/not-installed:
+    title: No ufw program on disk
+    fact: ufw.binary
+    expect: {minProperties: 1}
+    severity: info
+    score: 1.0
+    message: "no ufw program is in /usr/sbin, /sbin or /usr/local/sbin; the benchmark asks for ufw as the host firewall"
+    fix: install ufw (apt install ufw), allow your own SSH session with ufw allow ssh, then run ufw enable
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
+    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.1, '!default']
   ufw/disabled:
     title: ufw installed but switched off
     fact: ufw.conf.ENABLED
+    when: {ufw.binary: {minProperties: 1}}
     expect: {const: "yes"}
     severity: error
     score: 7.0
@@ -22,7 +32,7 @@ rules:
     title: ufw switched on but its service masked
     fact: systemd.state.*.masked
     keys: {const: ufw.service}
-    when: {ufw.conf.ENABLED: "yes"}
+    when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes"}
     expect: {const: false}
     severity: error
     score: 7.0
@@ -36,7 +46,7 @@ rules:
     title: ufw switched on but its service failed
     fact: systemd.state.*.active
     keys: {const: ufw.service}
-    when: {ufw.conf.ENABLED: "yes", systemd.state.*: {required: [active]}}
+    when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes", systemd.state.*: {required: [active]}}
     expect: {not: {const: failed}}
     severity: error
     score: 7.0
@@ -50,7 +60,7 @@ rules:
     title: ufw switched on but its service disabled
     fact: systemd.state.*.enabled
     keys: {const: ufw.service}
-    when: {ufw.conf.ENABLED: "yes", systemd.state.*.masked: false}
+    when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes", systemd.state.*.masked: false}
     expect: {const: true}
     severity: error
     score: 7.0
@@ -60,3 +70,39 @@ rules:
     references:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
     tags: [ufw, firewall, systemd, lynis]
+  ufw/input-accepted:
+    title: ufw switched on but accepting incoming traffic by default
+    fact: ufw.defaults.DEFAULT_INPUT_POLICY
+    when: &on {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes"}
+    expect: &deny {pattern: "(?i)^(drop|reject)$"}
+    severity: warning
+    score: 6.0
+    message: "/etc/default/ufw sets DEFAULT_INPUT_POLICY={got}, so every port no rule denies is open to the network although ufw is on"
+    fix: run ufw default deny incoming once the rules allow your own SSH session
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
+    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.3]
+  ufw/output-accepted:
+    title: ufw accepting outgoing traffic by default
+    fact: ufw.defaults.DEFAULT_OUTPUT_POLICY
+    when: *on
+    expect: *deny
+    severity: info
+    score: 1.0
+    message: "/etc/default/ufw sets DEFAULT_OUTPUT_POLICY={got}; the benchmark asks to deny outgoing traffic no rule allows"
+    fix: allow the outgoing traffic the host needs (ufw allow out 53, 123, 443 and the like), then run ufw default deny outgoing
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
+    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.4, '!default']
+  ufw/routed-accepted:
+    title: ufw routing forwarded traffic by default
+    when: *on
+    facts:
+      any:
+        - {fact: ufw.defaults.DEFAULT_FORWARD_POLICY, expect: *deny}
+        - fact: sysctl.settings.net
+          expect: {required: [ipv4, ipv6], properties: {ipv4: {required: [ip_forward], properties: {ip_forward: {const: 0}}}, ipv6: {required: [conf], properties: {conf: {required: [all], properties: {all: {required: [forwarding], properties: {forwarding: {const: 0}}}}}}}}}
+    severity: info
+    score: 1.0
+    message: "/etc/default/ufw sets DEFAULT_FORWARD_POLICY={got} while the kernel forwards packets; the benchmark asks to deny routed traffic no rule allows"
+    fix: run ufw default deny routed, then ufw route allow each forward the host needs
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
+    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.5, '!default']

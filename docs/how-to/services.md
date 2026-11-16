@@ -420,13 +420,24 @@ under `--root`.
 
 `ufw.conf.ENABLED` is what `ufw enable` and `ufw disable` write, and what
 ufw reads at boot to load its rules or not. `ufw.binary` is empty when no `ufw`
-program exists, which makes the `ufw` ruleset `not-applicable`, whatever
-installed it. Once `ENABLED=yes`, `ufw/service-masked` fails a masked
+program exists, which makes every other `ufw` rule `skip`, whatever
+installed it, and fails `ufw/not-installed` (CIS 4.1.1, *standard-only*, out
+of `default`). Once `ENABLED=yes`, `ufw/service-masked` fails a masked
 `ufw.service` and `ufw/service-disabled` one that nothing links, since systemd
 then never starts ufw at boot; a host with no `ufw.service` unit has no check.
 `ufw/service-failed` fails a `ufw.service` whose `active` state is `failed`,
 which loaded no rules either; under `--root`, where no unit carries `active`,
 it answers `skip` rather than `unknown`.
+
+The `ufw-defaults` collector reads `/etc/default/ufw`, where `ufw default`
+writes the default policies, into `ufw.defaults`. Once `ENABLED=yes`, each
+policy passes as `DROP` or `REJECT`, either case:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `ufw/input-accepted` | warning | `DEFAULT_INPUT_POLICY` accepts, so every port no rule denies is open (CIS 4.1.3) |
+| `ufw/output-accepted` | info | `DEFAULT_OUTPUT_POLICY` accepts, as stock ufw does (CIS 4.1.4, *standard-only*, out of `default`) |
+| `ufw/routed-accepted` | info | `DEFAULT_FORWARD_POLICY` accepts while `net.ipv4.ip_forward` or `net.ipv6.conf.all.forwarding` is on (CIS 4.1.5, *standard-only*, out of `default`) |
 
 ## Plain-text servers
 
