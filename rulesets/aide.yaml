@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: No file integrity checker on disk, or one that never runs
+rules:
+  aide/not-installed:
+    title: No AIDE on disk
+    fact: aide.binary
+    expect: {minProperties: 1}
+    severity: info
+    score: 2.0
+    message: "no aide program is in /usr/bin, /bin or /usr/local/bin, so a changed system file goes unnoticed"
+    fix: install aide (apt install aide aide-common on Ubuntu), then run aideinit to build its first database
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/aide.1.html
+    tags: [integrity, cis-ubuntu-26.04:6.3.1]
+  aide/unscheduled:
+    title: AIDE installed but never run on a schedule
+    fact: systemd.state
+    when: {aide.binary: {minProperties: 1}}
+    expect:
+      required: [dailyaidecheck.timer]
+      properties:
+        dailyaidecheck.timer: {required: [enabled], properties: {enabled: {const: true}, active: {const: active}}}
+        dailyaidecheck.service: {properties: {masked: {const: false}}}
+    severity: info
+    score: 2.0
+    message: "dailyaidecheck.timer is missing, not enabled or not active, or dailyaidecheck.service is masked, so AIDE never compares the disk against its database"
+    fix: run systemctl unmask dailyaidecheck.timer dailyaidecheck.service, then systemctl enable --now dailyaidecheck.timer
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/aide.1.html
+    tags: [integrity, cis-ubuntu-26.04:6.3.2]

@@ -2,13 +2,49 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-description: An installed audit daemon that is not running, records nothing, drops records when its disk fills, or lets other users read its logs
-when: {auditd.binary: {minProperties: 1}}
+description: An audit daemon that is missing, not running, records nothing or nothing before it starts, drops records when its disk fills, or lets other users read its logs
+vars:
+  audit-backlog-limit: {default: 8192}
 rules:
+  auditd/not-installed:
+    title: No audit daemon on disk
+    fact: auditd.binary
+    expect: {minProperties: 1}
+    severity: info
+    score: 3.0
+    message: "no auditd program is in /usr/sbin, /sbin or /usr/local/sbin, so no audit record is kept on disk"
+    fix: install auditd (apt install auditd audispd-plugins on Ubuntu), then add rules to /etc/audit/rules.d/
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditd.8.html
+    tags: [audit, cis-ubuntu-26.04:6.2.1.1]
+  auditd/boot-unaudited:
+    title: Processes started before auditd go unaudited
+    fact: kernel.cmdline
+    when: {auditd.binary: {minProperties: 1}}
+    expect: {required: [audit], properties: {audit: {anyOf: [{const: 1}, {type: string, pattern: "(?i)^on$"}]}}}
+    severity: info
+    score: 2.0
+    message: "the running kernel was booted without audit=1, so whatever starts before auditd.service leaves no audit record"
+    fix: append audit=1 to GRUB_CMDLINE_LINUX in a file under /etc/default/grub.d/ ending in .cfg, keeping the value it extends, then run update-grub and reboot
+    docs: https://docs.kernel.org/admin-guide/kernel-parameters.html
+    tags: [audit, cis-ubuntu-26.04:6.2.1.3]
+  auditd/boot-backlog:
+    title: Audit backlog too small while the system boots
+    fact: kernel.cmdline
+    when: {auditd.binary: {minProperties: 1}}
+    expect:
+      not: {propertyNames: {not: {pattern: "^audit[-_]backlog[-_]limit$"}}}
+      patternProperties: {"^audit[-_]backlog[-_]limit$": {type: integer, minimum: "${audit-backlog-limit}"}}
+    severity: info
+    score: 2.0
+    message: "audit_backlog_limit on the running kernel’s command line is unset (64) or below ${audit-backlog-limit}, so records queued before auditd reads them can be lost"
+    fix: append audit_backlog_limit=${audit-backlog-limit} to GRUB_CMDLINE_LINUX in a file under /etc/default/grub.d/ ending in .cfg, keeping the value it extends, then run update-grub and reboot
+    docs: https://docs.kernel.org/admin-guide/kernel-parameters.html
+    tags: [audit, cis-ubuntu-26.04:6.2.1.4]
   auditd/disabled:
     title: auditd installed but not enabled
     fact: systemd.state.*.enabled
     keys: {const: auditd.service}
+    when: {auditd.binary: {minProperties: 1}}
     expect: {const: true}
     severity: info
     score: 3.0
@@ -20,7 +56,7 @@ rules:
     title: auditd installed but not running
     fact: systemd.state.*.active
     keys: {const: auditd.service}
-    when: {systemd.state.*: {required: [active]}}
+    when: {auditd.binary: {minProperties: 1}, systemd.state.*: {required: [active]}}
     expect: {const: active}
     severity: info
     score: 3.0
@@ -33,7 +69,7 @@ rules:
   auditd/no-rules:
     title: auditd runs with no audit rule loaded
     fact: audit.loaded
-    when: {systemd.state: {required: [auditd.service], properties: {auditd.service: {required: [active], properties: {active: {const: active}}}}}}
+    when: {auditd.binary: {minProperties: 1}, systemd.state: {required: [auditd.service], properties: {auditd.service: {required: [active], properties: {active: {const: active}}}}}}
     expect: {minProperties: 1, not: {additionalProperties: {not: {contains: {anyOf: [{required: ["-a"]}, {required: ["-w"]}]}}}}}
     severity: info
     score: 3.0
@@ -46,6 +82,7 @@ rules:
   auditd/deletes-logs:
     title: auditd deletes old audit logs
     fact: auditd.conf
+    when: {auditd.binary: {minProperties: 1}}
     expect:
       not: {propertyNames: {not: {pattern: "(?i)^max_log_file_action$"}}}
       patternProperties: {"(?i)^max_log_file_action$": {pattern: "(?i)^keep_logs$"}}
@@ -58,6 +95,7 @@ rules:
   auditd/full-disk:
     title: auditd carries on when its disk is full or fails
     fact: auditd.conf
+    when: {auditd.binary: {minProperties: 1}}
     expect:
       allOf:
         - not: {propertyNames: {not: {pattern: "(?i)^disk_full_action$"}}}
@@ -74,6 +112,7 @@ rules:
   auditd/low-space:
     title: auditd gives no warning when its disk runs low
     fact: auditd.conf
+    when: {auditd.binary: {minProperties: 1}}
     expect:
       allOf:
         - not: {propertyNames: {not: {pattern: "(?i)^space_left_action$"}}}
@@ -90,7 +129,7 @@ rules:
   auditd/log-mode:
     title: Audit log readable too widely
     fact: auditd.logs.*.mode
-    when: {auditd.logs.*.kind: file}
+    when: {auditd.binary: {minProperties: 1}, auditd.logs.*.kind: file}
     expect: {pattern: "^0[0246][04]0$"}
     severity: warning
     score: 5.0
@@ -102,7 +141,7 @@ rules:
   auditd/log-owner:
     title: Audit log not owned by root
     fact: auditd.logs.*.uid
-    when: {auditd.logs.*.kind: file}
+    when: {auditd.binary: {minProperties: 1}, auditd.logs.*.kind: file}
     expect: {const: 0}
     severity: warning
     score: 5.0
@@ -114,7 +153,7 @@ rules:
   auditd/log-directory-mode:
     title: Audit log directory open too widely
     fact: auditd.logs.*.mode
-    when: {auditd.logs.*.kind: directory}
+    when: {auditd.binary: {minProperties: 1}, auditd.logs.*.kind: directory}
     expect: {pattern: "^[0-7]{2}[0145]0$"}
     severity: warning
     score: 5.0

@@ -910,8 +910,8 @@ fn audit_logs_fail_once_other_users_read_them_or_the_group_writes_the_directory(
     assert!(
         judge("auditd", &json!({"auditd": {"binary": {}, "logs": {"/var/log/audit/x": {"kind": "file", "mode": "0666"}}}, "collectors": {}}))
             .iter()
-            .all(|(_, _, o)| *o == Outcome::NotApplicable),
-        "a host without auditd"
+            .all(|(r, _, o)| *o == if r == "auditd/not-installed" { Outcome::Fail } else { Outcome::Skip }),
+        "a host without auditd fails auditd/not-installed alone"
     );
 }
 
@@ -4092,4 +4092,131 @@ fn the_benchmark_sshd_keywords_pass_at_their_edge() {
         global("ssh/access-unlisted", json!({"denyusers": ["guest"]})),
         [Outcome::Pass]
     );
+}
+
+// One auditd rule’s outcome, `auditd` on disk or not, over the kernel command line as kernel-cmdline reads `text`.
+fn boot(rule: &str, installed: bool, text: &str) -> Outcome {
+    let file = serde_json::from_value(json!({"path": "/proc/cmdline", "content": text})).unwrap();
+    let with = json!({"records": " ", "negate": "!", "repeat": "last", "comments": []});
+    let cmdline = systemlint_formats::kv(&[Input::File(file)], with.as_object().unwrap())
+        .unwrap()
+        .facts;
+    let binary = if installed {
+        json!({"/usr/sbin/auditd": {"exists": true}})
+    } else {
+        json!({})
+    };
+    let mut document = json!({"auditd": {"binary": binary}, "kernel": {"cmdline": cmdline}, "collectors": {
+        "auditd-binary": {"status": "ok", "into": "auditd.binary"},
+        "kernel-cmdline": {"status": "ok", "into": "kernel.cmdline"}}});
+    if text.is_empty() {
+        document["kernel"] = json!({});
+    }
+    judge("auditd", &document)
+        .into_iter()
+        .find(|(r, _, _)| r == rule)
+        .unwrap()
+        .2
+}
+
+#[test]
+fn auditd_fails_off_disk_and_a_boot_without_audit_or_a_backlog_of_8192() {
+    let stock = "BOOT_IMAGE=/vmlinuz-7.3.1 root=UUID=1234 ro quiet splash vt.handoff=7\n";
+    assert_eq!(boot("auditd/not-installed", true, stock), Outcome::Pass);
+    assert_eq!(boot("auditd/not-installed", false, stock), Outcome::Fail);
+    assert_eq!(
+        boot("auditd/disabled", false, stock),
+        Outcome::Skip,
+        "every other rule waits for auditd on disk"
+    );
+    assert_eq!(
+        collected(
+            "auditd/not-installed",
+            "auditd-binary",
+            "auditd.binary",
+            None
+        ),
+        [(String::new(), Outcome::Unknown)]
+    );
+    let audit = |text: &str| boot("auditd/boot-unaudited", true, text);
+    assert_eq!(audit(stock), Outcome::Fail);
+    assert_eq!(audit("ro audit=1\n"), Outcome::Pass);
+    assert_eq!(audit("ro audit=On\n"), Outcome::Pass);
+    assert_eq!(audit("ro audit=0\n"), Outcome::Fail);
+    assert_eq!(
+        audit("audit=1 audit=off\n"),
+        Outcome::Fail,
+        "the last one wins"
+    );
+    assert_eq!(
+        audit(""),
+        Outcome::Unknown,
+        "under --root the running kernel is not the root’s"
+    );
+    assert_eq!(boot("auditd/boot-unaudited", false, stock), Outcome::Skip);
+    let backlog = |text: &str| boot("auditd/boot-backlog", true, text);
+    assert_eq!(backlog(stock), Outcome::Fail, "unset means 64");
+    assert_eq!(backlog("audit=1 audit_backlog_limit=8192\n"), Outcome::Pass);
+    assert_eq!(backlog("audit_backlog_limit=8191\n"), Outcome::Fail);
+    assert_eq!(
+        backlog("audit-backlog-limit=8192\n"),
+        Outcome::Pass,
+        "the kernel reads - and _ alike in a parameter name"
+    );
+    assert_eq!(boot("auditd/boot-backlog", false, stock), Outcome::Skip);
+}
+
+#[test]
+fn aide_fails_off_disk_and_without_an_enabled_running_daily_check() {
+    let aide = |rule: &str, installed: bool, units: Value| {
+        let binary = if installed {
+            json!({"/usr/bin/aide": {"exists": true}})
+        } else {
+            json!({})
+        };
+        let document = json!({"aide": {"binary": binary}, "systemd": {"state": units}, "collectors": {
+            "aide-binary": {"status": "ok", "into": "aide.binary"},
+            "systemd-state": {"status": "ok", "into": "systemd.state"}}});
+        judge("aide", &document)
+            .into_iter()
+            .find(|(r, _, _)| r == rule)
+            .unwrap()
+            .2
+    };
+    let units = |timer: Value, masked: bool| json!({"dailyaidecheck.timer": timer, "dailyaidecheck.service": {"enabled": false, "masked": masked}});
+    let on = json!({"enabled": true, "masked": false, "active": "active"});
+    assert_eq!(aide("aide/not-installed", true, json!({})), Outcome::Pass);
+    assert_eq!(aide("aide/not-installed", false, json!({})), Outcome::Fail);
+    assert_eq!(
+        collected("aide/not-installed", "aide-binary", "aide.binary", None),
+        [(String::new(), Outcome::Unknown)]
+    );
+    let scheduled = |units: Value| aide("aide/unscheduled", true, units);
+    assert_eq!(scheduled(units(on.clone(), false)), Outcome::Pass);
+    assert_eq!(
+        scheduled(units(on.clone(), true)),
+        Outcome::Fail,
+        "a masked service never runs"
+    );
+    assert_eq!(
+        scheduled(units(
+            json!({"enabled": false, "masked": false, "active": "inactive"}),
+            false
+        )),
+        Outcome::Fail
+    );
+    assert_eq!(
+        scheduled(units(
+            json!({"enabled": true, "masked": false, "active": "inactive"}),
+            false
+        )),
+        Outcome::Fail
+    );
+    assert_eq!(
+        scheduled(units(json!({"enabled": true, "masked": false}), false)),
+        Outcome::Pass,
+        "under --root no unit has an active state"
+    );
+    assert_eq!(scheduled(json!({})), Outcome::Fail, "no timer at all");
+    assert_eq!(aide("aide/unscheduled", false, json!({})), Outcome::Skip);
 }

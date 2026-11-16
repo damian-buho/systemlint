@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: aide-binary
+read:
+  stat: [/usr/local/*bin/aide, /usr/*bin/aide, /*bin/aide]
+parse: {plugin: formats, op: stat}
+into: aide.binary

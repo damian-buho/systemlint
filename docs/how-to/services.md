@@ -4,16 +4,16 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Kernel parameters, modules and audit rules, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables
+# Kernel parameters, modules and audit rules, AIDE, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables
 
-Eighteen collectors record service configuration as facts, `systemd-units` on
+Twenty collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd`, `nftables` on `systemlint-firewall`, `processes-services`
 and `ports-listening` on `systemlint-proc` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
 `ufw.service`, `nftables` judges the loaded nftables ruleset and the state of
 `nftables.service`, `restart` judges the code each running service holds, `services` judges the sandbox of each unit, and
-`kernel-modules` judges the module facts, and `audit` the audit rules; no shipped rule reads the Docker
+`kernel-modules` judges the module facts, `audit` the audit rules, and `aide` whether AIDE checks the disk on a schedule; no shipped rule reads the Docker
 facts yet.
 
 | Collector | Reads | Op | Facts at |
@@ -28,6 +28,8 @@ facts yet.
 | `audit-rules` | `/etc/audit/rules.d/*.rules` | `options` | `audit.rules.<file>` |
 | `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `options` | `audit.loaded./usr/sbin/auditctl` |
 | `auditd-binary` | `auditd` in `/usr/local/sbin`, `/usr/sbin`, `/sbin` and their `bin` siblings | `stat` | `auditd.binary` |
+| `kernel-cmdline` | `/proc/cmdline` on a live host | `kv` | `kernel.cmdline` |
+| `aide-binary` | `aide` in `/usr/local/bin`, `/usr/bin`, `/bin` and their `sbin` siblings | `stat` | `aide.binary` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
 | `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system`, with its `stat` | `units` | `systemd.units.<unit>` |
 | `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all --output=json` on a live host | `systemd` | `systemd.state.<unit>` |
@@ -236,11 +238,16 @@ recorded rather than the spelling CIS prints:
 `auditd-conf` (root) reads `/etc/audit/auditd.conf` through `kv` into
 `auditd.conf`, the last line of a key winning, as auditd reads it, and
 `auditd-logs` (root) stats `/var/log/audit` and every entry in it into
-`auditd.logs.<path>`. The `auditd` ruleset applies once auditd is on disk;
-only its two mode rules carry `default`, the others the CIS control alone:
+`auditd.logs.<path>`. `kernel-cmdline` reads the running kernel’s
+parameters through `kv`, a bare word as `true`. Each `auditd` rule but
+`auditd/not-installed` waits for auditd on disk; only the mode and owner rules
+carry `default`, the others the CIS control alone:
 
 | Rule | Severity | Fails when |
 | --- | --- | --- |
+| `auditd/not-installed` | info | no `auditd` program is on disk |
+| `auditd/boot-unaudited` | info | the running kernel was booted without `audit=1` (or `on`) |
+| `auditd/boot-backlog` | info | the running kernel’s `audit_backlog_limit` is unset (64) or below the `audit-backlog-limit` var (8192) |
 | `auditd/disabled` | info | `auditd.service` is not enabled |
 | `auditd/inactive` | info | `auditd.service` is not active |
 | `auditd/no-rules` | info | auditd is active and `auditctl -l` lists no `-a` or `-w` rule |
@@ -257,6 +264,19 @@ rules match `(?i)`; an unset key takes auditd’s default (`rotate`, `suspend`,
 `auditd/inactive` and `auditd/no-rules` are skipped. Ubuntu’s stock
 `auditd.conf` fails `deletes-logs`, `full-disk` and `low-space`: CIS trades
 availability for a complete record, a choice only the host’s owner can make.
+
+The boot rules judge the kernel that runs, not `grub.cfg` as CIS reads it, so
+an edit waiting for the next reboot still fails; under `--root` the running
+kernel is not the root’s, and they are `Not run`. The kernel reads `-` and `_`
+alike in a parameter name, so `audit-backlog-limit=8192` passes too.
+
+## AIDE
+
+The `aide` ruleset carries CIS controls alone: `aide/not-installed` fails when
+`aide-binary` finds no `aide` program, and `aide/unscheduled`, once it does,
+when `dailyaidecheck.timer` is missing, not enabled or not active, or
+`dailyaidecheck.service` is masked. Under `--root` no unit has an active
+state, so the timer passes on being enabled.
 
 ## Docker daemon
 

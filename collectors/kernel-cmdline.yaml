@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: kernel-cmdline
+live: true
+read:
+  files: [/proc/cmdline]
+parse:
+  plugin: formats
+  op: kv
+  with: {records: " ", negate: "!", repeat: last, comments: []}
+into: kernel.cmdline
