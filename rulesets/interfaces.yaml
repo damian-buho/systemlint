@@ -12,7 +12,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has the PROMISC flag, so it hands every frame on its segment to whatever reads it, a sniffer left running or planted"
-    fix: run ip link set {subject} promisc off, then find what turned it on
+    fix: run “ip link set {subject} promisc off”, then find what turned it on
     docs: https://man7.org/linux/man-pages/man8/ip-link.8.html
     references:
       - {title: Lynis NETW-3015, url: "https://cisofy.com/lynis/controls/NETW-3015/"}

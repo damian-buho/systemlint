@@ -13,7 +13,7 @@ rules:
     severity: warning
     score: 4.0
     message: "cramfs is shipped and no modprobe.d install line turns it away, so a crafted cramfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: add install cramfs /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install cramfs /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -26,7 +26,7 @@ rules:
     severity: warning
     score: 4.0
     message: "cramfs is loaded in the running kernel, so a crafted cramfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: run modprobe -r cramfs, then add install cramfs /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r cramfs”, then add “install cramfs /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -39,7 +39,7 @@ rules:
     severity: info
     score: 2.0
     message: "cramfs is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist cramfs to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist cramfs” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.1, '!default']
   kernel-modules/freevxfs:
@@ -50,7 +50,7 @@ rules:
     severity: warning
     score: 4.0
     message: "freevxfs is shipped and no modprobe.d install line turns it away, so a crafted freevxfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: add install freevxfs /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install freevxfs /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -63,7 +63,7 @@ rules:
     severity: warning
     score: 4.0
     message: "freevxfs is loaded in the running kernel, so a crafted freevxfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: run modprobe -r freevxfs, then add install freevxfs /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r freevxfs”, then add “install freevxfs /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -76,7 +76,7 @@ rules:
     severity: info
     score: 2.0
     message: "freevxfs is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist freevxfs to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist freevxfs” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.2, '!default']
   kernel-modules/hfs:
@@ -87,7 +87,7 @@ rules:
     severity: warning
     score: 4.0
     message: "hfs is shipped and no modprobe.d install line turns it away, so a crafted hfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: add install hfs /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install hfs /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -100,7 +100,7 @@ rules:
     severity: warning
     score: 4.0
     message: "hfs is loaded in the running kernel, so a crafted hfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: run modprobe -r hfs, then add install hfs /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r hfs”, then add “install hfs /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -113,7 +113,7 @@ rules:
     severity: info
     score: 2.0
     message: "hfs is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist hfs to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist hfs” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.3, '!default']
   kernel-modules/hfsplus:
@@ -124,7 +124,7 @@ rules:
     severity: warning
     score: 4.0
     message: "hfsplus is shipped and no modprobe.d install line turns it away, so a crafted hfsplus image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: add install hfsplus /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install hfsplus /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -137,7 +137,7 @@ rules:
     severity: warning
     score: 4.0
     message: "hfsplus is loaded in the running kernel, so a crafted hfsplus image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: run modprobe -r hfsplus, then add install hfsplus /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r hfsplus”, then add “install hfsplus /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -150,7 +150,7 @@ rules:
     severity: info
     score: 2.0
     message: "hfsplus is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist hfsplus to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist hfsplus” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.4, '!default']
   kernel-modules/jffs2:
@@ -161,7 +161,7 @@ rules:
     severity: warning
     score: 4.0
     message: "jffs2 is shipped and no modprobe.d install line turns it away, so a crafted jffs2 image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: add install jffs2 /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install jffs2 /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -174,7 +174,7 @@ rules:
     severity: warning
     score: 4.0
     message: "jffs2 is loaded in the running kernel, so a crafted jffs2 image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: run modprobe -r jffs2, then add install jffs2 /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r jffs2”, then add “install jffs2 /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -187,7 +187,7 @@ rules:
     severity: info
     score: 2.0
     message: "jffs2 is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist jffs2 to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist jffs2” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.5, '!default']
   kernel-modules/overlay:
@@ -198,7 +198,7 @@ rules:
     severity: warning
     score: 4.0
     message: "overlay is shipped and no modprobe.d install line turns it away, so a crafted overlay image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: add install overlay /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install overlay /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/overlay-loaded:
@@ -209,7 +209,7 @@ rules:
     severity: warning
     score: 4.0
     message: "overlay is loaded in the running kernel, so a crafted overlay image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: run modprobe -r overlay, then add install overlay /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r overlay”, then add “install overlay /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/overlay-blacklist:
@@ -220,7 +220,7 @@ rules:
     severity: info
     score: 2.0
     message: "overlay is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist overlay to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist overlay” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/squashfs:
@@ -231,7 +231,7 @@ rules:
     severity: warning
     score: 4.0
     message: "squashfs is shipped and no modprobe.d install line turns it away, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: add install squashfs /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install squashfs /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -244,7 +244,7 @@ rules:
     severity: warning
     score: 4.0
     message: "squashfs is loaded in the running kernel, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: run modprobe -r squashfs, then add install squashfs /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r squashfs”, then add “install squashfs /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -257,7 +257,7 @@ rules:
     severity: info
     score: 2.0
     message: "squashfs is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist squashfs to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist squashfs” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.7, '!default']
   kernel-modules/udf:
@@ -268,7 +268,7 @@ rules:
     severity: warning
     score: 4.0
     message: "udf is shipped and no modprobe.d install line turns it away, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: add install udf /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install udf /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -281,7 +281,7 @@ rules:
     severity: warning
     score: 4.0
     message: "udf is loaded in the running kernel, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix: run modprobe -r udf, then add install udf /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r udf”, then add “install udf /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -294,7 +294,7 @@ rules:
     severity: info
     score: 2.0
     message: "udf is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist udf to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist udf” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.8, '!default']
   kernel-modules/firewire-core:
@@ -305,11 +305,11 @@ rules:
     severity: warning
     score: 4.0
     message: "firewire-core is shipped and no modprobe.d install line turns it away, so a FireWire device plugged in can read and write memory through DMA"
-    fix: add install firewire_core /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install firewire_core /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis STRG-1846, url: "https://cisofy.com/lynis/controls/STRG-1846/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.9, lynis, '!default']
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.9, lynis]
   kernel-modules/firewire-core-loaded:
     title: firewire-core module loaded
     fact: kernel.loaded
@@ -318,7 +318,7 @@ rules:
     severity: warning
     score: 4.0
     message: "firewire_core is loaded in the running kernel, so a FireWire device plugged in can read and write memory through DMA"
-    fix: run modprobe -r firewire_core, then add install firewire_core /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r firewire_core”, then add “install firewire_core /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.9]
   kernel-modules/firewire-core-blacklist:
@@ -329,7 +329,7 @@ rules:
     severity: info
     score: 2.0
     message: "firewire-core is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist firewire_core to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist firewire_core” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis STRG-1846, url: "https://cisofy.com/lynis/controls/STRG-1846/"}
@@ -342,7 +342,7 @@ rules:
     severity: warning
     score: 4.0
     message: "usb-storage is shipped and no modprobe.d install line turns it away, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
-    fix: add install usb_storage /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install usb_storage /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis USB-1000, url: "https://cisofy.com/lynis/controls/USB-1000/"}
@@ -355,7 +355,7 @@ rules:
     severity: warning
     score: 4.0
     message: "usb_storage is loaded in the running kernel, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
-    fix: run modprobe -r usb_storage, then add install usb_storage /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r usb_storage”, then add “install usb_storage /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.10, '!default']
   kernel-modules/usb-storage-blacklist:
@@ -366,7 +366,7 @@ rules:
     severity: info
     score: 2.0
     message: "usb-storage is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist usb_storage to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist usb_storage” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis USB-1000, url: "https://cisofy.com/lynis/controls/USB-1000/"}
@@ -379,9 +379,9 @@ rules:
     severity: warning
     score: 5.0
     message: "atm is shipped and no modprobe.d install line turns it away, so any local user opening a atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: add install atm /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install atm /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.1, '!default']
+    tags: [kernel, cis-ubuntu-26.04:3.2.1]
   kernel-modules/atm-loaded:
     title: atm module loaded
     fact: kernel.loaded
@@ -390,7 +390,7 @@ rules:
     severity: warning
     score: 5.0
     message: "atm is loaded in the running kernel, so any local user opening a atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: run modprobe -r atm, then add install atm /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r atm”, then add “install atm /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.1]
   kernel-modules/atm-blacklist:
@@ -401,7 +401,7 @@ rules:
     severity: info
     score: 2.0
     message: "atm is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist atm to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist atm” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.1, '!default']
   kernel-modules/can:
@@ -412,9 +412,9 @@ rules:
     severity: warning
     score: 5.0
     message: "can is shipped and no modprobe.d install line turns it away, so any local user opening a can socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: add install can /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install can /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.2, '!default']
+    tags: [kernel, cis-ubuntu-26.04:3.2.2]
   kernel-modules/can-loaded:
     title: can module loaded
     fact: kernel.loaded
@@ -423,7 +423,7 @@ rules:
     severity: warning
     score: 5.0
     message: "can is loaded in the running kernel, so any local user opening a can socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: run modprobe -r can, then add install can /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r can”, then add “install can /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.2]
   kernel-modules/can-blacklist:
@@ -434,7 +434,7 @@ rules:
     severity: info
     score: 2.0
     message: "can is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist can to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist can” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.2, '!default']
   kernel-modules/dccp:
@@ -445,7 +445,7 @@ rules:
     severity: warning
     score: 5.0
     message: "dccp is shipped and no modprobe.d install line turns it away, so any local user opening a dccp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: add install dccp /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install dccp /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -458,7 +458,7 @@ rules:
     severity: warning
     score: 5.0
     message: "dccp is loaded in the running kernel, so any local user opening a dccp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: run modprobe -r dccp, then add install dccp /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r dccp”, then add “install dccp /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -471,7 +471,7 @@ rules:
     severity: info
     score: 2.0
     message: "dccp is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist dccp to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist dccp” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.3, '!default']
   kernel-modules/rds:
@@ -482,7 +482,7 @@ rules:
     severity: warning
     score: 5.0
     message: "rds is shipped and no modprobe.d install line turns it away, so any local user opening a rds socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: add install rds /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install rds /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -495,7 +495,7 @@ rules:
     severity: warning
     score: 5.0
     message: "rds is loaded in the running kernel, so any local user opening a rds socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: run modprobe -r rds, then add install rds /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r rds”, then add “install rds /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -508,7 +508,7 @@ rules:
     severity: info
     score: 2.0
     message: "rds is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist rds to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist rds” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.4, '!default']
   kernel-modules/sctp:
@@ -519,7 +519,7 @@ rules:
     severity: warning
     score: 5.0
     message: "sctp is shipped and no modprobe.d install line turns it away, so any local user opening a sctp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: add install sctp /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install sctp /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -532,7 +532,7 @@ rules:
     severity: warning
     score: 5.0
     message: "sctp is loaded in the running kernel, so any local user opening a sctp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: run modprobe -r sctp, then add install sctp /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r sctp”, then add “install sctp /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -545,7 +545,7 @@ rules:
     severity: info
     score: 2.0
     message: "sctp is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist sctp to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist sctp” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.5, '!default']
   kernel-modules/tipc:
@@ -556,7 +556,7 @@ rules:
     severity: warning
     score: 5.0
     message: "tipc is shipped and no modprobe.d install line turns it away, so any local user opening a tipc socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: add install tipc /bin/false to a .conf file in /etc/modprobe.d/
+    fix: add “install tipc /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -569,7 +569,7 @@ rules:
     severity: warning
     score: 5.0
     message: "tipc is loaded in the running kernel, so any local user opening a tipc socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix: run modprobe -r tipc, then add install tipc /bin/false to a .conf file in /etc/modprobe.d/
+    fix: run “modprobe -r tipc”, then add “install tipc /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -582,7 +582,7 @@ rules:
     severity: info
     score: 2.0
     message: "tipc is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    fix: add blacklist tipc to a .conf file in /etc/modprobe.d/
+    fix: add “blacklist tipc” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.6, '!default']
   kernel-modules/builtin:
@@ -593,6 +593,6 @@ rules:
     severity: warning
     score: 3.5
     message: "{subject} is built into a kernel in /lib/modules, so no modprobe.d line keeps it out of that kernel"
-    fix: boot a kernel that builds {subject} as a module, then add its install line to /etc/modprobe.d/
+    fix: boot a kernel that builds {subject} as a module, then add its “install” line to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel]

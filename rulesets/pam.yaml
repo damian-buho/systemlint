@@ -29,7 +29,7 @@ rules:
     severity: error
     score: 9.0
     message: "{subject} lets pam_permit, which always succeeds, settle its auth stack, so anyone who reaches a service using it logs in without a password"
-    fix: remove the pam_permit auth line from {subject}, or make it required behind a module that checks a credential
+    fix: remove the “pam_permit” auth line from {subject}, or make it “required” behind a module that checks a credential
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_permit.8.html
     tags: [auth, pam]
   pam/nullok:
@@ -46,7 +46,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} passes nullok to pam_unix, so an account whose password is empty logs in by pressing Enter"
-    fix: remove nullok from the pam_unix auth line in {subject}
+    fix: remove “nullok” from the “pam_unix” auth line in {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
     tags: [auth, pam]
   pam/no-lockout:
@@ -58,7 +58,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} checks passwords with pam_unix but never calls pam_faillock, so an attacker may guess passwords without limit"
-    fix: add pam_faillock to the auth stack of {subject}, preauth before pam_unix and authfail after it, and to its account stack
+    fix: add “pam_faillock” to the auth stack of {subject}, “preauth” before “pam_unix” and “authfail” after it, and add it to its account stack
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_faillock.8.html
     references:
       - {title: Lynis AUTH-9408, url: "https://cisofy.com/lynis/controls/AUTH-9408/"}
@@ -76,7 +76,7 @@ rules:
     severity: warning
     score: 3.0
     message: "{subject} passes remember= to pam_unix, which keeps old password hashes in /etc/security/opasswd in a format pam_pwhistory has replaced"
-    fix: remove remember= from the pam_unix lines in {subject}, and set it on pam_pwhistory instead if you keep a history
+    fix: remove “remember=” from the “pam_unix” lines in {subject}, and set it on “pam_pwhistory” instead if you keep a history
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.4.2]
   pam/unix-hash:
@@ -94,9 +94,9 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} calls pam_unix to set passwords without sha512 or yescrypt, so the scheme of each new hash comes from ENCRYPT_METHOD in /etc/login.defs"
-    fix: add yescrypt, or sha512, to the pam_unix password line through its profile in /usr/share/pam-configs, then run pam-auth-update
+    fix: add “yescrypt”, or “sha512”, to the “pam_unix” password line through its profile in “/usr/share/pam-configs”, then run “pam-auth-update”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
-    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.4.3, '!default']
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.4.3]
   pam/unix-enabled:
     title: A common PAM stack does not call pam_unix
     fact: auth.pam.*
@@ -105,9 +105,9 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} never calls pam_unix, so local accounts are not checked against /etc/passwd and /etc/shadow in this stack"
-    fix: enable the Unix authentication profile with pam-auth-update --enable unix
+    fix: enable the Unix authentication profile with “pam-auth-update --enable unix”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
-    tags: [auth, pam, cis-ubuntu-26.04:5.3.2.1, '!default']
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.2.1]
   pam/pwquality-enabled:
     title: Password changes skip pam_pwquality
     fact: auth.pam.*
@@ -116,7 +116,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} never calls pam_pwquality, so a new password is not checked against a dictionary or a minimum length"
-    fix: install libpam-pwquality, which adds pam_pwquality to {subject} through pam-auth-update
+    fix: install libpam-pwquality, which adds “pam_pwquality” to {subject} through “pam-auth-update”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
     references:
       - {title: Lynis AUTH-9262, url: "https://cisofy.com/lynis/controls/AUTH-9262/"}
@@ -128,7 +128,7 @@ rules:
     severity: info
     score: 1.0
     message: "no pam_pwquality.so is under /usr/lib or /lib, so no PAM stack can check a new password’s strength"
-    fix: install libpam-pwquality (apt install libpam-pwquality on Ubuntu)
+    fix: install libpam-pwquality (“apt install libpam-pwquality” on Ubuntu)
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
     tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-100600, '!default']
   pam/pwhistory-enabled:
@@ -139,7 +139,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} never calls pam_pwhistory, so a user may set a password they used before"
-    fix: add a pam_pwhistory profile under /usr/share/pam-configs and enable it with pam-auth-update
+    fix: add a “pam_pwhistory” profile under “/usr/share/pam-configs”, and enable it with “pam-auth-update”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwhistory.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.2.4, '!default']
   pam/su-unrestricted:
@@ -157,9 +157,9 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has no required pam_wheel line with use_uid and group=, so every user may try root’s password through su"
-    fix: add auth required pam_wheel.so use_uid group=<an empty group> to {subject}
+    fix: add “auth required pam_wheel.so use_uid group=<an empty group>” to {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_wheel.8.html
-    tags: [auth, pam, cis-ubuntu-26.04:5.2.7, '!default']
+    tags: [auth, pam, cis-ubuntu-26.04:5.2.7]
   pam/faillock-deny:
     title: pam_faillock allows too many failed logins before locking
     fact: auth.faillock
@@ -168,9 +168,9 @@ rules:
     severity: info
     score: 2.0
     message: "/etc/security/faillock.conf sets deny to {got}, so an account takes more than ${faillock-deny} wrong passwords, or with 0 any number, before it locks"
-    fix: set deny = ${faillock-deny} or less in /etc/security/faillock.conf
+    fix: set “deny = ${faillock-deny}” or less in “/etc/security/faillock.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
-    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.1, '!default']
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.1]
   pam/faillock-unlock-time:
     title: A locked account unlocks too soon
     fact: auth.faillock
@@ -179,9 +179,9 @@ rules:
     severity: info
     score: 2.0
     message: "/etc/security/faillock.conf leaves unlock_time below ${faillock-unlock-time} seconds (unset is 600), so a password guesser resumes soon after each lockout"
-    fix: set unlock_time = ${faillock-unlock-time} or more, or 0 to keep accounts locked until an administrator runs faillock --reset
+    fix: set “unlock_time = ${faillock-unlock-time}” or more, or “unlock_time = 0” to keep accounts locked until an administrator runs “faillock --reset”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
-    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.2, '!default']
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.2]
   pam/faillock-root:
     title: Failed logins never lock root
     fact: auth.faillock
@@ -194,7 +194,7 @@ rules:
     severity: info
     score: 2.0
     message: "/etc/security/faillock.conf sets neither even_deny_root nor a root_unlock_time of ${faillock-root-unlock-time} seconds or more, so root’s password may be guessed without a lockout"
-    fix: add even_deny_root, with root_unlock_time = ${faillock-root-unlock-time} or more, to /etc/security/faillock.conf
+    fix: add “even_deny_root” with “root_unlock_time = ${faillock-root-unlock-time}” or more to “/etc/security/faillock.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.3, '!default']
   pam/pwhistory-remember:
@@ -205,7 +205,7 @@ rules:
     severity: info
     score: 2.0
     message: "/etc/security/pwhistory.conf keeps fewer than ${pwhistory-remember} old passwords (unset is 10), so a user may cycle back to an old one"
-    fix: set remember = ${pwhistory-remember} or more in /etc/security/pwhistory.conf
+    fix: set “remember = ${pwhistory-remember}” or more in “/etc/security/pwhistory.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwhistory.conf.5.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.3.1, '!default']
   pam/pwhistory-root:
@@ -218,7 +218,7 @@ rules:
     severity: info
     score: 2.0
     message: "neither /etc/security/pwhistory.conf nor the pam_pwhistory line sets enforce_for_root, so root changing a password may reuse an old one"
-    fix: add enforce_for_root to /etc/security/pwhistory.conf
+    fix: add “enforce_for_root” to “/etc/security/pwhistory.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwhistory.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.3.2, '!default']
   pam/pwhistory-use-authtok:
@@ -230,7 +230,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} calls pam_pwhistory without use_authtok, so it prompts for the new password instead of taking the one pam_pwquality checked"
-    fix: add use_authtok to the pam_pwhistory line through its profile in /usr/share/pam-configs, then run pam-auth-update
+    fix: add “use_authtok” to the “pam_pwhistory” line through its profile in “/usr/share/pam-configs”, then run “pam-auth-update”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwhistory.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.3.3, '!default']
   pam/unix-use-authtok:
@@ -241,7 +241,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} calls pam_unix to set passwords without use_authtok, so it may prompt for a new password the modules before it never checked"
-    fix: add use_authtok to the pam_unix password line through its profile in /usr/share/pam-configs, then run pam-auth-update
+    fix: add “use_authtok” to the “pam_unix” password line through its profile in “/usr/share/pam-configs”, then run “pam-auth-update”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.4.4, '!default']
   pam/stig-faillock:
@@ -257,7 +257,7 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/security/faillock.conf does not set deny 1 to ${stig-faillock-deny}, unlock_time 0 and fail_interval ${stig-faillock-fail-interval} or more, as the STIG asks"
-    fix: set deny = ${stig-faillock-deny}, fail_interval = ${stig-faillock-fail-interval} and unlock_time = 0 in /etc/security/faillock.conf
+    fix: set “deny = ${stig-faillock-deny}”, “fail_interval = ${stig-faillock-fail-interval}” and “unlock_time = 0” in “/etc/security/faillock.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
     tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-200610, '!default']
   pam/stig-faildelay:
@@ -268,7 +268,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has no auth line calling pam_faildelay with delay=${stig-faildelay} or more microseconds, so a password guesser may retry at once"
-    fix: add auth required pam_faildelay.so delay=${stig-faildelay} to {subject} through a profile in /usr/share/pam-configs
+    fix: add “auth required pam_faildelay.so delay=${stig-faildelay}” to {subject} through a profile in “/usr/share/pam-configs”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_faildelay.8.html
     tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-300017, '!default']
   pam/stig-maxlogins:
@@ -278,6 +278,6 @@ rules:
     severity: info
     score: 1.0
     message: "no limits file sets * hard maxlogins ${stig-maxlogins} or less, so each account may log in any number of times at once"
-    fix: add * hard maxlogins ${stig-maxlogins} to /etc/security/limits.d/50-maxlogins.conf
+    fix: add “* hard maxlogins ${stig-maxlogins}” to “/etc/security/limits.d/50-maxlogins.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/limits.conf.5.html
     tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-200000, '!default']

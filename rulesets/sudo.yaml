@@ -12,7 +12,7 @@ rules:
     severity: info
     score: 1.0
     message: "no sudo program is in /usr/bin, /bin or /usr/local/bin, so administrators share root’s password and leave no record of who ran what"
-    fix: install sudo (apt install sudo), then grant administrators through /etc/sudoers.d with visudo
+    fix: install sudo with “apt install sudo”, then grant administrators through “/etc/sudoers.d” with visudo
     docs: https://www.sudo.ws/docs/man/sudo.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.1, '!default']
   sudo/nopasswd:
@@ -23,7 +23,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} may run commands through sudo without its password, so any program running as {subject}, a browser exploit or a package’s install script, gets those rights unasked"
-    fix: remove the NOPASSWD tag from the grant to {subject} in /etc/sudoers or /etc/sudoers.d, editing it with visudo
+    fix: remove the “NOPASSWD” tag from the grant to {subject} in “/etc/sudoers” or “/etc/sudoers.d”, editing it with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.4, stig-ubuntu-26.04:UBTU-24-300020]
   sudo/invalid-sudoers:
@@ -34,6 +34,6 @@ rules:
     severity: warning
     score: 4.0
     message: "visudo --check exits {got}, so sudo skips the broken lines and runs without the grants or limits they were written to set"
-    fix: run visudo --check as root and fix the line it names
+    fix: run “visudo --check” as root, and fix the line it names
     docs: https://www.sudo.ws/docs/man/visudo.man/
     tags: [sudo]

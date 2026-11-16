@@ -12,7 +12,7 @@ rules:
     severity: info
     score: 1.0
     message: "no ufw program is in /usr/sbin, /sbin or /usr/local/sbin; the benchmark asks for ufw as the host firewall"
-    fix: install ufw (apt install ufw), allow your own SSH session with ufw allow ssh, then run ufw enable
+    fix: install ufw with “apt install ufw”, allow your own SSH session with “ufw allow ssh”, then run “ufw enable”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.1, stig-ubuntu-26.04:UBTU-24-100300, '!default']
   ufw/disabled:
@@ -23,7 +23,7 @@ rules:
     severity: error
     score: 7.0
     message: "/etc/ufw/ufw.conf sets ENABLED={got}, so ufw loads no rules at boot and the host runs without its firewall"
-    fix: run ufw enable once the rules allow your own SSH session, or uninstall ufw if another firewall guards the host
+    fix: run “ufw enable” once the rules allow your own SSH session, or uninstall ufw if another firewall guards the host
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     references:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
@@ -37,7 +37,7 @@ rules:
     severity: error
     score: 7.0
     message: "ufw.service is masked, so systemd never starts it and the rules /etc/ufw/ufw.conf enables are never loaded at boot"
-    fix: run systemctl unmask ufw.service, then systemctl enable --now ufw.service
+    fix: run “systemctl unmask ufw.service”, then “systemctl enable --now ufw.service”
     docs: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#mask%20UNIT%E2%80%A6
     references:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
@@ -51,7 +51,7 @@ rules:
     severity: error
     score: 7.0
     message: "ufw.service failed, so the rules /etc/ufw/ufw.conf enables are not loaded and the host runs without its firewall"
-    fix: read journalctl --unit ufw.service for the error, fix the rules it names, then run systemctl restart ufw.service
+    fix: read “journalctl --unit ufw.service” for the error, fix the rules it names, then run “systemctl restart ufw.service”
     docs: https://www.freedesktop.org/software/systemd/man/latest/journalctl.html
     references:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
@@ -65,7 +65,7 @@ rules:
     severity: error
     score: 7.0
     message: "no .wants or .requires link pulls in ufw.service, so systemd never starts it and the rules /etc/ufw/ufw.conf enables are never loaded at boot"
-    fix: run systemctl enable --now ufw.service
+    fix: run “systemctl enable --now ufw.service”
     docs: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#enable%20UNIT%E2%80%A6
     references:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
@@ -78,7 +78,7 @@ rules:
     severity: warning
     score: 6.0
     message: "/etc/default/ufw sets DEFAULT_INPUT_POLICY={got}, so every port no rule denies is open to the network although ufw is on"
-    fix: run ufw default deny incoming once the rules allow your own SSH session
+    fix: run “ufw default deny incoming” once the rules allow your own SSH session
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.3]
   ufw/output-accepted:
@@ -89,7 +89,7 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/default/ufw sets DEFAULT_OUTPUT_POLICY={got}; the benchmark asks to deny outgoing traffic no rule allows"
-    fix: allow the outgoing traffic the host needs (ufw allow out 53, 123, 443 and the like), then run ufw default deny outgoing
+    fix: allow the outgoing traffic the host needs (“ufw allow out 53”, then 123, 443 and the like), then run “ufw default deny outgoing”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.4, '!default']
   ufw/routed-accepted:
@@ -100,7 +100,7 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/default/ufw sets DEFAULT_FORWARD_POLICY={got}; the benchmark asks to deny routed traffic no rule allows, whether or not the kernel forwards"
-    fix: run ufw default deny routed, then ufw route allow each forward the host needs
+    fix: run “ufw default deny routed”, then “ufw route allow” for each forward the host needs
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.5, '!default']
   ufw/logging-off:
@@ -111,8 +111,8 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/ufw/ufw.conf sets LOGLEVEL=off, so a blocked probe or a refused connection leaves no trace"
-    fix: run ufw logging low
+    fix: run “ufw logging low”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     references:
       - {title: Lynis FIRE-4586, url: "https://cisofy.com/lynis/controls/FIRE-4586/"}
-    tags: [ufw, firewall, lynis, '!default']
+    tags: [ufw, firewall, lynis]

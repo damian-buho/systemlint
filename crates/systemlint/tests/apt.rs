@@ -15,7 +15,7 @@ use systemlint::source::Root;
 use systemlint_protocol::{Describe, ExecInput, Input, PROTOCOL, Reply, Request};
 
 // The rules of the apt ruleset a default run selects.
-const DEFAULT_RULES: usize = 17;
+const DEFAULT_RULES: usize = 18;
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -195,7 +195,7 @@ fn the_apt_rules_apply_to_debian_ubuntu_and_their_derivatives_alone() {
 }
 
 #[test]
-fn kiota_docker_on_questing_under_resolute_fails_stale_suite_alone() {
+fn kiota_docker_on_questing_under_resolute_fails_stale_suite_and_weak_dependencies() {
     let document = document("ubuntu-26.04");
     assert_eq!(
         document["apt"]["installed"]["docker-ce"]["version"],
@@ -213,10 +213,13 @@ fn kiota_docker_on_questing_under_resolute_fails_stale_suite_alone() {
         .collect();
     assert_eq!(
         found,
-        [(
-            "apt/stale-suite",
-            "/etc/apt/sources.list.d/docker.sources:5".to_owned()
-        )]
+        [
+            (
+                "apt/stale-suite",
+                "/etc/apt/sources.list.d/docker.sources:5".to_owned()
+            ),
+            ("apt/weak-dependencies", String::new())
+        ]
     );
     assert!(
         failures[0]
@@ -270,6 +273,7 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
         ("apt/stale-suite", format!("{list}:9")),
         ("apt/stale-uri", format!("{list}:10")),
         ("apt/versioned-uri", format!("{list}:8")),
+        ("apt/weak-dependencies", String::new()),
     ];
     let mut sorted = found.clone();
     sorted.sort();

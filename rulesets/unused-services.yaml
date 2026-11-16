@@ -18,7 +18,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the automounter mounts removable media and network shares on access, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/automount.8.html
     tags: [services, cis-ubuntu-26.04:2.1.1]
   unused-services/avahi:
@@ -29,7 +29,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the Avahi mDNS daemon announces this host and its services to the local network, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/avahi-daemon.8.html
     tags: [services, cis-ubuntu-26.04:2.1.2]
   unused-services/dhcp-server:
@@ -40,7 +40,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: a Kea DHCP server hands out addresses and routes to any host on the network, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://kea.readthedocs.io/
     tags: [services, cis-ubuntu-26.04:2.1.3]
   unused-services/dns-server:
@@ -51,7 +51,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the BIND DNS server answers DNS queries from the network, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/named.8.html
     tags: [services, cis-ubuntu-26.04:2.1.4]
   unused-services/dnsmasq:
@@ -62,7 +62,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: dnsmasq serves DNS and DHCP to the network, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/dnsmasq.8.html
     tags: [services, cis-ubuntu-26.04:2.1.5]
   unused-services/ftp-server:
@@ -73,7 +73,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the vsftpd FTP server serves files over FTP, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/vsftpd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.6]
   unused-services/ldap-server:
@@ -84,7 +84,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the slapd LDAP server serves a directory to the network, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/slapd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.7]
   unused-services/mail-access-server:
@@ -95,7 +95,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the Dovecot IMAP and POP3 server serves mailboxes to the network, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://doc.dovecot.org/
     tags: [services, cis-ubuntu-26.04:2.1.8]
   unused-services/nfs-server:
@@ -106,7 +106,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the NFS server exports file systems to the network, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/nfsd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.9, stig-ubuntu-26.04:UBTU-24-100050]
   unused-services/print-server:
@@ -117,7 +117,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the CUPS print server takes print jobs and serves its web interface, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/cupsd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.11]
   unused-services/rpcbind:
@@ -128,7 +128,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: rpcbind maps RPC programs to ports for any host that asks, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rpcbind.8.html
     tags: [services, cis-ubuntu-26.04:2.1.12]
   unused-services/rsync:
@@ -139,7 +139,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the rsync daemon serves files over the rsync protocol, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/rsyncd.conf.5.html
     tags: [services, cis-ubuntu-26.04:2.1.13]
   unused-services/samba:
@@ -150,7 +150,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the Samba file server shares files over SMB, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/smbd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.14]
   unused-services/snmp:
@@ -161,7 +161,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the SNMP daemon answers SNMP queries about this host, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/snmpd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.15]
   unused-services/telnet-server:
@@ -172,7 +172,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: inetutils-inetd starts the telnet server and other inetd services, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/inetutils-inetd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.16]
   unused-services/web-proxy:
@@ -183,7 +183,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: the Squid proxy relays web traffic for its clients, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/squid.8.html
     tags: [services, cis-ubuntu-26.04:2.1.18]
   unused-services/web-server:
@@ -194,7 +194,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: a web server serves HTTP to the network, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://httpd.apache.org/docs/current/misc/security_tips.html
     tags: [services, cis-ubuntu-26.04:2.1.19]
   unused-services/xinetd:
@@ -205,7 +205,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running: xinetd starts network services on demand, a service to leave off unless this host offers it"
-    fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/xinetd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.20]
   unused-services/apport:
@@ -218,7 +218,7 @@ rules:
     severity: info
     score: 1.0
     message: "Apport is enabled in /etc/default/apport or apport.service is active, so crashes leave reports holding their memory, stack and logs, to be sent to a third party"
-    fix: set enabled=0 in /etc/default/apport and run systemctl mask --now apport.service, or apt purge apport
+    fix: set “enabled=0” in “/etc/default/apport” and run “systemctl mask --now apport.service”, or run “apt purge apport”
     docs: https://wiki.ubuntu.com/Apport
     tags: [services, coredump, cis-ubuntu-26.04:1.5.7]
   unused-services/x-server:
@@ -228,7 +228,7 @@ rules:
     severity: info
     score: 1.0
     message: "xserver-common is installed; the benchmark asks a server to carry no X server, whose code then needs patching for nothing"
-    fix: run apt purge xserver-common, unless this host runs a graphical session
+    fix: run “apt purge xserver-common”, unless this host runs a graphical session
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/Xserver.1.html
     tags: [services, cis-ubuntu-26.04:2.1.21]
   unused-services/bluetooth:
@@ -239,6 +239,6 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is enabled or running, so a device within radio range talks to its stack, where pairing and parser flaws are reachable"
-    fix: run systemctl mask --now {subject}, or apt purge bluez, unless this host uses Bluetooth devices
+    fix: run “systemctl mask --now {subject}”, or “apt purge bluez”, unless this host uses Bluetooth devices
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/bluetoothd.8.html
     tags: [services, cis-ubuntu-26.04:3.1.3]

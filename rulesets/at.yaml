@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Users the at command lets schedule one-off jobs
-tags: [at]
+tags: [default, at]
 rules:
   at/no-allow:
     title: at is open to users not named in at.allow
@@ -14,7 +14,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} does not exist, so every user at.deny leaves out may schedule jobs with at"
-    fix: write the users allowed to schedule jobs, one per line, to {subject}, then chown root:daemon and chmod 0640 it
+    fix: write the users allowed to schedule jobs to {subject}, one per line, then run “chown root:daemon” and “chmod 0640” on it
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
     tags: [at, cis-ubuntu-26.04:2.4.2.1]
   at/access-mode:
@@ -26,7 +26,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so only root changes who may schedule jobs"
-    fix: chgrp daemon {subject}, then chmod 0640 it, since the command reads it through that group
+    fix: run “chgrp daemon {subject}”, then “chmod 0640” on it, since the command reads it through that group
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
     tags: [at, cis-ubuntu-26.04:2.4.2.1]
   at/access-owner:
@@ -38,7 +38,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, not root, so that user decides who may schedule jobs"
-    fix: chown root {subject}
+    fix: run “chown root {subject}”
     remedy: {chown: 0}
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
     tags: [at, cis-ubuntu-26.04:2.4.2.1]
@@ -51,6 +51,6 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not root or daemon (gid {same}); the benchmark asks one of the two"
-    fix: chgrp daemon {subject}
+    fix: run “chgrp daemon {subject}”
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
     tags: [at, cis-ubuntu-26.04:2.4.2.1]

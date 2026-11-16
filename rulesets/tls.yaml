@@ -14,7 +14,7 @@ rules:
     score: 8.5
     suggest: {fact: probes.*.http.*.tls.not-after, otherwise: an unknown date}
     message: "{subject} serves a certificate that ended {suggested}, so every client refuses the site or trains its users to click through the warning"
-    fix: "renew the certificate of {subject} and check why its renewal job did not run: certbot renew --dry-run, or the logs of your ACME client"
+    fix: renew the certificate of {subject}, and find why its renewal job did not run with “certbot renew --dry-run” or the logs of your ACME client
     docs: https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.5
     references:
       - {title: Lynis CRYP-7902, url: "https://cisofy.com/lynis/controls/CRYP-7902/"}
@@ -28,7 +28,7 @@ rules:
     score: [[0, 6.6], [9, 3.3]]
     suggest: {fact: probes.*.http.*.tls.not-after, otherwise: an unknown date}
     message: "{subject} serves a certificate with {got}% of its lifetime left, ending {suggested}, so its renewal is failing and clients refuse the site once it ends"
-    fix: "renew the certificate of {subject} and check why its renewal job did not run: certbot renew --dry-run, or the logs of your ACME client"
+    fix: renew the certificate of {subject}, and find why its renewal job did not run with “certbot renew --dry-run” or the logs of your ACME client
     docs: https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.5
     tags: [tls]
   tls/untrusted:
@@ -41,6 +41,6 @@ rules:
     score: 7.0
     suggest: {fact: probes.*.http.*.tls.error, otherwise: no reason given}
     message: "{subject} serves a certificate this host does not trust ({suggested}), so clients refuse it or learn to click through a warning an attacker can reuse"
-    fix: "serve a certificate for the name in {subject} from a CA its clients trust, with its whole chain, or give the probe the private CA as ca-file"
+    fix: serve a certificate for the name in {subject} from a CA its clients trust, with its whole chain, or give the probe the private CA as “ca-file”
     docs: https://datatracker.ietf.org/doc/html/rfc5280#section-6
     tags: [tls]

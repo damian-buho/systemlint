@@ -53,7 +53,7 @@ rules:
     severity: warning
     score: 5.5
     message: "{subject} has no Signed-By, so any key in the shared keyrings can sign it"
-    fix: download the vendor key to /etc/apt/keyrings and name it in the source’s Signed-By
+    fix: download the vendor key to “/etc/apt/keyrings”, and name it in the source’s “Signed-By”
     docs: https://wiki.debian.org/DebianRepository/UseThirdParty
     tags: [apt]
   apt/shared-keyring:
@@ -64,7 +64,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} trusts {got}, a keyring apt also trusts for every source without Signed-By"
-    fix: move the key to /etc/apt/keyrings and name it in the source’s Signed-By
+    fix: move the key to “/etc/apt/keyrings”, and name it in the source’s “Signed-By”
     docs: https://wiki.debian.org/DebianRepository/UseThirdParty
     tags: [apt]
   apt/https:
@@ -75,7 +75,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} fetches over {got}, which shows every package name to the network and lets it withhold updates"
-    fix: switch the source to https://
+    fix: switch the source to “https://”
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/insecure-options:
@@ -86,7 +86,7 @@ rules:
     severity: error
     score: 9.5
     message: "{subject} sets {got}, which switches off apt’s signature checks"
-    fix: remove {got} from the source and give it a Signed-By key
+    fix: remove {got} from the source, and give it a “Signed-By” key
     remedy: {disable-line: apt-list}
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
@@ -98,7 +98,7 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} lists nothing that {got} does not list already"
-    fix: remove this entry, then run sudo apt update
+    fix: remove this entry, then run “sudo apt update”
     remedy: {disable-line: apt-list}
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
@@ -110,7 +110,7 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} lists some of the same suites and components as {got}"
-    fix: list each suite and component in one entry only, then run sudo apt update
+    fix: list each suite and component in one entry only, then run “sudo apt update”
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/key-conflict:
@@ -121,7 +121,7 @@ rules:
     severity: error
     score: 8.5
     message: "{subject} and {got} name one repository with different Signed-By keys, so apt refuses to update"
-    fix: give the entries the same Signed-By, or remove one of them
+    fix: give the entries the same “Signed-By”, or remove one of them
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/stale-release:
@@ -132,7 +132,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} has an expired Release file {got}, so apt installs nothing new from it until an update succeeds"
-    fix: run sudo apt update and fix the error it reports for the source
+    fix: run “sudo apt update”, and fix the error it reports for the source
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt]
   apt/security-suite:
@@ -153,7 +153,7 @@ rules:
     severity: warning
     score: 6.5
     message: "No enabled apt source fetches a -security suite, so this release’s security fixes never reach the host"
-    fix: add the release’s security suite, such as noble-security from security.ubuntu.com or trixie-security from security.debian.org
+    fix: add the release’s security suite, such as “noble-security” from “security.ubuntu.com” or “trixie-security” from “security.debian.org”
     docs: https://wiki.debian.org/SourcesList
     references:
       - {title: Lynis PKGS-7388, url: "https://cisofy.com/lynis/controls/PKGS-7388/"}
@@ -165,7 +165,7 @@ rules:
     severity: error
     score: 9.5
     message: "APT::Get::AllowUnauthenticated is on, so apt-get installs a package it could not verify, from any mirror or attacker in the path, without asking"
-    fix: remove APT::Get::AllowUnauthenticated from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "false"
+    fix: remove “APT::Get::AllowUnauthenticated” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"false"”
     docs: https://manpages.debian.org/unstable/apt/apt-get.8.en.html
     tags: [apt, stig-ubuntu-26.04:UBTU-24-300001]
   apt/allow-insecure-repositories:
@@ -175,7 +175,7 @@ rules:
     severity: error
     score: 9.5
     message: "Acquire::AllowInsecureRepositories is on, so apt update accepts package lists with no valid signature, and a mirror or attacker in the path chooses what gets installed"
-    fix: remove Acquire::AllowInsecureRepositories from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "0"
+    fix: remove “Acquire::AllowInsecureRepositories” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"0"”
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.12]
   apt/allow-weak-repositories:
@@ -185,7 +185,7 @@ rules:
     severity: error
     score: 7.5
     message: "Acquire::AllowWeakRepositories is on, so apt update accepts package lists signed with a broken hash or key, which an attacker can forge"
-    fix: remove Acquire::AllowWeakRepositories from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "0"
+    fix: remove “Acquire::AllowWeakRepositories” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"0"”
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.13]
   apt/allow-downgrade-to-insecure:
@@ -195,7 +195,7 @@ rules:
     severity: error
     score: 8.0
     message: "Acquire::AllowDowngradeToInsecureRepositories is on, so an attacker in the path who strips a signed repository’s signature has apt read it unsigned"
-    fix: remove Acquire::AllowDowngradeToInsecureRepositories from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "0"
+    fix: remove “Acquire::AllowDowngradeToInsecureRepositories” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"0"”
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.14]
   apt/check-date-off:
@@ -205,7 +205,7 @@ rules:
     severity: warning
     score: 5.0
     message: "Acquire::Check-Date is off, so apt stops checking a Release file’s date, and a mirror can serve metadata held back from updates without apt noticing"
-    fix: remove Acquire::Check-Date from /etc/apt/apt.conf and /etc/apt/apt.conf.d, or set it to "true"
+    fix: remove “Acquire::Check-Date” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"true"”
     docs: https://manpages.debian.org/unstable/apt/apt.conf.5.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.15]
   apt/weak-dependencies:
@@ -218,6 +218,6 @@ rules:
     severity: info
     score: 2.0
     message: "APT::Install-Recommends or APT::Install-Suggests is on, so every install pulls in packages nobody asked for, each one more to patch"
-    fix: set APT::Install-Recommends "0"; and APT::Install-Suggests "0"; in a file under /etc/apt/apt.conf.d/
+    fix: set “APT::Install-Recommends "0";” and “APT::Install-Suggests "0";” in a file under “/etc/apt/apt.conf.d/”
     docs: https://manpages.debian.org/unstable/apt/apt.conf.5.en.html
-    tags: [apt, '!default', cis-ubuntu-26.04:1.2.1.2]
+    tags: [apt, cis-ubuntu-26.04:1.2.1.2]

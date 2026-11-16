@@ -12,7 +12,7 @@ rules:
     severity: error
     score: 7.5
     message: "kernel.randomize_va_space is {got}, so stack, heap or mmap addresses are predictable, which makes memory corruption bugs easier to exploit"
-    fix: set kernel.randomize_va_space = 2 in a file under /etc/sysctl.d/
+    fix: set “kernel.randomize_va_space = 2” in a file under “/etc/sysctl.d/”
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#randomize-va-space
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -24,7 +24,7 @@ rules:
     severity: warning
     score: 5.0
     message: "kernel.kptr_restrict is {got}, so /proc and other interfaces print kernel pointers to unprivileged users, which defeats kernel address randomization"
-    fix: set kernel.kptr_restrict = 1, or 2 to hide them from root as well
+    fix: set “kernel.kptr_restrict = 1”, or “kernel.kptr_restrict = 2” to hide them from root as well
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#kptr-restrict
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -36,7 +36,7 @@ rules:
     severity: warning
     score: 4.0
     message: "kernel.dmesg_restrict is {got}, so any user can read the kernel log, which can leak addresses and hardware details"
-    fix: set kernel.dmesg_restrict = 1
+    fix: set “kernel.dmesg_restrict = 1”
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#dmesg-restrict
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -48,7 +48,7 @@ rules:
     severity: warning
     score: 5.0
     message: "kernel.yama.ptrace_scope is {got}, so one compromised process can read the memory and secrets of every other process its user runs"
-    fix: set kernel.yama.ptrace_scope = 1, so only a parent may trace its children
+    fix: set “kernel.yama.ptrace_scope = 1”, so only a parent may trace its children
     docs: https://docs.kernel.org/admin-guide/LSM/Yama.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -60,7 +60,7 @@ rules:
     severity: warning
     score: 6.0
     message: "kernel.unprivileged_bpf_disabled is {got}, so any user can load BPF programs, a frequent path to kernel exploits"
-    fix: set kernel.unprivileged_bpf_disabled = 1, or 2 to let an administrator turn it back on until reboot
+    fix: set “kernel.unprivileged_bpf_disabled = 1”, or “kernel.unprivileged_bpf_disabled = 2” to let an administrator turn it back on until reboot
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#unprivileged-bpf-disabled
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -72,7 +72,7 @@ rules:
     severity: warning
     score: 4.0
     message: "kernel.perf_event_paranoid is {got}, so unprivileged users can sample kernel activity through perf_event_open, which leaks kernel addresses and timing"
-    fix: set kernel.perf_event_paranoid = 2
+    fix: set “kernel.perf_event_paranoid = 2”
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#perf-event-paranoid
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -84,7 +84,7 @@ rules:
     severity: info
     score: 2.5
     message: "dev.tty.ldisc_autoload is {got}, so any user can make the kernel load a rarely used line discipline module, and with it that module’s bugs"
-    fix: set dev.tty.ldisc_autoload = 0 unless a serial device needs a line discipline loaded on demand
+    fix: set “dev.tty.ldisc_autoload = 0”, unless a serial device needs a line discipline loaded on demand
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -97,7 +97,7 @@ rules:
     severity: warning
     score: 5.0
     message: "kernel.apparmor_restrict_unprivileged_unconfined is {got}, so an unprivileged process can move itself into a permissive profile with aa-exec and create the user namespaces kernel.apparmor_restrict_unprivileged_userns denies it"
-    fix: set kernel.apparmor_restrict_unprivileged_unconfined = 1
+    fix: set “kernel.apparmor_restrict_unprivileged_unconfined = 1”
     docs: https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
     tags: [kernel, sysctl, cis-ubuntu-26.04:1.3.1.4]
   kernel/sysrq:
@@ -107,7 +107,7 @@ rules:
     severity: info
     score: 1.0
     message: "kernel.sysrq is {got}, so whoever reaches the console keyboard may reboot, kill processes or sync disks without logging in"
-    fix: set kernel.sysrq = 0
+    fix: set “kernel.sysrq = 0”
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html
     tags: [kernel, sysctl, dev-sec-linux-baseline:sysctl-30, '!default']
   kernel/stig-fips:
@@ -117,6 +117,6 @@ rules:
     severity: info
     score: 1.0
     message: "/proc/sys/crypto/fips_enabled is 0 or absent, so the kernel and the libraries that follow it may use algorithms outside FIPS 140-3"
-    fix: enable FIPS mode through Ubuntu Pro (pro enable fips-updates), then reboot
+    fix: enable FIPS mode through Ubuntu Pro with “pro enable fips-updates”, then reboot
     docs: https://ubuntu.com/security/certifications/docs/fips
     tags: [kernel, sysctl, stig-ubuntu-26.04:UBTU-24-600030, '!default']

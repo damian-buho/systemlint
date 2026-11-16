@@ -41,11 +41,17 @@ misuse.
 ## The default tag
 
 A ruleset that hardens the host carries `tags: [default]`, so a bare
-`systemlint check` runs it. A practice ruleset (performance, stability, an
-opinionated profile) leaves it out and runs when its tag is named; a category
-is a tag, never a field. A rule only a standard asks for, with no exposure
-behind it on a common host, carries `'!default'` and its control tag, so it
-stays in its subject’s ruleset and runs when that standard is named.
+`systemlint check` runs it, every rule in it included: a ruleset’s `when`
+already leaves out software the host does not have. A practice ruleset
+(performance, stability, an opinionated profile) leaves it out and runs when
+its tag is named; a category is a tag, never a field. A rule carries
+`'!default'` and its control tag only when it is the standard-only side of a
+`conflicts` pair, a stricter copy of a default rule (`login-defs/umask-077`,
+the `stig-` variants), a preference with no exposure behind it (a tool that
+is not installed, a separate mount), or one whose fix breaks a common
+workload: forwarding and `overlay` break Docker, `squashfs` breaks snaps,
+`usb-storage` breaks a desktop, refused router advertisements break SLAAC.
+It stays in its subject’s ruleset and runs when that standard is named.
 
 ## Small rulesets
 
@@ -77,10 +83,22 @@ object empty.
 
 ## Words
 
-- `title` names the problem, not the fix: “ufw installed but switched off”.
-- `message` opens with `{subject}` when the fact has a `*`, else with the
-  setting; then what it is, `so`, and what an attacker or an accident gets.
-- `fix` says what to set or run, with the value.
+Every text is written for a person reading a terminal, never for a parser.
+
+- The rule ID is the thing, a slash and its state: `ufw/disabled`,
+  `kernel-modules/cramfs`.
+- `title` is the description: what is wrong, as “thing A is B” or “thing A
+  does C”, never the fix: “ufw is installed but switched off”.
+- `message` is the reasoning: why it is bad, for a person. It opens with
+  `{subject}` when the fact has a `*`, else with the setting; then what it
+  is, `so`, and what an attacker or an accident gets.
+- `fix` is the fix: how to repair it, in a whole sentence with proper
+  punctuation. Every literal a person types (a config line, a key, a value,
+  a path, a command) sits in typographic quotes, so it never reads as part
+  of the sentence: `add “install cramfs /bin/false” to a file ending in
+  “.conf” under “/etc/modprobe.d/”`, `run “chmod o-w” on the file`. The
+  report adds the full stop. `{got}` and `{suggested}` arrive quoted, so
+  they never take quotes of their own; `{field}` does not.
 - `docs` links the upstream manual of the setting.
 
 ## Upstream checks

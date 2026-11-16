@@ -16,7 +16,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is a {got}-bit RSA key, which sshd accepts and which is within reach of factoring"
-    fix: replace the key with an ed25519 one (ssh-keygen -t ed25519) and remove the line
+    fix: replace the key with an ed25519 one (“ssh-keygen -t ed25519”), and remove the line
     remedy: {disable-line: authorized-keys}
     docs: https://man.openbsd.org/sshd_config#RequiredRSASize
     tags: [ssh]
@@ -29,7 +29,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is a DSA key, fixed at 1024 bits, and PubkeyAcceptedAlgorithms still lets it log in"
-    fix: replace the key with an ed25519 one (ssh-keygen -t ed25519) and remove ssh-dss from PubkeyAcceptedAlgorithms
+    fix: replace the key with an ed25519 one (“ssh-keygen -t ed25519”), and remove “ssh-dss” from “PubkeyAcceptedAlgorithms”
     remedy: {disable-line: authorized-keys}
     docs: https://man.openbsd.org/sshd_config#PubkeyAcceptedAlgorithms
     tags: [ssh]

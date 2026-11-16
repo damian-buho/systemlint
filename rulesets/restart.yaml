@@ -13,7 +13,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} still runs {got}, deleted from disk since it started, so the fix an upgrade shipped there has not reached it"
-    fix: run systemctl restart {subject}
+    fix: run “systemctl restart {subject}”
     docs: https://man7.org/linux/man-pages/man5/proc_pid_maps.5.html
     references:
       - {title: Lynis LOGG-2190, url: "https://cisofy.com/lynis/controls/LOGG-2190/"}

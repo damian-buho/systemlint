@@ -15,7 +15,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has mode {got}; every user can read the jobs root runs from it, and any password or token written into one"
-    fix: chmod o-rwx /etc/crontab and each cron directory
+    fix: run “chmod o-rwx” on “/etc/crontab” and on each cron directory
     remedy: {chmod: o-rwx}
     docs: https://manpages.debian.org/unstable/cron/cron.8.en.html
     references:
@@ -33,7 +33,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is not both enabled and running, so the jobs in /etc/crontab and /etc/cron.d, log rotation and other upkeep among them, never run"
-    fix: run systemctl enable --now {subject}, or remove the cron package if no job is wanted
+    fix: run “systemctl enable --now {subject}”, or remove the cron package if no job is wanted
     docs: https://manpages.debian.org/unstable/cron/cron.8.en.html
     tags: [cron, cis-ubuntu-26.04:2.4.1.1, '!default']
   cron/no-allow:
@@ -45,9 +45,9 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} does not exist, so every user cron.deny leaves out may schedule jobs with crontab"
-    fix: write the users allowed to schedule jobs, one per line, to {subject}, then chown root:crontab and chmod 0640 it
+    fix: write the users allowed to schedule jobs to {subject}, one per line, then run “chown root:crontab” and “chmod 0640” on it
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
-    tags: [cron, cis-ubuntu-26.04:2.4.1.9, '!default']
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9]
   cron/access-mode:
     title: cron.allow or cron.deny more open than 0640
     fact: cron.access.*.mode
@@ -57,9 +57,9 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so only root changes who may schedule jobs"
-    fix: chgrp crontab {subject}, then chmod 0640 it, since the command reads it through that group
+    fix: run “chgrp crontab {subject}”, then “chmod 0640” on it, since the command reads it through that group
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
-    tags: [cron, cis-ubuntu-26.04:2.4.1.9, '!default']
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9]
   cron/access-owner:
     title: cron.allow or cron.deny not owned by root
     fact: cron.access.*.uid
@@ -69,10 +69,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, not root, so that user decides who may schedule jobs"
-    fix: chown root {subject}
+    fix: run “chown root {subject}”
     remedy: {chown: 0}
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
-    tags: [cron, cis-ubuntu-26.04:2.4.1.9, '!default']
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9]
   cron/access-group:
     title: cron.allow or cron.deny in a group other than root or crontab
     fact: cron.access.*.gid
@@ -82,6 +82,6 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not root or crontab (gid {same}); the benchmark asks one of the two"
-    fix: chgrp crontab {subject}
+    fix: run “chgrp crontab {subject}”
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
-    tags: [cron, cis-ubuntu-26.04:2.4.1.9, '!default']
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9]

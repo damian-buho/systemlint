@@ -12,7 +12,7 @@ rules:
     severity: warning
     score: 4.5
     message: "net.ipv4.tcp_syncookies is {got}, so a SYN flood fills the connection backlog and the host stops accepting TCP connections"
-    fix: set net.ipv4.tcp_syncookies = 1
+    fix: set “net.ipv4.tcp_syncookies = 1”
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -24,7 +24,7 @@ rules:
     severity: warning
     score: 4.0
     message: "net.ipv4.icmp_echo_ignore_broadcasts is {got}, so the host answers pings sent to a broadcast address and can amplify a smurf attack"
-    fix: set net.ipv4.icmp_echo_ignore_broadcasts = 1
+    fix: set “net.ipv4.icmp_echo_ignore_broadcasts = 1”
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -36,7 +36,7 @@ rules:
     severity: info
     score: 2.0
     message: "net.ipv4.icmp_ignore_bogus_error_responses is {got}, so the kernel logs a warning for every malformed ICMP error a router or sender returns, and a flood of them fills the log"
-    fix: set net.ipv4.icmp_ignore_bogus_error_responses = 1, the kernel default
+    fix: set “net.ipv4.icmp_ignore_bogus_error_responses = 1”, the kernel default
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-flood, sysctl, cis-ubuntu-26.04:3.3.1.6, dev-sec-linux-baseline:sysctl-03]
   ip-flood/icmp-ratemask:
@@ -46,7 +46,7 @@ rules:
     severity: info
     score: 1.0
     message: "net.ipv4.icmp_ratemask is {got}, not 88089, which also rate-limits echo replies and source quench"
-    fix: set net.ipv4.icmp_ratemask = 88089
+    fix: set “net.ipv4.icmp_ratemask = 88089”
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-flood, sysctl, dev-sec-linux-baseline:sysctl-06, '!default']
   ip-flood/tcp-rfc1337:
@@ -56,6 +56,6 @@ rules:
     severity: info
     score: 1.0
     message: "net.ipv4.tcp_rfc1337 is {got}, so a stray RST may end a connection in TIME-WAIT early (RFC 1337)"
-    fix: set net.ipv4.tcp_rfc1337 = 1
+    fix: set “net.ipv4.tcp_rfc1337 = 1”
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-flood, sysctl, dev-sec-linux-baseline:sysctl-10, '!default']
+    tags: [ip-flood, sysctl, dev-sec-linux-baseline:sysctl-10]

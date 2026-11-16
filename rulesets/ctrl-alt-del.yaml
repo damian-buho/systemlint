@@ -12,6 +12,6 @@ rules:
     severity: info
     score: 1.0
     message: "ctrl-alt-del.target is not masked, so anyone at the console, or a stray key press, reboots the host without logging in"
-    fix: run systemctl mask ctrl-alt-del.target, and set CtrlAltDelBurstAction=none in /etc/systemd/system.conf.d/
+    fix: run “systemctl mask ctrl-alt-del.target”, and set “CtrlAltDelBurstAction=none” in a file under “/etc/systemd/system.conf.d/”
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/systemd.1.html
-    tags: [boot, stig-ubuntu-26.04:UBTU-24-300026, '!default']
+    tags: [boot, stig-ubuntu-26.04:UBTU-24-300026]

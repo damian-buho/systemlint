@@ -16,7 +16,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} has !authenticate in its sudo Defaults, so any program running as {subject} gets every right sudo grants it unasked"
-    fix: remove !authenticate from the Defaults lines in /etc/sudoers and /etc/sudoers.d that apply to {subject}, editing them with visudo
+    fix: remove “!authenticate” from the Defaults lines in “/etc/sudoers” and “/etc/sudoers.d” that apply to {subject}, editing them with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.5, stig-ubuntu-26.04:UBTU-24-300021]
   sudo-defaults/no-pty:
@@ -27,7 +27,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has !use_pty in its sudo Defaults, so a command run as root shares {subject}’s terminal, and a process it leaves behind can type into it"
-    fix: remove !use_pty from the Defaults lines in /etc/sudoers and /etc/sudoers.d that apply to {subject}, editing them with visudo
+    fix: remove “!use_pty” from the Defaults lines in “/etc/sudoers” and “/etc/sudoers.d” that apply to {subject}, editing them with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo]
   sudo-defaults/use-pty:
@@ -38,9 +38,9 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s sudo Defaults do not set use_pty, which CIS asks for spelled out whatever the build’s default"
-    fix: add Defaults use_pty to /etc/sudoers with visudo
+    fix: add “Defaults use_pty” to “/etc/sudoers” with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
-    tags: [sudo, cis-ubuntu-26.04:5.2.2, '!default']
+    tags: [sudo, cis-ubuntu-26.04:5.2.2]
   sudo-defaults/logfile:
     title: sudo keeps no log file of its own
     fact: sudo.defaults.*
@@ -49,7 +49,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s sudo Defaults set no logfile, so sudo logs only to syslog"
-    fix: add Defaults logfile="/var/log/sudo.log" to /etc/sudoers with visudo
+    fix: add “Defaults logfile="/var/log/sudo.log"” to “/etc/sudoers” with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.3, '!default']
   sudo-defaults/timestamp-timeout:
@@ -60,6 +60,6 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s sudo timestamp_timeout is {got} minutes, where 0 to ${sudo-timestamp-timeout} is asked; -1 never asks again"
-    fix: set Defaults timestamp_timeout=${sudo-timestamp-timeout} in /etc/sudoers with visudo
+    fix: set “Defaults timestamp_timeout=${sudo-timestamp-timeout}” in “/etc/sudoers” with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.6, '!default']

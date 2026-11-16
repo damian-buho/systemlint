@@ -12,7 +12,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} holds an agetty escape (\\s, \\r, \\v or \\m), so whoever reaches the login prompt reads the operating system, kernel release or architecture"
-    fix: remove the \s, \r, \v and \m escapes from the file
+    fix: remove the “\s”, “\r”, “\v” and “\m” escapes from the file
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/agetty.8.html
     references:
       - {title: Lynis BANN-7126, url: "https://cisofy.com/lynis/controls/BANN-7126/"}
@@ -27,7 +27,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} is writable by its group or by every user, who can then show a forged notice to everyone who logs in and ask for their password"
-    fix: chmod go-w the file
+    fix: run “chmod go-w” on the file
     remedy: {chmod: go-w}
     docs: https://manpages.debian.org/unstable/manpages/motd.5.en.html
     tags: [banner, cis-ubuntu-26.04:1.6.6, cis-ubuntu-26.04:1.6.7, cis-ubuntu-26.04:1.6.8, cis-ubuntu-26.04:1.6.9, cis-ubuntu-26.04:1.6.10]
@@ -38,7 +38,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} is owned by uid {got}, so that user can show a forged notice to everyone who logs in"
-    fix: chown root the file
+    fix: run “chown root” on the file
     remedy: {chown: 0}
     docs: https://manpages.debian.org/unstable/manpages/motd.5.en.html
     tags: [banner, cis-ubuntu-26.04:1.6.6, cis-ubuntu-26.04:1.6.7, cis-ubuntu-26.04:1.6.8, cis-ubuntu-26.04:1.6.9, cis-ubuntu-26.04:1.6.10]
@@ -55,7 +55,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is enabled or running: it writes the pending and security update counts into the message of the day every user reads at login"
-    fix: run systemctl mask --now {subject}
+    fix: run “systemctl mask --now {subject}”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_motd.8.html
     tags: ['!default', banner, cis-ubuntu-26.04:1.6.11]
   banner/update-notifier-timer:
@@ -66,7 +66,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is enabled or running: it starts update-notifier-motd.service again on a schedule, which writes the update counts into the message of the day"
-    fix: run systemctl mask --now {subject}
+    fix: run “systemctl mask --now {subject}”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_motd.8.html
     tags: ['!default', banner, cis-ubuntu-26.04:1.6.12]
   banner/stig-issue-empty:
@@ -76,6 +76,6 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/issue is missing or blank, so the console login prompt shows no notice before access; the STIG asks the site’s notice there"
-    fix: write the site’s login notice to /etc/issue
+    fix: write the site’s login notice to “/etc/issue”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/agetty.8.html
     tags: ['!default', banner, stig-ubuntu-26.04:UBTU-24-200660]

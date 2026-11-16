@@ -12,6 +12,6 @@ rules:
     severity: info
     score: 1.0
     message: "no vlock program is in /usr/bin or /usr/local/bin, so a user at a text console has no command to lock it"
-    fix: install vlock (apt install vlock)
+    fix: install vlock with “apt install vlock”
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/vlock.1.html
     tags: [session-lock, stig-ubuntu-26.04:UBTU-24-101000, '!default']

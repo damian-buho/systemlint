@@ -12,7 +12,7 @@ rules:
     severity: error
     score: 9.0
     message: "{subject} is writable by every user, who can then add a key or a command and log in as its owner"
-    fix: chmod o-w the file
+    fix: run “chmod o-w” on the file
     remedy: {chmod: o-w}
     docs: https://man.openbsd.org/sshd#FILES
     tags: [ssh]
@@ -23,7 +23,7 @@ rules:
     severity: warning
     score: 3.0
     message: "{subject} has mode {got}; other users can reach its public keys, known_hosts and config, which name the hosts its owner logs in to"
-    fix: chmod 0700 the directory
+    fix: run “chmod 0700” on the directory
     remedy: {chmod: o-rwx}
     docs: https://man.openbsd.org/ssh#FILES
     tags: [ssh]

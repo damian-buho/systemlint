@@ -16,7 +16,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} enables XDMCP, which carries the graphical login, password included, in plain text to any host that asks for it"
-    fix: remove Enable=true from the [xdmcp] section of {subject} and restart gdm, then reach this desktop over SSH or a VPN
+    fix: remove “Enable=true” from the “[xdmcp]” section of {subject} and restart gdm, then reach this desktop over SSH or a VPN
     docs: https://help.gnome.org/admin/gdm/stable/configuration.html.en
     tags: [gdm, cis-ubuntu-26.04:1.7.6]
   gdm/wayland-enabled:
@@ -31,6 +31,6 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} leaves WaylandEnable on, so X11 programs in a Wayland session run under Xwayland, where any X client can read the keystrokes of the others"
-    fix: set WaylandEnable=false in the [daemon] section of {subject} and restart gdm
+    fix: set “WaylandEnable=false” in the “[daemon]” section of {subject}, and restart gdm
     docs: https://help.gnome.org/admin/gdm/stable/configuration.html.en
     tags: ['!default', gdm, cis-ubuntu-26.04:1.7.7]

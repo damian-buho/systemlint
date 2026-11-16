@@ -12,6 +12,6 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} reads {got}, so code on this host, or in a guest, can read memory it should not through that flaw"
-    fix: install the CPU microcode package and the newest kernel, reboot, and drop mitigations=off or the flaw’s own off switch from the kernel command line
+    fix: install the CPU microcode package and the newest kernel, reboot, and drop “mitigations=off” or the flaw’s own off switch from the kernel command line
     docs: https://docs.kernel.org/admin-guide/hw-vuln/index.html
     tags: [cpu, dev-sec-linux-baseline:os-12]

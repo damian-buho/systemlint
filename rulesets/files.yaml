@@ -14,7 +14,7 @@ rules:
     severity: error
     score: 9.5
     message: "{subject} is writable by every user, who can then act as root through it"
-    fix: chmod o-w the file
+    fix: run “chmod o-w” on the file
     remedy: {chmod: o-w}
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     references:
@@ -28,7 +28,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} is writable by its group, whose every member can then act as root through it"
-    fix: chmod g-w the file, or check that only administrators are in its group
+    fix: run “chmod g-w” on the file, or check that only administrators are in its group
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     references:
       - {title: Lynis FILE-7524, url: "https://cisofy.com/lynis/controls/FILE-7524/"}
@@ -41,7 +41,7 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} is owned by uid {got}, not root, so that user can change it"
-    fix: chown root the file
+    fix: run “chown root” on the file
     remedy: {chown: 0}
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     references:
@@ -55,7 +55,7 @@ rules:
     severity: error
     score: 8.5
     message: "{subject} has mode {got}; password hashes need 0640 or stricter, readable by root and the shadow group alone"
-    fix: chmod 0640 the file
+    fix: run “chmod 0640” on the file
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
     tags: [files]
@@ -66,7 +66,7 @@ rules:
     severity: error
     score: 8.5
     message: "{subject} has mode {got}; a private host key needs 0600, or 0640 for an ssh_keys group, or any user can impersonate this host"
-    fix: chmod 0600 the key
+    fix: run “chmod 0600” on the key
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://man.openbsd.org/sshd#FILES
     tags: [files, ssh]
@@ -78,7 +78,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} has mode {got}, so every user reads the logins and passwords APT uses for private repositories and proxies"
-    fix: chmod 0640 the file, or 0600
+    fix: run “chmod 0640” on the file, or “chmod 0600”
     remedy: {chmod: o-r}
     docs: https://manpages.debian.org/unstable/apt/apt_auth.conf.5.en.html
     tags: [files, apt, cis-ubuntu-26.04:1.2.1.6]
@@ -90,10 +90,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0644 or stricter, with no execute or special bit"
-    fix: chmod 0644 the file
+    fix: run “chmod 0644” on the file
     remedy: {chmod: "u-xs,g-wxs,o-wxt"}
     docs: https://manpages.debian.org/unstable/manpages/passwd.5.en.html
-    tags: [files, cis-ubuntu-26.04:7.1.1, cis-ubuntu-26.04:7.1.2, cis-ubuntu-26.04:7.1.3, cis-ubuntu-26.04:7.1.4, cis-ubuntu-26.04:7.1.9, '!default']
+    tags: [files, cis-ubuntu-26.04:7.1.1, cis-ubuntu-26.04:7.1.2, cis-ubuntu-26.04:7.1.3, cis-ubuntu-26.04:7.1.4, cis-ubuntu-26.04:7.1.9]
   files/bootloader-readable:
     title: Bootloader configuration readable by other users
     fact: files.boot.*.mode
@@ -102,10 +102,10 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has mode {got}; the benchmark asks 0600, so a GRUB password hash in it reaches no other user"
-    fix: chmod 0600 the file, and keep it so across update-grub with a password set in /etc/grub.d
+    fix: run “chmod 0600” on the file, and keep it so across “update-grub” with a password set in “/etc/grub.d”
     remedy: {chmod: "g-rwxs,o-rwxt"}
     docs: https://www.gnu.org/software/grub/manual/grub/html_node/Authentication-and-authorisation.html
-    tags: [files, boot, cis-ubuntu-26.04:1.4.2, '!default']
+    tags: [files, boot, cis-ubuntu-26.04:1.4.2]
   files/audit-config-mode:
     title: Audit configuration readable by other users
     fact: files.audit-config.*.mode
@@ -114,10 +114,10 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so other users cannot read what is watched and plan around it"
-    fix: chmod 0640 the file
+    fix: run “chmod 0640” on the file
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
-    tags: [files, audit, cis-ubuntu-26.04:6.2.4.5, stig-ubuntu-26.04:UBTU-24-900040, '!default']
+    tags: [files, audit, cis-ubuntu-26.04:6.2.4.5, stig-ubuntu-26.04:UBTU-24-900040]
   files/accounts-group:
     title: Account database not in group root
     fact: files.accounts.*.gid
@@ -126,10 +126,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the benchmark asks group root, so no other group’s change of mode can open it"
-    fix: chgrp 0 the file
+    fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.debian.org/unstable/manpages/passwd.5.en.html
-    tags: [files, cis-ubuntu-26.04:7.1.1, cis-ubuntu-26.04:7.1.2, cis-ubuntu-26.04:7.1.3, cis-ubuntu-26.04:7.1.4, cis-ubuntu-26.04:7.1.9, dev-sec-linux-baseline:os-03, '!default']
+    tags: [files, cis-ubuntu-26.04:7.1.1, cis-ubuntu-26.04:7.1.2, cis-ubuntu-26.04:7.1.3, cis-ubuntu-26.04:7.1.4, cis-ubuntu-26.04:7.1.9, dev-sec-linux-baseline:os-03]
   files/shadow-group:
     title: Password hashes in a group other than root or shadow
     fact: files.shadow.*.gid
@@ -139,9 +139,9 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} belongs to gid {got}, so that group’s members can read the password hashes its mode lets the group read"
-    fix: chgrp shadow the file
+    fix: run “chgrp shadow” on the file
     docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
-    tags: [files, cis-ubuntu-26.04:7.1.5, cis-ubuntu-26.04:7.1.6, cis-ubuntu-26.04:7.1.7, cis-ubuntu-26.04:7.1.8, dev-sec-linux-baseline:os-02, '!default']
+    tags: [files, cis-ubuntu-26.04:7.1.5, cis-ubuntu-26.04:7.1.6, cis-ubuntu-26.04:7.1.7, cis-ubuntu-26.04:7.1.8, dev-sec-linux-baseline:os-02]
   files/audit-config-group:
     title: Audit configuration not in group root
     fact: files.audit-config.*.gid
@@ -149,10 +149,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the benchmark asks group root, so no other group’s change of mode can let it rewrite what is audited"
-    fix: chgrp 0 the file
+    fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
-    tags: [files, audit, cis-ubuntu-26.04:6.2.4.7, stig-ubuntu-26.04:UBTU-24-900060, '!default']
+    tags: [files, audit, cis-ubuntu-26.04:6.2.4.7, stig-ubuntu-26.04:UBTU-24-900060]
   files/audit-tools-mode:
     title: Audit tool more open than 0755
     fact: files.audit-tools.*.mode
@@ -161,10 +161,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0755 or stricter, with no setuid, setgid or sticky bit"
-    fix: chmod 0755 the file
+    fix: run “chmod 0755” on the file
     remedy: {chmod: "ugo-st,go-w"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditctl.8.html
-    tags: [files, audit, cis-ubuntu-26.04:6.2.4.8, stig-ubuntu-26.04:UBTU-24-901230, '!default']
+    tags: [files, audit, cis-ubuntu-26.04:6.2.4.8, stig-ubuntu-26.04:UBTU-24-901230]
   files/audit-tools-group:
     title: Audit tool not in group root
     fact: files.audit-tools.*.gid
@@ -173,10 +173,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the benchmark asks group root"
-    fix: chgrp 0 the file
+    fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditctl.8.html
-    tags: [files, audit, cis-ubuntu-26.04:6.2.4.10, stig-ubuntu-26.04:UBTU-24-901250, '!default']
+    tags: [files, audit, cis-ubuntu-26.04:6.2.4.10, stig-ubuntu-26.04:UBTU-24-901250]
   files/library-group:
     title: Shared library in a group of a user account
     fact: files.libraries.*.gid
@@ -185,10 +185,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts rather than of the system"
-    fix: chgrp 0 the file
+    fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
-    tags: [files, stig-ubuntu-26.04:UBTU-24-300009, '!default']
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300009]
   files/library-directory-group:
     title: Shared library directory not in group root
     fact: files.libraries.*.gid
@@ -197,10 +197,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the STIG asks group root"
-    fix: chgrp 0 the directory
+    fix: run “chgrp 0” on the directory
     remedy: {chgrp: 0}
     docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
-    tags: [files, stig-ubuntu-26.04:UBTU-24-300010, '!default']
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300010]
   files/command-group:
     title: System command in a group of a user account
     fact: files.commands.*.gid
@@ -208,7 +208,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts rather than of the system"
-    fix: chgrp 0 the file
+    fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/chgrp.1.html
-    tags: [files, stig-ubuntu-26.04:UBTU-24-300013, '!default']
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300013]

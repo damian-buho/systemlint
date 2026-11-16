@@ -3144,8 +3144,11 @@ fn only_the_listed_kernel_modules_run_by_default() {
     .flat_map(|m| [m.to_string(), format!("{m}-loaded")])
     .chain(
         [
+            "firewire-core",
             "firewire-core-loaded",
+            "atm",
             "atm-loaded",
+            "can",
             "can-loaded",
             "builtin",
         ]

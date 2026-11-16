@@ -13,7 +13,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: NIS sends account maps, password hashes included, unencrypted to any host that binds to the domain"
-    fix: remove the package that ships {subject} (apt purge nis ypbind-mt yp-tools), unless this host is an NIS client on purpose
+    fix: remove the package that ships {subject} (“apt purge nis ypbind-mt yp-tools”), unless this host is an NIS client on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ypbind.8.html
     references:
       - {title: Lynis INSE-8314, url: "https://cisofy.com/lynis/controls/INSE-8314/"}
@@ -26,7 +26,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: rsh, rcp and rlogin send the session, and rlogin a password, in plain text"
-    fix: remove the package that ships {subject} (apt purge rsh-client) and use ssh, scp or sftp
+    fix: remove the package that ships {subject} (“apt purge rsh-client”), and use ssh, scp or sftp
     docs: https://manpages.debian.org/bookworm/rsh-client/netkit-rsh.1.en.html
     references:
       - {title: Lynis INSE-8300, url: "https://cisofy.com/lynis/controls/INSE-8300/"}
@@ -39,7 +39,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: talk carries chat sessions in plain text"
-    fix: remove the package that ships {subject} (apt purge talk)
+    fix: remove the package that ships {subject} (“apt purge talk”)
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/netkit-ntalk.1.html
     tags: [clients, cis-ubuntu-26.04:2.2.3]
   clients/telnet:
@@ -50,7 +50,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: telnet sends the session, password included, in plain text"
-    fix: remove the package that ships {subject} (apt purge telnet inetutils-telnet telnet-ssl) and use ssh
+    fix: remove the package that ships {subject} (“apt purge telnet inetutils-telnet telnet-ssl”), and use ssh
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/inetutils-telnet.1.html
     references:
       - {title: Lynis INSE-8310, url: "https://cisofy.com/lynis/controls/INSE-8310/"}
@@ -63,7 +63,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: a tool to query and change directory entries, which a host that does not administer LDAP has no use for"
-    fix: remove the package that ships {subject} (apt purge ldap-utils), unless this host administers LDAP
+    fix: remove the package that ships {subject} (“apt purge ldap-utils”), unless this host administers LDAP
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/ldapsearch.1.html
     tags: [clients, cis-ubuntu-26.04:2.2.5]
   clients/ftp:
@@ -74,7 +74,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: FTP sends the password in plain text, and TFTP has no login at all"
-    fix: remove the package that ships {subject} (apt purge ftp tnftp atftp inetutils-ftp ftp-ssl) and use sftp, scp or curl
+    fix: remove the package that ships {subject} (“apt purge ftp tnftp atftp inetutils-ftp ftp-ssl”), and use sftp, scp or curl
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/tnftp.1.html
     references:
       - {title: Lynis INSE-8318, url: "https://cisofy.com/lynis/controls/INSE-8318/"}

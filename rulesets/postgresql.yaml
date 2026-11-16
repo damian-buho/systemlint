@@ -13,9 +13,9 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}, so every user reads which hosts and users the server trusts, and how"
-    fix: chmod 0640 {subject}, keeping it in group postgres
+    fix: run “chmod 0640 {subject}”, keeping it in group postgres
     remedy: {chmod: o-rwx}
     docs: https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
     references:
       - {title: Lynis DBS-1828, url: "https://cisofy.com/lynis/controls/DBS-1828/"}
-    tags: [database, lynis, '!default']
+    tags: [database, lynis]

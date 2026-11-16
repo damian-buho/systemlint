@@ -18,7 +18,7 @@ rules:
     severity: error
     score: 8.5
     message: "{subject} gets PermitRootLogin {got}, so sshd lets it log in with a password"
-    fix: set PermitRootLogin prohibit-password, or no
+    fix: set “PermitRootLogin prohibit-password”, or “PermitRootLogin no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -30,7 +30,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} has PasswordAuthentication {got}, so sshd accepts passwords, which can be guessed over the network"
-    fix: set PasswordAuthentication no once every user has a key
+    fix: set “PasswordAuthentication no” once every user has a key
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-27]
   ssh/empty-passwords:
@@ -40,7 +40,7 @@ rules:
     severity: error
     score: 9.5
     message: "{subject} has PermitEmptyPasswords {got}, so sshd lets it log in with an empty password"
-    fix: set PermitEmptyPasswords no
+    fix: set “PermitEmptyPasswords no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-28]
   ssh/keyboard-interactive:
@@ -50,7 +50,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} has KbdInteractiveAuthentication {got}, so sshd accepts keyboard-interactive logins, which through PAM ask for the password"
-    fix: set KbdInteractiveAuthentication no unless a second factor needs it
+    fix: set “KbdInteractiveAuthentication no”, unless a second factor needs it
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-29]
   ssh/hostbased:
@@ -60,7 +60,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} has HostbasedAuthentication {got}, so sshd trusts the client host’s word for who the user is"
-    fix: set HostbasedAuthentication no
+    fix: set “HostbasedAuthentication no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-25]
   ssh/ignore-rhosts:
@@ -70,7 +70,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} has IgnoreRhosts {got}, so sshd reads users’ .rhosts and .shosts files"
-    fix: set IgnoreRhosts yes
+    fix: set “IgnoreRhosts yes”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -82,7 +82,7 @@ rules:
     severity: warning
     score: 5.5
     message: "{subject} sets StrictModes {got}, so it accepts key files that other users can write"
-    fix: set StrictModes yes
+    fix: set “StrictModes yes”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -94,7 +94,7 @@ rules:
     severity: warning
     score: 6.5
     message: "{subject} sets PermitUserEnvironment {got}, so it lets users set variables such as LD_PRELOAD for their session"
-    fix: set PermitUserEnvironment no
+    fix: set “PermitUserEnvironment no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -106,7 +106,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has X11Forwarding {got}, so sshd forwards X11, which hands the server a way into the client’s display"
-    fix: set X11Forwarding no
+    fix: set “X11Forwarding no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-42]
   ssh/gateway-ports:
@@ -116,7 +116,7 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} has GatewayPorts {got}, so sshd lets forwarded ports listen on every address, not only on loopback"
-    fix: set GatewayPorts no
+    fix: set “GatewayPorts no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -128,7 +128,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} has PermitTunnel {got}, so sshd allows tun device forwarding, a full network link into the host"
-    fix: set PermitTunnel no
+    fix: set “PermitTunnel no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -140,7 +140,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} offers a weak cipher: {got}"
-    fix: remove {got} from Ciphers
+    fix: remove {got} from “Ciphers”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-01]
   ssh/macs:
@@ -150,7 +150,7 @@ rules:
     severity: warning
     score: 5.5
     message: "{subject} offers a weak MAC: {got}"
-    fix: remove {got} from MACs, for example with MACs -hmac-sha1*,umac-64*
+    fix: remove {got} from “MACs”, for example with “MACs -hmac-sha1*,umac-64*”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-03]
   ssh/kex:
@@ -160,7 +160,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} offers a weak key exchange: {got}"
-    fix: remove {got} from KexAlgorithms
+    fix: remove {got} from “KexAlgorithms”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-02]
   ssh/kex-post-quantum:
@@ -170,7 +170,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} offers no post-quantum key exchange, so a session recorded today can be decrypted once a quantum computer breaks its key exchange: {got}"
-    fix: add mlkem768x25519-sha256 and sntrup761x25519-sha512 to the front of KexAlgorithms, or remove the KexAlgorithms line to get OpenSSH’s defaults
+    fix: add “mlkem768x25519-sha256” and “sntrup761x25519-sha512” to the front of “KexAlgorithms”, or remove the “KexAlgorithms” line to get OpenSSH’s defaults
     docs: https://www.openssh.com/pq.html
     tags: [ssh, cis-ubuntu-26.04:5.1.14]
   ssh/max-auth-tries:
@@ -180,7 +180,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has MaxAuthTries {got}, so sshd allows many authentication attempts per connection"
-    fix: set MaxAuthTries ${ssh-max-auth-tries} or lower
+    fix: set “MaxAuthTries ${ssh-max-auth-tries}” or lower
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -192,7 +192,7 @@ rules:
     severity: info
     score: 1.5
     message: "{subject} sets LoginGraceTime {got}, so it keeps unauthenticated connections open for long, 0 meaning forever"
-    fix: set LoginGraceTime between 1 and ${ssh-login-grace-time} seconds
+    fix: set “LoginGraceTime” between 1 and ${ssh-login-grace-time} seconds
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -204,7 +204,7 @@ rules:
     severity: info
     score: 2.5
     message: "{subject} has LogLevel {got}, so sshd does not log which key each user logged in with"
-    fix: set LogLevel VERBOSE
+    fix: set “LogLevel VERBOSE”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
@@ -216,7 +216,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} sets none of AllowUsers, AllowGroups, DenyUsers or DenyGroups, so every account with a shell and a credential may log in over SSH"
-    fix: set AllowGroups to the group of the people who log in over SSH
+    fix: set “AllowGroups” to the group of the people who log in over SSH
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.5, '!default']
   ssh/banner-none:
@@ -226,7 +226,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has Banner none, so no usage notice is shown before authentication"
-    fix: set Banner /etc/issue.net, with a notice that names no system details
+    fix: set “Banner /etc/issue.net”, with a notice that names no system details
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.6, stig-ubuntu-26.04:UBTU-24-200640, '!default']
   ssh/client-alive-interval:
@@ -236,9 +236,9 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has ClientAliveInterval 0, so a session whose client vanished stays open"
-    fix: set ClientAliveInterval 15 and ClientAliveCountMax 3, or the timeout your site asks
+    fix: set “ClientAliveInterval 15” and “ClientAliveCountMax 3”, or the timeout your site asks
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.8, '!default']
+    tags: [ssh, cis-ubuntu-26.04:5.1.8]
   ssh/client-alive-count-max:
     title: sshd never drops an unresponsive client
     fact: sshd.settings.clientalivecountmax.*
@@ -246,9 +246,9 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has ClientAliveCountMax 0, which turns the client alive check off"
-    fix: set ClientAliveCountMax 3
+    fix: set “ClientAliveCountMax 3”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.8, '!default']
+    tags: [ssh, cis-ubuntu-26.04:5.1.8]
   ssh/gssapi-authentication:
     title: GSSAPI authentication accepted
     fact: sshd.settings.gssapiauthentication.*
@@ -256,7 +256,7 @@ rules:
     severity: warning
     score: 3.0
     message: "{subject} has GSSAPIAuthentication {got}, so sshd runs the Kerberos library on input from every client, a parser most hosts never need"
-    fix: set GSSAPIAuthentication no, unless users log in with Kerberos tickets
+    fix: set “GSSAPIAuthentication no”, unless users log in with Kerberos tickets
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.10]
   ssh/max-sessions:
@@ -266,7 +266,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has MaxSessions {got}, above ${ssh-max-sessions}"
-    fix: set MaxSessions ${ssh-max-sessions} or lower
+    fix: set “MaxSessions ${ssh-max-sessions}” or lower
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.19, '!default']
   ssh/max-startups:
@@ -276,7 +276,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has MaxStartups {got}, looser than the benchmark’s 10:30:60, so more half-open logins are kept before sshd starts dropping them"
-    fix: set MaxStartups 10:30:60
+    fix: set “MaxStartups 10:30:60”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.20, '!default']
   ssh/use-pam:
@@ -286,7 +286,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has UsePAM {got}, so logins skip the PAM account and session stacks: lockout, limits and expiry checks"
-    fix: set UsePAM yes
+    fix: set “UsePAM yes”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.24, stig-ubuntu-26.04:UBTU-24-500050]
   ssh/x11-use-localhost:
@@ -296,7 +296,7 @@ rules:
     severity: warning
     score: 3.0
     message: "{subject} has X11UseLocalhost {got}, so a forwarded X11 display listens on the network, where any host may connect to the user’s session"
-    fix: set X11UseLocalhost yes
+    fix: set “X11UseLocalhost yes”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-300023]
   ssh/stig-client-alive-interval:
@@ -306,7 +306,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has ClientAliveInterval {got}; the STIG asks 1 to ${ssh-stig-client-alive-interval} seconds"
-    fix: set ClientAliveInterval ${ssh-stig-client-alive-interval}
+    fix: set “ClientAliveInterval ${ssh-stig-client-alive-interval}”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-600010, '!default']
   ssh/stig-client-alive-count-max:
@@ -316,7 +316,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has ClientAliveCountMax {got}; the STIG asks 1, so a session ends at the first unanswered check"
-    fix: set ClientAliveCountMax 1
+    fix: set “ClientAliveCountMax 1”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-600000, '!default']
   ssh/stig-not-installed:
@@ -326,7 +326,7 @@ rules:
     severity: info
     score: 1.0
     message: "no sshd program is in /usr/sbin or /usr/local/sbin; the STIG asks for SSH as the remote access"
-    fix: install openssh-server (apt install openssh-server)
+    fix: install openssh-server with “apt install openssh-server”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd.8.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-100800, '!default']
   ssh/stig-not-running:
@@ -340,6 +340,6 @@ rules:
     severity: info
     score: 1.0
     message: "neither ssh.service nor ssh.socket is both enabled and running; the STIG asks for SSH as the remote access"
-    fix: run systemctl enable --now ssh.socket, or ssh.service
+    fix: run “systemctl enable --now ssh.socket”, or “systemctl enable --now ssh.service”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd.8.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-100810, '!default']

@@ -12,7 +12,7 @@ rules:
     severity: error
     score: 7.0
     message: "fs.protected_symlinks is {got}, so a user can plant a symlink in /tmp that a root process follows to overwrite any file"
-    fix: set fs.protected_symlinks = 1
+    fix: set “fs.protected_symlinks = 1”
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#protected-symlinks
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -24,7 +24,7 @@ rules:
     severity: error
     score: 7.0
     message: "fs.protected_hardlinks is {got}, so a user can hard-link a setuid binary or a root-owned file and keep it after an update"
-    fix: set fs.protected_hardlinks = 1
+    fix: set “fs.protected_hardlinks = 1”
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#protected-hardlinks
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -36,7 +36,7 @@ rules:
     severity: warning
     score: 4.0
     message: "fs.protected_fifos is {got}, so a process that creates a FIFO in /tmp may open one another user planted under that name"
-    fix: set fs.protected_fifos = 1, or 2 to cover group-writable sticky directories too
+    fix: set “fs.protected_fifos = 1”, or “fs.protected_fifos = 2” to cover group-writable sticky directories too
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#protected-fifos
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -48,7 +48,7 @@ rules:
     severity: warning
     score: 4.0
     message: "fs.protected_regular is {got}, so a process that creates a file in /tmp may write into one another user planted under that name"
-    fix: set fs.protected_regular = 1, or 2 to cover group-writable sticky directories too
+    fix: set “fs.protected_regular = 1”, or “fs.protected_regular = 2” to cover group-writable sticky directories too
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#protected-regular
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}

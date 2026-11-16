@@ -18,7 +18,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is enabled or running, so any host that reaches its port can write entries into this host’s journal, flooding the disk or forging records"
-    fix: run systemctl mask --now {subject}, unless this host collects other hosts’ logs, then limit who reaches its port
+    fix: run “systemctl mask --now {subject}”, unless this host collects other hosts’ logs, and then limit who reaches its port
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journal-remote.service.8.html
     tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.2]
   journald/inactive:
@@ -30,7 +30,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is {got}, so programs that log to the journal or to syslog lose what they write"
-    fix: run systemctl unmask {subject}, then systemctl start {subject}, and read journalctl --boot for why it stopped
+    fix: run “systemctl unmask {subject}”, then “systemctl start {subject}”, and read “journalctl --boot” for why it stopped
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
     tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.1]
   journald/no-syslog-forward:
@@ -47,7 +47,7 @@ rules:
     severity: info
     score: 1.0
     message: "journald.conf and its drop-ins leave ForwardToSyslog off while rsyslog is installed; the benchmark asks rsyslog to receive every entry"
-    fix: set ForwardToSyslog=yes under [Journal] in /etc/systemd/journald.conf.d/60-journald.conf, then run systemctl restart systemd-journald.service
+    fix: set “ForwardToSyslog=yes” under “[Journal]” in “/etc/systemd/journald.conf.d/60-journald.conf”, then run “systemctl restart systemd-journald.service”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
     tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.3, '!default']
   journald/storage-not-persistent:
@@ -60,9 +60,9 @@ rules:
     severity: info
     score: 1.0
     message: "journald.conf and its drop-ins do not set Storage=persistent, so the journal stays in memory, lost at reboot, unless /var/log/journal happens to exist"
-    fix: set Storage=persistent under [Journal] in /etc/systemd/journald.conf.d/60-journald.conf, then run systemctl restart systemd-journald.service
+    fix: set “Storage=persistent” under “[Journal]” in “/etc/systemd/journald.conf.d/60-journald.conf”, then run “systemctl restart systemd-journald.service”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
-    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.6, '!default']
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.6]
   journald/compress-off:
     title: journald set not to compress the journal
     fact: journald
@@ -74,9 +74,9 @@ rules:
     severity: info
     score: 1.0
     message: "journald.conf or a drop-in turns Compress off, so large journal entries fill the disk sooner"
-    fix: remove the Compress line, or set Compress=yes, under [Journal], then run systemctl restart systemd-journald.service
+    fix: remove the “Compress” line under “[Journal]”, or set “Compress=yes”, then run “systemctl restart systemd-journald.service”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
-    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.7, '!default']
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.7]
   journald/stig-directory-mode:
     title: Journal directory more open than 2750
     fact: journald.files.*.mode
@@ -85,7 +85,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the STIG asks 2750 or stricter, so other users cannot list the journal"
-    fix: chmod 2750 the directory, or set the mode through a tmpfiles.d override of systemd.conf
+    fix: run “chmod 2750” on the directory, or set the mode through a “tmpfiles.d” override of “systemd.conf”
     remedy: {chmod: "u-s,g-w,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
     tags: [journald, logging, stig-ubuntu-26.04:UBTU-24-700020, '!default']
@@ -97,7 +97,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the STIG asks 0640 or stricter"
-    fix: chmod 0640 the file
+    fix: run “chmod 0640” on the file
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
     tags: [journald, logging, stig-ubuntu-26.04:UBTU-24-700020, '!default']
@@ -108,7 +108,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, so that user can rewrite or truncate the journal"
-    fix: chown root the path
+    fix: run “chown root” on the path
     remedy: {chown: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
     tags: [journald, logging, stig-ubuntu-26.04:UBTU-24-700080, stig-ubuntu-26.04:UBTU-24-700090, '!default']
@@ -119,7 +119,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not systemd-journal ({same})"
-    fix: chgrp systemd-journal the path
+    fix: run “chgrp systemd-journal” on the path
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
     tags: [journald, logging, stig-ubuntu-26.04:UBTU-24-700060, stig-ubuntu-26.04:UBTU-24-700070, '!default']
   journald/stig-journalctl-mode:
@@ -129,7 +129,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the STIG asks 0740, so only root and its group run it"
-    fix: chmod 0740 the file, and keep it so across package upgrades with dpkg-statoverride
+    fix: run “chmod 0740” on the file, and keep it so across package upgrades with “dpkg-statoverride”
     remedy: {chmod: "ugo-st,g-wx,o-rwx"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/journalctl.1.html
     tags: [journald, logging, stig-ubuntu-26.04:UBTU-24-700030, '!default']
@@ -140,7 +140,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, so that user can replace it"
-    fix: chown root the file
+    fix: run “chown root” on the file
     remedy: {chown: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/journalctl.1.html
     tags: [journald, logging, stig-ubuntu-26.04:UBTU-24-700040, '!default']
@@ -151,7 +151,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the STIG asks group root"
-    fix: chgrp 0 the file
+    fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/journalctl.1.html
     tags: [journald, logging, stig-ubuntu-26.04:UBTU-24-700050, '!default']

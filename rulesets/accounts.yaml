@@ -20,7 +20,7 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} has uid 0 in /etc/passwd, so it holds every privilege root does under another name"
-    fix: give {subject} its own uid with usermod --uid, or remove it with userdel if nobody needs it
+    fix: give {subject} its own uid with “usermod --uid”, or remove it with “userdel” if nobody needs it
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     references:
       - {title: Lynis AUTH-9204, url: "https://cisofy.com/lynis/controls/AUTH-9204/"}
@@ -33,7 +33,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} shares uid {got} with {others}, so each owns the other’s files and processes"
-    fix: give {subject} a uid of its own with usermod --uid, then chown what it should own
+    fix: give {subject} a uid of its own with “usermod --uid”, then “chown” what it should own
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     references:
       - {title: Lynis AUTH-9208, url: "https://cisofy.com/lynis/controls/AUTH-9208/"}
@@ -45,7 +45,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} shares gid {got} with {others}, so a member of one gets the other’s file access"
-    fix: give {subject} a gid of its own with groupmod --gid, then chgrp what it should own
+    fix: give {subject} a gid of its own with “groupmod --gid”, then “chgrp” what it should own
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/group.5.html
     references:
       - {title: Lynis AUTH-9222, url: "https://cisofy.com/lynis/controls/AUTH-9222/"}
@@ -57,7 +57,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} appears again on line(s) {got} of /etc/passwd, which the system never reads, since the first line wins"
-    fix: merge what you meant into the first {subject} line of /etc/passwd and delete the later one with vipw
+    fix: merge what you meant into the first {subject} line of “/etc/passwd”, and delete the later one with “vipw”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     tags: [accounts]
   accounts/group-repeated:
@@ -67,7 +67,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} appears again on line(s) {got} of /etc/group, which the system never reads, since the first line wins"
-    fix: merge the members you meant into the first {subject} line of /etc/group and delete the later one with vigr
+    fix: merge the members you meant into the first {subject} line of “/etc/group”, and delete the later one with “vigr”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/group.5.html
     references:
       - {title: Lynis AUTH-9226, url: "https://cisofy.com/lynis/controls/AUTH-9226/"}
@@ -79,7 +79,7 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} has an empty password field in /etc/passwd, so any service that allows empty passwords lets it in without one"
-    fix: run passwd {subject} to set a password, or passwd --lock {subject} if nobody logs in as it
+    fix: run “passwd {subject}” to set a password, or “passwd --lock {subject}” if nobody logs in as it
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     references:
       - {title: Lynis AUTH-9283, url: "https://cisofy.com/lynis/controls/AUTH-9283/"}
@@ -91,7 +91,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} keeps its password hash in /etc/passwd, which every local user can read, so anyone on the host can crack it offline"
-    fix: run pwconv to move the hash into /etc/shadow, then passwd {subject} to set a new password, since the old one may already be cracked
+    fix: run “pwconv” to move the hash into “/etc/shadow”, then “passwd {subject}” to set a new password, since the old one may already be cracked
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pwconv.8.html
     tags: [accounts, cis-ubuntu-26.04:7.2.1, stig-ubuntu-26.04:UBTU-24-400220, dev-sec-linux-baseline:os-03b]
   accounts/shadow-empty-password:
@@ -102,7 +102,7 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} has an empty password in /etc/shadow, so any service that allows empty passwords lets it in without one"
-    fix: run passwd {subject} to set a password, or passwd --lock {subject} if nobody logs in as it
+    fix: run “passwd {subject}” to set a password, or “passwd --lock {subject}” if nobody logs in as it
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     references:
       - {title: Lynis AUTH-9283, url: "https://cisofy.com/lynis/controls/AUTH-9283/"}
@@ -114,7 +114,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} defers to /etc/shadow in /etc/passwd, but /etc/shadow has no line for it, so its password, lock and ageing live nowhere and pwck reports the entry as broken"
-    fix: run pwconv to give {subject} its /etc/shadow line, then passwd {subject} to set a password or passwd --lock {subject} if nobody logs in as it
+    fix: run “pwconv” to give {subject} its “/etc/shadow” line, then “passwd {subject}” to set a password, or “passwd --lock {subject}” if nobody logs in as it
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pwck.8.html
     references:
       - {title: Lynis AUTH-9228, url: "https://cisofy.com/lynis/controls/AUTH-9228/"}
@@ -127,7 +127,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s maximum password age in days is {got}, where 1 to ${password-max-days} is asked"
-    fix: run chage --maxdays ${password-max-days} {subject}, and set PASS_MAX_DAYS ${password-max-days} in /etc/login.defs for new accounts
+    fix: run “chage --maxdays ${password-max-days} {subject}”, and set “PASS_MAX_DAYS ${password-max-days}” in “/etc/login.defs” for new accounts
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     references:
       - {title: Lynis AUTH-9282, url: "https://cisofy.com/lynis/controls/AUTH-9282/"}
@@ -141,7 +141,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s maximum password age in days is {got}, so the password must change on a schedule, which steers people to predictable successors of the old one"
-    fix: run chage --maxdays -1 {subject}, set PASS_MAX_DAYS 99999 in /etc/login.defs for new accounts, and force a change only on evidence of compromise
+    fix: run “chage --maxdays -1 {subject}”, set “PASS_MAX_DAYS 99999” in “/etc/login.defs” for new accounts, and force a change only on evidence of compromise
     docs: https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver
     references:
       - {title: NIST SP 800-63B-4 3.1.1.2, url: "https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver"}
@@ -155,7 +155,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s minimum password age in days is {got}, so a forced change can be undone sooner than the ${password-min-days} asked"
-    fix: run chage --mindays ${password-min-days} {subject}, and set PASS_MIN_DAYS ${password-min-days} in /etc/login.defs for new accounts
+    fix: run “chage --mindays ${password-min-days} {subject}”, and set “PASS_MIN_DAYS ${password-min-days}” in “/etc/login.defs” for new accounts
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.1.2, '!default']
   accounts/password-warn-days:
@@ -166,7 +166,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s password expiry warning in days is {got}, where at least ${password-warn-days} is asked"
-    fix: run chage --warndays ${password-warn-days} {subject}, and set PASS_WARN_AGE ${password-warn-days} in /etc/login.defs for new accounts
+    fix: run “chage --warndays ${password-warn-days} {subject}”, and set “PASS_WARN_AGE ${password-warn-days}” in “/etc/login.defs” for new accounts
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.1.3, '!default']
   accounts/password-inactive-days:
@@ -177,7 +177,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s grace in days before an expired password locks it is {got}, where at most ${password-inactive-days} is asked"
-    fix: run chage --inactive ${password-inactive-days} {subject}, and useradd -D -f ${password-inactive-days} for new accounts
+    fix: run “chage --inactive ${password-inactive-days} {subject}”, and “useradd -D -f ${password-inactive-days}” for new accounts
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.1.5, '!default']
   accounts/no-shell-unlocked:
@@ -189,9 +189,9 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has no login shell but an unlocked password, so any service that authenticates through PAM without a shell, such as mail or FTP, still accepts it"
-    fix: run usermod --lock {subject}, unless a service logs it in by password on purpose
+    fix: run “usermod --lock {subject}”, unless a service logs it in by password on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.2.8, '!default']
+    tags: [accounts, cis-ubuntu-26.04:5.4.2.8]
   accounts/gid-zero:
     title: An account other than root has group root as its primary group
     fact: accounts.passwd.*.gid
@@ -200,7 +200,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} has gid 0 as its primary group in /etc/passwd, so every file it creates belongs to group root"
-    fix: give {subject} its own primary group with usermod --gid
+    fix: give {subject} its own primary group with “usermod --gid”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.2.2]
   accounts/shadow-group-members:
@@ -211,7 +211,7 @@ rules:
     severity: warning
     score: 6.0
     message: "group shadow lists {got} in /etc/group, so they can read every password hash in /etc/shadow"
-    fix: remove each member with gpasswd --delete <user> shadow
+    fix: remove each member with “gpasswd --delete <user> shadow”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     tags: [accounts, cis-ubuntu-26.04:7.2.4]
   accounts/shadow-group-primary:
@@ -222,7 +222,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} has group shadow (gid 42) as its primary group, so it can read every password hash in /etc/shadow"
-    fix: give {subject} another primary group with usermod --gid
+    fix: give {subject} another primary group with “usermod --gid”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     tags: [accounts, cis-ubuntu-26.04:7.2.4]
   accounts/nologin-shell:
@@ -232,7 +232,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} lists nologin, so a service that only admits accounts with a valid shell, such as an FTP server, admits accounts meant to have none"
-    fix: delete the nologin lines from {subject}
+    fix: delete the “nologin” lines from {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shells.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.3.1]
   accounts/system-login-shell:
@@ -246,7 +246,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is a system account with a shell listed in /etc/shells, so anyone who gets its password or key gets a shell"
-    fix: run usermod --shell /usr/sbin/nologin {subject}, unless a person logs in as it on purpose
+    fix: run “usermod --shell /usr/sbin/nologin {subject}”, unless a person logs in as it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
     tags: [accounts, cis-ubuntu-26.04:5.4.2.7, '!default']
   accounts/useradd-inactive:
@@ -256,7 +256,7 @@ rules:
     severity: info
     score: 1.0
     message: "INACTIVE in /etc/default/useradd is unset (-1, never) or above ${password-inactive-days}, so an account made from now on stays usable that long after its password expires"
-    fix: run useradd -D -f ${password-inactive-days}
+    fix: run “useradd -D -f ${password-inactive-days}”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/useradd.8.html
     tags: [accounts, cis-ubuntu-26.04:5.4.1.5, '!default']
   accounts/stig-useradd-inactive:
@@ -266,7 +266,7 @@ rules:
     severity: info
     score: 1.0
     message: "INACTIVE in /etc/default/useradd is unset (-1, never) or above ${stig-password-inactive-days}"
-    fix: run useradd -D -f ${stig-password-inactive-days}
+    fix: run “useradd -D -f ${stig-password-inactive-days}”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/useradd.8.html
     tags: [accounts, stig-ubuntu-26.04:UBTU-24-200260, '!default']
   accounts/stig-root-unlocked:
@@ -276,7 +276,7 @@ rules:
     severity: info
     score: 1.0
     message: "root’s password in /etc/shadow is {got}, not locked, so root may log in directly with it, leaving no record of which administrator did"
-    fix: run passwd --lock root, once every administrator reaches root through sudo
+    fix: run “passwd --lock root” once every administrator reaches root through sudo
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/passwd.1.html
     tags: [accounts, stig-ubuntu-26.04:UBTU-24-400110, '!default']
   accounts/grpck:
@@ -286,7 +286,7 @@ rules:
     severity: warning
     score: 3.0
     message: "grpck --read-only exits {got}, so /etc/group and /etc/gshadow hold a malformed line, a duplicate name or a member with no account, which tools read differently"
-    fix: run grpck as root and fix each line it names, or let it fix them with grpck without --read-only
+    fix: run “grpck --read-only” as root and fix each line it names, or let “grpck” fix them
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/grpck.8.html
     references:
       - {title: Lynis AUTH-9216, url: "https://cisofy.com/lynis/controls/AUTH-9216/"}

@@ -13,7 +13,7 @@ rules:
     severity: error
     score: 9.8
     message: "{subject} listens on {got}, Docker’s plain-text API, so whoever reaches it runs containers as root on this host"
-    fix: drop the tcp://…:2375 host from dockerd’s -H flags or daemon.json hosts, or serve it on 2376 with --tlsverify
+    fix: drop the “tcp://…:2375” host from dockerd’s “-H” flags or the “hosts” of “daemon.json”, or serve it on port 2376 with “--tlsverify”
     docs: https://docs.docker.com/engine/security/protect-access/
     references:
       - {title: Lynis NETW-3012, url: "https://cisofy.com/lynis/controls/NETW-3012/"}
@@ -26,7 +26,7 @@ rules:
     severity: error
     score: 9.0
     message: "{subject} listens on {got}, cups-browsed’s legacy CUPS browsing, so any host that reaches it can add a printer whose driver runs commands here"
-    fix: set BrowseRemoteProtocols dnssd in /etc/cups/cups-browsed.conf and run systemctl restart cups-browsed, or remove cups-browsed
+    fix: set “BrowseRemoteProtocols dnssd” in “/etc/cups/cups-browsed.conf” and run “systemctl restart cups-browsed”, or remove cups-browsed
     docs: https://www.cve.org/CVERecord?id=CVE-2024-47176
     references:
       - {title: Lynis NETW-3012, url: "https://cisofy.com/lynis/controls/NETW-3012/"}
@@ -39,7 +39,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} listens on {got}, memcached’s UDP protocol, which answers a spoofed request with replies thousands of times its size"
-    fix: start memcached with -U 0 (UDP off, the default since memcached 1.5.6), or -l 127.0.0.1
+    fix: start memcached with “-U 0” (UDP off, the default since memcached 1.5.6), or with “-l 127.0.0.1”
     docs: https://www.cve.org/CVERecord?id=CVE-2018-1000115
     references:
       - {title: Lynis NETW-3012, url: "https://cisofy.com/lynis/controls/NETW-3012/"}
@@ -52,6 +52,6 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} listens on {got}, so a mail server meant for local mail takes connections from the network, where an open relay or a parser flaw is reachable"
-    fix: set inet_interfaces = loopback-only in /etc/postfix/main.cf (or the local interfaces of your MTA) and restart it, unless this host receives mail for others
+    fix: set “inet_interfaces = loopback-only” in “/etc/postfix/main.cf”, or the local interfaces of your MTA, and restart it, unless this host receives mail for others
     docs: https://www.postfix.org/postconf.5.html#inet_interfaces
     tags: [mail, network, cis-ubuntu-26.04:2.1.22]

@@ -14,7 +14,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} starts {got} rather than sulogin, so anyone at the console who boots into its target gets a root shell without the root password"
-    fix: "run systemctl revert {subject}, which drops its local copy and drop-ins; if it still fails, the packaged unit was edited: reinstall the package that ships it"
+    fix: run “systemctl revert {subject}”, which drops its local copy and drop-ins; if it still fails, the packaged unit was edited, so reinstall the package that ships it
     docs: https://www.freedesktop.org/software/systemd/man/latest/systemd.special.html#rescue.target
     references:
       - {title: Lynis BOOT-5260, url: "https://cisofy.com/lynis/controls/BOOT-5260/"}

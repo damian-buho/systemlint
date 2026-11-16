@@ -22,12 +22,13 @@ fn fixes() -> BTreeMap<String, Vec<String>> {
     rules
         .into_iter()
         .filter_map(|(id, rule)| {
-            let fix = rule["fix"].as_str()?.strip_prefix("add -a ")?;
-            let (lines, _) = fix.split_once(" to a .rules file")?;
+            let fix = rule["fix"].as_str()?.strip_prefix("add “-a ")?;
+            let (lines, _) = fix.split_once("” to a file ending in “.rules”")?;
             Some((
                 id,
                 format!("-a {lines}")
-                    .split(", ")
+                    .split(['“', '”'])
+                    .filter(|l| l.starts_with("-a "))
                     .map(str::to_owned)
                     .collect(),
             ))

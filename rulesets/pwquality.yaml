@@ -21,7 +21,7 @@ rules:
     severity: info
     score: 2.0
     message: "pwquality.conf leaves minlen unset (8) or below ${pwquality-minlen}, so a new password that short is accepted"
-    fix: set minlen = ${pwquality-minlen} in /etc/security/pwquality.conf.d/50-pwlength.conf
+    fix: set “minlen = ${pwquality-minlen}” in “/etc/security/pwquality.conf.d/50-pwlength.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     references:
       - {title: Lynis AUTH-9262, url: "https://cisofy.com/lynis/controls/AUTH-9262/"}
@@ -34,7 +34,7 @@ rules:
     severity: warning
     score: 3.0
     message: "pwquality.conf leaves minlen unset (8) or below ${pwquality-single-factor-minlen}, so a password that alone guards a login may be short enough to guess offline from its hash"
-    fix: set minlen = ${pwquality-single-factor-minlen} in /etc/security/pwquality.conf.d/50-pwlength.conf
+    fix: set “minlen = ${pwquality-single-factor-minlen}” in “/etc/security/pwquality.conf.d/50-pwlength.conf”
     docs: https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver
     references:
       - {title: NIST SP 800-63B-4 3.1.1.2, url: "https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver"}
@@ -52,7 +52,7 @@ rules:
     severity: warning
     score: 3.0
     message: "pwquality.conf sets {field} to {got}, a positive credit, so each such character counts as an extra one and a password shorter than minlen is accepted"
-    fix: set {field} = 0 in /etc/security/pwquality.conf, or a negative value to require that class
+    fix: set “{field} = 0” in “/etc/security/pwquality.conf”, or a negative value to require that class
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.3]
   pwquality/composition:
@@ -69,7 +69,7 @@ rules:
     severity: info
     score: 2.0
     message: "pwquality.conf sets {field} to {got}, a composition rule, which steers people to predictable patterns such as a capital first and a digit and a symbol last"
-    fix: remove {field} from /etc/security/pwquality.conf and its conf.d files, and rely on minlen and dictcheck
+    fix: remove “{field}” from “/etc/security/pwquality.conf” and its “conf.d” files, and rely on “minlen” and “dictcheck”
     docs: https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver
     references:
       - {title: NIST SP 800-63B-4 3.1.1.2, url: "https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver"}
@@ -83,7 +83,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves ucredit unset (0) or above -1, so a new password needs no uppercase letter"
-    fix: set ucredit = -1 in /etc/security/pwquality.conf
+    fix: set “ucredit = -1” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400260, '!default']
     conflicts: [pwquality/composition]
@@ -95,7 +95,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves lcredit unset (0) or above -1, so a new password needs no lowercase letter"
-    fix: set lcredit = -1 in /etc/security/pwquality.conf
+    fix: set “lcredit = -1” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400270, '!default']
     conflicts: [pwquality/composition]
@@ -107,7 +107,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves dcredit unset (0) or above -1, so a new password needs no digit"
-    fix: set dcredit = -1 in /etc/security/pwquality.conf
+    fix: set “dcredit = -1” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400280, '!default']
     conflicts: [pwquality/composition]
@@ -119,7 +119,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves ocredit unset (0) or above -1, so a new password needs no special character"
-    fix: set ocredit = -1 in /etc/security/pwquality.conf
+    fix: set “ocredit = -1” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400330, '!default']
     conflicts: [pwquality/composition]
@@ -131,7 +131,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves difok unset (1) or below ${pwquality-difok}, so a new password may differ from the old one in a single character"
-    fix: set difok = ${pwquality-difok} in /etc/security/pwquality.conf.d/50-pwdifok.conf
+    fix: set “difok = ${pwquality-difok}” in “/etc/security/pwquality.conf.d/50-pwdifok.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.1, '!default']
   pwquality/stig-difok:
@@ -142,7 +142,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves difok unset (1) or below ${pwquality-stig-difok}, so a new password may keep most characters of the old one"
-    fix: set difok = ${pwquality-stig-difok} in /etc/security/pwquality.conf
+    fix: set “difok = ${pwquality-stig-difok}” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400290, '!default']
   pwquality/maxrepeat:
@@ -153,7 +153,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves maxrepeat unset or outside 1 to ${pwquality-maxrepeat}, so a new password may run one character many times over"
-    fix: set maxrepeat = ${pwquality-maxrepeat} in /etc/security/pwquality.conf.d/50-pwrepeat.conf
+    fix: set “maxrepeat = ${pwquality-maxrepeat}” in “/etc/security/pwquality.conf.d/50-pwrepeat.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.4, '!default']
   pwquality/maxsequence:
@@ -164,7 +164,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves maxsequence unset or outside 1 to ${pwquality-maxsequence}, so a new password may hold a run such as 12345 or abcde"
-    fix: set maxsequence = ${pwquality-maxsequence} in /etc/security/pwquality.conf.d/50-pwmaxsequence.conf
+    fix: set “maxsequence = ${pwquality-maxsequence}” in “/etc/security/pwquality.conf.d/50-pwmaxsequence.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.5, '!default']
   pwquality/dictcheck:
@@ -179,7 +179,7 @@ rules:
     severity: warning
     score: 4.0
     message: "pwquality.conf or the pam_pwquality line of /etc/pam.d/common-password sets dictcheck to 0, so a new password that is a dictionary word is accepted"
-    fix: remove dictcheck = 0 from /etc/security/pwquality.conf and its conf.d files, and dictcheck=0 from the pam_pwquality line
+    fix: remove “dictcheck = 0” from “/etc/security/pwquality.conf” and its “conf.d” files, and “dictcheck=0” from the “pam_pwquality” line
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     references:
       - {title: NIST SP 800-63B-4 3.1.1.2, url: "https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver"}
@@ -196,7 +196,7 @@ rules:
     severity: warning
     score: 4.0
     message: "pwquality.conf or the pam_pwquality line of /etc/pam.d/common-password sets enforcing to 0, so pam_pwquality prints its objection and accepts the weak password anyway"
-    fix: remove enforcing = 0 from /etc/security/pwquality.conf and its conf.d files, and enforcing=0 from the pam_pwquality line
+    fix: remove “enforcing = 0” from “/etc/security/pwquality.conf” and its “conf.d” files, and “enforcing=0” from the “pam_pwquality” line
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.7]
   pwquality/root:
@@ -208,6 +208,6 @@ rules:
     severity: info
     score: 2.0
     message: "neither pwquality.conf nor the pam_pwquality line sets enforce_for_root, so root changing a password is only warned about a weak one"
-    fix: add enforce_for_root to /etc/security/pwquality.conf.d/50-pwroot.conf
+    fix: add “enforce_for_root” to “/etc/security/pwquality.conf.d/50-pwroot.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.8, '!default']

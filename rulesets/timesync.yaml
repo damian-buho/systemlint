@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Time synchronisation daemons left off or with no time server named
-tags: [timesync]
+tags: [default, timesync]
 rules:
   timesync/timesyncd-no-server:
     title: systemd-timesyncd names no time server
@@ -25,7 +25,7 @@ rules:
     severity: info
     score: 1.0
     message: "timesyncd.conf and its drop-ins leave NTP= and FallbackNTP= empty or unset, so the clock follows the compiled-in servers or the network’s DHCP offer, not one the site chose"
-    fix: set NTP= to the site’s time servers in /etc/systemd/timesyncd.conf.d/60-ntp.conf, under [Time]
+    fix: set “NTP=” to the site’s time servers under “[Time]” in “/etc/systemd/timesyncd.conf.d/60-ntp.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/timesyncd.conf.5.html
     tags: [timesync, cis-ubuntu-26.04:2.3.2.1]
   timesync/timesyncd-off:
@@ -37,7 +37,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is not both enabled and running, and no other time daemon is installed, so the clock drifts and log times stop matching other hosts’"
-    fix: run systemctl unmask {subject}, then systemctl enable --now {subject}
+    fix: run “systemctl unmask {subject}”, then “systemctl enable --now {subject}”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
     tags: [timesync, cis-ubuntu-26.04:2.3.2.2]
   timesync/chrony-no-server:
@@ -53,7 +53,7 @@ rules:
     severity: info
     score: 1.0
     message: "chrony.conf and the files its confdir and sourcedir lines name hold no server or pool line, so chrony has no time source to follow"
-    fix: add server or pool lines naming the site’s time servers to /etc/chrony/sources.d/site.sources, and a sourcedir /etc/chrony/sources.d line to chrony.conf if it has none
+    fix: add “server” or “pool” lines naming the site’s time servers to “/etc/chrony/sources.d/site.sources”, and the line “sourcedir /etc/chrony/sources.d” to “chrony.conf” if it has none
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
     tags: [timesync, cis-ubuntu-26.04:2.3.3.1]
   timesync/chrony-off:
@@ -65,7 +65,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is not both enabled and running, so the clock drifts and log times stop matching other hosts’"
-    fix: run systemctl enable --now {subject}, or mask it if another time daemon keeps the clock
+    fix: run “systemctl enable --now {subject}”, or mask it if another time daemon keeps the clock
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/chronyd.8.html
     tags: [timesync, cis-ubuntu-26.04:2.3.3.3]
   timesync/stig-chrony-missing:
@@ -75,9 +75,9 @@ rules:
     severity: info
     score: 1.0
     message: "chrony.service is not on disk, or is masked; the STIG asks for chrony as the time daemon"
-    fix: install chrony (apt install chrony), which replaces systemd-timesyncd
+    fix: install chrony with “apt install chrony”, which replaces systemd-timesyncd
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/chronyd.8.html
-    tags: [timesync, stig-ubuntu-26.04:UBTU-24-100700]
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-100700, '!default']
   timesync/stig-timesyncd-present:
     title: systemd-timesyncd is installed
     fact: systemd.state
@@ -85,9 +85,9 @@ rules:
     severity: info
     score: 1.0
     message: "systemd-timesyncd.service is on disk and not masked; the STIG asks that only chrony keep the clock"
-    fix: install chrony, which removes systemd-timesyncd, or run systemctl mask --now systemd-timesyncd.service
+    fix: install chrony, which removes systemd-timesyncd, or run “systemctl mask --now systemd-timesyncd.service”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
-    tags: [timesync, stig-ubuntu-26.04:UBTU-24-100010]
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-100010, '!default']
   timesync/stig-ntp-present:
     title: An ntp daemon is installed
     fact: systemd.state
@@ -95,9 +95,9 @@ rules:
     severity: info
     score: 1.0
     message: "ntpsec.service or ntp.service is on disk and not masked; the STIG asks that only chrony keep the clock"
-    fix: remove the ntp daemon (apt purge ntpsec ntp) and install chrony
+    fix: remove the ntp daemon with “apt purge ntpsec ntp”, and install chrony
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ntpd.8.html
-    tags: [timesync, stig-ubuntu-26.04:UBTU-24-100020]
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-100020, '!default']
   timesync/stig-chrony-makestep:
     title: chrony slews a large clock error instead of stepping it
     fact: chrony.conf
@@ -106,9 +106,9 @@ rules:
     severity: info
     score: 1.0
     message: "chrony.conf has no makestep 1 -1 line, so chrony corrects a clock off by more than a second slowly, leaving log times wrong meanwhile"
-    fix: add makestep 1 -1 to /etc/chrony/chrony.conf, then run systemctl restart chrony.service
+    fix: add “makestep 1 -1” to “/etc/chrony/chrony.conf”, then run “systemctl restart chrony.service”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
-    tags: [timesync, stig-ubuntu-26.04:UBTU-24-600180]
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-600180, '!default']
   timesync/rtc-local:
     title: The hardware clock keeps local time
     fact: rtc.adjtime
@@ -116,7 +116,7 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/adjtime says LOCAL, so the hardware clock jumps with daylight saving and times read from it before the time daemon starts are off"
-    fix: run timedatectl set-local-rtc 0
+    fix: run “timedatectl set-local-rtc 0”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/adjtime_config.5.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-901220]
   timesync/none-running:
@@ -133,7 +133,7 @@ rules:
     severity: info
     score: 2.0
     message: "none of systemd-timesyncd, chrony, ntpsec, ntp or openntpd is running, so the clock drifts and log times stop matching other hosts’"
-    fix: run systemctl enable --now systemd-timesyncd.service, or install and start chrony
+    fix: run “systemctl enable --now systemd-timesyncd.service”, or install and start chrony
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
     references:
       - {title: Lynis TIME-3104, url: "https://cisofy.com/lynis/controls/TIME-3104/"}
@@ -146,7 +146,7 @@ rules:
     severity: info
     score: 2.0
     message: "timedatectl reports NTP=yes but NTPSynchronized={got}, so the kernel has not marked the clock synchronized: no time server answers, or the daemon has only just started"
-    fix: read the time daemon’s log (journalctl --unit systemd-timesyncd or chronyc sources) and let it reach a server
+    fix: read the time daemon’s log (“journalctl --unit systemd-timesyncd” or “chronyc sources”) and let it reach a server
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/timedatectl.1.html
     references:
       - {title: Lynis TIME-3106, url: "https://cisofy.com/lynis/controls/TIME-3106/"}
