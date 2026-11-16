@@ -208,3 +208,37 @@ rules:
     fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/xinetd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.20]
+  unused-services/apport:
+    title: Apport reports crashes
+    facts:
+      all:
+        - {fact: apport.default, expect: {not: {required: [enabled], properties: {enabled: {not: {const: 0}}}}}}
+        - {fact: systemd.state, expect: {not: {required: [apport.service], properties: {apport.service: {properties: {active: {const: active}}}}}}}
+    when: {apt.installed: {required: [apport]}}
+    severity: info
+    score: 1.0
+    message: "Apport is enabled in /etc/default/apport or apport.service is active, so crashes leave reports holding their memory, stack and logs, to be sent to a third party"
+    fix: set enabled=0 in /etc/default/apport and run systemctl mask --now apport.service, or apt purge apport
+    docs: https://wiki.ubuntu.com/Apport
+    tags: [services, coredump, cis-ubuntu-26.04:1.5.7]
+  unused-services/x-server:
+    title: The X server is installed
+    fact: apt.installed
+    expect: {not: {required: [xserver-common]}}
+    severity: info
+    score: 1.0
+    message: "xserver-common is installed; the benchmark asks a server to carry no X server, whose code then needs patching for nothing"
+    fix: run apt purge xserver-common, unless this host runs a graphical session
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/Xserver.1.html
+    tags: [services, cis-ubuntu-26.04:2.1.21]
+  unused-services/bluetooth:
+    title: Bluetooth is enabled or running
+    fact: systemd.state.*
+    keys: {enum: [bluetooth.service]}
+    expect: *off
+    severity: info
+    score: 2.0
+    message: "{subject} is enabled or running, so a device within radio range talks to its stack, where pairing and parser flaws are reachable"
+    fix: run systemctl mask --now {subject}, or apt purge bluez, unless this host uses Bluetooth devices
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/bluetoothd.8.html
+    tags: [services, cis-ubuntu-26.04:3.1.3]

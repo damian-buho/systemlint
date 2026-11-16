@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: coredump-main
+read:
+  files: ['/etc/systemd/coredump.con?', '/run/systemd/coredump.con?', '/usr/local/lib/systemd/coredump.con?', '/usr/lib/systemd/coredump.con?']
+  order: drop-in
+parse: {plugin: formats, op: kv, with: {comments: ["#", ";", "["], repeat: last}}
+into: coredump.conf.main

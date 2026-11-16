@@ -3749,7 +3749,10 @@ fn sshd_offers_a_post_quantum_key_exchange() {
 fn every_unused_service_fails_enabled_or_running_and_passes_masked_or_off() {
     let rules: Value = ruleset_yaml("unused-services");
     for (rule, spec) in rules["rules"].as_object().unwrap() {
-        for unit in spec["keys"]["enum"].as_array().unwrap() {
+        let Some(units) = spec["keys"]["enum"].as_array() else {
+            continue;
+        };
+        for unit in units {
             let unit = unit.as_str().unwrap();
             let one = |enabled: bool, masked: bool, active: &str| {
                 let state = json!({unit: {"enabled": enabled, "masked": masked, "active": active},
@@ -6413,4 +6416,75 @@ fn cis_dot_files_logs_and_audit_log_size_and_group_fail_at_their_edge() {
         "root is the other group the benchmark admits"
     );
     assert_eq!(group(5), Outcome::Fail);
+}
+
+#[test]
+fn coredump_storage_apport_x_and_bluetooth_fail_at_their_edge() {
+    let core = |rule: &str, conf: Value| the(rule, &facts(&[("coredump.conf", conf)]));
+    assert_eq!(
+        core("coredump/storage", json!({"main": {"Storage": "none"}})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        core(
+            "coredump/storage",
+            json!({"main": {"Storage": "none"}, "drop-ins": {"Storage": "external"}})
+        ),
+        Outcome::Fail,
+        "a drop-in wins"
+    );
+    assert_eq!(
+        core("coredump/storage", json!({})),
+        Outcome::Fail,
+        "unset means external"
+    );
+    assert_eq!(
+        core(
+            "coredump/process-size-max",
+            json!({"drop-ins": {"ProcessSizeMax": 0}})
+        ),
+        Outcome::Pass
+    );
+    assert_eq!(
+        core(
+            "coredump/process-size-max",
+            json!({"drop-ins": {"ProcessSizeMax": 1}})
+        ),
+        Outcome::Fail
+    );
+    let apport = |enabled: Value, active: &str| {
+        the(
+            "unused-services/apport",
+            &facts(&[
+                ("apt.installed", json!({"apport": {}})),
+                ("apport.default", json!({"enabled": enabled})),
+                (
+                    "systemd.state",
+                    json!({"apport.service": {"active": active}}),
+                ),
+            ]),
+        )
+    };
+    assert_eq!(apport(json!(0), "inactive"), Outcome::Pass);
+    assert_eq!(apport(json!(1), "inactive"), Outcome::Fail);
+    assert_eq!(apport(json!(0), "active"), Outcome::Fail);
+    let x = |installed: Value| {
+        the(
+            "unused-services/x-server",
+            &facts(&[("apt.installed", installed)]),
+        )
+    };
+    assert_eq!(x(json!({"xserver-common": {}})), Outcome::Fail);
+    assert_eq!(x(json!({"xserver-xephyr": {}})), Outcome::Pass);
+    let bt = |state: Value| {
+        the(
+            "unused-services/bluetooth",
+            &facts(&[("systemd.state", json!({"bluetooth.service": state}))]),
+        )
+    };
+    assert_eq!(
+        bt(json!({"enabled": true, "active": "active", "masked": false})),
+        Outcome::Fail
+    );
+    assert_eq!(bt(json!({"masked": true})), Outcome::Pass);
 }

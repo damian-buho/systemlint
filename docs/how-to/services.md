@@ -86,6 +86,13 @@ router advertisement and autoconfiguration keys 0, `ipv6-max-addresses` 1,
 the live `kernel-fips` collector matches, reads 1; a kernel built without FIPS
 has no such file and fails too.
 
+`coredump/storage` (CIS 1.5.12) and `coredump/process-size-max` (1.5.11),
+both out of `default`, judge `coredump.conf` as journald’s settings are
+judged: the `coredump-main` and `coredump-drop-ins` collectors read it and its
+drop-ins through `kv`, and a drop-in’s value wins. They fail unless the
+effective `Storage` is `none` and `ProcessSizeMax` is 0; unset fails, since
+the defaults are `external` and 32G.
+
 ## Kernel modules
 
 Five collectors compose kmod’s own answers with `formats words`, or `formats
@@ -526,6 +533,12 @@ units while enabled or active and not masked, by unit, never by package:
 `dovecot`, `nfs-server`, `cups`, `rpcbind`, `rsync`, `smbd`, `snmpd`,
 `inetutils-inetd`, `squid`, `apache2` and `nginx`, `xinetd`. NIS and TFTP
 (2.1.10, 2.1.17) are `plaintext-servers` rules, in `default`.
+
+Beside them, `unused-services/bluetooth` fails `bluetooth.service` the same
+way (CIS 3.1.3), `unused-services/x-server` fails `xserver-common` in
+`apt.installed` (CIS 2.1.21), and `unused-services/apport` (CIS 1.5.7), where
+apport is installed, fails `enabled` other than 0 in `/etc/default/apport`,
+read by `apport-default` through `kv`, or an active `apport.service`.
 
 ## Clients not in use
 

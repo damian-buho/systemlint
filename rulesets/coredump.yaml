@@ -52,3 +52,29 @@ rules:
     fix: set kernel.core_pattern to an absolute path or a |pipe, or fs.suid_dumpable = 0
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html
     tags: [coredump, sysctl, dev-sec-linux-baseline:sysctl-31b, '!default']
+  coredump/storage:
+    title: systemd-coredump keeps the dumps it receives
+    fact: coredump.conf
+    expect:
+      anyOf:
+        - {required: [drop-ins], properties: {drop-ins: {required: [Storage], properties: {Storage: {const: none}}}}}
+        - {required: [main], properties: {drop-ins: {not: {required: [Storage]}}, main: {required: [Storage], properties: {Storage: {const: none}}}}}
+    severity: info
+    score: 1.0
+    message: "coredump.conf and its drop-ins do not set Storage=none, so systemd-coredump writes each crash’s memory, its secrets included, under /var/lib/systemd/coredump"
+    fix: set Storage=none under [Coredump] in /etc/systemd/coredump.conf.d/60-coredump.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/coredump.conf.5.html
+    tags: [coredump, cis-ubuntu-26.04:1.5.12, '!default']
+  coredump/process-size-max:
+    title: systemd-coredump processes dumps
+    fact: coredump.conf
+    expect:
+      anyOf:
+        - {required: [drop-ins], properties: {drop-ins: {required: [ProcessSizeMax], properties: {ProcessSizeMax: {const: 0}}}}}
+        - {required: [main], properties: {drop-ins: {not: {required: [ProcessSizeMax]}}, main: {required: [ProcessSizeMax], properties: {ProcessSizeMax: {const: 0}}}}}
+    severity: info
+    score: 1.0
+    message: "coredump.conf and its drop-ins do not set ProcessSizeMax=0, so systemd-coredump still reads each crash’s memory and logs its stack"
+    fix: set ProcessSizeMax=0 under [Coredump] in /etc/systemd/coredump.conf.d/60-coredump.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/coredump.conf.5.html
+    tags: [coredump, cis-ubuntu-26.04:1.5.11, '!default']
