@@ -88,8 +88,14 @@ standard sets it, daily rotation included (`--var password-max-days=1`, or
 | `accounts/password-inactive-days` | 5.4.1.5 | `inactive-days` is above `password-inactive-days` (45) |
 | `accounts/no-shell-unlocked` | 5.4.2.8 | an account other than root has no login shell, and its shadow password is a hash or empty |
 
-NIST SP 800-63B advises against forced password expiry, so
-`password-max-days` is a CIS choice, not a default.
+NIST SP 800-63B-4 §3.1.1.2 forbids forced periodic password changes, so
+`accounts/password-rotation` (tag `nist-sp-800-63b-4:3.1.1.2`, in `default`)
+fails an account with a usable hash whose `max-days` is set below 99999,
+shadow’s “never”; an empty field passes. It and `accounts/password-max-days`
+name each other in `conflicts`: a run selecting both answers `conflict` on
+both and fails on neither, and `--tags '!accounts/password-max-days'` or
+`'!accounts/password-rotation'` keeps the standard you follow, see
+[conflicting standards](rule-book.md#conflicting-standards).
 
 The two `unique` rules fail every account or group holding the shared value
 and name the others in the message, see

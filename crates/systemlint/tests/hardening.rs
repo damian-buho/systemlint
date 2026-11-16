@@ -27,15 +27,6 @@ fn scored(ruleset: &str, document: &Value) -> Vec<(String, String, Outcome, Opti
         .collect()
 }
 
-// The messages one rule of a shipped ruleset prints over a document.
-fn judge_messages(ruleset: &str, document: &Value, rule: &str) -> Vec<String> {
-    checks(ruleset, document)
-        .into_iter()
-        .filter(|c| c.rule == rule)
-        .filter_map(|c| c.message)
-        .collect()
-}
-
 // Every check of one shipped ruleset over a document.
 fn checks(ruleset: &str, document: &Value) -> Vec<systemlint::judge::Check> {
     checks_with(ruleset, document, json!({}))
@@ -43,8 +34,36 @@ fn checks(ruleset: &str, document: &Value) -> Vec<systemlint::judge::Check> {
 
 // Like checks, its vars filled from `config` as `check.vars` gives them, else their defaults.
 fn checks_with(ruleset: &str, document: &Value, config: Value) -> Vec<systemlint::judge::Check> {
+    selected(ruleset, &[ruleset.to_owned()], document, config)
+}
+
+// One shipped ruleset, parsed.
+fn ruleset_yaml<T: serde::de::DeserializeOwned>(ruleset: &str) -> T {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../rulesets/{ruleset}.yaml"));
-    let parsed = systemlint::yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    systemlint::yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+// The selectors a user keeping `rule` passes: its ruleset, less every rule it declares `conflicts` with.
+fn keeping(ruleset: &str, rule: &str) -> Vec<String> {
+    let conflicts = ruleset_yaml::<Value>(ruleset)["rules"][rule]["conflicts"].clone();
+    let others = conflicts
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str);
+    std::iter::once(ruleset.to_owned())
+        .chain(others.map(|o| format!("!{o}")))
+        .collect()
+}
+
+// The checks of the rules `selectors` pick from one shipped ruleset, its vars filled from `config`.
+fn selected(
+    ruleset: &str,
+    selectors: &[String],
+    document: &Value,
+    config: Value,
+) -> Vec<systemlint::judge::Check> {
+    let parsed = ruleset_yaml(ruleset);
     let mut rulesets = BTreeMap::from([(ruleset.to_owned(), parsed)]);
     let supplied = Supplied {
         config: config.as_object().unwrap().clone(),
@@ -54,7 +73,7 @@ fn checks_with(ruleset: &str, document: &Value, config: Value) -> Vec<systemlint
     apply(&mut rulesets, &supplied).unwrap();
     let library = Library::new(rulesets).unwrap();
     let rules: Vec<_> = library
-        .select(&[ruleset.to_owned()])
+        .select(selectors)
         .unwrap()
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
@@ -1404,10 +1423,15 @@ fn user(uid: u32, password: &str) -> Value {
 
 // The (subject, outcome) pairs one accounts rule gives.
 fn account_rule(rule: &str, document: &Value) -> Vec<(String, Outcome)> {
-    judge("accounts", document)
+    account_rule_with(rule, document, json!({}))
+}
+
+// Like account_rule, its vars filled from `config`, the rules `rule` conflicts with left out.
+fn account_rule_with(rule: &str, document: &Value, config: Value) -> Vec<(String, Outcome)> {
+    selected("accounts", &keeping("accounts", rule), document, config)
         .into_iter()
-        .filter(|(r, _, _)| r == rule)
-        .map(|(_, s, o)| (s, o))
+        .filter(|c| c.rule == rule)
+        .map(|c| (c.subject_label(), c.outcome))
         .collect()
 }
 
@@ -1556,13 +1580,12 @@ fn shadow_ageing_fails_past_each_cis_bound_and_only_for_a_usable_password() {
         zero,
         "a maximum of 0 expires every password at once"
     );
-    let daily: Vec<_> = checks_with("accounts", &document, json!({"password-max-days": 1}))
-        .into_iter()
-        .filter(|c| c.rule == "accounts/password-max-days")
-        .map(|c| (c.subject_label(), c.outcome))
-        .collect();
     assert_eq!(
-        daily,
+        account_rule_with(
+            "accounts/password-max-days",
+            &document,
+            json!({"password-max-days": 1})
+        ),
         [
             ("daemon".into(), Outcome::Skip),
             ("edge".into(), Outcome::Fail),
@@ -1572,12 +1595,59 @@ fn shadow_ageing_fails_past_each_cis_bound_and_only_for_a_usable_password() {
         ],
         "a site asking for daily rotation sets the bound to 1"
     );
-    let message = judge_messages("accounts", &document, "accounts/password-max-days");
+    let message: Vec<String> = selected(
+        "accounts",
+        &keeping("accounts", "accounts/password-max-days"),
+        &document,
+        json!({}),
+    )
+    .into_iter()
+    .filter(|c| c.rule == "accounts/password-max-days")
+    .filter_map(|c| c.message)
+    .collect();
     assert!(
         message
             .iter()
             .any(|m| m == "unset’s maximum password age in days is none, where 1 to 365 is asked"),
         "{message:?}"
+    );
+}
+
+#[test]
+fn nist_rotation_fails_any_scheduled_expiry_and_contradicts_the_cis_maximum() {
+    let max = |password: &str, days: Value| json!({"password": password, "max-days": days});
+    let document = accounts(
+        json!({}),
+        json!({}),
+        json!({"never": max("hash", json!(99999)), "unset": max("hash", Value::Null),
+               "below": max("hash", json!(99998)), "cis": max("hash", json!(365)),
+               "zero": max("hash", json!(0)), "daemon": max("locked", json!(90))}),
+    );
+    assert_eq!(
+        account_rule("accounts/password-rotation", &document),
+        [
+            ("below".into(), Outcome::Fail),
+            ("cis".into(), Outcome::Fail),
+            ("daemon".into(), Outcome::Skip),
+            ("never".into(), Outcome::Pass),
+            ("unset".into(), Outcome::Pass),
+            ("zero".into(), Outcome::Fail),
+        ],
+        "only no maximum, or shadow’s 99999, sets no schedule"
+    );
+    let both = checks("accounts", &document);
+    let judged: Vec<(&str, String, Outcome)> = both
+        .iter()
+        .filter(|c| {
+            c.rule.starts_with("accounts/password-r") || c.rule == "accounts/password-max-days"
+        })
+        .filter(|c| c.subject_label() != "daemon")
+        .map(|c| (c.rule.as_str(), c.subject_label(), c.outcome))
+        .collect();
+    assert_eq!(judged.len(), 10, "{judged:?}");
+    assert!(
+        judged.iter().all(|(_, _, o)| *o == Outcome::Conflict),
+        "{judged:?}"
     );
 }
 

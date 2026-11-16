@@ -130,6 +130,21 @@ rules:
     references:
       - {title: Lynis AUTH-9282, url: "https://cisofy.com/lynis/controls/AUTH-9282/"}
     tags: [accounts, cis-ubuntu-26.04:5.4.1.1, lynis, '!default']
+    conflicts: [accounts/password-rotation]
+  accounts/password-rotation:
+    title: A password must change on a schedule
+    fact: accounts.shadow.*.max-days
+    when: {accounts.shadow.*.password: hash}
+    expect: {anyOf: [{type: "null"}, {type: integer, minimum: 99999}]}
+    severity: info
+    score: 2.0
+    message: "{subject}’s maximum password age in days is {got}, so the password must change on a schedule, which steers people to predictable successors of the old one"
+    fix: run chage --maxdays -1 {subject}, set PASS_MAX_DAYS 99999 in /etc/login.defs for new accounts, and force a change only on evidence of compromise
+    docs: https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver
+    references:
+      - {title: NIST SP 800-63B-4 3.1.1.2, url: "https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver"}
+    tags: [accounts, nist-sp-800-63b-4:3.1.1.2]
+    conflicts: [accounts/password-max-days]
   accounts/password-min-days:
     title: A password can be changed again before the minimum age
     fact: accounts.shadow.*.min-days
