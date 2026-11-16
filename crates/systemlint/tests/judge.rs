@@ -292,6 +292,20 @@ fn when_is_kleene_logic_false_beats_unknown_in_and_true_beats_it_in_or() {
 }
 
 #[test]
+fn x_version_inside_any_of_passes_each_branch_from_its_own_fix() {
+    let rule = "fact: app.version\nexpect: {anyOf: [{x-version: {scheme: semver, min: '8.3.36', below: '8.4.0'}}, {x-version: {scheme: semver, min: '8.4.27'}}]}\n";
+    let outcome = |version: &str| run(rule, &json!({"app": {"version": version}}))[0].outcome;
+    assert_eq!(outcome("8.3.35"), Outcome::Fail);
+    assert_eq!(outcome("8.3.36"), Outcome::Pass);
+    assert_eq!(
+        outcome("8.4.26"),
+        Outcome::Fail,
+        "above the older fix, below its own"
+    );
+    assert_eq!(outcome("8.4.27"), Outcome::Pass);
+}
+
+#[test]
 fn x_version_orders_debian_versions() {
     let document = facts("root");
     assert_eq!(run("fact: packages.openssh-server.version\nexpect: {x-version: {scheme: deb, min: '1:9.6p1-3ubuntu13.3'}}\n", &document)[0].outcome, Outcome::Pass);

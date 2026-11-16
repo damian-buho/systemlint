@@ -584,6 +584,23 @@ mod tests {
     }
 
     #[test]
+    fn a_spaced_separator_keeps_inner_blanks_and_admits_short_lines_down_to_required() {
+        let reply = run(
+            &[file(
+                "/usr/bin/php",
+                "session\n\nDirective => Local Value => Master Value\nsession.name => PHPSESSID => PHPSESSID\nsession.save_path => no value => no value\n",
+            )],
+            json!({"separator": " => ", "columns": ["directive", "local", "master"], "required": 1, "key": "directive"}),
+        );
+        let facts = json!(reply.facts);
+        assert_eq!(facts["session"]["line"], 1);
+        assert!(facts["session"].get("local").is_none());
+        assert_eq!(facts["session.name"]["local"], "PHPSESSID");
+        assert_eq!(facts["session.save_path"]["master"], "no value");
+        assert_eq!(lines(&reply), Vec::<Option<u64>>::new());
+    }
+
+    #[test]
     fn unkeyed_columns_list_records_per_path_with_rest_brackets_and_joined_lines() {
         let reply = run(
             &[file(

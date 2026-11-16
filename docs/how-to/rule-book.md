@@ -117,6 +117,9 @@ source does.
 
 ## Tests
 
-Every rule is pinned at its edge: the value that passes and the nearest one
-that fails (`minimum: 1` passes at `1` and fails at `0`), plus `unknown` when
-the fact is absent and `not-applicable` when the ruleset’s guard is false.
+Tests pin the mechanics a rule relies on, never the rule itself: a new rule
+gets no test of its own. When it needs an op option, a schema keyword or a
+judgement no test covers yet, that mechanic gets a test at its edge, with
+neutral facts, in the crate that owns it (`x-version` inside `anyOf` in
+`tests/judge.rs`, a spaced `words` separator in `words.rs`). Run the rule
+against a real capture before shipping it.
