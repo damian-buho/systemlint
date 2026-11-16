@@ -85,8 +85,11 @@ fn checks_with(document: &Value, config: Value) -> Vec<Check> {
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
-    assert_eq!(rules.len(), 26);
+    assert_eq!(rules.len(), 31);
     lint(document, &rules, &[], "2026-11-11")
+        .into_iter()
+        .filter(|c| !c.rule.starts_with("ssh/stig-not-"))
+        .collect()
 }
 
 fn outcomes(document: &Value) -> Vec<(String, String, Outcome)> {
@@ -169,6 +172,8 @@ const FAILING: &[(&str, &str)] = &[
     ("ssh/login-grace-time", MAIN),
     ("ssh/max-startups", MAIN),
     ("ssh/password-authentication", "backup"),
+    ("ssh/stig-client-alive-count-max", MAIN),
+    ("ssh/stig-client-alive-interval", MAIN),
     ("ssh/x11-forwarding", MAIN),
 ];
 
