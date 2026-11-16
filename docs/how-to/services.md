@@ -582,6 +582,16 @@ the timesyncd pair does, a drop-in key overriding the main file. Ubuntu ships
 | `journald/storage-not-persistent` | info | the effective `Storage` is not `persistent`, its `auto` default included (CIS 6.1.1.1.6) |
 | `journald/compress-off` | info | the effective `Compress` is a false boolean; unset, empty and a size threshold pass (CIS 6.1.1.1.7) |
 
+The `rsyslog` ruleset, without `default` (`--tags rsyslog`), applies where an
+`rsyslogd` program is on disk, which the `rsyslog-binary` collector stats into
+`rsyslog.binary`: CIS applies its rsyslog section only where rsyslog is the
+chosen logger, so a host logging to the journal alone has no check.
+`rsyslog/off` (CIS 6.1.2.2) fails an unmasked `rsyslog.service` not both
+enabled and active. `rsyslog/no-tls-driver` (CIS 6.1.2.8) fails when the
+`rsyslog-tls-drivers` collector finds neither `lmnsd_gtls.so` nor
+`lmnsd_ossl.so`, the GnuTLS and OpenSSL drivers CIS accepts, under
+`/usr/lib/*/rsyslog` or `/usr/lib*/rsyslog`.
+
 `gdm/xdmcp` (CIS 1.7.6) fails a GDM file (`custom.conf` or `daemon.conf` under
 `/etc/gdm3` or `/etc/gdm`, read by the `gdm-config` collector through `ini`)
 whose `[xdmcp]` section sets `Enable` to `true` or `1` in any case; the `gdm`

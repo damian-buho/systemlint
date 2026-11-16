@@ -4926,3 +4926,65 @@ fn journald_runs_and_its_effective_settings_forward_persist_and_compress() {
         "--root"
     );
 }
+
+#[test]
+fn rsyslog_where_installed_runs_and_carries_a_tls_driver() {
+    let file = json!({"exists": true, "kind": "file"});
+    let doc = |binary: bool, drivers: Value, unit: Value| {
+        let binary = if binary {
+            json!({"/usr/sbin/rsyslogd": file.clone()})
+        } else {
+            json!({})
+        };
+        json!({"rsyslog": {"binary": binary, "tls-drivers": drivers}, "systemd": {"state": {"rsyslog.service": unit}},
+               "collectors": {"rsyslog-binary": {"status": "ok", "into": "rsyslog.binary"}}})
+    };
+    let running = json!({"enabled": true, "masked": false, "active": "active"});
+    let gtls = json!({"/usr/lib/x86_64-linux-gnu/rsyslog/lmnsd_gtls.so": file.clone()});
+    let rule = |name: &str, document: &Value| outcomes("rsyslog", name, document);
+    assert_eq!(
+        rule(
+            "rsyslog/no-tls-driver",
+            &doc(true, json!({}), running.clone())
+        ),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        rule(
+            "rsyslog/no-tls-driver",
+            &doc(true, gtls.clone(), running.clone())
+        ),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        rule(
+            "rsyslog/no-tls-driver",
+            &doc(false, json!({}), running.clone())
+        ),
+        [Outcome::NotApplicable],
+        "the journal is the chosen logger"
+    );
+    assert_eq!(
+        rule("rsyslog/off", &doc(true, gtls.clone(), running)),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        rule(
+            "rsyslog/off",
+            &doc(
+                true,
+                gtls.clone(),
+                json!({"enabled": true, "masked": false, "active": "failed"})
+            )
+        ),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        rule(
+            "rsyslog/off",
+            &doc(true, gtls, json!({"enabled": false, "masked": true}))
+        ),
+        [Outcome::Skip],
+        "masked"
+    );
+}

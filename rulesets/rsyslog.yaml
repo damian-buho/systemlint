@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: rsyslog, where it is the chosen logger, left off or unable to send logs over TLS
+tags: [rsyslog]
+when: {rsyslog.binary: {minProperties: 1}}
+rules:
+  rsyslog/off:
+    title: rsyslog is installed but not enabled and running
+    fact: systemd.state.*
+    keys: {const: rsyslog.service}
+    when:
+      systemd.state:
+        required: [rsyslog.service]
+        properties: {rsyslog.service: {required: [masked], properties: {masked: {const: false}}}}
+    expect: {required: [enabled], properties: {enabled: {const: true}, active: {const: active}}}
+    severity: info
+    score: 1.0
+    message: "{subject} is not both enabled and running, so nothing writes the log files in /var/log or forwards them to a log host"
+    fix: run systemctl enable --now {subject}, or remove rsyslog if the journal is the chosen logger
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
+    tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.2]
+  rsyslog/no-tls-driver:
+    title: rsyslog has no TLS network stream driver
+    fact: rsyslog.tls-drivers
+    expect: {minProperties: 1}
+    severity: info
+    score: 1.0
+    message: "neither lmnsd_gtls.so nor lmnsd_ossl.so is in an rsyslog module directory, so rsyslog can send logs to a log host only in clear text"
+    fix: install rsyslog-gnutls (apt install rsyslog-gnutls), or rsyslog-openssl
+    docs: https://packages.ubuntu.com/resolute/rsyslog-gnutls
+    tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.8]
