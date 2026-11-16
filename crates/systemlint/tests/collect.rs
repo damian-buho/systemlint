@@ -59,7 +59,22 @@ const PLUGINS: &[(&str, &str, &str)] = &[
         r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
     ),
     (
+        "kept",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
+    ),
+    (
+        "merged",
+        r#"[{"op":"parse"}]"#,
+        r#"printf '%s\n' '{"facts":{"ok":true}}'"#,
+    ),
+    (
         "derive",
+        r#"[{"op":"codename","needs":["os.release"]}]"#,
+        r#"printf '%s\n' '{"facts":{"seen":true}}'"#,
+    ),
+    (
+        "seer",
         r#"[{"op":"codename","needs":["os.release"]}]"#,
         r#"printf '%s\n' '{"facts":{"seen":true}}'"#,
     ),
@@ -207,7 +222,7 @@ fn plugins() -> Vec<Plugin> {
         for (name, ops, answer) in PLUGINS {
             let describe = format!(r#"{{"name":"{name}","version":"9.{}","protocol":1,"ops":{ops}}}"#, name.len());
             let request = dir.join(format!("{name}.request.json"));
-            let body = format!("#!/bin/sh\nif [ \"$1\" = --describe ]; then printf '%s\\n' '{describe}'; exit 0; fi\ncat > '{}'\n{answer}\n", request.display());
+            let body = format!("#!/bin/sh\nif [ \"$1\" = --describe ]; then printf '%s\\n' '{describe}'; exit 0; fi\ncat > '{request}.'$$\nmv '{request}.'$$ '{request}'\n{answer}\n", request = request.display());
             let temporary = dir.join(format!("{name}.{}.tmp", std::process::id()));
             std::fs::write(&temporary, body).unwrap();
             std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -432,11 +447,11 @@ fn stat_parents_adds_every_directory_above_a_kept_stat_but_root() {
 #[test]
 fn stat_absent_passes_a_missing_path_as_absent() {
     let absent = collector(
-        "id: absent\nread:\n  stat: [/usr, /nonexistent-home]\n  stat-absent: true\nparse: {plugin: absent, op: parse}\ninto: kept\n",
+        "id: absent\nread:\n  stat: [/usr, /nonexistent-home]\n  stat-absent: true\nparse: {plugin: kept, op: parse}\ninto: kept\n",
     );
     let doc = collect(&[absent], &plugins(), &options(false));
     assert_eq!(doc["collectors"]["absent"]["status"], "ok", "{doc}");
-    let inputs = request("absent")["inputs"].as_array().unwrap().clone();
+    let inputs = request("kept")["inputs"].as_array().unwrap().clone();
     assert_eq!(inputs.len(), 2, "{inputs:?}");
     assert_eq!(inputs[0]["path"], "/nonexistent-home");
     assert_eq!(inputs[0]["absent"], true, "{inputs:?}");
@@ -514,11 +529,11 @@ fn a_named_pattern_must_be_whole_segment_wildcards_after_a_literal_outside_into(
 #[test]
 fn files_resolve_in_the_root_and_merge_with_stat() {
     let c = collector(
-        "id: dump\nread:\n  files: [/etc/os-release, /etc/absent]\n  stat: [/etc/os-*, /usr/lib/os-release]\nparse: {plugin: dump, op: parse}\ninto: dump\n",
+        "id: dump\nread:\n  files: [/etc/os-release, /etc/absent]\n  stat: [/etc/os-*, /usr/lib/os-release]\nparse: {plugin: merged, op: parse}\ninto: dump\n",
     );
     let doc = collect(&[c], &plugins(), &options(false));
     assert_eq!(doc["collectors"]["dump"]["status"], "ok", "{doc}");
-    let inputs = request("dump")["inputs"].as_array().unwrap().clone();
+    let inputs = request("merged")["inputs"].as_array().unwrap().clone();
     let paths: Vec<_> = inputs.iter().map(|i| i["path"].as_str().unwrap()).collect();
     assert_eq!(paths, ["/etc/os-release", "/usr/lib/os-release"]);
     assert!(
@@ -764,14 +779,13 @@ fn an_absent_program_reaches_the_plugin_as_exit_127_beside_a_path() {
 
 #[test]
 fn needs_order_the_run_and_carry_the_facts() {
-    let derive =
-        collector("id: derive\nparse: {plugin: derive, op: codename}\ninto: apt.codename\n");
+    let derive = collector("id: derive\nparse: {plugin: seer, op: codename}\ninto: apt.codename\n");
     let base = collector("id: base\nparse: {plugin: base, op: release}\ninto: os.release\n");
     let doc = collect(&[derive.clone(), base], &plugins(), &options(false));
     assert_eq!(doc["collectors"]["derive"]["status"], "ok", "{doc}");
     assert_eq!(doc["apt"]["codename"]["seen"], true);
     assert_eq!(
-        request("derive")["facts"]["os.release"]["VERSION_CODENAME"],
+        request("seer")["facts"]["os.release"]["VERSION_CODENAME"],
         "resolute"
     );
     let lonely = collect(std::slice::from_ref(&derive), &plugins(), &options(false));
