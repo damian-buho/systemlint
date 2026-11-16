@@ -3919,3 +3919,46 @@ fn the_dev_sec_sysctl_keys_pass_only_at_their_value() {
         "only suid_dumpable 2 dumps setuid programs as root"
     );
 }
+
+#[test]
+fn the_account_databases_belong_to_group_root_and_the_hashes_to_root_or_shadow() {
+    let stat = |gid: i64| json!({"kind": "file", "uid": 0, "gid": gid, "mode": "0640"});
+    let document = json!({
+        "files": {"accounts": {"/etc/passwd": stat(0), "/etc/group": stat(1), "/etc/shells": {"kind": "symlink", "gid": 5}},
+                  "shadow": {"/etc/shadow": stat(42), "/etc/gshadow": stat(0), "/etc/shadow-": stat(41),
+                             "/etc/gshadow-": stat(43), "/etc/security/opasswd": stat(4)}},
+        "accounts": {"group": {"shadow": {"gid": 42, "members": [], "shadowed": []}}}});
+    let rule = |name: &str, document: &Value| -> Vec<(String, Outcome)> {
+        judge("files", document)
+            .into_iter()
+            .filter(|(r, _, _)| r == name)
+            .map(|(_, s, o)| (s, o))
+            .collect()
+    };
+    assert_eq!(
+        rule("files/accounts-group", &document),
+        [
+            ("/etc/group".into(), Outcome::Fail),
+            ("/etc/passwd".into(), Outcome::Pass),
+            ("/etc/shells".into(), Outcome::Skip),
+        ],
+        "gid 1 is the edge; a symlink is not judged"
+    );
+    assert_eq!(
+        rule("files/shadow-group", &document),
+        [
+            ("/etc/gshadow".into(), Outcome::Pass),
+            ("/etc/gshadow-".into(), Outcome::Fail),
+            ("/etc/shadow".into(), Outcome::Pass),
+            ("/etc/shadow-".into(), Outcome::Fail),
+        ],
+        "41 and 43 are the edges; opasswd is not CIS’s"
+    );
+    let mut moved = document.clone();
+    moved["accounts"]["group"]["shadow"]["gid"] = json!(43);
+    assert!(
+        rule("files/shadow-group", &moved)
+            .iter()
+            .all(|(_, o)| *o == Outcome::Skip)
+    );
+}

@@ -116,3 +116,27 @@ rules:
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [files, audit, cis-ubuntu-26.04:6.2.4.5, '!default']
+  files/accounts-group:
+    title: Account database not in group root
+    fact: files.accounts.*.gid
+    when: {files.accounts.*.kind: file}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}; the benchmark asks group root, so no other group’s change of mode can open it"
+    fix: chgrp 0 the file
+    remedy: {chgrp: 0}
+    docs: https://manpages.debian.org/unstable/manpages/passwd.5.en.html
+    tags: [files, cis-ubuntu-26.04:7.1.1, cis-ubuntu-26.04:7.1.2, cis-ubuntu-26.04:7.1.3, cis-ubuntu-26.04:7.1.4, cis-ubuntu-26.04:7.1.9, dev-sec-linux-baseline:os-03, '!default']
+  files/shadow-group:
+    title: Password hashes in a group other than root or shadow
+    fact: files.shadow.*.gid
+    keys: {enum: [/etc/shadow, /etc/shadow-, /etc/gshadow, /etc/gshadow-]}
+    when: {files.shadow.*.kind: file, accounts.group.shadow.gid: 42}
+    expect: {enum: [0, 42]}
+    severity: warning
+    score: 6.0
+    message: "{subject} belongs to gid {got}, so that group’s members can read the password hashes its mode lets the group read"
+    fix: chgrp shadow the file
+    docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
+    tags: [files, cis-ubuntu-26.04:7.1.5, cis-ubuntu-26.04:7.1.6, cis-ubuntu-26.04:7.1.7, cis-ubuntu-26.04:7.1.8, dev-sec-linux-baseline:os-02, '!default']

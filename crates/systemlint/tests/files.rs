@@ -132,13 +132,14 @@ fn checks(document: &Value) -> Vec<Check> {
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
-    assert_eq!(rules.len(), 9);
+    assert_eq!(rules.len(), 11);
     lint(document, &rules, &[], "2026-11-11")
 }
 
 #[test]
 fn a_0644_host_key_and_a_0666_sudoers_drop_in_fail_and_nothing_else_does() {
-    let document = document();
+    let mut document = document();
+    document["accounts"] = json!({"group": {"shadow": {"gid": 42}}});
     assert_eq!(
         document["files"]["sudoers"]["/etc/sudoers.d/deploy"]["mode"],
         "0666"
@@ -155,7 +156,11 @@ fn a_0644_host_key_and_a_0666_sudoers_drop_in_fail_and_nothing_else_does() {
     );
     let found: Vec<(&str, String)> = checks
         .iter()
-        .filter(|c| c.is_failing() && c.rule != "files/owner")
+        .filter(|c| {
+            c.is_failing()
+                && !["files/owner", "files/accounts-group", "files/shadow-group"]
+                    .contains(&c.rule.as_str())
+        })
         .map(|c| (c.rule.as_str(), c.subject_text()))
         .collect();
     assert_eq!(

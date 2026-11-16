@@ -81,6 +81,8 @@ depends on its environment, which these collectors do not read.
 | `files/ssh-host-key-mode` | error | a private host key is more open than 0640 |
 | `files/apt-auth-readable` | error | an APT credentials file is readable by others |
 | `files/accounts-mode` | info | an account database is more open than 0644 (CIS only) |
+| `files/accounts-group` | info | an account database or `/etc/shells` is in a group other than root (CIS and dev-sec only) |
+| `files/shadow-group` | warning | a shadow or gshadow file is in a group other than root or `shadow`, while `shadow` holds Debian’s gid 42 (CIS and dev-sec only) |
 | `files/bootloader-readable` | info | a GRUB configuration file grants its group or others any access (CIS only) |
 | `files/audit-config-mode` | info | an audit configuration file is more open than 0640 (CIS only) |
 
