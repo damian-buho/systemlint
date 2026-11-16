@@ -15,10 +15,13 @@ use systemlint::collector::Collector;
 use systemlint::judge::{Check, Outcome, compile, lint};
 use systemlint::rules::Library;
 use systemlint::source::Root;
+use systemlint::vars::{Supplied, apply};
 use systemlint_protocol::{PROTOCOL, Request};
 
-const COLLECTORS: [&str; 13] = [
+const COLLECTORS: [&str; 15] = [
     "files-shadow",
+    "files-libraries",
+    "files-commands",
     "files-sudoers",
     "files-cron",
     "files-sshd",
@@ -125,14 +128,20 @@ fn checks(document: &Value) -> Vec<Check> {
         &fs::read_to_string(repository().join("rulesets/files.yaml")).unwrap(),
     )
     .unwrap();
-    let library = Library::new(BTreeMap::from([("files".to_owned(), ruleset)])).unwrap();
+    let mut rulesets = BTreeMap::from([("files".to_owned(), ruleset)]);
+    let supplied = Supplied {
+        env: |_| None,
+        ..Supplied::default()
+    };
+    apply(&mut rulesets, &supplied).unwrap();
+    let library = Library::new(rulesets).unwrap();
     let rules: Vec<_> = library
         .select(&["files".to_owned()])
         .unwrap()
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
-    assert_eq!(rules.len(), 11);
+    assert_eq!(rules.len(), 17);
     lint(document, &rules, &[], "2026-11-11")
 }
 

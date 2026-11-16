@@ -130,11 +130,16 @@ fn a_sudoers_visudo_rejects_fails_and_a_host_without_sudo_is_not_judged() {
     assert_eq!(check(Some(0)), Outcome::Pass);
     assert_eq!(check(Some(1)), Outcome::Fail);
     assert_eq!(check(None), Outcome::Unknown, "visudo failed to run");
-    assert!(
-        judged(grants("sudo-rs"), Some(1), false)
-            .iter()
-            .all(|(_, _, o)| *o == Outcome::NotApplicable)
+    let absent = judged(grants("sudo-rs"), Some(1), false);
+    let (missing, rest): (Vec<_>, Vec<_>) = absent
+        .iter()
+        .partition(|(r, _, _)| r == "sudo/not-installed");
+    assert_eq!(
+        missing.iter().map(|c| c.2).collect::<Vec<_>>(),
+        [Outcome::Fail],
+        "CIS 5.2.1 asks for sudo"
     );
+    assert!(rest.iter().all(|(_, _, o)| *o == Outcome::Skip), "{rest:?}");
 }
 
 // The sudo-defaults ruleset's (rule, subject, outcome) over the captures under `sudo`, standard-only rules included.
