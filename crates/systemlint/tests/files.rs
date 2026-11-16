@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+mod common;
+
 use std::collections::BTreeMap;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -39,7 +40,7 @@ fn repository() -> PathBuf {
 // A root whose modes git cannot keep, rebuilt with explicit modes on every run.
 fn root() -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("files-root");
-    let entries: [(&str, Option<&str>, u32); 17] = [
+    let entries: [common::Entry; 17] = [
         ("etc", None, 0o755),
         ("etc/passwd", Some("root:x:0:0::/root:/bin/sh\n"), 0o644),
         ("etc/apt", None, 0o755),
@@ -66,19 +67,7 @@ fn root() -> PathBuf {
         ("usr", None, 0o755),
         ("usr/bin", None, 0o755),
     ];
-    for (path, content, mode) in entries {
-        let full = root.join(path);
-        match content {
-            Some(text) => {
-                if full.exists() {
-                    fs::set_permissions(&full, fs::Permissions::from_mode(0o600)).unwrap();
-                }
-                fs::write(&full, text).unwrap();
-            }
-            None => fs::create_dir_all(&full).unwrap(),
-        }
-        fs::set_permissions(&full, fs::Permissions::from_mode(mode)).unwrap();
-    }
+    common::build(&root, &entries);
     root
 }
 
@@ -286,10 +275,14 @@ fn each_mode_cap_fails_the_first_mode_beyond_it_and_leaves_symlinks_alone() {
 fn a_writable_library_or_python_path_entry_fails_the_files_rules_and_a_relative_one_is_left_to_env()
 {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("search-path-root");
-    for (path, mode) in [("opt", 0o755), ("opt/lib", 0o777), ("opt/py", 0o755)] {
-        fs::create_dir_all(root.join(path)).unwrap();
-        fs::set_permissions(root.join(path), fs::Permissions::from_mode(mode)).unwrap();
-    }
+    common::build(
+        &root,
+        &[
+            ("opt", None, 0o755),
+            ("opt/lib", None, 0o777),
+            ("opt/py", None, 0o755),
+        ],
+    );
     let options = Options {
         root: Root::open(&root).unwrap(),
         ..options()

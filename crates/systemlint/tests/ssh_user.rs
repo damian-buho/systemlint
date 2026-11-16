@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+mod common;
+
 use std::collections::BTreeMap;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -25,7 +26,7 @@ fn repository() -> PathBuf {
 // A root of three homes with explicit modes, rebuilt on every run.
 fn root() -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("ssh-user-root");
-    let entries: [(&str, Option<&str>, u32); 13] = [
+    let entries: [common::Entry; 13] = [
         ("etc", None, 0o755),
         ("etc/passwd", Some(PASSWD), 0o644),
         ("root", None, 0o700),
@@ -40,22 +41,15 @@ fn root() -> PathBuf {
         ("home/bob/.ssh", None, 0o700),
         ("home/bob/.ssh/known_hosts", Some(""), 0o644),
     ];
-    for (path, content, mode) in entries {
-        let full = root.join(path);
-        match content {
-            Some(text) => {
-                if full.exists() {
-                    fs::set_permissions(&full, fs::Permissions::from_mode(0o600)).unwrap();
-                }
-                fs::write(&full, text).unwrap();
-            }
-            None => fs::create_dir_all(&full).unwrap(),
-        }
-        fs::set_permissions(&full, fs::Permissions::from_mode(mode)).unwrap();
-    }
+    common::build(&root, &entries);
     let link = root.join("home/alice/.ssh/config");
-    if fs::symlink_metadata(&link).is_err() {
-        std::os::unix::fs::symlink("/elsewhere/config", &link).unwrap();
+    if let Err(e) = std::os::unix::fs::symlink("/elsewhere/config", &link) {
+        assert_eq!(
+            e.kind(),
+            std::io::ErrorKind::AlreadyExists,
+            "{}",
+            link.display()
+        );
     }
     root
 }

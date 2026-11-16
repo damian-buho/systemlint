@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+mod common;
+
 use std::collections::BTreeMap;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -44,7 +45,7 @@ fn dsa() -> String {
 fn root() -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("authorized-keys-root");
     let alice = format!("# laptop\n\n{RSA1024}\nnot a key at all\n");
-    let entries: [(&str, Option<&str>, u32); 14] = [
+    let entries: [common::Entry; 15] = [
         ("etc", None, 0o755),
         ("etc/passwd", Some(PASSWD), 0o644),
         ("etc/ssh", None, 0o755),
@@ -57,22 +58,11 @@ fn root() -> PathBuf {
         ("home/alice", None, 0o750),
         ("home/alice/.ssh", None, 0o700),
         ("home/alice/.ssh/authorized_keys", Some(&alice), 0o600),
+        ("home/bob", None, 0o755),
         ("home/bob/.ssh", None, 0o700),
         ("home/bob/.ssh/authorized_keys", Some(ED25519), 0o600),
     ];
-    for (path, content, mode) in entries {
-        let full = root.join(path);
-        match content {
-            Some(text) => {
-                if full.exists() {
-                    fs::set_permissions(&full, fs::Permissions::from_mode(0o600)).unwrap();
-                }
-                fs::write(&full, text).unwrap();
-            }
-            None => fs::create_dir_all(&full).unwrap(),
-        }
-        fs::set_permissions(&full, fs::Permissions::from_mode(mode)).unwrap();
-    }
+    common::build(&root, &entries);
     root
 }
 
