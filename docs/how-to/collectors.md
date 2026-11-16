@@ -354,6 +354,7 @@ the next one.
 | `columns` | name each word in order, `null` dropping one; without it, each input path maps every first word to the list of words after it |
 | `required` | the fewest words a line may have [default: every column]; a line with fewer, or with more and no `rest`, is a diagnostic |
 | `rest` | the column holding the words past the named ones, as a list |
+| `valued` | words of `rest` that each take the word after them as their value, a column of their own, as chrony’s `maxpoll 16`; one with no word after it stays in `rest` |
 | `lists` | columns split on `,`, empty items dropped |
 | `toggles` | list columns where a later `X` or `noX` drops an earlier `X` or `noX`, as mount(8) lets the later option win |
 | `implies` | per toggled item, the items it implies, each placed after it so a later option still overrides (`user: [noexec, nosuid, nodev]`) |

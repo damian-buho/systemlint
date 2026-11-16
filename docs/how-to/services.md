@@ -578,7 +578,12 @@ not.
   (100010) and `timesync/stig-ntp-present` (100020) an unmasked
   `systemd-timesyncd.service`, `ntpsec.service` or `ntp.service`, and
   `timesync/stig-chrony-makestep` (600180) a `chrony.conf` with no
-  `makestep 1 -1` line while chrony is installed.
+  `makestep 1 -1` line while chrony is installed, and
+  `timesync/stig-chrony-maxpoll` (600160) a `server`, `pool` or `peer` line
+  whose `maxpoll` is above `chrony-maxpoll-max` (16, about 18 hours), an
+  unset one taking chrony’s 10. The `chrony-servers` collector reads those
+  lines from `chrony.conf` and its `confdir` and `sourcedir` files into
+  `chrony.servers.<directive>.<host>`, each option with a value its own key.
 - `timesync/unsynchronized` (Lynis TIME-3106, TIME-3185) fails while
   `timedatectl show`, read live by `timedatectl` through `kv`, reports
   `NTP=yes` and `NTPSynchronized` other than `yes`.

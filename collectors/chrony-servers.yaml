@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: chrony-servers
+read:
+  files: [/etc/chrony/chrony.conf, /etc/chrony.conf]
+  files-from: ['{chrony.conf.*.sourcedir}/*.sources', '{chrony.conf.*.confdir}/*.conf']
+parse:
+  plugin: formats
+  op: words
+  with:
+    comments: ['#', '!', ';', '%']
+    directives: [server, pool, peer]
+    columns: [directive, host]
+    rest: options
+    valued: [minpoll, maxpoll, key, port, presend, maxdelay, maxdelayratio, maxdelaydevratio, maxdelayquant, mindelay, asymmetry, offset, minsamples, maxsamples, filter, version, polltarget, certset, extfield, ntsport, maxsources]
+    key: [directive, host]
+into: chrony.servers

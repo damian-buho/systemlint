@@ -5712,6 +5712,42 @@ fn the_stig_time_daemon_is_chrony_alone_stepping_past_one_second() {
 }
 
 #[test]
+fn the_stig_chrony_maxpoll_passes_16_and_an_unset_one_and_fails_17() {
+    let yaml = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../collectors/chrony-servers.yaml"),
+    )
+    .unwrap();
+    let collector = systemlint::collector::Collector::parse(&yaml).unwrap();
+    let maxpoll = |text: &str, units: Value| {
+        let file =
+            serde_json::from_value(json!({"path": "/etc/chrony/chrony.conf", "content": text}))
+                .unwrap();
+        let servers = systemlint_formats::words(&[Input::File(file)], &collector.parse.with)
+            .unwrap()
+            .facts;
+        the(
+            "timesync/stig-chrony-maxpoll",
+            &facts(&[("systemd.state", units), ("chrony.servers", json!(servers))]),
+        )
+    };
+    let chrony = json!({"chrony.service": {"enabled": true, "masked": false}});
+    assert_eq!(
+        maxpoll("server a iburst maxpoll 16\n", chrony.clone()),
+        Outcome::Pass
+    );
+    assert_eq!(
+        maxpoll("pool a iburst\n", chrony.clone()),
+        Outcome::Pass,
+        "chrony’s default is 10"
+    );
+    assert_eq!(
+        maxpoll("pool a maxpoll 17 iburst\n", chrony.clone()),
+        Outcome::Fail
+    );
+    assert_eq!(maxpoll("server a maxpoll 17\n", json!({})), Outcome::Skip);
+}
+
+#[test]
 fn grub_passes_only_with_superusers_and_a_pbkdf2_password_and_never_keeps_the_hash() {
     let grub = |text: &str| {
         let file = Input::File(

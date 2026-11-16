@@ -4,6 +4,8 @@
 
 description: Time synchronisation daemons left off or with no time server named
 tags: [default, timesync]
+vars:
+  chrony-maxpoll-max: {default: 16}
 rules:
   timesync/timesyncd-no-server:
     title: systemd-timesyncd names no time server
@@ -109,6 +111,17 @@ rules:
     fix: add “makestep 1 -1” to “/etc/chrony/chrony.conf”, then run “systemctl restart chrony.service”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-600180, '!default']
+  timesync/stig-chrony-maxpoll:
+    title: chrony polls a time server less than once a day
+    fact: chrony.servers.*.*
+    when: *chrony
+    expect: {properties: {maxpoll: {type: integer, maximum: "${chrony-maxpoll-max}"}}}
+    severity: info
+    score: 1.0
+    message: "the {subject} line in chrony’s configuration sets maxpoll above ${chrony-maxpoll-max}, so chrony may wait more than 2 to the power of that many seconds between polls of it, past the STIG’s 24 hours"
+    fix: set “maxpoll ${chrony-maxpoll-max}” or lower on the line, or remove the option to get chrony’s default of 10, then run “systemctl restart chrony.service”
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-600160, '!default']
   timesync/rtc-local:
     title: The hardware clock keeps local time
     fact: rtc.adjtime

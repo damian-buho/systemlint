@@ -62,6 +62,8 @@ struct Options {
     inline_comments: bool,
     columns: Option<Vec<Option<String>>>,
     rest: Option<String>,
+    #[serde(default)]
+    valued: Vec<String>,
     required: Option<usize>,
     #[serde(default)]
     lists: Vec<String>,
@@ -109,6 +111,16 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     }
     if options.inline_comments && options.separator.is_some() {
         return Err("with.inline-comments needs whitespace words, not with.separator".into());
+    }
+    if !options.valued.is_empty() && options.rest.is_none() {
+        return Err("with.valued needs with.rest".into());
+    }
+    if let Some(bad) = options
+        .valued
+        .iter()
+        .find(|n| named(n) || options.rest.as_ref() == Some(n))
+    {
+        return Err(format!("with.valued names {bad}, which a column already does").into());
     }
     if columns.is_none() && (options.rest.is_some() || options.required.is_some()) {
         return Err("with.rest and with.required need with.columns".into());
@@ -293,8 +305,22 @@ fn columned(
         record.insert(name.clone(), value);
     }
     if let Some(rest) = &options.rest {
-        let tail = words.get(columns.len()..).unwrap_or_default();
-        record.insert(rest.clone(), tail.iter().map(typed).collect());
+        let (mut tail, mut kept) = (
+            words.get(columns.len()..).unwrap_or_default().iter(),
+            Vec::new(),
+        );
+        while let Some(word) = tail.next() {
+            // A `valued` word takes the next one as its value, the rest stay in order.
+            match tail
+                .clone()
+                .next()
+                .filter(|_| options.valued.contains(&word.0))
+            {
+                Some(value) => drop((tail.next(), record.insert(word.0.clone(), typed(value)))),
+                None => kept.push(typed(word)),
+            }
+        }
+        record.insert(rest.clone(), Value::from(kept));
     }
     Ok(record)
 }
@@ -659,6 +685,18 @@ mod tests {
     }
 
     #[test]
+    fn a_valued_word_takes_the_next_one_and_a_last_one_stays_in_rest() {
+        let reply = run(
+            &[file("/f", "server a iburst maxpoll 17 key 0x1 minpoll\n")],
+            json!({"columns": ["directive", "host"], "rest": "options", "valued": ["maxpoll", "minpoll", "key"], "key": ["directive", "host"]}),
+        );
+        assert_eq!(
+            json!(reply.facts),
+            json!({"server": {"a": {"options": ["iburst", "minpoll"], "maxpoll": 17, "key": "0x1", "line": 1, "path": "/f", "shadowed": []}}})
+        );
+    }
+
+    #[test]
     fn an_unclosed_quote_or_continuation_is_named_by_line() {
         let reply = run(&[file("/f", "a \"open\nb [x\nc \\")], json!({}));
         assert_eq!(json!(reply.facts), json!({"/f": {}}));
@@ -688,6 +726,14 @@ mod tests {
                 "needs with.key",
             ),
             (json!({"rest": "r"}), "need with.columns"),
+            (
+                json!({"columns": ["a"], "valued": ["v"]}),
+                "needs with.rest",
+            ),
+            (
+                json!({"columns": ["a"], "rest": "r", "valued": ["a"]}),
+                "a column already",
+            ),
             (
                 json!({"columns": ["a"], "repeat": {"a": "last"}}),
                 "per key",
