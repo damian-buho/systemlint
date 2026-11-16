@@ -11,6 +11,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+cel.workspace = true
 clap.workspace = true
 env_logger.workspace = true
 hickory-proto.workspace = true

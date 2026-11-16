@@ -262,3 +262,30 @@ fn a_filled_rule_judges_the_supplied_value() {
         checks[0].message
     );
 }
+
+#[test]
+fn x_cel_reads_vars_typed_and_its_text_is_never_filled() {
+    let mut sets = rulesets(
+        "vars:\n  share: {default: 0.5}\n  ntp: {default: pool.ntp.org}\nrules:\n  t/share: {fact: a, expect: {x-cel: 'double(self) <= vars.share * double(facts.b) && \"${ntp}\" != vars.ntp'}}\n",
+    );
+    apply(
+        &mut sets,
+        &Supplied {
+            env: no_env,
+            ..Supplied::default()
+        },
+    )
+    .unwrap();
+    let spec = serde_json::from_value(sets["fleet"].rules["t/share"].clone()).unwrap();
+    let rule = compile("t/share", spec).unwrap();
+    let outcome = |a: i64| {
+        lint(
+            &json!({"a": a, "b": 10}),
+            std::slice::from_ref(&rule),
+            &[],
+            "2026-11-16",
+        )[0]
+        .outcome
+    };
+    assert_eq!((outcome(5), outcome(6)), (Outcome::Pass, Outcome::Fail));
+}

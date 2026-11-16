@@ -35,7 +35,7 @@ apt/https:
 | --- | --- |
 | `title` | a short name for the problem, the heading of the rule’s block in the human report |
 | `fact` | the fact path; a `*` segment binds one subject per key or array index |
-| `expect` | the JSON Schema the fact must satisfy, `x-version` included |
+| `expect` | the JSON Schema the fact must satisfy, `x-version` and `x-cel` included |
 | `facts` | instead of `fact` and `expect`: `all`, `any` or `none` over a list of `{fact, expect}`, see [Several facts](#several-facts) |
 | `keys` | a JSON Schema the key of the fact’s last `*` must satisfy, or it is no subject, see [Subjects](#subjects) |
 | `when` | a guard: a map is AND, a list of maps is OR; each entry is a constant to equal or a schema to satisfy |
@@ -197,6 +197,35 @@ compared in the order `scheme` names:
 
 A `min` or `below` the scheme cannot read fails the ruleset load; a fact it
 cannot read fails the rule.
+
+### Expressions
+
+`x-cel` holds a [CEL](https://github.com/google/cel-spec) expression that must
+be true, for what a schema cannot say: one fact against another, or
+arithmetic. It works wherever a schema does (`expect`, a `facts` entry, `when`,
+`keys`):
+
+```yaml
+fact: sysctl.settings.vm.dirty_background_ratio
+expect: {x-cel: "self < facts.sysctl.settings.vm.dirty_ratio"}
+```
+
+| Name | Holds |
+| --- | --- |
+| `self` | the value the schema judges, a key under `keys` |
+| `facts` | the whole facts document |
+| `vars` | the ruleset’s vars, typed; `${…}` is never filled inside an expression |
+| `bound` | the keys the rule’s `*`s bound, in order: `bound[0]` |
+
+A JSON integer is a CEL `int`, a fraction a `double`, and CEL never mixes the
+two: `double(self) * 0.9` compares with a share, `self * 2` with an integer.
+An expression that cannot decide (a missing key, a value of the wrong type, a
+result that is not `true` or `false`, more than 10 000 iterations of `all`,
+`exists`, `map` or `filter`) makes the check `unknown`, naming the expression,
+never a failure; `has(facts.a.b)` asks for a key without that. An expression
+longer than 1000 characters, one that does not parse, or one reading a name
+other than these fails the ruleset load. Keep to a schema keyword where one
+says it; CEL is for the second fact.
 
 ### Scores
 
@@ -440,7 +469,7 @@ facts need it:
 - `when` takes a list of maps as OR, and an absent fact answers `unknown`
   rather than skipping the rule;
 - a fact path may be a JSON Pointer, as file paths hold dots;
-- `x-version` adds deb, SemVer, rpm, apk and pacman version ordering to the schema;
+- `x-version` adds deb, SemVer, rpm, apk and pacman version ordering to the schema, and `x-cel` a CEL expression over other facts;
 - rules carry `tags`, and selectors mix rulesets, IDs and tags, with `!` to
   remove, replacing `--exclude-rules` and the per-level override flags;
 - a waiver exempts a rule on a subject until a day;

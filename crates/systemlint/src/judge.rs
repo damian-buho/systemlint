@@ -488,10 +488,11 @@ fn x_version<'a>(
     }))
 }
 
-/// A validator for `schema`, with the `x-version` keyword.
+/// A validator for `schema`, with the `x-version` and `x-cel` keywords.
 pub fn schema(schema: &Map<String, Value>) -> Result<Validator, String> {
     jsonschema::options()
         .with_keyword("x-version", x_version)
+        .with_keyword("x-cel", crate::expression::keyword)
         .build(&Value::Object(schema.clone()))
         .map_err(|e| e.to_string())
 }
@@ -542,6 +543,7 @@ pub struct Rule {
     when: Vec<Vec<Guard>>,
     members: Vec<(Vec<Segment>, Validator)>,
     combine: Combine,
+    cel: bool,
 }
 
 impl Rule {
@@ -627,6 +629,7 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
             when: vec![],
             members: vec![],
             combine: Combine::All,
+            cel: false,
         });
     }
     if spec.unique && spec.facts.is_some() {
@@ -744,6 +747,7 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         None => None,
     };
     log::debug!("rule {id} judges {} facts as {combine:?}", members.len());
+    let cel = serde_json::to_value(&spec).is_ok_and(|v| mentions_cel(&v));
     Ok(Rule {
         id: id.to_owned(),
         spec,
@@ -755,7 +759,35 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         when,
         members,
         combine,
+        cel,
     })
+}
+
+/// Whether an `x-cel` keyword sits anywhere under `value`.
+fn mentions_cel(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(k, v)| k == "x-cel" || mentions_cel(v)),
+        Value::Array(items) => items.iter().any(mentions_cel),
+        _ => false,
+    }
+}
+
+/// `check` turned unknown when an expression could not decide it, a skip or not-applicable kept as it was.
+fn decided(rule: &Rule, check: Check, unknown: Option<String>) -> Check {
+    match unknown {
+        Some(reason) if matches!(check.outcome, Outcome::Pass | Outcome::Fail) => {
+            log::debug!(
+                "rule {} on {:?} is unknown: {reason}",
+                rule.id,
+                check.subject
+            );
+            Check {
+                reason: Some(reason),
+                ..base(rule, Outcome::Unknown, &check.subject)
+            }
+        }
+        _ => check,
+    }
 }
 
 enum Tri {
@@ -1203,8 +1235,22 @@ fn failure(
 
 /// Every check of `rule` on `document`: one not-applicable, unknown or manual check, else one per subject, none when its subjects exist and are empty.
 pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
+    if rule.cel {
+        crate::expression::with_facts(document, || judged(rule, document))
+    } else {
+        judged(rule, document)
+    }
+}
+
+fn judged(rule: &Rule, document: &Value) -> Vec<Check> {
     for (name, when) in &rule.applies {
-        match guard(when, document, &[], true) {
+        let (applies, unknown) =
+            crate::expression::deciding(&[], || guard(when, document, &[], true));
+        let applies = match unknown {
+            Some(reason) => Tri::Unknown(reason, None),
+            None => applies,
+        };
+        match applies {
             Tri::True => {}
             Tri::False(reason) => {
                 log::debug!(
@@ -1249,12 +1295,15 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
             }];
         }
         if rule.members.len() > 1 {
-            return vec![check(
-                rule,
-                document,
-                &[],
-                Some(Judged::Unknown(reason, collector)),
-            )];
+            let (judged, unknown) = crate::expression::deciding(&[], || {
+                check(
+                    rule,
+                    document,
+                    &[],
+                    Some(Judged::Unknown(reason, collector)),
+                )
+            });
+            return vec![decided(rule, judged, unknown)];
         }
         return vec![Check {
             reason: Some(reason),
@@ -1262,15 +1311,18 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
             ..base(rule, Outcome::Unknown, &[])
         }];
     };
-    let bindings: Vec<Vec<String>> = bindings
-        .into_iter()
-        .filter(|bound| kept(rule, bound))
-        .collect();
+    let (mut kept_bindings, mut checks) = (Vec::new(), Vec::new());
+    for bound in bindings {
+        let (judged, unknown) = crate::expression::deciding(&bound, || {
+            kept(rule, &bound).then(|| check(rule, document, &bound, None))
+        });
+        if let Some(judged) = judged {
+            checks.push(decided(rule, judged, unknown));
+            kept_bindings.push(bound);
+        }
+    }
+    let bindings = kept_bindings;
     log::debug!("rule {} judges {} subjects", rule.id, bindings.len());
-    let mut checks: Vec<Check> = bindings
-        .iter()
-        .map(|bound| check(rule, document, bound, None))
-        .collect();
     if rule.spec.unique {
         collide(rule, document, &bindings, &mut checks);
     }

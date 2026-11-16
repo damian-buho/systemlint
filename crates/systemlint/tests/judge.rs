@@ -1245,3 +1245,97 @@ fn an_absent_collection_skips_when_the_rules_own_when_fails_and_is_unknown_other
         "a when that cannot be answered leaves the rule unknown"
     );
 }
+
+#[test]
+fn x_cel_compares_a_fact_with_another_and_equal_values_meet_at_the_edge() {
+    let rule = "fact: vm.background\nexpect: {x-cel: 'self < facts.vm.ratio'}\n";
+    let outcome = |b: i64| run(rule, &json!({"vm": {"background": b, "ratio": 20}}))[0].outcome;
+    assert_eq!((outcome(19), outcome(20)), (Outcome::Pass, Outcome::Fail));
+    let mixed = "fact: a\nexpect: {x-cel: 'self / 2.0 == 2.0'}\n";
+    assert_eq!(
+        run(mixed, &json!({"a": 4}))[0].outcome,
+        Outcome::Unknown,
+        "int and double never mix; double(self) does"
+    );
+    assert_eq!(
+        run(
+            "fact: a\nexpect: {x-cel: 'self * 2 == facts.b'}\n",
+            &json!({"a": 4, "b": 8})
+        )[0]
+        .outcome,
+        Outcome::Pass,
+        "positive JSON integers are ints, never uints"
+    );
+}
+
+#[test]
+fn x_cel_that_cannot_decide_is_unknown_never_a_failure() {
+    let rule = |expr: &str| format!("fact: a\nexpect: {{not: {{x-cel: '{expr}'}}}}\n");
+    for expr in ["self < facts.missing", "self + 1", "self.size() > 0"] {
+        let check = &run(&rule(expr), &json!({"a": 1}))[0];
+        assert_eq!(check.outcome, Outcome::Unknown, "{expr}");
+        assert!(
+            check.reason.as_deref().unwrap().contains("x-cel"),
+            "{expr}: {:?}",
+            check.reason
+        );
+    }
+    let guarded =
+        "fact: a\nwhen: {a: {x-cel: 'has(facts.b) && self > facts.b'}}\nexpect: {const: 0}\n";
+    assert_eq!(
+        run(guarded, &json!({"a": 1}))[0].outcome,
+        Outcome::Skip,
+        "has() reads a missing key as false"
+    );
+}
+
+#[test]
+fn x_cel_binds_each_star_in_order() {
+    let rule = "fact: net.*.conf.*\nexpect: {x-cel: 'self == bound[0] + \"/\" + bound[1]'}\n";
+    let document = json!({"net": {"ipv4": {"conf": {"eth0": "ipv4/eth0", "lo": "ipv4/eth0"}}}});
+    assert_eq!(
+        outcomes(&run(rule, &document)),
+        [
+            ("ipv4, eth0".into(), Outcome::Pass),
+            ("ipv4, lo".into(), Outcome::Fail)
+        ]
+    );
+    let keyed =
+        "fact: ports.*\nkeys: {x-cel: 'int(self) < facts.range.min'}\nexpect: {const: true}\n";
+    let keys = outcomes(&run(
+        keyed,
+        &json!({"ports": {"22": true, "40000": false}, "range": {"min": 32768}}),
+    ));
+    assert_eq!(
+        keys,
+        [("22".into(), Outcome::Pass)],
+        "keys judges the key itself"
+    );
+}
+
+#[test]
+fn x_cel_is_refused_at_load_when_it_cannot_run() {
+    let refused = |expr: Value| {
+        compile("x", spec(&format!("fact: a\nexpect: {{x-cel: {expr}}}\n")))
+            .err()
+            .unwrap_or_default()
+    };
+    let longest = format!("{}true", " ".repeat(systemlint::expression::MAX_LENGTH - 4));
+    assert_eq!(refused(json!(longest)), "", "the longest expression loads");
+    assert!(refused(json!(format!(" {longest}"))).contains("longer than 1000"));
+    assert!(refused(json!("self <")).contains("does not parse"));
+    assert!(refused(json!("self < limit")).contains("reads limit"));
+    assert!(refused(json!(7)).contains("not an expression"));
+    assert!(refused(json!({"expr": "true"})).contains("neither an expression"));
+}
+
+#[test]
+fn x_cel_stops_at_its_iteration_budget() {
+    let rule = "fact: a\nexpect: {x-cel: 'self.all(x, x == 0)'}\n";
+    let budget = systemlint::expression::MAX_ITERATIONS as usize;
+    let outcome = |n: usize| run(rule, &json!({"a": vec![0; n]}))[0].outcome;
+    assert_eq!(
+        (outcome(budget), outcome(budget + 1)),
+        (Outcome::Pass, Outcome::Unknown)
+    );
+}

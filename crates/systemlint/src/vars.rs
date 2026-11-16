@@ -171,12 +171,21 @@ fn guard(when: &mut When, values: &BTreeMap<String, Value>) -> Result<(), String
         .try_for_each(|v| fill(v, values))
 }
 
-/// Every string under `value` with its `${name}`s filled; object keys stay as written.
+/// Every string under `value` with its `${name}`s filled, an `x-cel` expression instead given the values as its typed `vars`; object keys stay as written.
 fn fill(value: &mut Value, values: &BTreeMap<String, Value>) -> Result<(), String> {
     match value {
         Value::String(text) => *value = substitute(text, values)?,
         Value::Array(items) => items.iter_mut().try_for_each(|v| fill(v, values))?,
-        Value::Object(map) => map.values_mut().try_for_each(|v| fill(v, values))?,
+        Value::Object(map) => {
+            for (key, child) in map.iter_mut() {
+                match child {
+                    Value::String(expr) if key == "x-cel" => {
+                        *child = serde_json::json!({"expr": expr, "vars": values});
+                    }
+                    _ => fill(child, values)?,
+                }
+            }
+        }
         _ => {}
     }
     Ok(())

@@ -11,6 +11,7 @@ pub mod crash;
 pub mod discovery;
 pub mod document;
 pub mod explain;
+pub mod expression;
 pub mod fix;
 pub mod judge;
 pub mod net;

@@ -13,6 +13,7 @@ license = "AGPL-3.0-only"
 repository = "https://kiota.ch/damian-buho/systemlint"
 
 [workspace.dependencies]
+cel = { version = "=0.16.0", default-features = false, features = ["json", "regex"] }
 clap = { version = "=4.6.7", features = ["derive"] }
 env_logger = { version = "=0.11.11", default-features = false }
 hickory-proto = { version = "=0.26.3", default-features = false, features = ["std"] }
