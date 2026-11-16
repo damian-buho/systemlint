@@ -132,7 +132,7 @@ impl Root {
         }
     }
 
-    /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component, never a leading dot nor below a symlinked directory, `**` as the whole last component every path below, see [`Root::walk`].
+    /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component, never a leading dot nor below a directory a wildcard matched through a symlink, `**` as the whole last component every path below, see [`Root::walk`]; a literal directory that is a symlink is listed under the path it resolves to in the root.
     pub fn glob(&self, pattern: &str) -> Result<Vec<String>, Failure> {
         self.glob_under("", pattern)
     }
@@ -145,17 +145,21 @@ impl Root {
         {
             return Err(format!("glob {pattern}: ** is only a whole last component").into());
         }
-        let mut found = vec![base.trim_end_matches('/').to_owned()];
+        let mut found = vec![(base.trim_end_matches('/').to_owned(), true)];
         for part in parts {
             let mut next = Vec::new();
-            for base in &found {
-                if part == "**" {
-                    self.walk(base, WALK_CAP, &mut next)
-                        .map_err(|e| e.within(&format!("glob {pattern}")))?;
+            for (base, literal) in &found {
+                if !part.contains(['*', '?']) {
+                    next.push((format!("{base}/{part}"), true));
                     continue;
                 }
-                if !part.contains(['*', '?']) {
-                    next.push(format!("{base}/{part}"));
+                let real = literal.then(|| self.followed(base)).flatten();
+                let base = real.as_deref().unwrap_or(base);
+                if part == "**" {
+                    let mut walked = Vec::new();
+                    self.walk(base, WALK_CAP, &mut walked)
+                        .map_err(|e| e.within(&format!("glob {pattern}")))?;
+                    next.extend(walked.into_iter().map(|p| (p, false)));
                     continue;
                 }
                 let dir = if base.is_empty() { "/" } else { base };
@@ -181,12 +185,13 @@ impl Root {
                     let entry = entry.map_err(|e| Failure::of("list", dir, e))?;
                     let name = entry.file_name().to_string_lossy();
                     if name != "." && name != ".." && wildcard(part, &name) {
-                        next.push(format!("{base}/{name}"));
+                        next.push((format!("{base}/{name}"), false));
                     }
                 }
             }
             found = next;
         }
+        let mut found: Vec<String> = found.into_iter().map(|(p, _)| p).collect();
         found
             .iter_mut()
             .filter(|p| p.is_empty())
@@ -195,6 +200,39 @@ impl Root {
         found.dedup();
         log::debug!("glob {base}{pattern} names {} paths", found.len());
         Ok(found)
+    }
+
+    /// The path in the root that the symlinked directory `dir` resolves to, `None` when `dir` is no symlink to a directory.
+    fn followed(&self, dir: &str) -> Option<String> {
+        if dir.is_empty() {
+            return None;
+        }
+        let link = self.open_at(dir, OFlags::PATH | OFlags::NOFOLLOW).ok()?;
+        if FileType::from_raw_mode(rustix::fs::fstat(&link).ok()?.st_mode) != FileType::Symlink {
+            return None;
+        }
+        let fd = self.open_at(dir, OFlags::PATH | OFlags::DIRECTORY).ok()?;
+        let host = rustix::fs::readlink(
+            format!("/proc/self/fd/{}", std::os::fd::AsRawFd::as_raw_fd(&fd)),
+            Vec::new(),
+        )
+        .ok()?;
+        let host = PathBuf::from(host.to_string_lossy().into_owned());
+        let real = match host.strip_prefix(&self.path) {
+            Ok(inside) => format!("/{}", inside.display())
+                .trim_end_matches('/')
+                .to_owned(),
+            Err(_) => {
+                log::debug!(
+                    "glob: {dir} resolves to {} outside the root {}, not followed",
+                    host.display(),
+                    self.path.display()
+                );
+                return None;
+            }
+        };
+        log::debug!("glob: {dir} is a symlink to {real}, listed there");
+        Some(real)
     }
 
     /// Appends `base` and every path below it, dotted names included, never entering another filesystem or a symlinked directory; fails once `out` holds more than `cap` paths.

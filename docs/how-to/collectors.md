@@ -60,14 +60,19 @@ the ones it needs. A path in both `files` and `stat` reaches the plugin as one
 input carrying both.
 
 In a glob, `*` matches any run of characters and `?` one character, both within
-one path component and never a leading dot; `.*` matches dotfiles. A wildcard
-never lists a directory that is itself a symlink, so `/bin/*` names nothing
-where `/bin` links to `/usr/bin`, while a symlink earlier in the path, `/lib` in
-`/lib/modules/*`, is followed. A path with
+one path component and never a leading dot; `.*` matches dotfiles. A
+directory a wildcard matched is never listed when it is a symlink, so
+`/etc/rc.d/*/*` never reaches `/etc/init.d` twice. A literal directory that is
+a symlink is listed where it resolves inside the root and named by that path:
+`/var/log/audit/*` names `/data/audit/audit.log` where `/var/log/audit` links
+to `/data/audit`, and `/bin/*` names `/usr/bin/…` where `/bin` links to
+`/usr/bin`. A symlink earlier in the path, `/lib` in `/lib/modules/*`, is
+followed. A path with
 no wildcard is passed when it exists, and an absent one is not an error. A
 `**` as the whole last component (`/usr/**`) matches the directory and every
-path below it, dotted names included, but never enters a symlinked directory or
-another filesystem; a glob naming more than a million paths fails its
+path below it, dotted names included, starting where a symlinked literal
+directory resolves, but never enters a symlinked directory below it or another
+filesystem; a glob naming more than a million paths fails its
 collector, so a walk that was cut short never passes. A
 `files` match that is not a regular file, such as a directory in
 `/etc/default/*` or a masked unit linked to `/dev/null`, is skipped.

@@ -96,15 +96,26 @@ fn glob_matches_one_component_and_skips_dotfiles() {
 }
 
 #[test]
-fn a_star_never_lists_a_symlinked_directory_but_crosses_one_above() {
+fn a_star_lists_a_literal_symlinked_directory_where_it_resolves_never_a_wildcard_one() {
     let dir = fixture("glob-symlink");
     std::fs::create_dir_all(dir.join("usr/lib/x")).unwrap();
     std::fs::write(dir.join("usr/lib/x/ls"), "").unwrap();
+    std::fs::create_dir_all(dir.join("data/audit")).unwrap();
+    std::fs::write(dir.join("data/audit/audit.log"), "").unwrap();
     symlink("usr/lib", dir.join("lib")).unwrap();
+    symlink("/data/audit", dir.join("etc/audit")).unwrap();
+    symlink("/", dir.join("etc/top")).unwrap();
     let root = Root::open(&dir).unwrap();
     assert_eq!(root.glob("/usr/lib/*").unwrap(), ["/usr/lib/x"]);
-    assert_eq!(root.glob("/lib/*").unwrap(), Vec::<String>::new());
+    assert_eq!(root.glob("/lib/*").unwrap(), ["/usr/lib/x"]);
     assert_eq!(root.glob("/lib/x/*").unwrap(), ["/lib/x/ls"]);
+    assert_eq!(
+        root.glob("/etc/audit/*").unwrap(),
+        ["/data/audit/audit.log"]
+    );
+    assert_eq!(root.glob("/etc/top/l*").unwrap(), ["/lib"]);
+    assert_eq!(root.glob("/l*/*").unwrap(), Vec::<String>::new());
+    assert_eq!(root.glob("/etc/missing/*").unwrap(), Vec::<String>::new());
 }
 
 #[test]
@@ -200,7 +211,7 @@ fn digests_follow_fips_180_and_refuse_a_directory() {
 }
 
 #[test]
-fn a_double_star_walks_every_path_below_dotted_ones_included_never_a_symlinked_directory() {
+fn a_double_star_walks_every_path_below_dotted_ones_included_never_a_symlinked_directory_below() {
     let dir = fixture("walk");
     std::fs::create_dir_all(dir.join("usr/a/b")).unwrap();
     std::fs::create_dir_all(dir.join("usr/.hidden")).unwrap();
@@ -233,8 +244,8 @@ fn a_double_star_walks_every_path_below_dotted_ones_included_never_a_symlinked_d
     }
     assert_eq!(
         root.glob("/bin/**").unwrap(),
-        ["/bin"],
-        "a symlinked base is not entered"
+        ["/usr/a", "/usr/a/b", "/usr/a/b/file"],
+        "a literal symlinked base is walked where it resolves"
     );
     assert_eq!(root.glob("/missing/**").unwrap(), ["/missing"]);
     let mut out = Vec::new();
