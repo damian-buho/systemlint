@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: clients-binaries
+read:
+  stat:
+    - /usr/*bin/ypbind
+    - /usr/*bin/ypwhich
+    - /usr/*bin/ypcat
+    - /usr/*bin/ypmatch
+    - /usr/*bin/netkit-rsh
+    - /usr/*bin/netkit-rcp
+    - /usr/*bin/netkit-rlogin
+    - /usr/*bin/netkit-ntalk
+    - /usr/*bin/inetutils-telnet
+    - /usr/*bin/telnet-ssl
+    - /usr/*bin/telnet.netkit
+    - /usr/*bin/ldapsearch
+    - /usr/*bin/ldapmodify
+    - /usr/*bin/tnftp
+    - /usr/*bin/inetutils-ftp
+    - /usr/*bin/ftp-ssl
+    - /usr/*bin/netkit-ftp
+    - /usr/*bin/atftp
+parse: {plugin: formats, op: stat}
+into: clients.binaries

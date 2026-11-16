@@ -4424,3 +4424,36 @@ fn the_update_notifier_motd_units_fail_enabled_or_running_and_pass_masked_or_off
         assert!(absent.is_empty(), "{rule}: no unit, no check");
     }
 }
+
+#[test]
+fn every_client_binary_the_collector_stats_fails_exactly_one_clients_rule() {
+    let yaml = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../collectors/clients-binaries.yaml"),
+    )
+    .unwrap();
+    let collector: Value = systemlint::yaml::from_str(&yaml).unwrap();
+    let rules: Value = ruleset_yaml("clients");
+    for pattern in collector["read"]["stat"].as_array().unwrap() {
+        let path = pattern.as_str().unwrap().replace("/usr/*bin/", "/usr/bin/");
+        let document = json!({"clients": {"binaries": {&path: {"uid": 0},
+                                                       "/usr/bin/telnet": {"uid": 0},
+                                                       "/usr/bin/rsh": {"uid": 0},
+                                                       "/usr/bin/ypdomainname": {"uid": 0}}},
+                              "collectors": {"clients-binaries": {"status": "ok", "into": "clients.binaries"}}});
+        let failed: Vec<_> = judge("clients", &document)
+            .into_iter()
+            .filter(|(_, _, o)| *o != Outcome::Pass)
+            .collect();
+        assert_eq!(failed.len(), 1, "{path}: {failed:?}");
+        assert_eq!(failed[0].2, Outcome::Fail, "{path}");
+        assert!(rules["rules"][&failed[0].0].is_object());
+    }
+    let none = json!({"clients": {"binaries": {"/usr/bin/telnet": {"uid": 0}, "/usr/bin/ssh": {"uid": 0}}},
+                      "collectors": {"clients-binaries": {"status": "ok", "into": "clients.binaries"}}});
+    assert!(
+        judge("clients", &none)
+            .iter()
+            .all(|(_, _, o)| *o == Outcome::Pass),
+        "an alternatives link names no client"
+    );
+}

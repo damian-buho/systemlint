@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Clients of plain-text or legacy network services a CIS benchmark asks to remove
+tags: [clients]
+rules:
+  clients/nis:
+    title: An NIS client is on disk
+    fact: clients.binaries.*
+    keys: {pattern: '/(ypbind|ypwhich|ypcat|ypmatch)$'}
+    expect: {not: {}}
+    severity: info
+    score: 1.0
+    message: "{subject} is on disk: NIS sends account maps, password hashes included, unencrypted to any host that binds to the domain"
+    fix: remove the package that ships {subject} (apt purge nis ypbind-mt yp-tools), unless this host is an NIS client on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/ypbind.8.html
+    tags: [clients, cis-ubuntu-26.04:2.2.1]
+  clients/rsh:
+    title: An rsh client is on disk
+    fact: clients.binaries.*
+    keys: {pattern: '/netkit-(rsh|rcp|rlogin)$'}
+    expect: {not: {}}
+    severity: info
+    score: 1.0
+    message: "{subject} is on disk: rsh, rcp and rlogin send the session, and rlogin a password, in plain text"
+    fix: remove the package that ships {subject} (apt purge rsh-client) and use ssh, scp or sftp
+    docs: https://manpages.debian.org/bookworm/rsh-client/netkit-rsh.1.en.html
+    tags: [clients, cis-ubuntu-26.04:2.2.2]
+  clients/talk:
+    title: A talk client is on disk
+    fact: clients.binaries.*
+    keys: {pattern: '/netkit-ntalk$'}
+    expect: {not: {}}
+    severity: info
+    score: 1.0
+    message: "{subject} is on disk: talk carries chat sessions in plain text"
+    fix: remove the package that ships {subject} (apt purge talk)
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/netkit-ntalk.1.html
+    tags: [clients, cis-ubuntu-26.04:2.2.3]
+  clients/telnet:
+    title: A telnet client is on disk
+    fact: clients.binaries.*
+    keys: {pattern: '/(inetutils-telnet|telnet-ssl|telnet\.netkit)$'}
+    expect: {not: {}}
+    severity: info
+    score: 1.0
+    message: "{subject} is on disk: telnet sends the session, password included, in plain text"
+    fix: remove the package that ships {subject} (apt purge telnet inetutils-telnet telnet-ssl) and use ssh
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/inetutils-telnet.1.html
+    tags: [clients, cis-ubuntu-26.04:2.2.4]
+  clients/ldap:
+    title: The OpenLDAP command-line clients are on disk
+    fact: clients.binaries.*
+    keys: {pattern: '/(ldapsearch|ldapmodify)$'}
+    expect: {not: {}}
+    severity: info
+    score: 1.0
+    message: "{subject} is on disk: a tool to query and change directory entries, which a host that does not administer LDAP has no use for"
+    fix: remove the package that ships {subject} (apt purge ldap-utils), unless this host administers LDAP
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/ldapsearch.1.html
+    tags: [clients, cis-ubuntu-26.04:2.2.5]
+  clients/ftp:
+    title: An FTP or TFTP client is on disk
+    fact: clients.binaries.*
+    keys: {pattern: '/(tnftp|inetutils-ftp|ftp-ssl|netkit-ftp|atftp)$'}
+    expect: {not: {}}
+    severity: info
+    score: 1.0
+    message: "{subject} is on disk: FTP sends the password in plain text, and TFTP has no login at all"
+    fix: remove the package that ships {subject} (apt purge ftp tnftp atftp inetutils-ftp ftp-ssl) and use sftp, scp or curl
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/tnftp.1.html
+    tags: [clients, cis-ubuntu-26.04:2.2.6]

@@ -461,6 +461,18 @@ units while enabled or active and not masked, by unit, never by package:
 `inetutils-inetd`, `squid`, `apache2` and `nginx`, `xinetd`. NIS and TFTP
 (2.1.10, 2.1.17) are `plaintext-servers` rules, in `default`.
 
+## Clients not in use
+
+The `clients` ruleset, also without `default` (`--tags clients` or
+`--tags 'cis-ubuntu-26.04:2.2.*'`), fails each program of CIS 2.2.1 to 2.2.6’s
+packages found on disk by the `clients-binaries` collector, which stats each
+under `/usr/*bin`: `ypbind`, `ypwhich`, `ypcat`, `ypmatch` (NIS), `netkit-rsh`,
+`netkit-rcp`, `netkit-rlogin`, `netkit-ntalk`, `inetutils-telnet`,
+`telnet-ssl`, `telnet.netkit`, `ldapsearch`, `ldapmodify`, `tnftp`,
+`inetutils-ftp`, `ftp-ssl`, `netkit-ftp` and `atftp`. It stats each package’s
+own name, never an alternatives link such as `/usr/bin/rsh`, which
+openssh-client may point at `ssh`.
+
 ## Running services
 
 `processes.services` holds, per system service with a running process, its
