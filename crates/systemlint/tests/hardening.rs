@@ -4765,53 +4765,41 @@ fn ufw_is_asked_for_and_its_default_policies_deny_once_it_is_switched_on() {
             .map(|(_, _, o)| o)
             .collect::<Vec<_>>()
     };
-    let on = |defaults: Value, net: Value| {
+    let on = |input: &str, output: &str, forward: &str| {
         let mut document = ufw(&["/usr/sbin/ufw"], Some(json!({"ENABLED": "yes"})));
-        document["ufw"]["defaults"] = defaults;
-        document["sysctl"] = json!({"settings": {"net": net}});
+        document["ufw"]["defaults"] = json!({"DEFAULT_INPUT_POLICY": input, "DEFAULT_OUTPUT_POLICY": output, "DEFAULT_FORWARD_POLICY": forward});
         document
     };
-    let stock = json!({"DEFAULT_INPUT_POLICY": "DROP", "DEFAULT_OUTPUT_POLICY": "ACCEPT", "DEFAULT_FORWARD_POLICY": "DROP"});
-    let forwarding = |v4: u8, v6: u8| json!({"ipv4": {"ip_forward": v4}, "ipv6": {"conf": {"all": {"forwarding": v6}}}});
     assert_eq!(rule("ufw/not-installed", &ufw(&[], None)), [Outcome::Fail]);
     assert_eq!(
         rule("ufw/not-installed", &ufw(&["/usr/sbin/ufw"], None)),
         [Outcome::Pass]
     );
-    let host = on(stock.clone(), forwarding(1, 1));
-    assert_eq!(rule("ufw/input-accepted", &host), [Outcome::Pass]);
+    let stock = on("DROP", "ACCEPT", "DROP");
+    assert_eq!(rule("ufw/input-accepted", &stock), [Outcome::Pass]);
     assert_eq!(
-        rule("ufw/output-accepted", &host),
+        rule("ufw/output-accepted", &stock),
         [Outcome::Fail],
         "the stock default"
     );
-    assert_eq!(rule("ufw/routed-accepted", &host), [Outcome::Pass]);
-    let open = json!({"DEFAULT_INPUT_POLICY": "ACCEPT", "DEFAULT_OUTPUT_POLICY": "reject", "DEFAULT_FORWARD_POLICY": "ACCEPT"});
+    assert_eq!(rule("ufw/routed-accepted", &stock), [Outcome::Pass]);
+    let open = on("ACCEPT", "reject", "REJECT");
+    assert_eq!(rule("ufw/input-accepted", &open), [Outcome::Fail]);
     assert_eq!(
-        rule("ufw/input-accepted", &on(open.clone(), forwarding(0, 0))),
-        [Outcome::Fail]
+        rule("ufw/input-accepted", &on("REJECT", "DROP", "DROP")),
+        [Outcome::Pass]
     );
     assert_eq!(
-        rule("ufw/output-accepted", &on(open.clone(), forwarding(0, 0))),
+        rule("ufw/output-accepted", &open),
         [Outcome::Pass],
         "either case"
     );
     assert_eq!(
-        rule("ufw/routed-accepted", &on(open.clone(), forwarding(0, 0))),
-        [Outcome::Pass],
-        "nothing forwarded"
-    );
-    assert_eq!(
-        rule("ufw/routed-accepted", &on(open.clone(), forwarding(0, 1))),
+        rule("ufw/routed-accepted", &open),
         [Outcome::Fail],
-        "IPv6 forwarded"
+        "routed asks deny alone"
     );
-    assert_eq!(
-        rule("ufw/routed-accepted", &on(open, forwarding(1, 0))),
-        [Outcome::Fail],
-        "IPv4 forwarded"
-    );
-    let mut off = on(stock, forwarding(1, 1));
+    let mut off = on("ACCEPT", "ACCEPT", "ACCEPT");
     off["ufw"]["conf"]["ENABLED"] = json!("no");
     assert_eq!(
         rule("ufw/input-accepted", &off),

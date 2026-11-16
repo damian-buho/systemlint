@@ -93,16 +93,13 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.4, '!default']
   ufw/routed-accepted:
-    title: ufw routing forwarded traffic by default
+    title: ufw not denying routed traffic by default
+    fact: ufw.defaults.DEFAULT_FORWARD_POLICY
     when: *on
-    facts:
-      any:
-        - {fact: ufw.defaults.DEFAULT_FORWARD_POLICY, expect: *deny}
-        - fact: sysctl.settings.net
-          expect: {required: [ipv4, ipv6], properties: {ipv4: {required: [ip_forward], properties: {ip_forward: {const: 0}}}, ipv6: {required: [conf], properties: {conf: {required: [all], properties: {all: {required: [forwarding], properties: {forwarding: {const: 0}}}}}}}}}
+    expect: {pattern: "(?i)^drop$"}
     severity: info
     score: 1.0
-    message: "/etc/default/ufw sets DEFAULT_FORWARD_POLICY={got} while the kernel forwards packets; the benchmark asks to deny routed traffic no rule allows"
+    message: "/etc/default/ufw sets DEFAULT_FORWARD_POLICY={got}; the benchmark asks to deny routed traffic no rule allows, whether or not the kernel forwards"
     fix: run ufw default deny routed, then ufw route allow each forward the host needs
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.5, '!default']

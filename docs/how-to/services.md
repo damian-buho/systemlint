@@ -430,14 +430,14 @@ which loaded no rules either; under `--root`, where no unit carries `active`,
 it answers `skip` rather than `unknown`.
 
 The `ufw-defaults` collector reads `/etc/default/ufw`, where `ufw default`
-writes the default policies, into `ufw.defaults`. Once `ENABLED=yes`, each
-policy passes as `DROP` or `REJECT`, either case:
+writes the default policies, into `ufw.defaults`. Once `ENABLED=yes`, the
+incoming and outgoing policies pass as `DROP` or `REJECT`, either case:
 
 | Rule | Severity | Fails when |
 | --- | --- | --- |
 | `ufw/input-accepted` | warning | `DEFAULT_INPUT_POLICY` accepts, so every port no rule denies is open (CIS 4.1.3) |
 | `ufw/output-accepted` | info | `DEFAULT_OUTPUT_POLICY` accepts, as stock ufw does (CIS 4.1.4, *standard-only*, out of `default`) |
-| `ufw/routed-accepted` | info | `DEFAULT_FORWARD_POLICY` accepts while `net.ipv4.ip_forward` or `net.ipv6.conf.all.forwarding` is on (CIS 4.1.5, *standard-only*, out of `default`) |
+| `ufw/routed-accepted` | info | `DEFAULT_FORWARD_POLICY` is other than `DROP`, whether or not the kernel forwards, as CIS reads the file then (CIS 4.1.5, *standard-only*, out of `default`) |
 
 ## Plain-text servers
 
