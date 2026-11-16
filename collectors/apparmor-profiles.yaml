@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: apparmor-profiles
+live: true
+privileged: true
+read:
+  files: [/sys/kernel/security/apparmor/profiles]
+parse:
+  plugin: formats
+  op: match
+  with:
+    pattern: '^(?P<key>.+) \((?P<mode>[a-z]+)\)$'
+into: apparmor.profiles

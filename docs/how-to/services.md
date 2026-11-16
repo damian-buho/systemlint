@@ -4,16 +4,16 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Kernel parameters, modules and audit rules, AIDE, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables
+# Kernel parameters, modules and audit rules, AIDE, AppArmor, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables
 
-Twenty collectors record service configuration as facts, `systemd-units` on
+Twenty-two collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd`, `nftables` on `systemlint-firewall`, `processes-services`
 and `ports-listening` on `systemlint-proc` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
 `sysctl`, `ufw` judges the two `ufw` collectors and the state of
 `ufw.service`, `nftables` judges the loaded nftables ruleset and the state of
 `nftables.service`, `restart` judges the code each running service holds, `services` judges the sandbox of each unit, and
-`kernel-modules` judges the module facts, `audit` the audit rules, and `aide` whether AIDE checks the disk on a schedule; no shipped rule reads the Docker
+`kernel-modules` judges the module facts, `audit` the audit rules, `aide` whether AIDE checks the disk on a schedule, and `apparmor` whether AppArmor confines anything; no shipped rule reads the Docker
 facts yet.
 
 | Collector | Reads | Op | Facts at |
@@ -29,6 +29,8 @@ facts yet.
 | `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `options` | `audit.loaded./usr/sbin/auditctl` |
 | `auditd-binary` | `auditd` in `/usr/local/sbin`, `/usr/sbin`, `/sbin` and their `bin` siblings | `stat` | `auditd.binary` |
 | `kernel-cmdline` | `/proc/cmdline` on a live host | `kv` | `kernel.cmdline` |
+| `apparmor-binary` | `apparmor_parser` in `/usr/local/sbin`, `/usr/sbin`, `/sbin` and their `bin` siblings | `stat` | `apparmor.binary` |
+| `apparmor-profiles` | `/sys/kernel/security/apparmor/profiles` on a live host, as root | `match` | `apparmor.profiles.<profile>` |
 | `aide-binary` | `aide` in `/usr/local/bin`, `/usr/bin`, `/bin` and their `sbin` siblings | `stat` | `aide.binary` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
 | `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system`, with its `stat` | `units` | `systemd.units.<unit>` |
@@ -277,6 +279,20 @@ The `aide` ruleset carries CIS controls alone: `aide/not-installed` fails when
 when `dailyaidecheck.timer` is missing, not enabled or not active, or
 `dailyaidecheck.service` is masked. Under `--root` no unit has an active
 state, so the timer passes on being enabled.
+
+## AppArmor
+
+`apparmor-profiles` reads every loaded profile with its `mode` (`enforce`,
+`complain`, `kill`, `prompt`, `unconfined`), which the kernel lists to root
+alone, so unprivileged its rules are `Not run`. The `apparmor` ruleset carries
+standard controls alone, since a host may confine with another LSM:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `apparmor/not-installed` | info | no `apparmor_parser` is on disk |
+| `apparmor/no-profiles` | info | the parser is on disk and the kernel lists no profile (`apparmor=0`, another LSM, nothing loaded) |
+| `apparmor/service-off` | info | the parser is on disk and `apparmor.service` is missing, not enabled or not active |
+| `apparmor/not-enforcing` | info | a loaded profile is in any mode but `enforce` |
 
 ## Docker daemon
 

@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: apparmor-binary
+read:
+  stat: [/usr/local/*bin/apparmor_parser, /usr/*bin/apparmor_parser, /*bin/apparmor_parser]
+parse: {plugin: formats, op: stat}
+into: apparmor.binary

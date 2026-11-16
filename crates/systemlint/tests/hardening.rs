@@ -4220,3 +4220,109 @@ fn aide_fails_off_disk_and_without_an_enabled_running_daily_check() {
     assert_eq!(scheduled(json!({})), Outcome::Fail, "no timer at all");
     assert_eq!(aide("aide/unscheduled", false, json!({})), Outcome::Skip);
 }
+
+// One apparmor rule’s outcomes, parser on disk or not, over securityfs `profiles` as apparmor-profiles reads it.
+fn apparmor(rule: &str, installed: bool, profiles: &str, units: Value) -> Vec<(String, Outcome)> {
+    let file = serde_json::from_value(
+        json!({"path": "/sys/kernel/security/apparmor/profiles", "content": profiles}),
+    )
+    .unwrap();
+    let with = json!({"pattern": "^(?P<key>.+) \\((?P<mode>[a-z]+)\\)$"});
+    let loaded = systemlint_formats::r#match(&[Input::File(file)], with.as_object().unwrap())
+        .unwrap()
+        .facts;
+    let binary = if installed {
+        json!({"/usr/sbin/apparmor_parser": {"exists": true}})
+    } else {
+        json!({})
+    };
+    let document = json!({"apparmor": {"binary": binary, "profiles": loaded}, "systemd": {"state": units}, "collectors": {
+        "apparmor-binary": {"status": "ok", "into": "apparmor.binary"},
+        "apparmor-profiles": {"status": "ok", "into": "apparmor.profiles"},
+        "systemd-state": {"status": "ok", "into": "systemd.state"}}});
+    judge("apparmor", &document)
+        .into_iter()
+        .filter(|(r, _, _)| r == rule)
+        .map(|(_, s, o)| (s, o))
+        .collect()
+}
+
+#[test]
+fn apparmor_fails_off_disk_unloaded_unstarted_and_each_profile_short_of_enforce() {
+    let loaded = "/usr/bin/man (enforce)\nsnap.firefox.firefox (complain)\nbusybox (unconfined)\n/usr/sbin/cupsd//third_party (enforce)\n";
+    let on = json!({"apparmor.service": {"enabled": true, "masked": false, "active": "active"}});
+    let one = |rule: &str, installed: bool, profiles: &str, units: Value| {
+        apparmor(rule, installed, profiles, units)[0].1
+    };
+    assert_eq!(
+        one("apparmor/not-installed", true, loaded, on.clone()),
+        Outcome::Pass
+    );
+    assert_eq!(
+        one("apparmor/not-installed", false, loaded, on.clone()),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one("apparmor/no-profiles", true, loaded, on.clone()),
+        Outcome::Pass
+    );
+    assert_eq!(
+        one("apparmor/no-profiles", true, "", on.clone()),
+        Outcome::Fail,
+        "apparmor=0 leaves no profiles file"
+    );
+    assert_eq!(
+        one("apparmor/no-profiles", false, "", on.clone()),
+        Outcome::Skip
+    );
+    assert_eq!(
+        one("apparmor/service-off", true, loaded, on.clone()),
+        Outcome::Pass
+    );
+    assert_eq!(
+        one(
+            "apparmor/service-off",
+            true,
+            loaded,
+            json!({"apparmor.service": {"enabled": false, "masked": true}})
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one(
+            "apparmor/service-off",
+            true,
+            loaded,
+            json!({"apparmor.service": {"enabled": true, "active": "failed"}})
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one(
+            "apparmor/service-off",
+            true,
+            loaded,
+            json!({"apparmor.service": {"enabled": true}})
+        ),
+        Outcome::Pass,
+        "under --root no unit has an active state"
+    );
+    assert_eq!(
+        one("apparmor/service-off", true, loaded, json!({})),
+        Outcome::Fail,
+        "no unit at all"
+    );
+    assert_eq!(
+        one("apparmor/service-off", false, loaded, json!({})),
+        Outcome::Skip
+    );
+    assert_eq!(
+        apparmor("apparmor/not-enforcing", true, loaded, on),
+        [
+            ("/usr/bin/man".to_owned(), Outcome::Pass),
+            ("/usr/sbin/cupsd//third_party".to_owned(), Outcome::Pass),
+            ("busybox".to_owned(), Outcome::Fail),
+            ("snap.firefox.firefox".to_owned(), Outcome::Fail)
+        ]
+    );
+}
