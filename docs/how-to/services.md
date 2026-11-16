@@ -71,6 +71,14 @@ router or a container host forwards by design), `ipv4-send-redirects` 0,
 `ipv6-source-route` 0 and `ipv6-accept-ra` 0 (a host configured by SLAAC
 needs it).
 
+dev-sec alone asks a few more, each `'!default'` and tagged
+`dev-sec-linux-baseline:<id>`: `ip-flood/icmp-ratemask` 88089,
+`ip-flood/tcp-rfc1337` 1, `ip-routing/arp-ignore` 1 or 2 and
+`arp-announce` 2 on `all`, `shared-media` 1, the IPv6 router solicitation,
+router advertisement and autoconfiguration keys 0, `ipv6-max-addresses` 1,
+`kernel/sysrq` 0, and `coredump/core-pattern-absolute`, an absolute or piped
+`kernel.core_pattern` while `fs.suid_dumpable` is 2.
+
 ## Kernel modules
 
 Five collectors compose kmod’s own answers with `formats words`, or `formats

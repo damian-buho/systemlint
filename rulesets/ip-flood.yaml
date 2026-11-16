@@ -39,3 +39,23 @@ rules:
     fix: set net.ipv4.icmp_ignore_bogus_error_responses = 1, the kernel default
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-flood, sysctl, cis-ubuntu-26.04:3.3.1.6, dev-sec-linux-baseline:sysctl-03]
+  ip-flood/icmp-ratemask:
+    title: ICMP rate limit mask not dev-sec’s
+    fact: sysctl.settings.net.ipv4.icmp_ratemask
+    expect: {const: 88089}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.icmp_ratemask is {got}, not 88089, which also rate-limits echo replies and source quench"
+    fix: set net.ipv4.icmp_ratemask = 88089
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-flood, sysctl, dev-sec-linux-baseline:sysctl-06, '!default']
+  ip-flood/tcp-rfc1337:
+    title: TIME-WAIT assassination not refused
+    fact: sysctl.settings.net.ipv4.tcp_rfc1337
+    expect: {const: 1}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.tcp_rfc1337 is {got}, so a stray RST may end a connection in TIME-WAIT early (RFC 1337)"
+    fix: set net.ipv4.tcp_rfc1337 = 1
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-flood, sysctl, dev-sec-linux-baseline:sysctl-10, '!default']

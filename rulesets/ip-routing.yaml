@@ -157,3 +157,102 @@ rules:
     fix: set net.ipv6.conf.all.accept_ra = 0 and net.ipv6.conf.default.accept_ra = 0, unless this host configures IPv6 from router advertisements
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.7, cis-ubuntu-26.04:3.3.2.8, dev-sec-linux-baseline:sysctl-25, '!default']
+  ip-routing/arp-ignore:
+    title: ARP answered for addresses of other interfaces
+    fact: sysctl.settings.net.ipv4.conf.*.arp_ignore
+    keys: {enum: [all]}
+    expect: {enum: [1, 2]}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.conf.all.arp_ignore is {got}, so this host answers ARP for an address on any of its interfaces"
+    fix: set net.ipv4.conf.all.arp_ignore = 1
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-08, '!default']
+  ip-routing/arp-announce:
+    title: ARP requests carry any local address
+    fact: sysctl.settings.net.ipv4.conf.*.arp_announce
+    keys: {enum: [all]}
+    expect: {const: 2}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.conf.all.arp_announce is {got}, so ARP requests may name a source address from another interface"
+    fix: set net.ipv4.conf.all.arp_announce = 2
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-09, '!default']
+  ip-routing/shared-media:
+    title: Redirects for gateways on other subnets refused
+    fact: sysctl.settings.net.ipv4.conf.*.shared_media
+    keys: {enum: [all, default]}
+    expect: {const: 1}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.conf.{subject}.shared_media is {got}, not the kernel’s default 1 dev-sec asks"
+    fix: set net.ipv4.conf.all.shared_media = 1 and net.ipv4.conf.default.shared_media = 1
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-12, '!default']
+  ip-routing/ipv6-router-solicitations:
+    title: IPv6 router solicitations sent
+    fact: sysctl.settings.net.ipv6.conf.*.router_solicitations
+    keys: {enum: [all, default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv6.conf.{subject}.router_solicitations is {got}, so this host asks the link for an IPv6 router; a host configured by SLAAC needs it"
+    fix: set net.ipv6.conf.all.router_solicitations = 0 and net.ipv6.conf.default.router_solicitations = 0, unless this host configures IPv6 from router advertisements
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-21, '!default']
+  ip-routing/ipv6-ra-router-preference:
+    title: IPv6 router preference taken from advertisements
+    fact: sysctl.settings.net.ipv6.conf.*.accept_ra_rtr_pref
+    keys: {enum: [default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv6.conf.default.accept_ra_rtr_pref is {got}, so a router advertisement may rank itself above the real router"
+    fix: set net.ipv6.conf.default.accept_ra_rtr_pref = 0, unless this host configures IPv6 from router advertisements
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-22, '!default']
+  ip-routing/ipv6-ra-prefix-info:
+    title: IPv6 prefixes taken from advertisements
+    fact: sysctl.settings.net.ipv6.conf.*.accept_ra_pinfo
+    keys: {enum: [default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv6.conf.default.accept_ra_pinfo is {got}, so a router advertisement may hand this host an address prefix"
+    fix: set net.ipv6.conf.default.accept_ra_pinfo = 0, unless this host configures IPv6 from router advertisements
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-23, '!default']
+  ip-routing/ipv6-ra-default-router:
+    title: IPv6 default router taken from advertisements
+    fact: sysctl.settings.net.ipv6.conf.*.accept_ra_defrtr
+    keys: {enum: [default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv6.conf.default.accept_ra_defrtr is {got}, so a router advertisement may become this host’s default route"
+    fix: set net.ipv6.conf.default.accept_ra_defrtr = 0, unless this host configures IPv6 from router advertisements
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-24, '!default']
+  ip-routing/ipv6-autoconf:
+    title: IPv6 addresses configured from advertisements
+    fact: sysctl.settings.net.ipv6.conf.*.autoconf
+    keys: {enum: [all, default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv6.conf.{subject}.autoconf is {got}, so this host takes an IPv6 address from any router advertisement; a host configured by SLAAC needs it"
+    fix: set net.ipv6.conf.all.autoconf = 0 and net.ipv6.conf.default.autoconf = 0, unless this host configures IPv6 from router advertisements
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-26, '!default']
+  ip-routing/ipv6-max-addresses:
+    title: More than one IPv6 address per interface
+    fact: sysctl.settings.net.ipv6.conf.*.max_addresses
+    keys: {enum: [default]}
+    expect: {const: 1}
+    severity: info
+    score: 1.0
+    message: "net.ipv6.conf.default.max_addresses is {got}; dev-sec asks 1, which leaves no room for RFC 8981 temporary addresses beside the stable one"
+    fix: set net.ipv6.conf.default.max_addresses = 1, unless this host uses temporary addresses
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-28, '!default']

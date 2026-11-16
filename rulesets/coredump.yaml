@@ -41,3 +41,14 @@ rules:
     references:
       - {title: Lynis KRNL-5820, url: "https://cisofy.com/lynis/controls/KRNL-5820/"}
     tags: [coredump, auth, lynis]
+  coredump/core-pattern-absolute:
+    title: Setuid core dumps go to a relative path
+    fact: sysctl.settings.kernel.core_pattern
+    when: {sysctl.settings.fs.suid_dumpable: 2}
+    expect: {pattern: "^\\|?/"}
+    severity: info
+    score: 1.0
+    message: "kernel.core_pattern is {got} while fs.suid_dumpable is 2; the kernel refuses a setuid dump to a relative path, and dev-sec asks an absolute one or a pipe"
+    fix: set kernel.core_pattern to an absolute path or a |pipe, or fs.suid_dumpable = 0
+    docs: https://docs.kernel.org/admin-guide/sysctl/fs.html
+    tags: [coredump, sysctl, dev-sec-linux-baseline:sysctl-31b, '!default']

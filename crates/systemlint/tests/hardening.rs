@@ -3799,3 +3799,123 @@ fn the_benchmark_sysctl_keys_pass_only_at_their_value_on_all_and_default() {
         }
     }
 }
+
+#[test]
+fn the_dev_sec_sysctl_keys_pass_only_at_their_value() {
+    let cases = [
+        (
+            "ip-flood",
+            "icmp-ratemask",
+            "net.ipv4.icmp_ratemask",
+            vec![88089],
+            vec![88088, 88090],
+        ),
+        (
+            "ip-flood",
+            "tcp-rfc1337",
+            "net.ipv4.tcp_rfc1337",
+            vec![1],
+            vec![0, 2],
+        ),
+        (
+            "ip-routing",
+            "arp-ignore",
+            "net.ipv4.conf.all.arp_ignore",
+            vec![1, 2],
+            vec![0, 3],
+        ),
+        (
+            "ip-routing",
+            "arp-announce",
+            "net.ipv4.conf.all.arp_announce",
+            vec![2],
+            vec![1, 3],
+        ),
+        (
+            "ip-routing",
+            "shared-media",
+            "net.ipv4.conf.default.shared_media",
+            vec![1],
+            vec![0, 2],
+        ),
+        (
+            "ip-routing",
+            "ipv6-router-solicitations",
+            "net.ipv6.conf.all.router_solicitations",
+            vec![0],
+            vec![-1, 1],
+        ),
+        (
+            "ip-routing",
+            "ipv6-ra-router-preference",
+            "net.ipv6.conf.default.accept_ra_rtr_pref",
+            vec![0],
+            vec![1],
+        ),
+        (
+            "ip-routing",
+            "ipv6-ra-prefix-info",
+            "net.ipv6.conf.default.accept_ra_pinfo",
+            vec![0],
+            vec![1],
+        ),
+        (
+            "ip-routing",
+            "ipv6-ra-default-router",
+            "net.ipv6.conf.default.accept_ra_defrtr",
+            vec![0],
+            vec![1],
+        ),
+        (
+            "ip-routing",
+            "ipv6-autoconf",
+            "net.ipv6.conf.default.autoconf",
+            vec![0],
+            vec![1],
+        ),
+        (
+            "ip-routing",
+            "ipv6-max-addresses",
+            "net.ipv6.conf.default.max_addresses",
+            vec![1],
+            vec![0, 2],
+        ),
+        ("kernel", "sysrq", "kernel.sysrq", vec![0], vec![1, 176]),
+    ];
+    for (ruleset, name, key, good, bad) in cases {
+        let rule = format!("{ruleset}/{name}");
+        let judged = |value: i64| {
+            let mut settings = json!({});
+            let mut at = &mut settings;
+            for part in key.split('.') {
+                at = &mut at[part];
+            }
+            *at = json!(value);
+            outcomes(ruleset, &rule, &json!({"sysctl": {"settings": settings}}))
+        };
+        for value in good {
+            assert_eq!(judged(value), [Outcome::Pass], "{rule} at {value}");
+        }
+        for value in bad {
+            assert_eq!(judged(value), [Outcome::Fail], "{rule} at {value}");
+        }
+    }
+    let core = |dumpable: i64, pattern: &str| {
+        let settings =
+            json!({"fs": {"suid_dumpable": dumpable}, "kernel": {"core_pattern": pattern}});
+        outcomes(
+            "coredump",
+            "coredump/core-pattern-absolute",
+            &json!({"sysctl": {"settings": settings}}),
+        )
+    };
+    assert_eq!(core(2, "|/usr/share/apport/apport -p%p"), [Outcome::Pass]);
+    assert_eq!(core(2, "/var/crash/core.%p"), [Outcome::Pass]);
+    assert_eq!(core(2, "core"), [Outcome::Fail]);
+    assert_eq!(core(2, "| relative"), [Outcome::Fail]);
+    assert_eq!(
+        core(1, "core"),
+        [Outcome::Skip],
+        "only suid_dumpable 2 dumps setuid programs as root"
+    );
+}
