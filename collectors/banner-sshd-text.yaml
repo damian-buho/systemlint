@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: banner-sshd-text
+read:
+  files-from: [sshd.settings.banner.*]
+parse: {plugin: formats, op: lines}
+into: banner-text.sshd

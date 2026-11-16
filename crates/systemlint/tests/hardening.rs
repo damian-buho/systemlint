@@ -940,7 +940,7 @@ fn banner(stats: Value) -> Vec<(String, String, Outcome)> {
         &json!({"banner": {"files": stats}, "collectors": {"banner-files": {"status": "ok", "into": "banner.files"}}}),
     )
     .into_iter()
-    .filter(|(r, _, _)| r != "banner/discloses-system")
+    .filter(|(r, _, _)| r == "banner/owner" || r == "banner/writable")
     .collect()
 }
 
@@ -4335,7 +4335,7 @@ fn a_banner_fails_on_an_agetty_escape_naming_the_system_but_not_on_an_escaped_ba
     let banner = |text: &str| {
         let file = serde_json::from_value(json!({"path": "/etc/issue", "content": text})).unwrap();
         let lines = systemlint_formats::lines(&[Input::File(file)]).facts;
-        let document = json!({"banner-text": lines, "collectors": {"banner-text": {"status": "ok", "into": "banner-text"}}});
+        let document = json!({"banner-text": {"sshd": lines}, "collectors": {"banner-sshd-text": {"status": "ok", "into": "banner-text.sshd"}}});
         judge("banner", &document)
             .into_iter()
             .filter(|(r, _, _)| r == "banner/discloses-system")
@@ -4361,4 +4361,38 @@ fn a_banner_fails_on_an_agetty_escape_naming_the_system_but_not_on_an_escaped_ba
         "an escaped backslash shows a backslash"
     );
     assert_eq!(banner("C:\\\\\\share\n"), [Outcome::Fail]);
+}
+
+#[test]
+fn the_update_notifier_motd_units_fail_enabled_or_running_and_pass_masked_or_off() {
+    for (rule, unit) in [
+        (
+            "banner/update-notifier-service",
+            "update-notifier-motd.service",
+        ),
+        ("banner/update-notifier-timer", "update-notifier-motd.timer"),
+    ] {
+        let one = |enabled: bool, masked: bool, active: &str| {
+            let state = json!({unit: {"enabled": enabled, "masked": masked, "active": active}});
+            outcomes("banner", rule, &json!({"systemd": {"state": state}}))
+        };
+        assert_eq!(
+            one(true, false, "inactive"),
+            [Outcome::Fail],
+            "{unit} enabled"
+        );
+        assert_eq!(
+            one(false, false, "active"),
+            [Outcome::Fail],
+            "{unit} running"
+        );
+        assert_eq!(one(false, false, "inactive"), [Outcome::Pass], "{unit} off");
+        assert_eq!(one(true, true, "active"), [Outcome::Pass], "{unit} masked");
+        let absent = outcomes(
+            "banner",
+            rule,
+            &json!({"systemd": {"state": {"ssh.service": {"enabled": true}}}}),
+        );
+        assert!(absent.is_empty(), "{rule}: no unit, no check");
+    }
 }

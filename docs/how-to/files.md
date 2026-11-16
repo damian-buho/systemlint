@@ -107,14 +107,20 @@ The `banner-files` collector stats `/etc/motd`, `/etc/motd.d` and its files,
 `Banner` names (`sshd.settings.banner`) into `banner.sshd.<path>`, so it runs
 only where the `sshd` collector did. They sit outside `files`, since nobody
 becomes root through a banner. `banner-text` reads the lines of the motd and
-issue files, `issue.d` included, into `banner-text.<path>`, outside `banner`
-so no stat rule binds them. The `banner` ruleset judges them:
+issue files, `issue.d` and `/run/motd.dynamic` (the `motd=` file of Ubuntu’s
+stock `pam_motd` lines) included, into `banner-text.files.<path>`, and
+`banner-sshd-text` the file sshd’s `Banner` names into
+`banner-text.sshd.<path>`, outside `banner` so no stat rule binds them. The
+`banner` ruleset judges them, and the update-notifier units in
+`systemd.state`:
 
 | Rule | Severity | Fails when |
 | --- | --- | --- |
 | `banner/writable` | warning | its group or others may write it, so they can show every user a forged notice at login |
 | `banner/owner` | warning | it is not owned by uid 0 |
-| `banner/discloses-system` | info | it holds an agetty `\s`, `\r`, `\v` or `\m` escape, either case, not after an escaping backslash (CIS 1.6.1 to 1.6.3, *standard-only*; CIS also asks for no `ID` of `os-release`, left out) |
+| `banner/discloses-system` | info | it holds an agetty `\s`, `\r`, `\v` or `\m` escape, either case, not after an escaping backslash (CIS 1.6.1 to 1.6.5, *standard-only*; CIS also asks for no `ID` of `os-release`, left out) |
+| `banner/update-notifier-service` | info | `update-notifier-motd.service` is enabled or running and not masked, so the update counts reach the motd (CIS 1.6.11, *standard-only*) |
+| `banner/update-notifier-timer` | info | `update-notifier-motd.timer` is enabled or running and not masked (CIS 1.6.12, *standard-only*) |
 
 ## Cron
 

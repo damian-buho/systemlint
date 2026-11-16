@@ -4,6 +4,6 @@
 
 id: banner-text
 read:
-  files: [/etc/motd, /etc/motd.d/*, /etc/issue, /etc/issue.d/*, /usr/lib/issue.d/*, /run/issue.d/*, /etc/issue.net]
+  files: [/etc/motd, /etc/motd.d/*, /etc/issue, /etc/issue.d/*, /usr/lib/issue.d/*, /run/issue.d/*, /etc/issue.net, /run/motd.dynamic]
 parse: {plugin: formats, op: lines}
-into: banner-text
+into: banner-text.files
