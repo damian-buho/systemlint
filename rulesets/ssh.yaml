@@ -287,4 +287,4 @@ rules:
     message: "{subject} has UsePAM {got}, so logins skip the PAM account and session stacks: lockout, limits and expiry checks"
     fix: set UsePAM yes
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.24]
+    tags: [ssh, cis-ubuntu-26.04:5.1.24, stig-ubuntu-26.04:UBTU-24-500050]
