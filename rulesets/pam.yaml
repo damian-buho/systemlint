@@ -109,7 +109,7 @@ rules:
     message: "{subject} never calls pam_pwquality, so a new password is not checked against a dictionary or a minimum length"
     fix: install libpam-pwquality, which adds pam_pwquality to {subject} through pam-auth-update
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
-    tags: [auth, pam, cis-ubuntu-26.04:5.3.2.3, '!default']
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.2.3, stig-ubuntu-26.04:UBTU-24-300016, '!default']
   pam/pwhistory-enabled:
     title: Password changes skip pam_pwhistory
     fact: auth.pam.*
