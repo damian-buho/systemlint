@@ -69,3 +69,13 @@ rules:
     fix: run systemctl mask --now {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_motd.8.html
     tags: ['!default', banner, cis-ubuntu-26.04:1.6.12]
+  banner/stig-issue-empty:
+    title: No local login banner
+    fact: banner-text.files
+    expect: {required: [/etc/issue], properties: {/etc/issue: {contains: {pattern: "\\S"}}}}
+    severity: info
+    score: 1.0
+    message: "/etc/issue is missing or blank, so the console login prompt shows no notice before access; the STIG asks the site’s notice there"
+    fix: write the site’s login notice to /etc/issue
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/agetty.8.html
+    tags: ['!default', banner, stig-ubuntu-26.04:UBTU-24-200660]

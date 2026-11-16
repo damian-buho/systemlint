@@ -140,6 +140,7 @@ stock `pam_motd` lines) included, into `banner-text.files.<path>`, and
 | `banner/discloses-system` | info | it holds an agetty `\s`, `\r`, `\v` or `\m` escape, either case, not after an escaping backslash (CIS 1.6.1 to 1.6.5, *standard-only*; CIS also asks for no `ID` of `os-release`, left out) |
 | `banner/update-notifier-service` | info | `update-notifier-motd.service` is enabled or running and not masked, so the update counts reach the motd (CIS 1.6.11, *standard-only*) |
 | `banner/update-notifier-timer` | info | `update-notifier-motd.timer` is enabled or running and not masked (CIS 1.6.12, *standard-only*) |
+| `banner/stig-issue-empty` | info | `/etc/issue` is missing or no line in it holds a visible character; the notice text itself is the site’s (STIG 200660, *standard-only*) |
 
 ## Cron
 

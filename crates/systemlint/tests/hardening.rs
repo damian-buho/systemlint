@@ -6488,3 +6488,19 @@ fn coredump_storage_apport_x_and_bluetooth_fail_at_their_edge() {
     );
     assert_eq!(bt(json!({"masked": true})), Outcome::Pass);
 }
+
+#[test]
+fn a_blank_or_missing_issue_fails_the_stig_banner() {
+    let issue = |files: Value| {
+        the(
+            "banner/stig-issue-empty",
+            &facts(&[("banner-text.files", files)]),
+        )
+    };
+    assert_eq!(
+        issue(json!({"/etc/issue": ["Authorized use only.", ""]})),
+        Outcome::Pass
+    );
+    assert_eq!(issue(json!({"/etc/issue": ["", "  "]})), Outcome::Fail);
+    assert_eq!(issue(json!({"/etc/issue.net": ["Notice"]})), Outcome::Fail);
+}
