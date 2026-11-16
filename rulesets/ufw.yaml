@@ -6,7 +6,7 @@ description: An installed ufw firewall left switched off, or never started at bo
 tags: [default]
 rules:
   ufw/not-installed:
-    title: No ufw program on disk
+    title: ufw is not installed
     fact: ufw.binary
     expect: {minProperties: 1}
     severity: info
@@ -16,7 +16,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.1, stig-ubuntu-26.04:UBTU-24-100300, '!default']
   ufw/disabled:
-    title: ufw installed but switched off
+    title: ufw is installed but switched off
     fact: ufw.conf.ENABLED
     when: {ufw.binary: {minProperties: 1}}
     expect: {const: "yes"}
@@ -29,7 +29,7 @@ rules:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
     tags: [ufw, firewall, lynis]
   ufw/service-masked:
-    title: ufw switched on but its service masked
+    title: ufw is switched on but its service is masked
     fact: systemd.state.*.masked
     keys: {const: ufw.service}
     when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes"}
@@ -43,7 +43,7 @@ rules:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
     tags: [ufw, firewall, systemd, lynis]
   ufw/service-failed:
-    title: ufw switched on but its service failed
+    title: ufw is switched on but its service failed
     fact: systemd.state.*.active
     keys: {const: ufw.service}
     when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes", systemd.state.*: {required: [active]}}
@@ -57,7 +57,7 @@ rules:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
     tags: [ufw, firewall, systemd, lynis]
   ufw/service-disabled:
-    title: ufw switched on but its service disabled
+    title: ufw is switched on but its service is disabled
     fact: systemd.state.*.enabled
     keys: {const: ufw.service}
     when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes", systemd.state.*.masked: false}
@@ -71,7 +71,7 @@ rules:
       - {title: Lynis FIRE-4590, url: "https://cisofy.com/lynis/controls/FIRE-4590/"}
     tags: [ufw, firewall, systemd, lynis]
   ufw/input-accepted:
-    title: ufw switched on but accepting incoming traffic by default
+    title: ufw is switched on but accepts incoming traffic by default
     fact: ufw.defaults.DEFAULT_INPUT_POLICY
     when: &on {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes"}
     expect: &deny {pattern: "(?i)^(drop|reject)$"}
@@ -82,7 +82,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.3]
   ufw/output-accepted:
-    title: ufw accepting outgoing traffic by default
+    title: ufw accepts outgoing traffic by default
     fact: ufw.defaults.DEFAULT_OUTPUT_POLICY
     when: *on
     expect: *deny
@@ -93,7 +93,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.4, '!default']
   ufw/routed-accepted:
-    title: ufw not denying routed traffic by default
+    title: ufw does not deny routed traffic by default
     fact: ufw.defaults.DEFAULT_FORWARD_POLICY
     when: *on
     expect: {pattern: "(?i)^drop$"}

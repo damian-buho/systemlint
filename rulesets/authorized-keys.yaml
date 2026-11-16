@@ -6,7 +6,7 @@ description: the keys each account’s AuthorizedKeysFile lets log in
 tags: [default]
 rules:
   authorized-keys/rsa-size:
-    title: Short RSA key authorized
+    title: A short RSA key is authorized
     fact: ssh.authorized-keys.*.keys.*.bits
     when:
       ssh.authorized-keys.*.keys.*.type: {pattern: "^ssh-rsa"}
@@ -21,7 +21,7 @@ rules:
     docs: https://man.openbsd.org/sshd_config#RequiredRSASize
     tags: [ssh]
   authorized-keys/dsa:
-    title: DSA key authorized
+    title: A DSA key is authorized
     fact: ssh.authorized-keys.*.keys.*.type
     when:
       /sshd/global/~1etc~1ssh~1sshd_config/pubkeyacceptedalgorithms: {contains: {pattern: "^ssh-dss"}}

@@ -6,7 +6,7 @@ description: Network settings that let a flood exhaust this host or use it to am
 tags: [default]
 rules:
   ip-flood/syncookies:
-    title: SYN cookies off
+    title: SYN cookies are off
     fact: sysctl.settings.net.ipv4.tcp_syncookies
     expect: {minimum: 1}
     severity: warning
@@ -18,7 +18,7 @@ rules:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [ip-flood, sysctl, lynis]
   ip-flood/broadcast-echo:
-    title: Broadcast pings answered
+    title: Broadcast pings are answered
     fact: sysctl.settings.net.ipv4.icmp_echo_ignore_broadcasts
     expect: {const: 1}
     severity: warning
@@ -30,7 +30,7 @@ rules:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [ip-flood, sysctl, lynis]
   ip-flood/bogus-icmp-errors:
-    title: Bogus ICMP error replies logged
+    title: Bogus ICMP error replies are logged
     fact: sysctl.settings.net.ipv4.icmp_ignore_bogus_error_responses
     expect: {const: 1}
     severity: info
@@ -40,7 +40,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-flood, sysctl, cis-ubuntu-26.04:3.3.1.6, dev-sec-linux-baseline:sysctl-03]
   ip-flood/icmp-ratemask:
-    title: ICMP rate limit mask not dev-sec’s
+    title: The ICMP rate limit mask is not dev-sec’s
     fact: sysctl.settings.net.ipv4.icmp_ratemask
     expect: {const: 88089}
     severity: info
@@ -50,7 +50,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-flood, sysctl, dev-sec-linux-baseline:sysctl-06, '!default']
   ip-flood/tcp-rfc1337:
-    title: TIME-WAIT assassination not refused
+    title: TIME-WAIT assassination is not refused
     fact: sysctl.settings.net.ipv4.tcp_rfc1337
     expect: {const: 1}
     severity: info

@@ -6,7 +6,7 @@ description: each user’s ~/.netrc, whose passwords are plain text, kept from o
 tags: [default]
 rules:
   netrc/readable:
-    title: A ~/.netrc readable by every user
+    title: A ~/.netrc is readable by every user
     fact: netrc.files.*.mode
     when: {netrc.files.*.kind: file}
     expect: {pattern: "^[0-7]{3}[0-3]$"}

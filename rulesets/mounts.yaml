@@ -6,7 +6,7 @@ description: World-writable mounts that honour set-user-ID bits, device files or
 tags: [default]
 rules:
   mounts/nosuid:
-    title: World-writable mount honours set-user-ID bits
+    title: A world-writable mount honours set-user-ID bits
     fact: mounts.active.*.options
     keys: {enum: [/tmp, /var/tmp, /dev/shm]}
     when: {mounts: {required: [active]}}
@@ -20,7 +20,7 @@ rules:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
     tags: [mounts, lynis]
   mounts/nodev:
-    title: World-writable mount honours device files
+    title: A world-writable mount honours device files
     fact: mounts.active.*.options
     keys: {enum: [/tmp, /var/tmp, /dev/shm]}
     when: {mounts: {required: [active]}}
@@ -34,7 +34,7 @@ rules:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
     tags: [mounts, lynis]
   mounts/noexec:
-    title: World-writable mount runs programs
+    title: A world-writable mount runs programs
     fact: mounts.active.*.options
     keys: {enum: [/tmp, /var/tmp, /dev/shm]}
     when: {mounts: {required: [active]}}
@@ -48,7 +48,7 @@ rules:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
     tags: [mounts, lynis]
   mounts/fstab-nosuid:
-    title: World-writable mount declared without nosuid
+    title: A world-writable mount is declared without nosuid
     fact: mounts.fstab.*.options
     keys: {enum: [/tmp, /var/tmp, /dev/shm]}
     when: {mounts: {not: {required: [active]}}}
@@ -62,7 +62,7 @@ rules:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
     tags: [mounts, lynis]
   mounts/fstab-nodev:
-    title: World-writable mount declared without nodev
+    title: A world-writable mount is declared without nodev
     fact: mounts.fstab.*.options
     keys: {enum: [/tmp, /var/tmp, /dev/shm]}
     when: {mounts: {not: {required: [active]}}}
@@ -76,7 +76,7 @@ rules:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
     tags: [mounts, lynis]
   mounts/fstab-noexec:
-    title: World-writable mount declared without noexec
+    title: A world-writable mount is declared without noexec
     fact: mounts.fstab.*.options
     keys: {enum: [/tmp, /var/tmp, /dev/shm]}
     when: {mounts: {not: {required: [active]}}}
@@ -174,7 +174,7 @@ rules:
     expect: {contains: {const: nodev}}
     severity: info
     score: 1.0
-    message: "{subject} is mounted without nodev; the benchmark asks it on this data mount"
+    message: "{subject} is mounted without nodev, so a device file on this data mount, unpacked from an archive or an image, gives raw access to the disk or memory it names"
     fix: add “nodev” to the mount’s options in “/etc/fstab” or its “.mount” unit, then run “mount -o remount,nodev {subject}”
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.3.2, cis-ubuntu-26.04:1.1.2.4.2, cis-ubuntu-26.04:1.1.2.6.2, cis-ubuntu-26.04:1.1.2.7.2]
@@ -186,7 +186,7 @@ rules:
     expect: {contains: {const: nosuid}}
     severity: info
     score: 1.0
-    message: "{subject} is mounted without nosuid; the benchmark asks it on this data mount"
+    message: "{subject} is mounted without nosuid, so a set-user-ID program on this data mount runs as its owner, root included, though no package installed it"
     fix: add “nosuid” to the mount’s options in “/etc/fstab” or its “.mount” unit, then run “mount -o remount,nosuid {subject}”
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.3.3, cis-ubuntu-26.04:1.1.2.4.3, cis-ubuntu-26.04:1.1.2.6.3, cis-ubuntu-26.04:1.1.2.7.3]

@@ -19,7 +19,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.1, dev-sec-linux-baseline:os-10, lynis]
   kernel-modules/cramfs-loaded:
-    title: cramfs module loaded
+    title: cramfs module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [cramfs]}}
@@ -32,7 +32,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.1, lynis]
   kernel-modules/cramfs-blacklist:
-    title: cramfs module not blacklisted
+    title: cramfs module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [cramfs]}}
     expect: {required: [cramfs]}
@@ -56,7 +56,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.2, dev-sec-linux-baseline:os-10, lynis]
   kernel-modules/freevxfs-loaded:
-    title: freevxfs module loaded
+    title: freevxfs module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [freevxfs]}}
@@ -69,7 +69,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.2, lynis]
   kernel-modules/freevxfs-blacklist:
-    title: freevxfs module not blacklisted
+    title: freevxfs module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [freevxfs]}}
     expect: {required: [freevxfs]}
@@ -93,7 +93,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.3, dev-sec-linux-baseline:os-10, lynis]
   kernel-modules/hfs-loaded:
-    title: hfs module loaded
+    title: hfs module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [hfs]}}
@@ -106,7 +106,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.3, lynis]
   kernel-modules/hfs-blacklist:
-    title: hfs module not blacklisted
+    title: hfs module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [hfs]}}
     expect: {required: [hfs]}
@@ -130,7 +130,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.4, dev-sec-linux-baseline:os-10, lynis]
   kernel-modules/hfsplus-loaded:
-    title: hfsplus module loaded
+    title: hfsplus module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [hfsplus]}}
@@ -143,7 +143,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.4, lynis]
   kernel-modules/hfsplus-blacklist:
-    title: hfsplus module not blacklisted
+    title: hfsplus module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [hfsplus]}}
     expect: {required: [hfsplus]}
@@ -167,7 +167,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.5, dev-sec-linux-baseline:os-10, lynis]
   kernel-modules/jffs2-loaded:
-    title: jffs2 module loaded
+    title: jffs2 module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [jffs2]}}
@@ -180,7 +180,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.5, lynis]
   kernel-modules/jffs2-blacklist:
-    title: jffs2 module not blacklisted
+    title: jffs2 module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [jffs2]}}
     expect: {required: [jffs2]}
@@ -197,23 +197,23 @@ rules:
     expect: {required: [overlay], properties: {overlay: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
     severity: warning
     score: 4.0
-    message: "overlay is shipped and no modprobe.d install line turns it away, so a crafted overlay image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: overlay is shipped and no modprobe.d install line turns it away, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
     fix: add “install overlay /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/overlay-loaded:
-    title: overlay module loaded
+    title: overlay module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [overlay]}}
     severity: warning
     score: 4.0
-    message: "overlay is loaded in the running kernel, so a crafted overlay image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: overlay is loaded in the running kernel, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
     fix: run “modprobe -r overlay”, then add “install overlay /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/overlay-blacklist:
-    title: overlay module not blacklisted
+    title: overlay module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [overlay]}}
     expect: {required: [overlay]}
@@ -237,7 +237,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.7, dev-sec-linux-baseline:os-10, lynis, '!default']
   kernel-modules/squashfs-loaded:
-    title: squashfs module loaded
+    title: squashfs module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [squashfs]}}
@@ -250,7 +250,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.7, lynis, '!default']
   kernel-modules/squashfs-blacklist:
-    title: squashfs module not blacklisted
+    title: squashfs module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [squashfs]}}
     expect: {required: [squashfs]}
@@ -274,7 +274,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.8, dev-sec-linux-baseline:os-10, lynis]
   kernel-modules/udf-loaded:
-    title: udf module loaded
+    title: udf module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [udf]}}
@@ -287,7 +287,7 @@ rules:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.8, lynis]
   kernel-modules/udf-blacklist:
-    title: udf module not blacklisted
+    title: udf module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [udf]}}
     expect: {required: [udf]}
@@ -311,7 +311,7 @@ rules:
       - {title: Lynis STRG-1846, url: "https://cisofy.com/lynis/controls/STRG-1846/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.9, lynis]
   kernel-modules/firewire-core-loaded:
-    title: firewire-core module loaded
+    title: firewire-core module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [firewire_core]}}
@@ -322,7 +322,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.9]
   kernel-modules/firewire-core-blacklist:
-    title: firewire-core module not blacklisted
+    title: firewire-core module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [firewire-core]}}
     expect: {required: [firewire_core]}
@@ -348,7 +348,7 @@ rules:
       - {title: Lynis USB-1000, url: "https://cisofy.com/lynis/controls/USB-1000/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.10, stig-ubuntu-26.04:UBTU-24-300039, lynis, '!default']
   kernel-modules/usb-storage-loaded:
-    title: usb-storage module loaded
+    title: usb-storage module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [usb_storage]}}
@@ -359,7 +359,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.10, '!default']
   kernel-modules/usb-storage-blacklist:
-    title: usb-storage module not blacklisted
+    title: usb-storage module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [usb-storage]}}
     expect: {required: [usb_storage]}
@@ -378,23 +378,23 @@ rules:
     expect: {required: [atm], properties: {atm: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
     severity: warning
     score: 5.0
-    message: "atm is shipped and no modprobe.d install line turns it away, so any local user opening a atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
+    message: "atm is shipped and no modprobe.d install line turns it away, so any local user opening an atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     fix: add “install atm /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.1]
   kernel-modules/atm-loaded:
-    title: atm module loaded
+    title: atm module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [atm]}}
     severity: warning
     score: 5.0
-    message: "atm is loaded in the running kernel, so any local user opening a atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
+    message: "atm is loaded in the running kernel, so any local user opening an atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     fix: run “modprobe -r atm”, then add “install atm /bin/false” to a file ending in “.conf” under “/etc/modprobe.d/”
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.1]
   kernel-modules/atm-blacklist:
-    title: atm module not blacklisted
+    title: atm module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [atm]}}
     expect: {required: [atm]}
@@ -416,7 +416,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.2]
   kernel-modules/can-loaded:
-    title: can module loaded
+    title: can module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [can]}}
@@ -427,7 +427,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.2]
   kernel-modules/can-blacklist:
-    title: can module not blacklisted
+    title: can module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [can]}}
     expect: {required: [can]}
@@ -451,7 +451,7 @@ rules:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.3, lynis]
   kernel-modules/dccp-loaded:
-    title: dccp module loaded
+    title: dccp module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [dccp]}}
@@ -464,7 +464,7 @@ rules:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.3, lynis]
   kernel-modules/dccp-blacklist:
-    title: dccp module not blacklisted
+    title: dccp module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [dccp]}}
     expect: {required: [dccp]}
@@ -488,7 +488,7 @@ rules:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.4, lynis]
   kernel-modules/rds-loaded:
-    title: rds module loaded
+    title: rds module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [rds]}}
@@ -501,7 +501,7 @@ rules:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.4, lynis]
   kernel-modules/rds-blacklist:
-    title: rds module not blacklisted
+    title: rds module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [rds]}}
     expect: {required: [rds]}
@@ -525,7 +525,7 @@ rules:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.5, lynis]
   kernel-modules/sctp-loaded:
-    title: sctp module loaded
+    title: sctp module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [sctp]}}
@@ -538,7 +538,7 @@ rules:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.5, lynis]
   kernel-modules/sctp-blacklist:
-    title: sctp module not blacklisted
+    title: sctp module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [sctp]}}
     expect: {required: [sctp]}
@@ -562,7 +562,7 @@ rules:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.6, lynis]
   kernel-modules/tipc-loaded:
-    title: tipc module loaded
+    title: tipc module is loaded
     fact: kernel.loaded
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [tipc]}}
@@ -575,7 +575,7 @@ rules:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.6, lynis]
   kernel-modules/tipc-blacklist:
-    title: tipc module not blacklisted
+    title: tipc module is not blacklisted
     fact: kernel.blacklist
     when: {kernel.shipped: {required: [tipc]}}
     expect: {required: [tipc]}
@@ -586,7 +586,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.6, '!default']
   kernel-modules/builtin:
-    title: Module built into the kernel
+    title: A module is built into the kernel
     fact: kernel.builtin.*
     keys: {enum: [cramfs, freevxfs, hfs, hfsplus, jffs2, udf, dccp, rds, sctp, tipc]}
     expect: {not: {}}

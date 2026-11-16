@@ -6,7 +6,7 @@ description: set-user-ID and set-group-ID files, and every directory above them,
 tags: [default]
 rules:
   setuid/world-writable:
-    title: Set-user-ID file or its directory writable by every user
+    title: A set-user-ID file or its directory is writable by every user
     fact: setuid.*
     expect:
       if: {required: [world-writable], properties: {world-writable: {const: true}}}
@@ -19,7 +19,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     tags: [setuid]
   setuid/group-writable:
-    title: Set-user-ID file or its directory writable by its group
+    title: A set-user-ID file or its directory is writable by its group
     fact: setuid.*
     expect:
       if: {required: [group-writable], properties: {group-writable: {const: true}}}

@@ -6,7 +6,7 @@ description: No way for a user to lock a text session they step away from
 tags: [default]
 rules:
   session-lock/no-vlock:
-    title: No vlock on disk
+    title: vlock is not installed
     fact: session-lock.vlock
     expect: {minProperties: 1}
     severity: info

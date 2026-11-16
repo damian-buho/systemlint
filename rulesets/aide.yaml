@@ -6,7 +6,7 @@ description: No file integrity checker on disk, or one that never runs
 tags: [default]
 rules:
   aide/not-installed:
-    title: No AIDE on disk
+    title: AIDE is not installed
     fact: aide.binary
     expect: {minProperties: 1}
     severity: info
@@ -18,7 +18,7 @@ rules:
       - {title: Lynis FINT-4350, url: "https://cisofy.com/lynis/controls/FINT-4350/"}
     tags: [integrity, cis-ubuntu-26.04:6.3.1, lynis, stig-ubuntu-26.04:UBTU-24-100100, '!default']
   aide/unscheduled:
-    title: AIDE installed but never run on a schedule
+    title: AIDE is installed but never runs on a schedule
     fact: systemd.state
     when: {aide.binary: {minProperties: 1}}
     expect:
@@ -33,7 +33,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/aide.1.html
     tags: [integrity, cis-ubuntu-26.04:6.3.2, stig-ubuntu-26.04:UBTU-24-100120]
   aide/no-config:
-    title: AIDE installed without a configuration file
+    title: AIDE is installed without a configuration file
     fact: aide.config
     when: {aide.binary: {minProperties: 1}}
     expect: {minProperties: 1}
@@ -46,7 +46,7 @@ rules:
       - {title: Lynis FINT-4315, url: "https://cisofy.com/lynis/controls/FINT-4315/"}
     tags: [integrity, lynis]
   aide/no-database:
-    title: AIDE installed without a database
+    title: AIDE is installed without a database
     fact: aide.database
     when: {aide.binary: {minProperties: 1}}
     expect: {minProperties: 1}

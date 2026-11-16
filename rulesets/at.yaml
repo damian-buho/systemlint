@@ -18,7 +18,7 @@ rules:
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
     tags: [at, cis-ubuntu-26.04:2.4.2.1]
   at/access-mode:
-    title: at.allow or at.deny more open than 0640
+    title: at.allow or at.deny is more open than 0640
     fact: at.access.*.mode
     keys: &access {enum: [/etc/at.allow, /etc/at.deny]}
     when: &exists {at.access.*.exists: true}
@@ -30,7 +30,7 @@ rules:
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
     tags: [at, cis-ubuntu-26.04:2.4.2.1]
   at/access-owner:
-    title: at.allow or at.deny not owned by root
+    title: at.allow or at.deny is not owned by root
     fact: at.access.*.uid
     keys: *access
     when: *exists
@@ -43,14 +43,14 @@ rules:
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
     tags: [at, cis-ubuntu-26.04:2.4.2.1]
   at/access-group:
-    title: at.allow or at.deny in a group other than root or daemon
+    title: at.allow or at.deny is in a group other than root or daemon
     fact: at.access.*.gid
     keys: *access
     when: {at.access.*.exists: true, at.access.*.gid: {not: {const: 0}}}
     same: accounts.group.daemon.gid
     severity: info
     score: 1.0
-    message: "{subject} belongs to gid {got}, not root or daemon (gid {same}); the benchmark asks one of the two"
+    message: "{subject} belongs to gid {got}, not root or daemon (gid {same}), so the members of that group get the group’s access to the list of who may schedule at jobs"
     fix: run “chgrp daemon {subject}”
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
     tags: [at, cis-ubuntu-26.04:2.4.2.1]

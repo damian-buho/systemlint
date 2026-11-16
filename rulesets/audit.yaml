@@ -7,7 +7,7 @@ tags: [default]
 when: {auditd.binary: {minProperties: 1}}
 rules:
   audit/sudoers:
-    title: sudoers changes unaudited
+    title: sudoers changes go unaudited
     fact: audit.*
     expect:
       $defs: &defs
@@ -31,7 +31,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.1, stig-ubuntu-26.04:UBTU-24-900510, stig-ubuntu-26.04:UBTU-24-900520]
   audit/user-emulation:
-    title: commands run as another user unaudited
+    title: Commands run as another user go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -45,7 +45,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.2, stig-ubuntu-26.04:UBTU-24-200580]
   audit/time:
-    title: clock changes unaudited
+    title: Clock changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -61,7 +61,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.4]
   audit/host-name:
-    title: host name changes unaudited
+    title: Host name changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -77,7 +77,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.5]
   audit/issue:
-    title: login banner changes unaudited
+    title: Login banner changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -91,7 +91,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.6]
   audit/hosts:
-    title: hosts and hostname file changes unaudited
+    title: Changes to the hosts and hostname files go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -105,7 +105,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.7]
   audit/network:
-    title: network configuration changes unaudited
+    title: Network configuration changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -120,7 +120,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.8]
   audit/network-manager:
-    title: NetworkManager configuration changes unaudited
+    title: NetworkManager configuration changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -133,7 +133,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.9]
   audit/access-denied:
-    title: denied file access unaudited
+    title: Denied file access goes unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -165,7 +165,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.11, stig-ubuntu-26.04:UBTU-24-900160]
   audit/group:
-    title: group changes unaudited
+    title: Group changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -178,7 +178,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.12, stig-ubuntu-26.04:UBTU-24-200290]
   audit/passwd:
-    title: account changes unaudited
+    title: Account changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -191,7 +191,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.13, stig-ubuntu-26.04:UBTU-24-200280]
   audit/shadow:
-    title: password hash changes unaudited
+    title: Password hash changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -205,7 +205,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.14, stig-ubuntu-26.04:UBTU-24-200300, stig-ubuntu-26.04:UBTU-24-200310]
   audit/opasswd:
-    title: password history changes unaudited
+    title: Password history changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -218,7 +218,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.15, stig-ubuntu-26.04:UBTU-24-200320]
   audit/nsswitch:
-    title: name service switch changes unaudited
+    title: Name service switch changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -231,7 +231,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.16]
   audit/pam:
-    title: PAM configuration changes unaudited
+    title: PAM configuration changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -245,7 +245,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.17]
   audit/chmod:
-    title: permission changes unaudited
+    title: Permission changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -265,7 +265,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.18, stig-ubuntu-26.04:UBTU-24-900130, stig-ubuntu-26.04:UBTU-24-900140]
   audit/chown:
-    title: ownership changes unaudited
+    title: Ownership changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -285,7 +285,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.19, stig-ubuntu-26.04:UBTU-24-900130, stig-ubuntu-26.04:UBTU-24-900140]
   audit/xattr:
-    title: extended attribute changes unaudited
+    title: Extended attribute changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -309,7 +309,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.20, stig-ubuntu-26.04:UBTU-24-900130, stig-ubuntu-26.04:UBTU-24-900140]
   audit/mount:
-    title: mounts unaudited
+    title: Mounts go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -323,7 +323,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.21]
   audit/session:
-    title: session records unaudited
+    title: Session records go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -338,7 +338,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.22, stig-ubuntu-26.04:UBTU-24-900590, stig-ubuntu-26.04:UBTU-24-900600, stig-ubuntu-26.04:UBTU-24-900610]
   audit/logins:
-    title: login records unaudited
+    title: Login records go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -352,7 +352,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.23, stig-ubuntu-26.04:UBTU-24-900260]
   audit/unlink:
-    title: file deletion unaudited
+    title: File deletions go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -368,7 +368,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.24, stig-ubuntu-26.04:UBTU-24-900540]
   audit/rename:
-    title: file renames unaudited
+    title: File renames go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -386,7 +386,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.25, stig-ubuntu-26.04:UBTU-24-900540]
   audit/apparmor:
-    title: AppArmor policy changes unaudited
+    title: AppArmor policy changes go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -400,7 +400,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.26]
   audit/chcon:
-    title: chcon runs unaudited
+    title: chcon runs go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -413,7 +413,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.27, stig-ubuntu-26.04:UBTU-24-900210]
   audit/setfacl:
-    title: setfacl runs unaudited
+    title: setfacl runs go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -426,7 +426,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.28, stig-ubuntu-26.04:UBTU-24-900230]
   audit/chacl:
-    title: chacl runs unaudited
+    title: chacl runs go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -439,7 +439,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.29, stig-ubuntu-26.04:UBTU-24-900240]
   audit/usermod:
-    title: usermod runs unaudited
+    title: usermod runs go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -452,7 +452,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.30, stig-ubuntu-26.04:UBTU-24-900310]
   audit/kmod:
-    title: kmod runs unaudited
+    title: kmod runs go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -465,7 +465,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.31]
   audit/module-load:
-    title: kernel module loads unaudited
+    title: Kernel module loads go unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -481,7 +481,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.32, stig-ubuntu-26.04:UBTU-24-900340]
   audit/module-delete:
-    title: kernel module removal unaudited
+    title: Kernel module removal goes unaudited
     fact: audit.*
     expect:
       $defs: *defs
@@ -505,7 +505,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man8/auditctl.8.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.34]
   audit/immutable:
-    title: audit rules left mutable
+    title: Audit rules are left mutable
     fact: audit.rules
     expect:
       allOf:

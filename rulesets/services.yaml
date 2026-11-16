@@ -7,7 +7,7 @@ tags: [default]
 when: {systemd.units: {minProperties: 1}}
 rules:
   services/unconfined-root:
-    title: Local service runs as root with no sandbox
+    title: A local service runs as root with no sandbox
     facts:
       any:
         - {fact: systemd.units.*.sandbox.user, expect: {not: {enum: [root, "0"]}}}

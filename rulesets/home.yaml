@@ -9,7 +9,7 @@ vars:
   uid-max: {default: 60000}
 rules:
   home/open-to-others:
-    title: A home directory other users can enter or read
+    title: A home directory is open to other users
     fact: home.directories.*.mode
     when:
       home.directories.*.exists: true
@@ -26,7 +26,7 @@ rules:
       - {title: Lynis HOME-9304, url: "https://cisofy.com/lynis/controls/HOME-9304/"}
     tags: [files, lynis]
   home/not-owned:
-    title: A home directory its account does not own
+    title: A home directory is not owned by its account
     fact: accounts.passwd.*.uid
     same: home.directories.{accounts.passwd.*.home}.uid
     when:
@@ -42,7 +42,7 @@ rules:
       - {title: Lynis HOME-9306, url: "https://cisofy.com/lynis/controls/HOME-9306/"}
     tags: [files, lynis]
   home/dot-file-mode:
-    title: A dot file in a home more open than 0644
+    title: A dot file in a home is more open than 0644
     fact: home.dots.*.mode
     keys: {not: {pattern: "/\\.bash_history$"}}
     when: {home.dots.*.kind: file}
@@ -55,14 +55,14 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/bash.1.html#files
     tags: [files, cis-ubuntu-26.04:7.2.10, '!default']
   home/history-mode:
-    title: A shell history readable by other users
+    title: A shell history is readable by other users
     fact: home.dots.*.mode
     keys: {pattern: "/\\.bash_history$"}
     when: {home.dots.*.kind: file}
     expect: {pattern: "^0[0246]00$"}
     severity: info
     score: 1.0
-    message: "{subject} has mode {got}; the benchmark asks 0600, since a history holds the commands, and the passwords typed into them, of its owner"
+    message: "{subject} has mode {got}, beyond 0600, so other users read the commands its owner typed, and any password typed into one"
     fix: run “chmod 0600” on the file
     remedy: {chmod: "u-xs,g-rwxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/bash.1.html#files
@@ -79,7 +79,7 @@ rules:
     docs: https://www.postfix.org/local.8.html
     tags: [files, cis-ubuntu-26.04:7.2.10, '!default']
   home/dot-directory-mode:
-    title: A dot directory in a home more open than 0750
+    title: A dot directory in a home is more open than 0750
     fact: home.dots.*.mode
     keys: {not: {pattern: "/\\.ssh$"}}
     when: {home.dots.*.kind: directory}
@@ -92,7 +92,7 @@ rules:
     docs: https://specifications.freedesktop.org/basedir-spec/latest/
     tags: [files, cis-ubuntu-26.04:7.2.11, '!default']
   home/ssh-directory-mode:
-    title: ~/.ssh more open than 0700
+    title: "~/.ssh is more open than 0700"
     fact: home.dots.*.mode
     keys: {pattern: "/\\.ssh$"}
     when: {home.dots.*.kind: directory}

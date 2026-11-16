@@ -122,7 +122,7 @@ rules:
       - {title: Lynis AUTH-9262, url: "https://cisofy.com/lynis/controls/AUTH-9262/"}
     tags: [auth, pam, cis-ubuntu-26.04:5.3.2.3, lynis, stig-ubuntu-26.04:UBTU-24-300016, '!default']
   pam/pwquality-missing:
-    title: No pam_pwquality module on disk
+    title: The pam_pwquality module is not installed
     fact: auth.pwquality-module
     expect: {minProperties: 1}
     severity: info

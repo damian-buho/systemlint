@@ -7,7 +7,7 @@ tags: [default]
 when: {/systemd/state/nftables.service/enabled: true}
 rules:
   nftables/ipv4-input-open:
-    title: nftables enabled but IPv4 input unfiltered
+    title: nftables is enabled but IPv4 input is unfiltered
     fact: nftables.hooks.ipv4.input
     expect: &filtered
       anyOf:
@@ -22,7 +22,7 @@ rules:
       - {title: Lynis FIRE-4540, url: "https://cisofy.com/lynis/controls/FIRE-4540/"}
     tags: [nftables, firewall, lynis]
   nftables/ipv6-input-open:
-    title: nftables enabled but IPv6 input unfiltered
+    title: nftables is enabled but IPv6 input is unfiltered
     fact: nftables.hooks.ipv6.input
     when: {sysctl.settings.net.ipv6.conf.all.disable_ipv6: {not: {const: 1}}}
     expect: *filtered
@@ -35,7 +35,7 @@ rules:
       - {title: Lynis FIRE-4540, url: "https://cisofy.com/lynis/controls/FIRE-4540/"}
     tags: [nftables, firewall, lynis]
   nftables/service-failed:
-    title: nftables enabled but its service failed
+    title: nftables is enabled but its service failed
     fact: systemd.state.*.active
     keys: {const: nftables.service}
     when: {systemd.state.*: {required: [active]}}

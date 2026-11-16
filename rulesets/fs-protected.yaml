@@ -6,7 +6,7 @@ description: Kernel protections against link and file tricks in world-writable s
 tags: [default]
 rules:
   fs-protected/symlinks:
-    title: Symlinks in /tmp followed across owners
+    title: Symlinks in /tmp are followed across owners
     fact: sysctl.settings.fs.protected_symlinks
     expect: {const: 1}
     severity: error
@@ -18,7 +18,7 @@ rules:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [fs-protected, sysctl, lynis]
   fs-protected/hardlinks:
-    title: Hard links allowed to files the user cannot write
+    title: Hard links are allowed to files the user cannot write
     fact: sysctl.settings.fs.protected_hardlinks
     expect: {const: 1}
     severity: error
@@ -30,7 +30,7 @@ rules:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [fs-protected, sysctl, lynis]
   fs-protected/fifos:
-    title: FIFOs in /tmp opened across owners
+    title: FIFOs in /tmp are opened across owners
     fact: sysctl.settings.fs.protected_fifos
     expect: {minimum: 1}
     severity: warning
@@ -42,7 +42,7 @@ rules:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [fs-protected, sysctl, lynis]
   fs-protected/regular:
-    title: Files in /tmp opened across owners
+    title: Files in /tmp are opened across owners
     fact: sysctl.settings.fs.protected_regular
     expect: {minimum: 1}
     severity: warning

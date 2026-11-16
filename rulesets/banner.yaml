@@ -6,7 +6,7 @@ description: Login banners and messages of the day that a user other than root c
 tags: [default]
 rules:
   banner/discloses-system:
-    title: Login banner names the system
+    title: The login banner names the system
     fact: banner-text.*.*
     expect: {not: {contains: {pattern: '(?i)(^|[^\\])(\\\\)*\\[vrms]'}}}
     severity: info
@@ -19,7 +19,7 @@ rules:
       - {title: Lynis BANN-7130, url: "https://cisofy.com/lynis/controls/BANN-7130/"}
     tags: ['!default', banner, lynis, cis-ubuntu-26.04:1.6.1, cis-ubuntu-26.04:1.6.2, cis-ubuntu-26.04:1.6.3, cis-ubuntu-26.04:1.6.4, cis-ubuntu-26.04:1.6.5]
   banner/writable:
-    title: Login banner writable by other users
+    title: The login banner is writable by other users
     facts:
       all:
         - {fact: banner.*.*.world-writable, expect: {const: false}}
@@ -32,7 +32,7 @@ rules:
     docs: https://manpages.debian.org/unstable/manpages/motd.5.en.html
     tags: [banner, cis-ubuntu-26.04:1.6.6, cis-ubuntu-26.04:1.6.7, cis-ubuntu-26.04:1.6.8, cis-ubuntu-26.04:1.6.9, cis-ubuntu-26.04:1.6.10]
   banner/owner:
-    title: Login banner not owned by root
+    title: The login banner is not owned by root
     fact: banner.*.*.uid
     expect: {const: 0}
     severity: warning
@@ -70,7 +70,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_motd.8.html
     tags: ['!default', banner, cis-ubuntu-26.04:1.6.12]
   banner/stig-issue-empty:
-    title: No local login banner
+    title: The local login banner is empty
     fact: banner-text.files
     expect: {required: [/etc/issue], properties: {/etc/issue: {contains: {pattern: "\\S"}}}}
     severity: info

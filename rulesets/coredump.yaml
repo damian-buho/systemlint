@@ -48,7 +48,7 @@ rules:
     expect: {pattern: "^\\|?/"}
     severity: info
     score: 1.0
-    message: "kernel.core_pattern is {got} while fs.suid_dumpable is 2; the kernel refuses a setuid dump to a relative path, and dev-sec asks an absolute one or a pipe"
+    message: "kernel.core_pattern is {got} while fs.suid_dumpable is 2, so the kernel refuses every setuid core dump to that relative path and a crash of a setuid program leaves nothing to debug"
     fix: set “kernel.core_pattern” to an absolute path or a “|pipe”, or set “fs.suid_dumpable = 0”
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html
     tags: [coredump, sysctl, dev-sec-linux-baseline:sysctl-31b]

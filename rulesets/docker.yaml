@@ -6,7 +6,7 @@ description: Docker’s socket and configuration writable by every user
 tags: [default]
 rules:
   docker/world-writable:
-    title: A Docker file writable by every user
+    title: A Docker file is writable by every user
     fact: docker.files.*.world-writable
     expect: {const: false}
     severity: error

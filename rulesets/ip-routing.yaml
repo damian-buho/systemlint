@@ -6,7 +6,7 @@ description: Interfaces that let a remote sender choose how this host routes its
 tags: [default]
 rules:
   ip-routing/ipv4-redirects:
-    title: IPv4 ICMP redirects accepted
+    title: IPv4 ICMP redirects are accepted
     fact: sysctl.settings.net.ipv4.conf.*.accept_redirects
     keys: {not: {const: lo}}
     when: {sysctl.settings.net.ipv4.conf.*.forwarding: 0}
@@ -20,7 +20,7 @@ rules:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [ip-routing, sysctl, lynis]
   ip-routing/ipv6-redirects:
-    title: IPv6 ICMP redirects accepted
+    title: IPv6 ICMP redirects are accepted
     fact: sysctl.settings.net.ipv6.conf.*.accept_redirects
     keys: {not: {enum: [all, lo]}}
     when: {sysctl.settings.net.ipv6.conf.*.forwarding: 0}
@@ -34,7 +34,7 @@ rules:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [ip-routing, sysctl, lynis]
   ip-routing/ipv4-source-route:
-    title: IPv4 source-routed packets accepted
+    title: IPv4 source-routed packets are accepted
     keys: {not: {const: all}}
     facts:
       any:
@@ -49,18 +49,18 @@ rules:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
     tags: [ip-routing, sysctl, lynis]
   ip-routing/ipv4-secure-redirects:
-    title: IPv4 redirects from listed gateways accepted
+    title: IPv4 redirects from listed gateways are accepted
     fact: sysctl.settings.net.ipv4.conf.*.secure_redirects
     keys: {enum: [all, default]}
     expect: {const: 0}
     severity: info
     score: 1.0
-    message: "net.ipv4.conf.{subject}.secure_redirects is {got}; the benchmark asks it off, though it only narrows the redirects ip-routing/ipv4-redirects already judges"
+    message: "net.ipv4.conf.{subject}.secure_redirects is {got}, so a redirect is accepted from any packet claiming a listed gateway’s address, which a spoofed source satisfies; ip-routing/ipv4-redirects judges the wider setting"
     fix: set “net.ipv4.conf.all.secure_redirects = 0” and “net.ipv4.conf.default.secure_redirects = 0”
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.10, cis-ubuntu-26.04:3.3.1.11, dev-sec-linux-baseline:sysctl-15]
   ip-routing/route-localnet:
-    title: Loopback addresses routed from the network
+    title: Loopback addresses are routed from the network
     fact: sysctl.settings.net.ipv4.conf.*.route_localnet
     keys: {not: {const: lo}}
     expect: {const: 0}
@@ -71,7 +71,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.19]
   ip-routing/ipv4-ip-forward:
-    title: IPv4 forwarding on
+    title: IPv4 forwarding is on
     fact: sysctl.settings.net.ipv4.ip_forward
     expect: {const: 0}
     severity: info
@@ -81,7 +81,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.1, dev-sec-linux-baseline:sysctl-01, '!default']
   ip-routing/ipv4-forwarding:
-    title: IPv4 forwarding on
+    title: IPv4 forwarding is on
     fact: sysctl.settings.net.ipv4.conf.*.forwarding
     keys: {enum: [all, default]}
     expect: {const: 0}
@@ -92,7 +92,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.2, cis-ubuntu-26.04:3.3.1.3, dev-sec-linux-baseline:sysctl-01, '!default']
   ip-routing/ipv6-forwarding:
-    title: IPv6 forwarding on
+    title: IPv6 forwarding is on
     fact: sysctl.settings.net.ipv6.conf.*.forwarding
     keys: {enum: [all, default]}
     expect: {const: 0}
@@ -103,7 +103,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.1, cis-ubuntu-26.04:3.3.2.2, dev-sec-linux-baseline:sysctl-19, '!default']
   ip-routing/ipv4-send-redirects:
-    title: IPv4 redirects sent
+    title: IPv4 redirects are sent
     fact: sysctl.settings.net.ipv4.conf.*.send_redirects
     keys: {enum: [all, default]}
     expect: {const: 0}
@@ -114,7 +114,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.4, cis-ubuntu-26.04:3.3.1.5, dev-sec-linux-baseline:sysctl-16]
   ip-routing/ipv4-rp-filter-strict:
-    title: IPv4 reverse path filter not strict
+    title: The IPv4 reverse path filter is not strict
     fact: sysctl.settings.net.ipv4.conf.*.rp_filter
     keys: {enum: [all, default]}
     expect: {const: 1}
@@ -125,7 +125,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.12, cis-ubuntu-26.04:3.3.1.13, dev-sec-linux-baseline:sysctl-02, '!default']
   ip-routing/ipv4-log-martians:
-    title: Martian IPv4 packets not logged
+    title: Martian IPv4 packets are not logged
     fact: sysctl.settings.net.ipv4.conf.*.log_martians
     keys: {enum: [all, default]}
     expect: {const: 1}
@@ -136,7 +136,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.16, cis-ubuntu-26.04:3.3.1.17, dev-sec-linux-baseline:sysctl-17]
   ip-routing/ipv6-source-route:
-    title: IPv6 source routing accepted
+    title: IPv6 source routing is accepted
     fact: sysctl.settings.net.ipv6.conf.*.accept_source_route
     keys: {enum: [all, default]}
     expect: {const: 0}
@@ -147,7 +147,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.5, cis-ubuntu-26.04:3.3.2.6, dev-sec-linux-baseline:sysctl-13]
   ip-routing/ipv6-accept-ra:
-    title: IPv6 router advertisements accepted
+    title: IPv6 router advertisements are accepted
     fact: sysctl.settings.net.ipv6.conf.*.accept_ra
     keys: {enum: [all, default]}
     expect: {const: 0}
@@ -158,7 +158,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.7, cis-ubuntu-26.04:3.3.2.8, dev-sec-linux-baseline:sysctl-25, '!default']
   ip-routing/arp-ignore:
-    title: ARP answered for addresses of other interfaces
+    title: ARP is answered for addresses of other interfaces
     fact: sysctl.settings.net.ipv4.conf.*.arp_ignore
     keys: {enum: [all]}
     expect: {enum: [1, 2]}
@@ -180,7 +180,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-09, '!default']
   ip-routing/shared-media:
-    title: Redirects for gateways on other subnets refused
+    title: Redirects for gateways on other subnets are refused
     fact: sysctl.settings.net.ipv4.conf.*.shared_media
     keys: {enum: [all, default]}
     expect: {const: 1}
@@ -191,7 +191,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-12, '!default']
   ip-routing/ipv6-router-solicitations:
-    title: IPv6 router solicitations sent
+    title: IPv6 router solicitations are sent
     fact: sysctl.settings.net.ipv6.conf.*.router_solicitations
     keys: {enum: [all, default]}
     expect: {const: 0}
@@ -202,7 +202,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-21, '!default']
   ip-routing/ipv6-ra-router-preference:
-    title: IPv6 router preference taken from advertisements
+    title: IPv6 router preference is taken from advertisements
     fact: sysctl.settings.net.ipv6.conf.*.accept_ra_rtr_pref
     keys: {enum: [default]}
     expect: {const: 0}
@@ -213,7 +213,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-22, '!default']
   ip-routing/ipv6-ra-prefix-info:
-    title: IPv6 prefixes taken from advertisements
+    title: IPv6 prefixes are taken from advertisements
     fact: sysctl.settings.net.ipv6.conf.*.accept_ra_pinfo
     keys: {enum: [default]}
     expect: {const: 0}
@@ -224,7 +224,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-23, '!default']
   ip-routing/ipv6-ra-default-router:
-    title: IPv6 default router taken from advertisements
+    title: The IPv6 default router is taken from advertisements
     fact: sysctl.settings.net.ipv6.conf.*.accept_ra_defrtr
     keys: {enum: [default]}
     expect: {const: 0}
@@ -235,7 +235,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-24, '!default']
   ip-routing/ipv6-autoconf:
-    title: IPv6 addresses configured from advertisements
+    title: IPv6 addresses are configured from advertisements
     fact: sysctl.settings.net.ipv6.conf.*.autoconf
     keys: {enum: [all, default]}
     expect: {const: 0}
@@ -246,7 +246,7 @@ rules:
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, dev-sec-linux-baseline:sysctl-26, '!default']
   ip-routing/ipv6-max-addresses:
-    title: More than one IPv6 address per interface
+    title: An interface takes more than one IPv6 address
     fact: sysctl.settings.net.ipv6.conf.*.max_addresses
     keys: {enum: [default]}
     expect: {const: 1}

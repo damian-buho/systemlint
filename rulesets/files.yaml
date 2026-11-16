@@ -8,7 +8,7 @@ vars:
   system-gid-max: {default: 999}
 rules:
   files/world-writable:
-    title: File writable by every user
+    title: A file is writable by every user
     fact: files.*.*.world-writable
     expect: {const: false}
     severity: error
@@ -23,7 +23,7 @@ rules:
       - {title: Lynis BOOT-5184, url: "https://cisofy.com/lynis/controls/BOOT-5184/"}
     tags: [files, lynis]
   files/group-writable:
-    title: File writable by its group
+    title: A file is writable by its group
     fact: files.*.*.group-writable
     expect: {const: false}
     severity: warning
@@ -36,7 +36,7 @@ rules:
       - {title: Lynis AUTH-9252, url: "https://cisofy.com/lynis/controls/AUTH-9252/"}
     tags: [files, lynis]
   files/owner:
-    title: File not owned by root
+    title: A file is not owned by root
     fact: files.*.*.uid
     expect: {const: 0}
     severity: error
@@ -50,7 +50,7 @@ rules:
       - {title: Lynis AUTH-9252, url: "https://cisofy.com/lynis/controls/AUTH-9252/"}
     tags: [files, lynis]
   files/shadow-mode:
-    title: Password hashes readable too widely
+    title: Password hashes are readable too widely
     fact: files.shadow.*.mode
     expect: {pattern: "^0[0246][04]0$"}
     severity: error
@@ -61,7 +61,7 @@ rules:
     docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
     tags: [files]
   files/ssh-host-key-mode:
-    title: SSH host key readable too widely
+    title: An SSH host key is readable too widely
     fact: files.ssh-host-keys.*.mode
     expect: {pattern: "^0[0246][04]0$"}
     severity: error
@@ -72,7 +72,7 @@ rules:
     docs: https://man.openbsd.org/sshd#FILES
     tags: [files, ssh]
   files/apt-auth-readable:
-    title: APT repository credentials readable by every user
+    title: APT repository credentials are readable by every user
     fact: files.apt-auth.*.mode
     when: {files.apt-auth.*.kind: file}
     expect: {pattern: "^[0-7]{3}[0-3]$"}
@@ -84,19 +84,19 @@ rules:
     docs: https://manpages.debian.org/unstable/apt/apt_auth.conf.5.en.html
     tags: [files, apt, cis-ubuntu-26.04:1.2.1.6]
   files/accounts-mode:
-    title: Account database more open than 0644
+    title: An account database is more open than 0644
     fact: files.accounts.*.mode
     when: {files.accounts.*.kind: file}
     expect: {pattern: "^0[0246][04][04]$"}
     severity: info
     score: 1.0
-    message: "{subject} has mode {got}; the benchmark asks 0644 or stricter, with no execute or special bit"
+    message: "{subject} has mode {got}, beyond 0644, so someone other than root may rewrite the accounts it lists, or it carries an execute or special bit no database needs"
     fix: run “chmod 0644” on the file
     remedy: {chmod: "u-xs,g-wxs,o-wxt"}
     docs: https://manpages.debian.org/unstable/manpages/passwd.5.en.html
     tags: [files, cis-ubuntu-26.04:7.1.1, cis-ubuntu-26.04:7.1.2, cis-ubuntu-26.04:7.1.3, cis-ubuntu-26.04:7.1.4, cis-ubuntu-26.04:7.1.9]
   files/bootloader-readable:
-    title: Bootloader configuration readable by other users
+    title: The bootloader configuration is readable by other users
     fact: files.boot.*.mode
     when: {files.boot.*.kind: file}
     expect: {pattern: "^0[0-7]00$"}
@@ -108,7 +108,7 @@ rules:
     docs: https://www.gnu.org/software/grub/manual/grub/html_node/Authentication-and-authorisation.html
     tags: [files, boot, cis-ubuntu-26.04:1.4.2]
   files/audit-config-mode:
-    title: Audit configuration readable by other users
+    title: The audit configuration is readable by other users
     fact: files.audit-config.*.mode
     when: {files.audit-config.*.kind: file}
     expect: {pattern: "^0[0246][04]0$"}
@@ -120,7 +120,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [files, audit, cis-ubuntu-26.04:6.2.4.5, stig-ubuntu-26.04:UBTU-24-900040]
   files/accounts-group:
-    title: Account database not in group root
+    title: An account database is not in group root
     fact: files.accounts.*.gid
     when: {files.accounts.*.kind: file}
     expect: {const: 0}
@@ -132,7 +132,7 @@ rules:
     docs: https://manpages.debian.org/unstable/manpages/passwd.5.en.html
     tags: [files, cis-ubuntu-26.04:7.1.1, cis-ubuntu-26.04:7.1.2, cis-ubuntu-26.04:7.1.3, cis-ubuntu-26.04:7.1.4, cis-ubuntu-26.04:7.1.9, dev-sec-linux-baseline:os-03]
   files/shadow-group:
-    title: Password hashes in a group other than root or shadow
+    title: Password hashes are in a group other than root or shadow
     fact: files.shadow.*.gid
     keys: {enum: [/etc/shadow, /etc/shadow-, /etc/gshadow, /etc/gshadow-]}
     when: {files.shadow.*.kind: file, accounts.group.shadow.gid: 42}
@@ -144,7 +144,7 @@ rules:
     docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
     tags: [files, cis-ubuntu-26.04:7.1.5, cis-ubuntu-26.04:7.1.6, cis-ubuntu-26.04:7.1.7, cis-ubuntu-26.04:7.1.8, dev-sec-linux-baseline:os-02]
   files/audit-config-group:
-    title: Audit configuration not in group root
+    title: The audit configuration is not in group root
     fact: files.audit-config.*.gid
     expect: {const: 0}
     severity: info
@@ -155,60 +155,60 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [files, audit, cis-ubuntu-26.04:6.2.4.7, stig-ubuntu-26.04:UBTU-24-900060]
   files/audit-tools-mode:
-    title: Audit tool more open than 0755
+    title: An audit tool is more open than 0755
     fact: files.audit-tools.*.mode
     when: {files.audit-tools.*.kind: file}
     expect: {pattern: "^0[0-7][0145][0145]$"}
     severity: info
     score: 1.0
-    message: "{subject} has mode {got}; the benchmark asks 0755 or stricter, with no setuid, setgid or sticky bit"
+    message: "{subject} has mode {got}, beyond 0755, so someone other than root may swap the tool that reads or changes the audit trail, or it runs with a set-ID or sticky bit it does not need"
     fix: run “chmod 0755” on the file
     remedy: {chmod: "ugo-st,go-w"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditctl.8.html
     tags: [files, audit, cis-ubuntu-26.04:6.2.4.8, stig-ubuntu-26.04:UBTU-24-901230]
   files/audit-tools-group:
-    title: Audit tool not in group root
+    title: An audit tool is not in group root
     fact: files.audit-tools.*.gid
     when: {files.audit-tools.*.kind: file}
     expect: {const: 0}
     severity: info
     score: 1.0
-    message: "{subject} belongs to gid {got}; the benchmark asks group root"
+    message: "{subject} belongs to gid {got}, not root, so the members of that group get the group’s access to a tool that reads or changes the audit trail"
     fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditctl.8.html
     tags: [files, audit, cis-ubuntu-26.04:6.2.4.10, stig-ubuntu-26.04:UBTU-24-901250]
   files/library-group:
-    title: Shared library in a group of a user account
+    title: A shared library belongs to a group of user accounts
     fact: files.libraries.*.gid
     when: {files.libraries.*.kind: file}
     expect: {maximum: "${system-gid-max}"}
     severity: info
     score: 1.0
-    message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts rather than of the system"
+    message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts, so those users get the group’s access to code every program loading it runs"
     fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
     tags: [files, stig-ubuntu-26.04:UBTU-24-300009]
   files/library-directory-group:
-    title: Shared library directory not in group root
+    title: A shared library directory is not in group root
     fact: files.libraries.*.gid
     when: {files.libraries.*.kind: directory}
     expect: {const: 0}
     severity: info
     score: 1.0
-    message: "{subject} belongs to gid {got}; the STIG asks group root"
+    message: "{subject} belongs to gid {got}, not root, so the members of that group get the group’s access to a directory programs load their libraries from"
     fix: run “chgrp 0” on the directory
     remedy: {chgrp: 0}
     docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
     tags: [files, stig-ubuntu-26.04:UBTU-24-300010]
   files/command-group:
-    title: System command in a group of a user account
+    title: A system command belongs to a group of user accounts
     fact: files.commands.*.gid
     expect: {maximum: "${system-gid-max}"}
     severity: info
     score: 1.0
-    message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts rather than of the system"
+    message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts, so those users get the group’s access to a command root and every user run"
     fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/chgrp.1.html

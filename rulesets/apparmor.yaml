@@ -6,7 +6,7 @@ description: AppArmor missing from disk, not loaded or not started at boot, or a
 tags: [default]
 rules:
   apparmor/not-installed:
-    title: No AppArmor on disk
+    title: AppArmor is not installed
     fact: apparmor.binary
     expect: {minProperties: 1}
     severity: info
@@ -16,7 +16,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man7/apparmor.7.html
     tags: [mac, cis-ubuntu-26.04:1.3.1.1, stig-ubuntu-26.04:UBTU-24-100500]
   apparmor/no-profiles:
-    title: AppArmor installed but confines nothing
+    title: AppArmor is installed but confines nothing
     fact: apparmor.profiles
     when: {apparmor.binary: {minProperties: 1}}
     expect: {minProperties: 1}
@@ -29,7 +29,7 @@ rules:
       - {title: Lynis MACF-6208, url: "https://cisofy.com/lynis/controls/MACF-6208/"}
     tags: [mac, lynis, cis-ubuntu-26.04:1.3.1.2, stig-ubuntu-26.04:UBTU-24-100510]
   apparmor/service-off:
-    title: AppArmor profiles not loaded at boot
+    title: AppArmor profiles are not loaded at boot
     fact: systemd.state
     when: {apparmor.binary: {minProperties: 1}}
     expect:
@@ -43,7 +43,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man7/apparmor.7.html
     tags: [mac, cis-ubuntu-26.04:1.3.1.2, stig-ubuntu-26.04:UBTU-24-100510]
   apparmor/not-enforcing:
-    title: AppArmor profile not enforced
+    title: An AppArmor profile is not enforced
     fact: apparmor.profiles.*.mode
     expect: {const: enforce}
     severity: info

@@ -7,7 +7,7 @@ tags: [default]
 when: {resolv.probes: {required: [nameserver]}}
 rules:
   resolv/nameserver-silent:
-    title: Nameserver that answers no query
+    title: A nameserver answers no query
     fact: resolv.probes.nameserver.*.answered
     expect: {const: true}
     score: 4.0
@@ -18,7 +18,7 @@ rules:
       - {title: Lynis NETW-2704, url: "https://cisofy.com/lynis/controls/NETW-2704/"}
     tags: [dns, lynis]
   resolv/nameserver-refuses:
-    title: Nameserver that refuses to resolve for this host
+    title: A nameserver refuses to resolve for this host
     fact: resolv.probes.nameserver.*.codes
     when: {resolv.probes.nameserver.*.answered: true}
     expect: {not: {contains: {const: REFUSED}}}

@@ -6,7 +6,7 @@ description: Shared temporary directories where one user can delete or swap anot
 tags: [default]
 rules:
   tmp/sticky:
-    title: Shared temporary directory without the sticky bit
+    title: A shared temporary directory lacks the sticky bit
     fact: tmp.dirs.*
     expect:
       if: {required: [world-writable], properties: {world-writable: {const: true}}}

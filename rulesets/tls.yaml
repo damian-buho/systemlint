@@ -7,7 +7,7 @@ tags: [default]
 when: {probes: {minProperties: 1}}
 rules:
   tls/expired:
-    title: Certificate expired
+    title: A certificate has expired
     fact: probes.*.http.*.tls.days-left
     keys: {pattern: "^https://"}
     expect: {minimum: 0}
@@ -20,7 +20,7 @@ rules:
       - {title: Lynis CRYP-7902, url: "https://cisofy.com/lynis/controls/CRYP-7902/"}
     tags: [tls, lynis]
   tls/expiring:
-    title: Certificate close to its end, its renewal overdue
+    title: A certificate is close to its end, its renewal overdue
     fact: probes.*.http.*.tls.percent-left
     keys: {pattern: "^https://"}
     when: {probes.*.http.*.tls.days-left: {minimum: 0}}
@@ -32,7 +32,7 @@ rules:
     docs: https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.5
     tags: [tls]
   tls/untrusted:
-    title: Certificate this host does not trust
+    title: A certificate is not trusted by this host
     fact: probes.*.http.*.tls.verified
     keys: {pattern: "^https://"}
     when:

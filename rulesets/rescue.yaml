@@ -7,7 +7,7 @@ tags: [default]
 when: {systemd.units: {minProperties: 1}}
 rules:
   rescue/no-sulogin:
-    title: Rescue shell opens without sulogin
+    title: The rescue shell opens without sulogin
     fact: systemd.units.*.sections.Service.ExecStart
     keys: {enum: [rescue.service, emergency.service]}
     expect: {type: array, items: {anyOf: [{const: ""}, {pattern: sulogin}]}}

@@ -11,7 +11,7 @@ when:
       - {required: [ID_LIKE], properties: {ID_LIKE: {pattern: "(^| )(debian|ubuntu)( |$)"}}}
 rules:
   apt/stale-suite:
-    title: Source fetches an older release’s suite
+    title: A source fetches an older release’s suite
     fact: apt.sources.*.stale-suites
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
@@ -23,7 +23,7 @@ rules:
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/stale-uri:
-    title: Source URI names an older release
+    title: A source URI names an older release
     fact: apt.sources.*.stale-uris
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
@@ -35,7 +35,7 @@ rules:
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/versioned-uri:
-    title: Source URI pins a version
+    title: A source URI pins a version
     fact: apt.sources.*.pinned-uris
     when: {apt.sources.*.enabled: true}
     expect: {items: {not: {pattern: "^[^:]+://[^/]+/(.*[/_:-])?v?[0-9]+\\.([0-9]+|x)"}}}
@@ -57,7 +57,7 @@ rules:
     docs: https://wiki.debian.org/DebianRepository/UseThirdParty
     tags: [apt]
   apt/shared-keyring:
-    title: Source trusts a shared keyring
+    title: A source trusts a shared keyring
     fact: apt.sources.*.signed-by
     when: {apt.sources.*.enabled: true}
     expect: {items: {not: {pattern: "^/etc/apt/trusted\\.gpg(\\.d/|$)"}}}
@@ -68,7 +68,7 @@ rules:
     docs: https://wiki.debian.org/DebianRepository/UseThirdParty
     tags: [apt]
   apt/https:
-    title: Source fetches over plain HTTP
+    title: A source fetches over plain HTTP
     fact: apt.sources.*.uris
     when: {apt.sources.*.enabled: true}
     expect: {items: {not: {pattern: "^([a-z]+\\+)?(http|ftp)://"}}}
@@ -79,7 +79,7 @@ rules:
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/insecure-options:
-    title: Source switches off signature checks
+    title: A source switches off signature checks
     fact: apt.sources.*.insecure-options
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
@@ -91,7 +91,7 @@ rules:
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/duplicate:
-    title: Repository listed in two places
+    title: A repository is listed in two places
     fact: apt.sources.*.covered-by
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
@@ -103,7 +103,7 @@ rules:
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/overlap:
-    title: Repository partly listed in two places
+    title: A repository is partly listed in two places
     fact: apt.sources.*.overlaps
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
@@ -114,7 +114,7 @@ rules:
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/key-conflict:
-    title: Repository listed with different keys
+    title: A repository is listed with different keys
     fact: apt.sources.*.key-conflicts
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
@@ -136,7 +136,7 @@ rules:
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt]
   apt/security-suite:
-    title: No source for security updates
+    title: No source fetches security updates
     fact: apt.sources
     when:
       os.release:

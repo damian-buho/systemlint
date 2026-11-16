@@ -6,7 +6,7 @@ description: Filesystems close to full
 tags: [default]
 rules:
   disk/full:
-    title: Filesystem almost out of space
+    title: A filesystem is almost out of space
     fact: mounts.usage.*.blocks
     when:
       collectors.mounts-usage.status: {not: {const: skipped}}
@@ -20,7 +20,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man1/df.1.html
     tags: [disk]
   disk/inodes:
-    title: Filesystem almost out of inodes
+    title: A filesystem is almost out of inodes
     fact: mounts.usage.*.inodes
     when:
       collectors.mounts-usage.status: {not: {const: skipped}}

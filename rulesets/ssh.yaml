@@ -24,7 +24,7 @@ rules:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
     tags: [ssh, dev-sec-ssh-baseline:sshd-06, lynis]
   ssh/password-authentication:
-    title: Passwords accepted over the network
+    title: Passwords are accepted over the network
     fact: sshd.settings.passwordauthentication.*
     expect: {const: no}
     severity: warning
@@ -34,7 +34,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-27]
   ssh/empty-passwords:
-    title: Empty passwords accepted
+    title: Empty passwords are accepted
     fact: sshd.settings.permitemptypasswords.*
     expect: {const: no}
     severity: error
@@ -44,7 +44,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-28]
   ssh/keyboard-interactive:
-    title: Keyboard-interactive logins accepted
+    title: Keyboard-interactive logins are accepted
     fact: sshd.settings.kbdinteractiveauthentication.*
     expect: {const: no}
     severity: warning
@@ -54,7 +54,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-29]
   ssh/hostbased:
-    title: Host-based authentication on
+    title: Host-based authentication is on
     fact: sshd.settings.hostbasedauthentication.*
     expect: {const: no}
     severity: warning
@@ -64,7 +64,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-25]
   ssh/ignore-rhosts:
-    title: Users’ .rhosts files read
+    title: Users’ .rhosts files are read
     fact: sshd.settings.ignorerhosts.*
     expect: {const: yes}
     severity: warning
@@ -76,7 +76,7 @@ rules:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
     tags: [ssh, dev-sec-ssh-baseline:sshd-23, lynis]
   ssh/strict-modes:
-    title: Writable key files accepted
+    title: Writable key files are accepted
     fact: sshd.global.*.strictmodes
     expect: {const: yes}
     severity: warning
@@ -100,7 +100,7 @@ rules:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
     tags: [ssh, dev-sec-ssh-baseline:sshd-17, lynis]
   ssh/x11-forwarding:
-    title: X11 forwarding on
+    title: X11 forwarding is on
     fact: sshd.settings.x11forwarding.*
     expect: {const: no}
     severity: warning
@@ -122,7 +122,7 @@ rules:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
     tags: [ssh, dev-sec-ssh-baseline:sshd-41, lynis]
   ssh/tunnel:
-    title: Tunnel device forwarding on
+    title: Tunnel device forwarding is on
     fact: sshd.settings.permittunnel.*
     expect: {const: no}
     severity: warning
@@ -134,37 +134,37 @@ rules:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
     tags: [ssh, dev-sec-ssh-baseline:sshd-38, lynis]
   ssh/ciphers:
-    title: Weak cipher offered
+    title: A weak cipher is offered
     fact: sshd.global.*.ciphers
     expect: {items: {not: {pattern: "-cbc$|^3des|arcfour|blowfish|cast128|^rijndael"}}}
     severity: error
     score: 7.5
-    message: "{subject} offers a weak cipher: {got}"
+    message: "{subject} offers {got}, a weak cipher, so a client that still accepts it may settle on a session an eavesdropper can attack"
     fix: remove {got} from “Ciphers”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-01]
   ssh/macs:
-    title: Weak MAC offered
+    title: A weak MAC is offered
     fact: sshd.global.*.macs
     expect: {items: {not: {pattern: "md5|sha1|-96|^umac-64"}}}
     severity: warning
     score: 5.5
-    message: "{subject} offers a weak MAC: {got}"
+    message: "{subject} offers {got}, a weak MAC, so a client that still accepts it may settle on a session whose integrity an attacker on the path can forge"
     fix: remove {got} from “MACs”, for example with “MACs -hmac-sha1*,umac-64*”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-03]
   ssh/kex:
-    title: Weak key exchange offered
+    title: A weak key exchange is offered
     fact: sshd.global.*.kexalgorithms
     expect: {items: {not: {pattern: "sha1|^diffie-hellman-group1-"}}}
     severity: error
     score: 7.5
-    message: "{subject} offers a weak key exchange: {got}"
+    message: "{subject} offers {got}, a weak key exchange, so a client that still accepts it may agree on a session key an eavesdropper can recover"
     fix: remove {got} from “KexAlgorithms”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-02]
   ssh/kex-post-quantum:
-    title: No post-quantum key exchange offered
+    title: No post-quantum key exchange is offered
     fact: sshd.global.*.kexalgorithms
     expect: {contains: {enum: [mlkem768x25519-sha256, sntrup761x25519-sha512, sntrup761x25519-sha512@openssh.com]}}
     severity: warning
@@ -174,7 +174,7 @@ rules:
     docs: https://www.openssh.com/pq.html
     tags: [ssh, cis-ubuntu-26.04:5.1.14]
   ssh/max-auth-tries:
-    title: Many authentication attempts allowed
+    title: Many authentication attempts are allowed
     fact: sshd.settings.maxauthtries.*
     expect: {maximum: "${ssh-max-auth-tries}"}
     severity: info
@@ -186,7 +186,7 @@ rules:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
     tags: [ssh, dev-sec-ssh-baseline:sshd-19, lynis]
   ssh/login-grace-time:
-    title: Unauthenticated connections kept open long
+    title: Unauthenticated connections are kept open long
     fact: sshd.global.*.logingracetime
     expect: {minimum: 1, maximum: "${ssh-login-grace-time}"}
     severity: info
@@ -198,7 +198,7 @@ rules:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
     tags: [ssh, dev-sec-ssh-baseline:sshd-18, lynis]
   ssh/log-level:
-    title: Login keys not logged
+    title: Login keys are not logged
     fact: sshd.settings.loglevel.*
     expect: {const: verbose}
     severity: info
@@ -250,7 +250,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.8]
   ssh/gssapi-authentication:
-    title: GSSAPI authentication accepted
+    title: GSSAPI authentication is accepted
     fact: sshd.settings.gssapiauthentication.*
     expect: {const: no}
     severity: warning
@@ -260,7 +260,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.10]
   ssh/max-sessions:
-    title: Many sessions allowed per connection
+    title: Many sessions are allowed per connection
     fact: sshd.settings.maxsessions.*
     expect: {maximum: "${ssh-max-sessions}"}
     severity: info
@@ -270,7 +270,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.19, '!default']
   ssh/max-startups:
-    title: Many unauthenticated connections allowed
+    title: Many unauthenticated connections are allowed
     fact: sshd.global.*.maxstartups
     expect: {pattern: "^([0-9]|10)(:([3-9][0-9]|100):([0-9]|[1-5][0-9]|60))?$"}
     severity: info
@@ -320,7 +320,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-600000, '!default']
   ssh/stig-not-installed:
-    title: No sshd on disk
+    title: sshd is not installed
     fact: ssh.binary
     expect: {minProperties: 1}
     severity: info
@@ -330,7 +330,7 @@ rules:
     docs: https://manpages.debian.org/unstable/openssh-server/sshd.8.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-100800, '!default']
   ssh/stig-not-running:
-    title: sshd installed but neither its service nor its socket enabled and running
+    title: sshd is installed but neither its service nor its socket is enabled and running
     fact: systemd.state
     when: {ssh.binary: {minProperties: 1}}
     expect:

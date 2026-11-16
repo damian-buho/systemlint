@@ -37,7 +37,7 @@ rules:
     expect: {required: [use_pty], properties: {use_pty: {const: true}}}
     severity: info
     score: 2.0
-    message: "{subject}’s sudo Defaults do not set use_pty, which CIS asks for spelled out whatever the build’s default"
+    message: "{subject}’s sudo Defaults do not set use_pty, so where the build does not default to it, a program run with sudo shares the caller’s terminal and can push keystrokes into it after sudo returns"
     fix: add “Defaults use_pty” to “/etc/sudoers” with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.2]

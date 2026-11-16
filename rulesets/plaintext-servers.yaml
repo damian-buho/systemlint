@@ -6,7 +6,7 @@ description: NIS, TFTP, telnet, rsh and inetd services that serve the network in
 tags: [default]
 rules:
   plaintext-servers/nis-unit:
-    title: A NIS server enabled or running
+    title: A NIS server is enabled or running
     fact: systemd.state.*
     keys: {enum: [ypserv.service, yppasswdd.service, ypxfrd.service]}
     expect: &off
@@ -24,7 +24,7 @@ rules:
       - {title: Lynis INSE-8316, url: "https://cisofy.com/lynis/controls/INSE-8316/"}
     tags: [services, cis-ubuntu-26.04:2.1.10, dev-sec-linux-baseline:package-05, lynis]
   plaintext-servers/tftp-unit:
-    title: A TFTP server enabled or running
+    title: A TFTP server is enabled or running
     fact: systemd.state.*
     keys: {enum: [tftpd-hpa.service, atftpd.service, atftpd.socket, tftp.service, tftp.socket]}
     expect: *off
@@ -37,7 +37,7 @@ rules:
       - {title: Lynis INSE-8320, url: "https://cisofy.com/lynis/controls/INSE-8320/"}
     tags: [services, cis-ubuntu-26.04:2.1.17, dev-sec-linux-baseline:package-06, lynis]
   plaintext-servers/login-unit:
-    title: A telnet, rsh, rlogin or rexec server enabled or running
+    title: A telnet, rsh, rlogin or rexec server is enabled or running
     fact: systemd.state.*
     keys: {enum: [telnet.socket, rsh.socket, rlogin.socket, rexec.socket]}
     expect: *off

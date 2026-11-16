@@ -7,7 +7,7 @@ tags: [default]
 when: {unattended-upgrades.binary: {minProperties: 1}}
 rules:
   unattended-upgrades/off:
-    title: unattended-upgrades installed but never run
+    title: unattended-upgrades is installed but never runs
     fact: apt.config
     expect: {not: {patternProperties: {"(?i)^apt::periodic::unattended-upgrade$": {const: "0"}}}}
     severity: warning
