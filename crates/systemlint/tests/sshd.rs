@@ -85,7 +85,7 @@ fn checks_with(document: &Value, config: Value) -> Vec<Check> {
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
-    assert_eq!(rules.len(), 18);
+    assert_eq!(rules.len(), 26);
     lint(document, &rules, &[], "2026-11-11")
 }
 
@@ -161,9 +161,13 @@ fn a_global_setting_fails_once_and_an_account_only_where_its_match_differs() {
 }
 
 const FAILING: &[(&str, &str)] = &[
+    ("ssh/access-unlisted", MAIN),
+    ("ssh/banner-none", MAIN),
     ("ssh/ciphers", MAIN),
+    ("ssh/client-alive-interval", MAIN),
     ("ssh/gateway-ports", MAIN),
     ("ssh/login-grace-time", MAIN),
+    ("ssh/max-startups", MAIN),
     ("ssh/password-authentication", "backup"),
     ("ssh/x11-forwarding", MAIN),
 ];

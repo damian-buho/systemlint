@@ -4006,3 +4006,90 @@ fn the_benchmark_mounts_are_separate_and_its_data_mounts_carry_their_options() {
         "under --root"
     );
 }
+
+#[test]
+fn the_benchmark_sshd_keywords_pass_at_their_edge() {
+    let main = "/etc/ssh/sshd_config";
+    let setting = |rule: &str, keyword: &str, value: Value| {
+        let document =
+            json!({"sshd": {"settings": {keyword: {main: value}}, "global": {main: {}}}});
+        outcomes("ssh", rule, &document)
+    };
+    let global = |rule: &str, values: Value| {
+        outcomes("ssh", rule, &json!({"sshd": {"global": {main: values}}}))
+    };
+    assert_eq!(
+        setting("ssh/banner-none", "banner", json!("none")),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        setting("ssh/banner-none", "banner", json!("/etc/issue.net")),
+        [Outcome::Pass]
+    );
+    for (rule, keyword) in [
+        ("ssh/client-alive-interval", "clientaliveinterval"),
+        ("ssh/client-alive-count-max", "clientalivecountmax"),
+    ] {
+        assert_eq!(setting(rule, keyword, json!(0)), [Outcome::Fail], "{rule}");
+        assert_eq!(setting(rule, keyword, json!(1)), [Outcome::Pass], "{rule}");
+    }
+    assert_eq!(
+        setting(
+            "ssh/gssapi-authentication",
+            "gssapiauthentication",
+            json!("yes")
+        ),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        setting(
+            "ssh/gssapi-authentication",
+            "gssapiauthentication",
+            json!("no")
+        ),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        setting("ssh/max-sessions", "maxsessions", json!(10)),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        setting("ssh/max-sessions", "maxsessions", json!(11)),
+        [Outcome::Fail]
+    );
+    for (value, outcome) in [
+        ("10:30:60", Outcome::Pass),
+        ("10", Outcome::Pass),
+        ("1:100:1", Outcome::Pass),
+        ("10:30:100", Outcome::Fail),
+        ("11:30:60", Outcome::Fail),
+        ("10:29:60", Outcome::Fail),
+        ("10:30:61", Outcome::Fail),
+    ] {
+        assert_eq!(
+            global("ssh/max-startups", json!({"maxstartups": value})),
+            [outcome],
+            "{value}"
+        );
+    }
+    assert_eq!(
+        global("ssh/use-pam", json!({"usepam": "yes"})),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        global("ssh/use-pam", json!({"usepam": "no"})),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        global("ssh/access-unlisted", json!({"usepam": "yes"})),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        global("ssh/access-unlisted", json!({"allowgroups": ["ssh-users"]})),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        global("ssh/access-unlisted", json!({"denyusers": ["guest"]})),
+        [Outcome::Pass]
+    );
+}

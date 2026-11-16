@@ -5,6 +5,7 @@
 description: OpenSSH server settings that weaken authentication, forwarding or cryptography, after dev-sec ssh-baseline
 tags: [default]
 vars:
+  ssh-max-sessions: {default: 10}
   ssh-max-auth-tries: {default: 4}
   ssh-login-grace-time: {default: 60}
 rules:
@@ -207,3 +208,83 @@ rules:
     references:
       - {title: Lynis SSH-7408, url: "https://cisofy.com/lynis/controls/SSH-7408/"}
     tags: [ssh, dev-sec-ssh-baseline:sshd-13, lynis]
+  ssh/access-unlisted:
+    title: sshd admits every account
+    fact: sshd.global.*
+    expect: {anyOf: [{required: [allowusers]}, {required: [allowgroups]}, {required: [denyusers]}, {required: [denygroups]}]}
+    severity: info
+    score: 2.0
+    message: "{subject} sets none of AllowUsers, AllowGroups, DenyUsers or DenyGroups, so every account with a shell and a credential may log in over SSH"
+    fix: set AllowGroups to the group of the people who log in over SSH
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, cis-ubuntu-26.04:5.1.5, '!default']
+  ssh/banner-none:
+    title: sshd shows no banner before login
+    fact: sshd.settings.banner.*
+    expect: {not: {const: none}}
+    severity: info
+    score: 1.0
+    message: "{subject} has Banner none, so no usage notice is shown before authentication"
+    fix: set Banner /etc/issue.net, with a notice that names no system details
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, cis-ubuntu-26.04:5.1.6, '!default']
+  ssh/client-alive-interval:
+    title: sshd never checks that an idle client is still there
+    fact: sshd.settings.clientaliveinterval.*
+    expect: {minimum: 1}
+    severity: info
+    score: 1.0
+    message: "{subject} has ClientAliveInterval 0, so a session whose client vanished stays open"
+    fix: set ClientAliveInterval 15 and ClientAliveCountMax 3, or the timeout your site asks
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, cis-ubuntu-26.04:5.1.8, '!default']
+  ssh/client-alive-count-max:
+    title: sshd never drops an unresponsive client
+    fact: sshd.settings.clientalivecountmax.*
+    expect: {minimum: 1}
+    severity: info
+    score: 1.0
+    message: "{subject} has ClientAliveCountMax 0, which turns the client alive check off"
+    fix: set ClientAliveCountMax 3
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, cis-ubuntu-26.04:5.1.8, '!default']
+  ssh/gssapi-authentication:
+    title: GSSAPI authentication accepted
+    fact: sshd.settings.gssapiauthentication.*
+    expect: {const: no}
+    severity: warning
+    score: 3.0
+    message: "{subject} has GSSAPIAuthentication {got}, so sshd runs the Kerberos library on input from every client, a parser most hosts never need"
+    fix: set GSSAPIAuthentication no, unless users log in with Kerberos tickets
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, cis-ubuntu-26.04:5.1.10]
+  ssh/max-sessions:
+    title: Many sessions allowed per connection
+    fact: sshd.settings.maxsessions.*
+    expect: {maximum: "${ssh-max-sessions}"}
+    severity: info
+    score: 1.0
+    message: "{subject} has MaxSessions {got}, above ${ssh-max-sessions}"
+    fix: set MaxSessions ${ssh-max-sessions} or lower
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, cis-ubuntu-26.04:5.1.19, '!default']
+  ssh/max-startups:
+    title: Many unauthenticated connections allowed
+    fact: sshd.global.*.maxstartups
+    expect: {pattern: "^([0-9]|10)(:([3-9][0-9]|100):([0-9]|[1-5][0-9]|60))?$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has MaxStartups {got}, looser than the benchmark’s 10:30:60, so more half-open logins are kept before sshd starts dropping them"
+    fix: set MaxStartups 10:30:60
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, cis-ubuntu-26.04:5.1.20, '!default']
+  ssh/use-pam:
+    title: sshd skips PAM
+    fact: sshd.global.*.usepam
+    expect: {const: yes}
+    severity: warning
+    score: 4.0
+    message: "{subject} has UsePAM {got}, so logins skip the PAM account and session stacks: lockout, limits and expiry checks"
+    fix: set UsePAM yes
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, cis-ubuntu-26.04:5.1.24]

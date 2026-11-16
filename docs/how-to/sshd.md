@@ -91,6 +91,13 @@ thresholds are systemlint’s own.
 | `ssh/ciphers` | sshd-01 | error | `Ciphers` offers a CBC, 3DES, RC4, Blowfish or CAST cipher |
 | `ssh/kex` | sshd-02 | error | `KexAlgorithms` offers a SHA-1 or 1024-bit group exchange |
 | `ssh/kex-post-quantum` | CIS 5.1.14 | warning | `KexAlgorithms` offers neither `mlkem768x25519-sha256` nor `sntrup761x25519-sha512`, in any position, since the client’s order decides |
+| `ssh/gssapi-authentication` | CIS 5.1.10 | warning | `GSSAPIAuthentication` is not `no` |
+| `ssh/use-pam` | CIS 5.1.24 | warning | `UsePAM` is not `yes`, so logins skip the PAM account and session stacks |
+| `ssh/access-unlisted` | CIS 5.1.5 | info | none of `AllowUsers`, `AllowGroups`, `DenyUsers`, `DenyGroups` is set (*standard-only*) |
+| `ssh/banner-none` | CIS 5.1.6 | info | `Banner` is `none` (*standard-only*) |
+| `ssh/client-alive-interval`, `ssh/client-alive-count-max` | CIS 5.1.8 | info | `ClientAliveInterval` or `ClientAliveCountMax` is 0 (*standard-only*) |
+| `ssh/max-sessions` | CIS 5.1.19 | info | `MaxSessions` is above `ssh-max-sessions` (10) (*standard-only*) |
+| `ssh/max-startups` | CIS 5.1.20 | info | `MaxStartups` is looser than `10:30:60`: a start above 10, a rate below 30 or a full above 60 (*standard-only*; stock is `10:30:100`) |
 | `ssh/macs` | sshd-03 | warning | `MACs` offers MD5, SHA-1, a 96-bit or a 64-bit UMAC tag |
 | `ssh/password-authentication` | sshd-27 | warning | `PasswordAuthentication` is not `no` |
 | `ssh/keyboard-interactive` | sshd-29 | warning | `KbdInteractiveAuthentication` is not `no` |
