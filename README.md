@@ -92,7 +92,7 @@ Clone the repository and run `make` — every build step, target and entry point
 - [Plugin protocol v1](docs/how-to/protocol.md)
 - [Rule book: how to write a shipped rule](docs/how-to/rule-book.md)
 - [Rules and rulesets](docs/how-to/rules.md)
-- [Kernel parameters, modules and audit rules, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables](docs/how-to/services.md)
+- [Kernel parameters, modules and audit rules, AIDE, AppArmor, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables](docs/how-to/services.md)
 - [OpenSSH server](docs/how-to/sshd.md)
 
 ## Policies

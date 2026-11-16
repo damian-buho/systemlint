@@ -94,7 +94,7 @@ docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEA
 - [Plugin protocol v1](../how-to/protocol.md)
 - [Rule book: how to write a shipped rule](../how-to/rule-book.md)
 - [Rules and rulesets](../how-to/rules.md)
-- [Kernel parameters, modules and audit rules, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables](../how-to/services.md)
+- [Kernel parameters, modules and audit rules, AIDE, AppArmor, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables](../how-to/services.md)
 - [OpenSSH server](../how-to/sshd.md)
 
 ## Політики
