@@ -763,3 +763,28 @@ one only while `net.ipv6.conf.all.disable_ipv6` is not 1, and
 `nftables/service-failed` fails a `nftables.service` that failed to load its
 ruleset. Docker’s own drops sit on the forward hook, so they never pass an
 open input hook.
+
+## PHP
+
+The `php` ruleset carries no `default` tag: it runs with `--tags php` or
+`--tags 'cve:CVE-2026-109619'`, and applies once `/usr/bin/php` exists
+(`php-binary`). `php-version` reads `php -v` through `match` into
+`php.version.<sapi>`, and `php-session` reads `php --ri session` through
+`words` on ` => ` into `php.session.<directive>` with its `local` and `master`
+values; `php -i` is never run, as it prints the environment. Both run the
+program, so under `--root` the rule is `Not run`.
+
+`php/php2shell` fails PHP older than 8.2.35, 8.3.36, 8.4.27 or 8.5.12 on its
+branch, or any 8.1 and older, while `session.upload_progress.enabled` is on
+(PHP security release of 2026-10-21, CVE-2026-109618 and CVE-2026-109619).
+
+It is a proof of concept with known limits:
+
+- a distribution that backports the fix keeps the upstream number: Ubuntu
+  26.04 prints `8.5.4` for package `8.5.4-0ubuntu1.5`, so the version says
+  nothing there; Debian 13, AlmaLinux 10, Fedora, Arch and Alpine ship the
+  upstream point release
+- the setting is the command-line SAPI’s: Debian, Ubuntu and openSUSE give FPM
+  its own `php.ini`, and an FPM pool’s `php_admin_value` overrides either
+- only `/usr/bin/php` is judged, never `/usr/local/bin/php`, Alpine’s
+  `php84` or a second installed version

@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: A PHP build open to a known remote code execution, judged from what PHP itself reports
+when: {php.binary: {minProperties: 1}}
+rules:
+  php/php2shell:
+    title: PHP runs a build open to PHP2Shell with session upload progress on
+    facts:
+      any:
+        - fact: php.version.*.version
+          expect:
+            anyOf:
+              - {x-version: {scheme: semver, min: "8.2.35", below: "8.3.0"}}
+              - {x-version: {scheme: semver, min: "8.3.36", below: "8.4.0"}}
+              - {x-version: {scheme: semver, min: "8.4.27", below: "8.5.0"}}
+              - {x-version: {scheme: semver, min: "8.5.12", below: "8.6.0"}}
+              - {x-version: {scheme: semver, min: "8.6.0"}}
+        - fact: /php/session/session.upload_progress.enabled/local
+          expect: {const: "Off"}
+    severity: error
+    score: 9.2
+    message: "{subject} PHP predates the 2026-10-21 security release and keeps session upload progress on, so an unauthenticated multipart request can run code in a PHP worker"
+    fix: update PHP to 8.2.35, 8.3.36, 8.4.27 or 8.5.12, or later; until then set “session.upload_progress.enabled = 0” in the “php.ini” of every SAPI and restart every worker
+    docs: https://www.php.net/archive/2026.php#2026-10-21-5
+    rationale: an unauthenticated multipart request can run code in a PHP worker
+    references:
+      - {title: "GHSA-6wmf-4rv5-p3rp", url: "https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp"}
+      - {title: "GHSA-w8hw-w9fx-j79w", url: "https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w"}
+      - {title: "PHP2Shell", url: "https://www.wiz.io/blog/php2shell-php-rce"}
+    tags: [cve:CVE-2026-109618, cve:CVE-2026-109619]
