@@ -1042,6 +1042,73 @@ fn a_home_fails_once_others_reach_it_and_a_user_owns_it() {
     );
 }
 
+// The home/not-owned checks for bob at `uid` whose home stat is `home`, or no stat at all.
+fn home_owner(uid: u64, home: Option<Value>) -> Vec<systemlint::judge::Check> {
+    let mut document = json!({
+        "accounts": {"passwd": {"bob": {"uid": uid, "home": "/home/bob"}}},
+        "home": {"directories": {}},
+        "collectors": {
+            "accounts-passwd": {"status": "ok", "into": "accounts.passwd"},
+            "home-directories": {"status": "ok", "into": "home.directories"},
+        },
+    });
+    if let Some(home) = home {
+        document["home"]["directories"]["/home/bob"] = home;
+    }
+    checks("home", &document)
+        .into_iter()
+        .filter(|c| c.rule == "home/not-owned")
+        .collect()
+}
+
+#[test]
+fn a_home_fails_when_its_account_does_not_own_it() {
+    let dir = |owner: u64| json!({"exists": true, "kind": "directory", "uid": owner});
+    let outcome = |uid, home| home_owner(uid, home)[0].outcome;
+    assert_eq!(outcome(1000, Some(dir(1000))), Outcome::Pass);
+    assert_eq!(outcome(1000, Some(dir(1001))), Outcome::Fail);
+    assert_eq!(outcome(60000, Some(dir(0))), Outcome::Fail);
+    assert_eq!(
+        outcome(999, Some(dir(0))),
+        Outcome::Skip,
+        "a service account"
+    );
+    assert_eq!(
+        outcome(60001, Some(dir(0))),
+        Outcome::Skip,
+        "nobody and the dynamic uids"
+    );
+    assert_eq!(
+        outcome(1000, Some(json!({"exists": false}))),
+        Outcome::Skip,
+        "an account whose home was never made"
+    );
+    assert_eq!(
+        outcome(
+            1000,
+            Some(json!({"exists": true, "kind": "symlink", "uid": 0}))
+        ),
+        Outcome::Skip,
+        "a link’s own owner means nothing"
+    );
+    assert_eq!(
+        outcome(1000, None),
+        Outcome::Unknown,
+        "a home the collector should have stated"
+    );
+    let failed = &home_owner(1000, Some(dir(1001)))[0];
+    assert_eq!(failed.subject_label(), "bob");
+    assert!(
+        failed
+            .message
+            .as_deref()
+            .unwrap()
+            .contains("uid 1001, not by its own uid 1000"),
+        "{:?}",
+        failed.message
+    );
+}
+
 // The outcomes of the rhosts rules, by rule, for the server binaries found and the trust files' stats.
 fn rhosts(readers: &[&str], system: Value, users: Value) -> Vec<(String, Outcome)> {
     let readers: serde_json::Map<String, Value> = readers

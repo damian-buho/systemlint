@@ -143,17 +143,22 @@ A directory no other user can write, or an absent one, passes.
 
 The `home-directories` collector stats each `/etc/passwd` home into
 `home.directories.<path>`, with no privilege, since `/home` is searchable by
-everyone. The `home` ruleset judges them:
+everyone; a home that does not exist lands as `exists: false`
+(`read.stat-absent`). The `home` ruleset judges them:
 
 | Rule | Severity | Fails when |
 | --- | --- | --- |
 | `home/open-to-others` | warning | a home owned by a uid from `uid-min` (1000) to `uid-max` (60000) grants others any access, so they list it and read what its owner leaves readable |
+| `home/not-owned` | warning | an account with a uid from `uid-min` to `uid-max` has a home directory another uid owns, who can then change its files and shell startup scripts |
 
 The uid is the directory’s owner, not the account’s, so a service account
 whose home is root’s `/usr/sbin` or `/var/www` is skipped, as are `nobody`
 (65534) and the uids systemd gives dynamic users. The two bounds are ruleset
 vars, set with `check.vars` where `/etc/login.defs` moves `UID_MIN` or
 `UID_MAX`. A symlink is skipped; its target is not followed.
+`home/not-owned` is judged per account instead, so a home two accounts share
+fails for the one that does not own it, and an account whose home was never
+made is skipped.
 
 ## Users’ SSH directories
 

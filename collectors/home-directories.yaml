@@ -5,5 +5,6 @@
 id: home-directories
 read:
   stat-from: ['{accounts.passwd.*.home}']
+  stat-absent: true
 parse: {plugin: formats, op: stat}
 into: home.directories

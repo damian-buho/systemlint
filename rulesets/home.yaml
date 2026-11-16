@@ -12,6 +12,7 @@ rules:
     title: A home directory other users can enter or read
     fact: home.directories.*.mode
     when:
+      home.directories.*.exists: true
       home.directories.*.kind: directory
       home.directories.*.uid: {minimum: "${uid-min}", maximum: "${uid-max}"}
     expect: {pattern: "^[0-7]{3}0$"}
@@ -23,4 +24,20 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
       - {title: Lynis HOME-9304, url: "https://cisofy.com/lynis/controls/HOME-9304/"}
+    tags: [files, lynis]
+  home/not-owned:
+    title: A home directory its account does not own
+    fact: accounts.passwd.*.uid
+    same: home.directories.{accounts.passwd.*.home}.uid
+    when:
+      accounts.passwd.*.uid: {minimum: "${uid-min}", maximum: "${uid-max}"}
+      home.directories.{accounts.passwd.*.home}.exists: true
+      home.directories.{accounts.passwd.*.home}.kind: directory
+    severity: warning
+    score: 5.0
+    message: "{subject}’s home is owned by uid {same}, not by its own uid {got}, so that owner can read, change or replace its files and shell startup scripts"
+    fix: chown the home to {subject}, or point the account at a home of its own with usermod --home
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
+    references:
+      - {title: Lynis HOME-9306, url: "https://cisofy.com/lynis/controls/HOME-9306/"}
     tags: [files, lynis]
