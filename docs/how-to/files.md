@@ -243,6 +243,13 @@ Stock Debian and Ubuntu mount `/tmp` and `/dev/shm` without `noexec`, and fail
 installs keep working: debconf unpacks config scripts into
 `/var/cache/debconf/tmp.ci`, not `/tmp`.
 
+CIS alone asks more, in `'!default'` rules on a live run: `mounts/separate-tmp`,
+`-dev-shm`, `-home`, `-var`, `-var-tmp`, `-var-log` and `-var-log-audit` fail
+when that path is no mount of its own (1.1.2.x.1), and
+`mounts/partition-nodev`, `-nosuid` (`/home`, `/var`, `/var/log`,
+`/var/log/audit`) and `-noexec` (`/var/log`, `/var/log/audit`) judge the options
+of those that are.
+
 The `disk` ruleset judges `mounts.usage` on a live run, scored on a curve from
 warning at 90 % to error from 98 %. It leaves out read-only filesystems, which
 always read full (squashfs snaps, ISO images), `overlay` mounts, which

@@ -89,3 +89,116 @@ rules:
     references:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
     tags: [mounts, lynis]
+  mounts/separate-tmp:
+    title: /tmp is not a separate mount
+    fact: mounts.active
+    when: {mounts: {required: [active]}}
+    expect: {required: [/tmp]}
+    severity: info
+    score: 1.0
+    message: "/tmp is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    fix: give /tmp its own partition, logical volume or tmpfs and mount it from /etc/fstab or a .mount unit
+    docs: https://man7.org/linux/man-pages/man5/fstab.5.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.1.1, '!default']
+  mounts/separate-dev-shm:
+    title: /dev/shm is not a separate mount
+    fact: mounts.active
+    when: {mounts: {required: [active]}}
+    expect: {required: [/dev/shm]}
+    severity: info
+    score: 1.0
+    message: "/dev/shm is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    fix: give /dev/shm its own partition, logical volume or tmpfs and mount it from /etc/fstab or a .mount unit
+    docs: https://man7.org/linux/man-pages/man5/fstab.5.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.2.1, '!default']
+  mounts/separate-home:
+    title: /home is not a separate mount
+    fact: mounts.active
+    when: {mounts: {required: [active]}}
+    expect: {required: [/home]}
+    severity: info
+    score: 1.0
+    message: "/home is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    fix: give /home its own partition, logical volume or tmpfs and mount it from /etc/fstab or a .mount unit
+    docs: https://man7.org/linux/man-pages/man5/fstab.5.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.3.1, '!default']
+  mounts/separate-var:
+    title: /var is not a separate mount
+    fact: mounts.active
+    when: {mounts: {required: [active]}}
+    expect: {required: [/var]}
+    severity: info
+    score: 1.0
+    message: "/var is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    fix: give /var its own partition, logical volume or tmpfs and mount it from /etc/fstab or a .mount unit
+    docs: https://man7.org/linux/man-pages/man5/fstab.5.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.4.1, '!default']
+  mounts/separate-var-tmp:
+    title: /var/tmp is not a separate mount
+    fact: mounts.active
+    when: {mounts: {required: [active]}}
+    expect: {required: [/var/tmp]}
+    severity: info
+    score: 1.0
+    message: "/var/tmp is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    fix: give /var/tmp its own partition, logical volume or tmpfs and mount it from /etc/fstab or a .mount unit
+    docs: https://man7.org/linux/man-pages/man5/fstab.5.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.5.1, '!default']
+  mounts/separate-var-log:
+    title: /var/log is not a separate mount
+    fact: mounts.active
+    when: {mounts: {required: [active]}}
+    expect: {required: [/var/log]}
+    severity: info
+    score: 1.0
+    message: "/var/log is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    fix: give /var/log its own partition, logical volume or tmpfs and mount it from /etc/fstab or a .mount unit
+    docs: https://man7.org/linux/man-pages/man5/fstab.5.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.6.1, '!default']
+  mounts/separate-var-log-audit:
+    title: /var/log/audit is not a separate mount
+    fact: mounts.active
+    when: {mounts: {required: [active]}}
+    expect: {required: [/var/log/audit]}
+    severity: info
+    score: 1.0
+    message: "/var/log/audit is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    fix: give /var/log/audit its own partition, logical volume or tmpfs and mount it from /etc/fstab or a .mount unit
+    docs: https://man7.org/linux/man-pages/man5/fstab.5.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.7.1, '!default']
+  mounts/partition-nodev:
+    title: A data mount opens device files
+    fact: mounts.active.*.options
+    keys: {enum: [/home, /var, /var/log, /var/log/audit]}
+    when: {mounts: {required: [active]}}
+    expect: {contains: {const: nodev}}
+    severity: info
+    score: 1.0
+    message: "{subject} is mounted without nodev; the benchmark asks it on this data mount"
+    fix: add nodev to the mount’s options in /etc/fstab or its .mount unit, then run mount -o remount,nodev {subject}
+    docs: https://man7.org/linux/man-pages/man8/mount.8.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.3.2, cis-ubuntu-26.04:1.1.2.4.2, cis-ubuntu-26.04:1.1.2.6.2, cis-ubuntu-26.04:1.1.2.7.2, '!default']
+  mounts/partition-nosuid:
+    title: A data mount honours set-user-ID bits
+    fact: mounts.active.*.options
+    keys: {enum: [/home, /var, /var/log, /var/log/audit]}
+    when: {mounts: {required: [active]}}
+    expect: {contains: {const: nosuid}}
+    severity: info
+    score: 1.0
+    message: "{subject} is mounted without nosuid; the benchmark asks it on this data mount"
+    fix: add nosuid to the mount’s options in /etc/fstab or its .mount unit, then run mount -o remount,nosuid {subject}
+    docs: https://man7.org/linux/man-pages/man8/mount.8.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.3.3, cis-ubuntu-26.04:1.1.2.4.3, cis-ubuntu-26.04:1.1.2.6.3, cis-ubuntu-26.04:1.1.2.7.3, '!default']
+  mounts/partition-noexec:
+    title: A data mount runs programs
+    fact: mounts.active.*.options
+    keys: {enum: [/var/log, /var/log/audit]}
+    when: {mounts: {required: [active]}}
+    expect: {contains: {const: noexec}}
+    severity: info
+    score: 1.0
+    message: "{subject} is mounted without noexec; the benchmark asks it on this data mount"
+    fix: add noexec to the mount’s options in /etc/fstab or its .mount unit, then run mount -o remount,noexec {subject}
+    docs: https://man7.org/linux/man-pages/man8/mount.8.html
+    tags: [mounts, cis-ubuntu-26.04:1.1.2.6.4, cis-ubuntu-26.04:1.1.2.7.4, '!default']

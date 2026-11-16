@@ -1878,6 +1878,9 @@ fn mounts(active: Option<Value>, fstab: Value) -> Vec<(String, String, Outcome)>
         document["collectors"]["mounts-active"] = json!({"status": "ok", "into": "mounts.active"});
     }
     let mut checks = judge("mounts", &document);
+    checks.retain(|(rule, _, _)| {
+        !rule.starts_with("mounts/separate-") && !rule.starts_with("mounts/partition-")
+    });
     checks.sort();
     checks
 }
@@ -3960,5 +3963,46 @@ fn the_account_databases_belong_to_group_root_and_the_hashes_to_root_or_shadow()
         rule("files/shadow-group", &moved)
             .iter()
             .all(|(_, o)| *o == Outcome::Skip)
+    );
+}
+
+#[test]
+fn the_benchmark_mounts_are_separate_and_its_data_mounts_carry_their_options() {
+    let judged = |active: Option<Value>| {
+        let mut document = json!({"mounts": {"fstab": {}}, "collectors": {"mounts-active": {"status": "skipped", "reason": "live", "into": "mounts.active"}}});
+        if let Some(active) = active {
+            document["mounts"]["active"] = active;
+            document["collectors"]["mounts-active"] =
+                json!({"status": "ok", "into": "mounts.active"});
+        }
+        let mut checks: Vec<_> = judge("mounts", &document)
+            .into_iter()
+            .filter(|(rule, _, _)| {
+                rule.starts_with("mounts/separate-") || rule.starts_with("mounts/partition-")
+            })
+            .collect();
+        checks.sort();
+        checks
+    };
+    let active = json!({"/": {"options": ["rw"]}, "/home": {"options": ["rw", "nodev"]}, "/var/log": {"options": ["nodev", "nosuid", "noexec"]}, "/tmp": {"options": []}});
+    let failing: Vec<_> = judged(Some(active))
+        .into_iter()
+        .filter(|(_, _, o)| *o != Outcome::Pass)
+        .collect();
+    let row = |rule: &str, subject: &str| (rule.to_owned(), subject.to_owned(), Outcome::Fail);
+    assert_eq!(
+        failing,
+        [
+            row("mounts/partition-nosuid", "/home"),
+            row("mounts/separate-dev-shm", ""),
+            row("mounts/separate-var", ""),
+            row("mounts/separate-var-log-audit", ""),
+            row("mounts/separate-var-tmp", ""),
+        ],
+        "/home needs no noexec, and a mount that is absent has no options to judge"
+    );
+    assert!(
+        judged(None).iter().all(|(_, _, o)| *o == Outcome::Skip),
+        "under --root"
     );
 }
