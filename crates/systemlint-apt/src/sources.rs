@@ -411,6 +411,7 @@ pub fn sources(inputs: &[Input], facts: &BTreeMap<String, Value>) -> Reply {
             }
         }
     }
+    let kept = keep(&all, &targets);
     let lookup = |name: &str| {
         cached
             .get(format!("{name}InRelease").as_str())
@@ -536,6 +537,17 @@ pub fn sources(inputs: &[Input], facts: &BTreeMap<String, Value>) -> Reply {
                 .map(|(_, o)| &o.key)
                 .collect::<Vec<_>>()
         );
+        let (kept, targets) = (&kept, &targets);
+        let sharing = |keep: bool| {
+            others()
+                .filter(move |(j, _)| {
+                    kept[*j] && kept[i] == keep && !targets[*j].is_disjoint(&targets[i])
+                })
+                .map(|(_, o)| &o.key)
+                .collect::<Vec<_>>()
+        };
+        fact["covered-by"] = json!(sharing(false));
+        fact["overlaps"] = json!(sharing(true));
         let keys: BTreeSet<&String> = source.signed_by.iter().collect();
         fact["key-conflicts"] = json!(
             others()
@@ -547,6 +559,20 @@ pub fn sources(inputs: &[Input], facts: &BTreeMap<String, Value>) -> Reply {
         reply.facts.insert(source.key.clone(), fact);
     }
     reply
+}
+
+/// Which sources to keep: every enabled one, less each whose targets the kept ones all list, from the last line up, so the first of two equal lines stays.
+fn keep(all: &[Source], targets: &[BTreeSet<(String, String, String)>]) -> Vec<bool> {
+    let mut kept: Vec<bool> = all.iter().map(|s| s.enabled).collect();
+    for i in (0..all.len()).rev() {
+        let covered = kept[i]
+            && !targets[i].is_empty()
+            && targets[i]
+                .iter()
+                .all(|t| (0..all.len()).any(|j| j != i && kept[j] && targets[j].contains(t)));
+        kept[i] &= !covered;
+    }
+    kept
 }
 
 #[cfg(test)]
@@ -785,6 +811,46 @@ mod tests {
             json!(["/e/a.list:3"])
         );
         assert_eq!(reply.facts["/e/off.sources:1"]["duplicates"], json!([]));
+        let field = |key: &str, name: &str| reply.facts[key][name].clone();
+        assert_eq!(field("/e/a.list:1", "covered-by"), json!(["/e/a.list:2"]));
+        assert_eq!(field("/e/a.list:3", "covered-by"), json!(["/e/a.list:2"]));
+        assert_eq!(
+            field("/e/a.list:2", "covered-by"),
+            json!([]),
+            "the superset stays"
+        );
+        assert_eq!(
+            field("/e/a.list:2", "overlaps"),
+            json!([]),
+            "a dropped source is no overlap"
+        );
+        assert_eq!(field("/e/off.sources:1", "covered-by"), json!([]));
+    }
+
+    #[test]
+    fn of_equal_sources_the_first_stays_and_a_partial_overlap_drops_neither() {
+        let same = "deb https://r.example/ubuntu resolute main\ndeb https://r.example/ubuntu resolute main\ndeb https://r.example/ubuntu resolute main\n";
+        let reply = sources(&[file("/e/same.list", same)], &host("resolute"));
+        let covered = |key: &str| reply.facts[key]["covered-by"].clone();
+        assert_eq!(covered("/e/same.list:1"), json!([]));
+        assert_eq!(covered("/e/same.list:2"), json!(["/e/same.list:1"]));
+        assert_eq!(covered("/e/same.list:3"), json!(["/e/same.list:1"]));
+        let part = "deb https://r.example/ubuntu resolute main universe\ndeb https://r.example/ubuntu resolute main restricted\n";
+        let reply = sources(&[file("/e/part.list", part)], &host("resolute"));
+        let fact = |key: &str| {
+            (
+                reply.facts[key]["covered-by"].clone(),
+                reply.facts[key]["overlaps"].clone(),
+            )
+        };
+        assert_eq!(
+            fact("/e/part.list:1"),
+            (json!([]), json!(["/e/part.list:2"]))
+        );
+        assert_eq!(
+            fact("/e/part.list:2"),
+            (json!([]), json!(["/e/part.list:1"]))
+        );
     }
 
     #[test]

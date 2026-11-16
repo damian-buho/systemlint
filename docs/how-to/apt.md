@@ -54,6 +54,8 @@ the line it starts on, such as `/etc/apt/sources.list.d/docker.sources:5`.
 | `expired-lists` | the cached Release files whose `Valid-Until` passed before the collection time |
 | `release-age-days` | the age of the oldest `Date:` among them |
 | `duplicates` | the other enabled sources listing one of its type, URI, suite and component |
+| `covered-by` | the kept sources listing every type, URI, suite and component it lists, when it is not kept: walking from the last source up, one is dropped when the sources still kept list all of it, so the first of two equal sources stays and a subset goes before its superset |
+| `overlaps` | the other kept sources sharing one of its targets, when it is kept |
 | `key-conflicts` | the other enabled sources naming one of its URI and suite with different `Signed-By` |
 
 A cached list carries `origin`, `label`, `suite`, `codename`, `version`,
@@ -99,7 +101,8 @@ rule answers `not-applicable`.
 | `apt/shared-keyring` | warning | names a keyring in `/etc/apt/trusted.gpg` or `trusted.gpg.d/` |
 | `apt/https` | warning | fetches over `http://` or `ftp://` |
 | `apt/insecure-options` | error | sets `trusted` or an `allow-*` option |
-| `apt/duplicate` | warning | lists a repository another source lists |
+| `apt/duplicate` | warning | lists nothing the kept sources do not list (`covered-by`); a one-line source carries the `disable-line: apt-list` remedy, which never leaves its target unlisted |
+| `apt/overlap` | warning | shares a suite and component with another kept source while listing one of its own (`overlaps`) |
 | `apt/key-conflict` | error | shares a repository with a source of another `Signed-By` |
 | `apt/stale-release` | error | has a cached Release past its `Valid-Until` |
 

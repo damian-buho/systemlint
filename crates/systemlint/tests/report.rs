@@ -467,11 +467,11 @@ fn shipped(ids: &[&str]) -> Vec<systemlint::judge::Rule> {
 }
 
 fn sources() -> (Value, Vec<Check>) {
-    let source = |duplicates: &[&str], stale: &[&str]| json!({"enabled": true, "duplicates": duplicates, "stale-suites": stale});
+    let source = |overlaps: &[&str], stale: &[&str]| json!({"enabled": true, "overlaps": overlaps, "stale-suites": stale});
     let document = json!({"os": {"release": {"ID": "ubuntu"}}, "apt": {"sources": {"/a.list:1": source(&["/b.sources:1"], &["noble"]), "/b.sources:1": source(&["/a.list:1"], &[]), "/c.sources:1": source(&[], &["xenial"])}}});
     let checks = lint(
         &document,
-        &shipped(&["apt/duplicate", "apt/stale-suite"]),
+        &shipped(&["apt/overlap", "apt/stale-suite"]),
         &[],
         "2026-11-11",
     );
@@ -482,7 +482,7 @@ fn sources() -> (Value, Vec<Check>) {
 fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_last() {
     let (document, checks) = sources();
     let text = lint_human(&document, &checks, false, false, false);
-    let expected = "Warning (4.5): [apt/duplicate] Repository listed in two places\n- /a.list:1.\n- /b.sources:1.\nFix: remove one of the entries, then run sudo apt update.\n\n\
+    let expected = "Warning (4.5): [apt/overlap] Repository partly listed in two places\n- /a.list:1.\n- /b.sources:1.\nFix: list each suite and component in one entry only, then run sudo apt update.\n\n\
         Error (7.5): [apt/stale-suite] Source fetches an older release’s suite\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
         Rating F · 2 errors, 2 warnings, 0 info · 2 pass\n";
     assert_eq!(text, expected);
@@ -671,7 +671,7 @@ fn plain_prints_one_tab_separated_line_per_finding() {
     assert_eq!(lines.len(), 5, "{text}");
     assert_eq!(
         lines[0],
-        "warning\t4.5\tapt/duplicate\t/a.list:1\tlists the same repository as “/b.sources:1”.\tRemove one of the entries, then run sudo apt update."
+        "warning\t4.5\tapt/overlap\t/a.list:1\tlists some of the same suites and components as “/b.sources:1”.\tList each suite and component in one entry only, then run sudo apt update."
     );
     assert!(
         lines[2].starts_with("error\t7.5\tapt/stale-suite\t/a.list:1\t"),

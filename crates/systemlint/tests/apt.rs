@@ -15,7 +15,7 @@ use systemlint::source::Root;
 use systemlint_protocol::{Describe, ExecInput, Input, PROTOCOL, Reply, Request};
 
 // The rules of the apt ruleset a default run selects.
-const DEFAULT_RULES: usize = 16;
+const DEFAULT_RULES: usize = 17;
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -115,7 +115,7 @@ fn captured(root: &str, argv: &[String]) -> Input {
     })
 }
 
-fn checks(document: &Value) -> Vec<Check> {
+fn rules() -> Vec<systemlint::judge::Rule> {
     let ruleset = systemlint::yaml::from_str(
         &std::fs::read_to_string(repository().join("rulesets/apt.yaml")).unwrap(),
     )
@@ -128,7 +128,11 @@ fn checks(document: &Value) -> Vec<Check> {
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
     assert_eq!(rules.len(), DEFAULT_RULES);
-    lint(document, &rules, &[], "2026-11-11")
+    rules
+}
+
+fn checks(document: &Value) -> Vec<Check> {
+    lint(document, &rules(), &[], "2026-11-11")
 }
 
 fn failures(document: &Value) -> Vec<Check> {
@@ -236,9 +240,10 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
         .iter()
         .map(|c| (c.rule.as_str(), c.subject_text()))
         .collect();
-    let (list, mirror) = (
+    let (list, mirror, overlap) = (
         "/etc/apt/sources.list",
         "/etc/apt/sources.list.d/mirror.list:5",
+        "/etc/apt/sources.list.d/overlap.list",
     );
     let mut expected = [
         ("apt/allow-downgrade-to-insecure", String::new()),
@@ -246,8 +251,9 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
         ("apt/allow-unauthenticated", String::new()),
         ("apt/allow-weak-repositories", String::new()),
         ("apt/check-date-off", String::new()),
-        ("apt/duplicate", format!("{list}:5")),
         ("apt/duplicate", mirror.to_owned()),
+        ("apt/overlap", format!("{overlap}:5")),
+        ("apt/overlap", format!("{overlap}:6")),
         ("apt/https", format!("{list}:5")),
         ("apt/insecure-options", format!("{list}:7")),
         ("apt/key-conflict", format!("{list}:5")),
@@ -285,4 +291,18 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
         fix("apt/stale-uri"),
         "point the source at “https://download.opensuse.org/repositories/devel:/languages:/crystal/xUbuntu_26.04/”, or waive it when the vendor publishes no build for this release"
     );
+}
+
+#[test]
+fn the_duplicate_remedy_disables_only_the_line_another_source_covers() {
+    let document = document("apt-misconfigured");
+    let rules = rules();
+    let checks = lint(&document, &rules, &[], "2026-11-11");
+    let changes = systemlint::fix::plan(&checks, &rules, &document).changes;
+    let duplicate: Vec<String> = changes
+        .iter()
+        .filter(|c| c.rule == "apt/duplicate")
+        .map(|c| c.subject())
+        .collect();
+    assert_eq!(duplicate, ["/etc/apt/sources.list.d/mirror.list:5"]);
 }

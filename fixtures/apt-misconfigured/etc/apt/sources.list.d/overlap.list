@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+deb [signed-by=/etc/apt/keyrings/tools.asc] https://tools.example/apt resolute main universe
+deb [signed-by=/etc/apt/keyrings/tools.asc] https://tools.example/apt resolute main restricted

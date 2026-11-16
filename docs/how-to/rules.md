@@ -355,7 +355,7 @@ ends with one `Fix:` line, or a fix under each subject when they differ. A rule
 with a remedy puts its command under each subject as a `Run:` line with no full
 stop, so it pastes into a shell, and closes with the `systemlint fix --tags`
 call that makes every change; `-v` adds a `See:` line per reference.
-Failures that name each other, the two sides of `apt/duplicate`, list as one
+Failures that name each other, the two sides of `apt/overlap`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
 or level, score, rule, subject, message, fix, the message without the subject
 it opens with, a rule not run on one `not-run` line per reason whatever its

@@ -92,13 +92,25 @@ rules:
     tags: [apt]
   apt/duplicate:
     title: Repository listed in two places
-    fact: apt.sources.*.duplicates
+    fact: apt.sources.*.covered-by
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
     severity: warning
     score: 4.5
-    message: "{subject} lists the same repository as {got}"
-    fix: remove one of the entries, then run sudo apt update
+    message: "{subject} lists nothing that {got} does not list already"
+    fix: remove this entry, then run sudo apt update
+    remedy: {disable-line: apt-list}
+    docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
+    tags: [apt]
+  apt/overlap:
+    title: Repository partly listed in two places
+    fact: apt.sources.*.overlaps
+    when: {apt.sources.*.enabled: true}
+    expect: {maxItems: 0}
+    severity: warning
+    score: 4.5
+    message: "{subject} lists some of the same suites and components as {got}"
+    fix: list each suite and component in one entry only, then run sudo apt update
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/key-conflict:
