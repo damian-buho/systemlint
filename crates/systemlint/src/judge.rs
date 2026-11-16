@@ -25,6 +25,7 @@ pub enum Outcome {
     Unknown,
     NotApplicable,
     Manual,
+    Conflict,
 }
 
 /// A configured exception to one rule, on every subject or the ones its glob matches, until a day.
@@ -1196,6 +1197,7 @@ pub fn lint(document: &Value, rules: &[Rule], waivers: &[Waiver], today: &str) -
         .iter()
         .flat_map(|rule| judge(rule, document))
         .collect();
+    contradict(&mut checks, rules);
     for check in checks.iter_mut().filter(|c| c.outcome == Outcome::Fail) {
         let (subject, label) = (check.subject_text(), check.subject_label());
         if let Some(waiver) = waivers.iter().find(|w| {
@@ -1218,6 +1220,58 @@ pub fn lint(document: &Value, rules: &[Rule], waivers: &[Waiver], today: &str) -
         }
     }
     checks
+}
+
+/// Turns every judged check of a rule whose `conflicts` names another selected rule into a `conflict`, naming the pair and how to keep one.
+fn contradict(checks: &mut [Check], rules: &[Rule]) {
+    let selected: BTreeMap<&str, &Rule> = rules.iter().map(|r| (r.id.as_str(), r)).collect();
+    for check in checks
+        .iter_mut()
+        .filter(|c| matches!(c.outcome, Outcome::Pass | Outcome::Fail | Outcome::Unknown))
+    {
+        let Some(rule) = selected.get(check.rule.as_str()) else {
+            continue;
+        };
+        let mut side: Vec<&Rule> = rule
+            .spec
+            .conflicts
+            .iter()
+            .filter_map(|id| selected.get(id.as_str()).copied())
+            .collect();
+        if side.is_empty() {
+            continue;
+        }
+        side.push(rule);
+        side.sort_by(|a, b| a.id.cmp(&b.id));
+        let named = |r: &Rule| {
+            let controls: Vec<&str> = r
+                .spec
+                .tags
+                .iter()
+                .filter(|t| t.contains(':'))
+                .map(String::as_str)
+                .collect();
+            if controls.is_empty() {
+                r.id.clone()
+            } else {
+                format!("{} ({})", r.id, controls.join(", "))
+            }
+        };
+        let names: Vec<String> = side.iter().map(|r| named(r)).collect();
+        let keep: Vec<String> = side.iter().map(|r| format!("'!{}'", r.id)).collect();
+        log::debug!(
+            "rule {} on {:?} was {:?}, conflicts with {names:?}",
+            check.rule,
+            check.subject,
+            check.outcome
+        );
+        check.reason = Some(format!(
+            "{} contradict each other, so none of them counts; keep the standard you follow by leaving the other out with --tags {}",
+            names.join(" and "),
+            keep.join(" or ")
+        ));
+        check.outcome = Outcome::Conflict;
+    }
 }
 
 /// Checks a waiver’s `until` is a `YYYY-MM-DD` day.

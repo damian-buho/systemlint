@@ -66,7 +66,7 @@ pub fn summary(checks: &[Check]) -> Value {
         .iter()
         .filter(|c| c.outcome == Outcome::Fail && !c.is_failing())
         .count();
-    json!({"checks": checks.len(), "pass": count(Outcome::Pass), "fail": count(Outcome::Fail) - waived, "waived": waived, "unknown": count(Outcome::Unknown), "skip": count(Outcome::Skip), "not-applicable": count(Outcome::NotApplicable), "manual": count(Outcome::Manual)})
+    json!({"checks": checks.len(), "pass": count(Outcome::Pass), "fail": count(Outcome::Fail) - waived, "waived": waived, "unknown": count(Outcome::Unknown), "skip": count(Outcome::Skip), "not-applicable": count(Outcome::NotApplicable), "manual": count(Outcome::Manual), "conflict": count(Outcome::Conflict)})
 }
 
 /// The lowest share passed, in tenths, each grade still reaches, best first; F takes the rest.
@@ -455,6 +455,7 @@ fn summary_line(document: &Value, checks: &[Check], on: bool) -> String {
         ("skip", n("skip")),
         ("not applicable", n("not-applicable")),
         ("manual", n("manual")),
+        ("conflict", n("conflict")),
     ]
     .into_iter()
     .filter(|(name, n)| *n > 0 || *name == "pass")
@@ -569,6 +570,11 @@ pub fn lint_human(
         });
         out.push('\n');
     }
+    for (reason, rules) in by_reason(checks.iter().filter(|c| c.outcome == Outcome::Conflict)) {
+        log::debug!("{} rules in conflict: {reason}", rules.len());
+        let _ = writeln!(out, "Conflict: {}", sentence(reason));
+        out.push('\n');
+    }
     for check in checks.iter().filter(|c| c.outcome == Outcome::Manual) {
         let _ = writeln!(out, "{}", header("Manual", check, on));
         if let Some(why) = &check.rationale {
@@ -661,6 +667,14 @@ pub fn lint_plain(document: &Value, checks: &[Check], quiet: bool) -> String {
             check.reason.as_deref().unwrap_or_default(),
             "",
         ]);
+    }
+    let conflicts: BTreeSet<(&str, &str)> = checks
+        .iter()
+        .filter(|c| c.outcome == Outcome::Conflict)
+        .map(|c| (c.rule.as_str(), c.reason.as_deref().unwrap_or_default()))
+        .collect();
+    for (rule, reason) in conflicts {
+        row(["conflict", "", rule, "", reason, ""]);
     }
     for check in checks
         .iter()
@@ -795,6 +809,9 @@ fn result(check: &Check) -> Option<Value> {
         Outcome::Manual => {
             json!({"ruleId": check.rule, "kind": "review", "level": "none", "message": {"text": check.title.as_deref().unwrap_or(&check.rule)}})
         }
+        Outcome::Conflict => {
+            json!({"ruleId": check.rule, "kind": "review", "level": "none", "message": {"text": check.reason.as_deref().unwrap_or("conflict")}})
+        }
         Outcome::Pass | Outcome::Skip => return None,
     };
     if !check.fact.is_empty() {
@@ -919,6 +936,7 @@ pub fn lint_textfile(document: &Value, checks: &[Check]) -> String {
         "skip",
         "not-applicable",
         "manual",
+        "conflict",
     ] {
         let _ = writeln!(
             out,

@@ -51,6 +51,7 @@ apt/https:
 | `tags` | slugs; a tag with `:` names a control of a standard |
 | `manual` | `true` for a procedure a person follows: no `fact` or `expect`, the steps in `rationale` |
 | `unique` | `true` to fail every subject whose fact value another subject holds too, see [Unique values](#unique-values); `expect` may then be left out |
+| `conflicts` | IDs of rules of another standard this rule contradicts, each naming this one back, else the rulesets are refused; while both are selected, every check of either answers `conflict` and none counts, see [Check output](#check-output-and-exit-codes); only a definition takes it |
 
 A fact path is dotted (`os.release.VERSION_ID`), or a JSON Pointer when it
 starts with `/`, for keys holding dots (`/files/~1etc~1ssh~1sshd_config.d~1a.conf/mode`).
@@ -344,6 +345,7 @@ live-only under `--root`) with its rules wrapped under it, none for an opt-in th
 run did not ask for (`--image-config`, `--network`, `--containers`), which only the counts show, a
 `Not read` block per path a collector could not read (still `unknown` in the
 counts and every machine format), then a `Not applicable` block per ruleset reason with its rules wrapped under it,
+one `Conflict` block per set of selected rules declaring `conflicts` on each other, naming each with its control tags and the `--tags '!ID'` that keeps the other (their checks answer `conflict` in every format, `kind: review` in SARIF, and never fail the run),
 `Unknown`, `Manual` (with the `Why:` procedure) and `Waived` blocks, then the failures, lowest score first, so the
 worst sits just above the rating and counts
 (`Rating B · 5 errors, 9 warnings, 0 info · 577 pass, 24 not run, 21 skip`).

@@ -860,3 +860,91 @@ fn plain_drops_only_a_whole_leading_subject_from_the_message() {
         );
     }
 }
+
+// Two standards’ rules on one fact that contradict each other, as `selectors` pick them.
+fn contradicting(selectors: &[&str]) -> Vec<Check> {
+    let yaml = "tags: [default]\nrules:\n  pw/rotate: {fact: pw.max, expect: {maximum: 365}, severity: error, tags: ['cis:5.4.1.1'], conflicts: [pw/keep]}\n  pw/keep: {fact: pw.max, expect: {minimum: 99999}, severity: error, tags: ['nist:5.1.1.2'], conflicts: [pw/rotate]}\n  pw/other: {fact: pw.max, expect: {const: 0}, severity: error}\n";
+    let library = Library::new(BTreeMap::from([(
+        "pw".to_owned(),
+        systemlint::yaml::from_str(yaml).unwrap(),
+    )]))
+    .unwrap();
+    let selectors: Vec<String> = selectors.iter().map(|s| (*s).to_owned()).collect();
+    let rules: Vec<_> = library
+        .select(&selectors)
+        .unwrap()
+        .into_iter()
+        .map(|(id, spec)| compile(&id, spec).unwrap())
+        .collect();
+    lint(&json!({"pw": {"max": 99999}}), &rules, &[], "2026-11-15")
+}
+
+#[test]
+fn two_selected_rules_in_conflict_print_one_block_and_fail_nothing() {
+    let checks = contradicting(&[]);
+    let outcome = |id: &str| checks.iter().find(|c| c.rule == id).map(|c| c.outcome);
+    assert_eq!(
+        (
+            outcome("pw/rotate"),
+            outcome("pw/keep"),
+            outcome("pw/other")
+        ),
+        (
+            Some(Outcome::Conflict),
+            Some(Outcome::Conflict),
+            Some(Outcome::Fail)
+        )
+    );
+    let human = lint_human(&json!({}), &checks, false, false, false);
+    let line = "Conflict: pw/keep (nist:5.1.1.2) and pw/rotate (cis:5.4.1.1) contradict each other, so none of them counts; keep the standard you follow by leaving the other out with --tags '!pw/keep' or '!pw/rotate'.\n";
+    assert_eq!(human.matches("Conflict:").count(), 1, "{human}");
+    assert!(human.contains(line), "{human}");
+    assert!(human.contains("1 error"), "only pw/other fails: {human}");
+    assert!(human.contains("2 conflict"), "{human}");
+    let conflicted: Vec<Check> = checks
+        .iter()
+        .filter(|c| c.rule != "pw/other")
+        .cloned()
+        .collect();
+    assert!(
+        !systemlint::report::FailOn::Level(systemlint::rules::Severity::Error).reached(&conflicted)
+    );
+    let json: Value = serde_json::from_str(&lint_json(&json!({}), &checks)).unwrap();
+    assert_eq!(json["summary"]["conflict"], 2, "{json}");
+    assert_eq!(
+        lint_plain(&json!({}), &checks, true)
+            .matches("conflict\t")
+            .count(),
+        2
+    );
+    assert!(
+        lint_textfile(&json!({}), &checks).contains("systemlint_checks{outcome=\"conflict\"} 2")
+    );
+    assert_eq!(
+        sarif(&json!({}), &checks)["runs"][0]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|r| r["kind"] == "review")
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn leaving_one_side_out_judges_the_other_as_usual() {
+    let checks = contradicting(&["!pw/keep"]);
+    let outcome = |id: &str| checks.iter().find(|c| c.rule == id).map(|c| c.outcome);
+    assert_eq!(
+        (outcome("pw/rotate"), outcome("pw/keep")),
+        (Some(Outcome::Fail), None)
+    );
+    let checks = contradicting(&["!pw/rotate"]);
+    assert_eq!(
+        checks
+            .iter()
+            .find(|c| c.rule == "pw/keep")
+            .map(|c| c.outcome),
+        Some(Outcome::Pass)
+    );
+}

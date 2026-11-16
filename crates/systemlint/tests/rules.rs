@@ -492,3 +492,41 @@ fn no_rule_tagged_default_selects_nothing_rather_than_failing() {
     assert!(selected.rules.is_empty());
     assert_eq!(selected.left_out, BTreeMap::from([("mine".to_owned(), 1)]));
 }
+
+#[test]
+fn conflicts_must_be_declared_on_both_sides_of_a_defined_pair() {
+    let refused = |yaml: &str| {
+        let rulesets = BTreeMap::from([(
+            "s".to_owned(),
+            systemlint::yaml::from_str::<Ruleset>(yaml).unwrap(),
+        )]);
+        Library::new(rulesets).unwrap_err()
+    };
+    let rule = |id: &str, conflicts: &str| {
+        format!("  {id}: {{fact: x, expect: {{const: 1}}, conflicts: [{conflicts}]}}\n")
+    };
+    let pair = format!("rules:\n{}{}", rule("s/a", "s/b"), rule("s/b", "s/a"));
+    let lib = Library::new(BTreeMap::from([(
+        "s".to_owned(),
+        systemlint::yaml::from_str(&pair).unwrap(),
+    )]))
+    .unwrap();
+    assert_eq!(lib.definitions["s/a"].conflicts, ["s/b"]);
+    let one_sided = format!(
+        "rules:\n{}  s/b: {{fact: x, expect: {{const: 2}}}}\n",
+        rule("s/a", "s/b")
+    );
+    assert!(
+        refused(&one_sided)
+            .contains("rule s/a conflicts with rule s/b, which does not name s/a in its conflicts")
+    );
+    assert!(
+        refused(&format!("rules:\n{}", rule("s/a", "s/ghost")))
+            .contains("which no ruleset defines")
+    );
+    assert!(
+        refused(&format!("rules:\n{}", rule("s/a", "s/a"))).contains("names itself in conflicts")
+    );
+    let over = format!("{pair}  fixture/x: {{conflicts: [s/a]}}\n");
+    assert!(refused(&over).contains("overrides a rule, so it takes no conflicts"));
+}

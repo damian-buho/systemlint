@@ -32,7 +32,11 @@ A rule judges what is good for the system, not what a distribution ships: a
 stock default that exposes the host still fails. Where two standards disagree
 (NIST SP 800-63B against forced password rotation, a benchmark demanding it),
 ship each side as its own rule tagged with its standard’s control, so the user
-picks the standard they follow with `--tags`.
+picks the standard they follow with `--tags`. Each side names the other in
+`conflicts`, so a run selecting both reports one `Conflict` block and fails
+the host on neither. A threshold a standard picks is a ruleset var defaulting
+to that standard’s number, so a user’s own standard is a `--var`, never a
+misuse.
 
 ## The default tag
 

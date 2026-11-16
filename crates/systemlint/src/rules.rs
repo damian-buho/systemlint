@@ -121,6 +121,8 @@ pub struct Spec {
     pub manual: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub unique: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub conflicts: Vec<String>,
     #[serde(skip)]
     pub pinned: bool,
     /// The `when` of every ruleset that defines or brings the rule, by ruleset name.
@@ -299,6 +301,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         tags,
         manual: over.manual || base.manual,
         unique: over.unique || base.unique,
+        conflicts: base.conflicts,
         pinned: over.pinned || (!score_set && base.pinned),
         applies,
     }
@@ -314,6 +317,11 @@ impl Library {
                 let mut spec =
                     defined(ruleset, raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
                 if !spec.defines() {
+                    if !spec.conflicts.is_empty() {
+                        return Err(format!(
+                            "ruleset {name}: rule {id} overrides a rule, so it takes no conflicts; declare them where the rule is defined"
+                        ));
+                    }
                     continue;
                 }
                 if let Some(first) = owner.get(id) {
@@ -335,6 +343,35 @@ impl Library {
                 log::debug!("rule {id} defined in ruleset {name}");
                 owner.insert(id.clone(), name.clone());
                 definitions.insert(id.clone(), spec);
+            }
+        }
+        for (id, spec) in &definitions {
+            for other in &spec.conflicts {
+                let named = definitions.get(other).map(|o| o.conflicts.contains(id));
+                log::debug!(
+                    "rule {id} conflicts with rule {other}, which names it back: {named:?}"
+                );
+                match named {
+                    _ if other == id => {
+                        return Err(format!(
+                            "ruleset {}: rule {id} names itself in conflicts",
+                            owner[id]
+                        ));
+                    }
+                    None => {
+                        return Err(format!(
+                            "ruleset {}: rule {id} conflicts with rule {other}, which no ruleset defines",
+                            owner[id]
+                        ));
+                    }
+                    Some(false) => {
+                        return Err(format!(
+                            "ruleset {}: rule {id} conflicts with rule {other}, which does not name {id} in its conflicts; declare it on both",
+                            owner[id]
+                        ));
+                    }
+                    Some(true) => {}
+                }
             }
         }
         Ok(Self {
