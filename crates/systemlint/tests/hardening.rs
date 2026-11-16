@@ -1752,6 +1752,77 @@ fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
     );
 }
 
+#[test]
+fn group_root_and_group_shadow_belong_to_no_account_but_their_own() {
+    let entry = |gid: u32| json!({"uid": 1000, "gid": gid, "password": "shadow", "shadowed": []});
+    let passwd = json!({"root": entry(0), "sync": entry(0), "wheel": entry(0), "one": entry(1),
+                        "reader": entry(42), "below": entry(41), "above": entry(43)});
+    let group = |members: Value| json!({"shadow": {"gid": 42, "members": members, "shadowed": []}});
+    let document = accounts(passwd.clone(), group(json!(["reader"])), json!({}));
+    assert_eq!(
+        account_rule("accounts/gid-zero", &document),
+        [
+            ("above".into(), Outcome::Pass),
+            ("below".into(), Outcome::Pass),
+            ("one".into(), Outcome::Pass),
+            ("reader".into(), Outcome::Pass),
+            ("wheel".into(), Outcome::Fail),
+        ],
+        "gid 1 is the edge; root, sync, shutdown, halt and operator are CIS’s exceptions"
+    );
+    assert_eq!(
+        account_rule("accounts/shadow-group-members", &document),
+        [("shadow".into(), Outcome::Fail)]
+    );
+    let empty = accounts(passwd.clone(), group(json!([])), json!({}));
+    assert_eq!(
+        account_rule("accounts/shadow-group-members", &empty),
+        [("shadow".into(), Outcome::Pass)]
+    );
+    let primary: Vec<_> = account_rule("accounts/shadow-group-primary", &document)
+        .into_iter()
+        .filter(|(_, o)| *o != Outcome::Pass)
+        .collect();
+    assert_eq!(
+        primary,
+        [("reader".into(), Outcome::Fail)],
+        "41 and 43 are the edges"
+    );
+    let other = accounts(
+        passwd,
+        json!({"shadow": {"gid": 43, "members": [], "shadowed": []}}),
+        json!({}),
+    );
+    assert!(
+        account_rule("accounts/shadow-group-primary", &other)
+            .iter()
+            .all(|(_, o)| *o == Outcome::Skip),
+        "a shadow group off Debian’s fixed gid 42 is never guessed"
+    );
+}
+
+#[test]
+fn nologin_in_etc_shells_fails_unless_commented_out() {
+    let shells = |lines: Value| {
+        json!({"accounts": {"shells": {"/etc/shells": lines}},
+               "collectors": {"accounts-shells": {"status": "ok", "into": "accounts.shells"}}})
+    };
+    let rule = |document: &Value| account_rule("accounts/nologin-shell", document);
+    let stock = shells(json!([
+        "# /etc/shells: valid login shells",
+        "/bin/sh",
+        "# /usr/sbin/nologin",
+        "/usr/bin/nologinx"
+    ]));
+    assert_eq!(
+        rule(&stock),
+        [("/etc/shells".into(), Outcome::Pass)],
+        "a comment and a longer name pass"
+    );
+    let listed = shells(json!(["/bin/sh", "/usr/sbin/nologin"]));
+    assert_eq!(rule(&listed), [("/etc/shells".into(), Outcome::Fail)]);
+}
+
 // A facts document holding the given mount tables, `active` skipped as under --root unless given.
 // The facts formats words makes of an fstab text, as the shipped mounts-fstab collector asks.
 fn fstab_facts(text: &str) -> Value {

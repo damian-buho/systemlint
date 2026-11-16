@@ -23,6 +23,7 @@ systemlint check --root /mnt/image --tags accounts
 | `accounts-passwd` | `/etc/passwd`, `/etc/shells` | `passwd` with `shells: /etc/shells` | `accounts.passwd.<name>` |
 | `accounts-group` | `/etc/group` | `words` on `:`, the password field dropped | `accounts.group.<name>` |
 | `accounts-shadow` | `/etc/shadow`, `/etc/passwd`, root only | `shadow` with `passwd: /etc/passwd` | `accounts.shadow.<name>` |
+| `accounts-shells` | `/etc/shells` | `lines` | `accounts.shells./etc/shells` |
 
 ```yaml
 accounts:
@@ -72,6 +73,10 @@ accounts:
 | `accounts/passwd-hash` | `/etc/passwd`, which every user can read, holds the password hash |
 | `accounts/shadow-empty-password` | `/etc/passwd` defers to `/etc/shadow`, whose password is empty |
 | `accounts/shadow-missing` | `/etc/passwd` defers to `/etc/shadow`, which has no line for the account |
+| `accounts/gid-zero` | an account other than `root`, `sync`, `shutdown`, `halt` and `operator` has gid 0 as its primary group |
+| `accounts/shadow-group-members` | group `shadow` lists members, who can read every hash |
+| `accounts/shadow-group-primary` | an account’s primary gid is 42, while group `shadow` holds gid 42 as Debian’s `base-passwd` fixes it; elsewhere it answers `skip` |
+| `accounts/nologin-shell` | `/etc/shells` lists `nologin` on a line that is no comment, so it counts as a valid shell |
 
 The rules only CIS Ubuntu 26.04 asks for carry `'!default'` and run with
 `--tags 'cis-ubuntu-26.04:*'` or `--tags accounts`. Each ageing rule judges an
