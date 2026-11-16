@@ -259,6 +259,8 @@ carry `default`, the others the CIS control alone:
 | `auditd/log-mode` | warning | an audit log is wider than 0640 |
 | `auditd/log-owner` | warning | an audit log is not owned by uid 0 |
 | `auditd/log-directory-mode` | warning | `/var/log/audit` is group-writable or reaches other users |
+| `auditd/stig-log-mode` | info | an audit log is wider than 0600 (STIG only) |
+| `auditd/stig-log-group` | info | an audit log is in a group other than root (STIG only) |
 
 auditd compares keywords and values without case (`auditd-config.c`), so the
 rules match `(?i)`; an unset key takes auditd’s default (`rotate`, `suspend`,
@@ -581,6 +583,29 @@ the timesyncd pair does, a drop-in key overriding the main file. Ubuntu ships
 | `journald/no-syslog-forward` | info | `rsyslog.service` is on disk and not masked, and the effective `ForwardToSyslog` is not a true boolean (CIS 6.1.1.1.3) |
 | `journald/storage-not-persistent` | info | the effective `Storage` is not `persistent`, its `auto` default included (CIS 6.1.1.1.6) |
 | `journald/compress-off` | info | the effective `Compress` is a false boolean; unset, empty and a size threshold pass (CIS 6.1.1.1.7) |
+| `journald/stig-directory-mode` | info | a journal directory under `/var/log/journal` or `/run/log/journal` is more open than 2750 (STIG only) |
+| `journald/stig-file-mode` | info | a journal file there is more open than 0640 (STIG only) |
+| `journald/stig-owner` | info | a journal file or directory is not owned by root (STIG only) |
+| `journald/stig-group` | info | a journal file or directory is in a group other than `systemd-journal` (STIG only) |
+| `journald/stig-journalctl-mode`, `-owner`, `-group` | info | `/usr/bin/journalctl` is more open than 0740, or not `root:root` (STIG only) |
+
+The `journald-files` collector stats both journal trees (`**`) into
+`journald.files`, and `journald-journalctl` the program into
+`journald.journalctl`. Ubuntu ships the directories 2755 and journalctl 0755,
+so a stock host fails those rules.
+
+The `logs` ruleset, out of `default`, judges `/var/log` as the STIG asks.
+The `logs-files` collector (privileged, since `/var/log/private` is 0700) stats
+`/var/log` and everything below it into `logs.files`:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `logs/file-mode` | info | a log file but `wtmp`, `btmp` and `lastlog` is more open than 0640 (STIG only) |
+| `logs/directory-mode` | info | `/var/log` is more open than 0755, Ubuntu’s stock 0775 included (STIG only) |
+| `logs/directory-owner` | info | `/var/log` is not owned by root (STIG only) |
+| `logs/directory-group` | info | `/var/log` is not in group `syslog` (STIG only) |
+| `logs/syslog-owner` | info | `/var/log/syslog` is not owned by user `syslog` (STIG only) |
+| `logs/syslog-group` | info | `/var/log/syslog` is not in group `adm` (STIG only) |
 
 The `rsyslog` ruleset, without `default` (`--tags rsyslog`), applies where an
 `rsyslogd` program is on disk, which the `rsyslog-binary` collector stats into

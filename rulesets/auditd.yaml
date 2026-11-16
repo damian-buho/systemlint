@@ -149,7 +149,7 @@ rules:
     fix: chown root the file
     remedy: {chown: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
-    tags: [default, audit, cis-ubuntu-26.04:6.2.4.2]
+    tags: [default, audit, cis-ubuntu-26.04:6.2.4.2, stig-ubuntu-26.04:UBTU-24-901310]
   auditd/log-directory-mode:
     title: Audit log directory open too widely
     fact: auditd.logs.*.mode
@@ -161,4 +161,28 @@ rules:
     fix: chmod 0750 the directory
     remedy: {chmod: "g-w,o-rwx"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
-    tags: [default, audit, cis-ubuntu-26.04:6.2.4.4]
+    tags: [default, audit, cis-ubuntu-26.04:6.2.4.4, stig-ubuntu-26.04:UBTU-24-901380]
+  auditd/stig-log-mode:
+    title: Audit log readable by its group
+    fact: auditd.logs.*.mode
+    when: {auditd.binary: {minProperties: 1}, auditd.logs.*.kind: file}
+    expect: {pattern: "^0[0246]00$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the STIG asks 0600, readable by root alone"
+    fix: chmod 0600 the file, and set log_group = root in /etc/audit/auditd.conf
+    remedy: {chmod: "u-xs,g-rwxs,o-rwxt"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [audit, stig-ubuntu-26.04:UBTU-24-901300]
+  auditd/stig-log-group:
+    title: Audit log not in group root
+    fact: auditd.logs.*.gid
+    when: {auditd.binary: {minProperties: 1}, auditd.logs.*.kind: file}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}; the STIG asks group root"
+    fix: chgrp 0 the file, and set log_group = root in /etc/audit/auditd.conf
+    remedy: {chgrp: 0}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [audit, stig-ubuntu-26.04:UBTU-24-901350]

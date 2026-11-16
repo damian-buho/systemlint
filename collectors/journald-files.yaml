@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: journald-files
+read:
+  stat: [/var/log/journal, /var/log/journal/**, /run/log/journal, /run/log/journal/**]
+  stat-keep: {properties: {kind: {enum: [file, directory]}}}
+parse: {plugin: formats, op: stat}
+into: journald.files

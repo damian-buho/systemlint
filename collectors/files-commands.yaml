@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: files-commands
+read:
+  stat: [/usr/bin/*, /usr/sbin/*, /usr/local/bin/*, /usr/local/sbin/*]
+  stat-keep: {properties: {kind: {const: file}}}
+parse: {plugin: formats, op: stat}
+into: files.commands

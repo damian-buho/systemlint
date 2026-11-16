@@ -38,6 +38,8 @@ Each collector passes its `read.stat` globs to the `stat` op of
 | `files-boot` | `/boot/grub/grub.cfg` and `user.cfg` | `files.boot.<path>` |
 | `files-audit-config` | `/etc/audit`, its `.conf` files, `rules.d` and `plugins.d` and their files | `files.audit-config.<path>` |
 | `files-audit-tools` | `auditctl`, `aureport`, `ausearch`, `autrace`, `auditd` and `augenrules` in `/usr/sbin` or `/usr/bin` | `files.audit-tools.<path>` |
+| `files-libraries` | `/usr/lib`, `/usr/lib64`, every `/usr/lib/*-linux-gnu*` directory and the `*.so*` files at their top | `files.libraries.<path>` |
+| `files-commands` | every regular file in `/usr/bin`, `/usr/sbin`, `/usr/local/bin` and `/usr/local/sbin` | `files.commands.<path>` |
 
 A stat holds `kind` (`file`, `directory`, `symlink`, `other`), `mode` as four
 octal digits, `uid`, `gid`, `size`, and the `world-writable`,
@@ -84,12 +86,22 @@ depends on its environment, which these collectors do not read.
 | `files/accounts-group` | info | an account database or `/etc/shells` is in a group other than root (CIS and dev-sec only) |
 | `files/shadow-group` | warning | a shadow or gshadow file is in a group other than root or `shadow`, while `shadow` holds Debian’s gid 42 (CIS and dev-sec only) |
 | `files/bootloader-readable` | info | a GRUB configuration file grants its group or others any access (CIS only) |
-| `files/audit-config-mode` | info | an audit configuration file is more open than 0640 (CIS only) |
+| `files/audit-config-mode` | info | an audit configuration file is more open than 0640 (CIS and STIG only) |
+| `files/audit-config-group` | info | an audit configuration file or directory is in a group other than root (CIS and STIG only) |
+| `files/audit-tools-mode` | info | an audit tool is more open than 0755, or carries a special bit (CIS and STIG only) |
+| `files/audit-tools-group` | info | an audit tool is in a group other than root (CIS and STIG only) |
+| `files/library-group` | info | a shared library is in a group above `system-gid-max` (999) (STIG only) |
+| `files/library-directory-group` | info | a library directory is in a group other than root (STIG only) |
+| `files/command-group` | info | a system command is in a group above `system-gid-max` (999) (STIG only) |
 
 A subject of the first three rules is the group and the path, such as
 `sudoers, /etc/sudoers.d/deploy`. “0640 or stricter” means no execute bit, no
 special bit, a group that may only read and no access for others, so 0600 and
-Red Hat’s 0000 pass and 0644, 0660 and 4640 fail. Debian’s `/usr/local` was
+Red Hat’s 0000 pass and 0644, 0660 and 4640 fail. The STIG’s library and
+command controls ask what the first three rules judge, no group or other
+write and owner root, over `files-libraries` and `files-commands`; setgid
+commands in a system group (`crontab`, `chage`, `ssh-agent`) pass the group
+rule. Debian’s `/usr/local` was
 once 2775 `root:staff`; waive `files/group-writable` there when the `staff`
 group is meant to install software:
 

@@ -5157,3 +5157,276 @@ fn pwquality_dictcheck_and_enforcing_fail_only_where_the_effective_value_is_zero
         [Outcome::Pass]
     );
 }
+
+// The (subject, outcome) pairs of one rule over stats at `into`, with the groups and users the joins read.
+fn owned(rule: &str, id: &str, into: &str, stats: Value) -> Vec<(String, Outcome)> {
+    let ruleset = rule.split('/').next().unwrap();
+    let (top, rest) = into.split_once('.').unwrap();
+    let mut document = json!({
+        "accounts": {"group": {"syslog": {"gid": 110}, "adm": {"gid": 4}, "systemd-journal": {"gid": 999}},
+                     "passwd": {"syslog": {"uid": 104}}},
+        "auditd": {"binary": {"/usr/sbin/auditd": {"exists": true}}},
+        "collectors": {id: {"status": "ok", "into": into},
+                       "accounts-group": {"status": "ok", "into": "accounts.group"},
+                       "accounts-passwd": {"status": "ok", "into": "accounts.passwd"},
+                       "auditd-binary": {"status": "ok", "into": "auditd.binary"}}});
+    document[top][rest] = stats;
+    judge(ruleset, &document)
+        .into_iter()
+        .filter(|(r, _, _)| r == rule)
+        .map(|(_, s, o)| (s, o))
+        .collect()
+}
+
+#[test]
+fn stig_file_modes_and_owners_pass_at_their_edge_and_fail_one_bit_beyond() {
+    let one = |rule: &str, id: &str, into: &str, path: &str, stat: Value| {
+        let found = owned(rule, id, into, json!({path: stat}));
+        assert_eq!(found.len(), 1, "{rule} {path}: {found:?}");
+        found[0].1
+    };
+    let modes = [
+        (
+            "files/audit-tools-mode",
+            "files-audit-tools",
+            "files.audit-tools",
+            "/usr/sbin/auditctl",
+            "file",
+            "0755",
+            "0775",
+        ),
+        (
+            "files/audit-tools-mode",
+            "files-audit-tools",
+            "files.audit-tools",
+            "/usr/sbin/auditctl",
+            "file",
+            "0755",
+            "4755",
+        ),
+        (
+            "auditd/stig-log-mode",
+            "auditd-logs",
+            "auditd.logs",
+            "/var/log/audit/audit.log",
+            "file",
+            "0600",
+            "0640",
+        ),
+        (
+            "journald/stig-directory-mode",
+            "journald-files",
+            "journald.files",
+            "/var/log/journal",
+            "directory",
+            "2750",
+            "2755",
+        ),
+        (
+            "journald/stig-file-mode",
+            "journald-files",
+            "journald.files",
+            "/var/log/journal/x/system.journal",
+            "file",
+            "0640",
+            "0644",
+        ),
+        (
+            "journald/stig-journalctl-mode",
+            "journald-journalctl",
+            "journald.journalctl",
+            "/usr/bin/journalctl",
+            "file",
+            "0740",
+            "0750",
+        ),
+        (
+            "logs/file-mode",
+            "logs-files",
+            "logs.files",
+            "/var/log/dpkg.log",
+            "file",
+            "0640",
+            "0644",
+        ),
+        (
+            "logs/directory-mode",
+            "logs-files",
+            "logs.files",
+            "/var/log",
+            "directory",
+            "0755",
+            "0775",
+        ),
+    ];
+    for (rule, id, into, path, kind, pass, fail) in modes {
+        assert_eq!(
+            one(rule, id, into, path, json!({"kind": kind, "mode": pass})),
+            Outcome::Pass,
+            "{rule} at {pass}"
+        );
+        assert_eq!(
+            one(rule, id, into, path, json!({"kind": kind, "mode": fail})),
+            Outcome::Fail,
+            "{rule} at {fail}"
+        );
+    }
+    assert!(
+        owned("logs/file-mode", "logs-files", "logs.files", json!({"/var/log/wtmp": {"kind": "file", "mode": "0664"}, "/var/log/btmp.1": {"kind": "file", "mode": "0660"}, "/var/log/lastlog": {"kind": "file", "mode": "0664"}})).is_empty(),
+        "the login records are left out"
+    );
+    let ids = [
+        (
+            "files/audit-config-group",
+            "files-audit-config",
+            "files.audit-config",
+            "/etc/audit/auditd.conf",
+            "file",
+            "gid",
+            0,
+            4,
+        ),
+        (
+            "files/audit-tools-group",
+            "files-audit-tools",
+            "files.audit-tools",
+            "/usr/sbin/auditctl",
+            "file",
+            "gid",
+            0,
+            4,
+        ),
+        (
+            "files/library-group",
+            "files-libraries",
+            "files.libraries",
+            "/usr/lib/libc.so.6",
+            "file",
+            "gid",
+            999,
+            1000,
+        ),
+        (
+            "files/library-directory-group",
+            "files-libraries",
+            "files.libraries",
+            "/usr/lib",
+            "directory",
+            "gid",
+            0,
+            1,
+        ),
+        (
+            "files/command-group",
+            "files-commands",
+            "files.commands",
+            "/usr/bin/crontab",
+            "file",
+            "gid",
+            999,
+            1000,
+        ),
+        (
+            "auditd/stig-log-group",
+            "auditd-logs",
+            "auditd.logs",
+            "/var/log/audit/audit.log",
+            "file",
+            "gid",
+            0,
+            4,
+        ),
+        (
+            "journald/stig-owner",
+            "journald-files",
+            "journald.files",
+            "/var/log/journal",
+            "directory",
+            "uid",
+            0,
+            1,
+        ),
+        (
+            "journald/stig-group",
+            "journald-files",
+            "journald.files",
+            "/var/log/journal",
+            "directory",
+            "gid",
+            999,
+            0,
+        ),
+        (
+            "journald/stig-journalctl-owner",
+            "journald-journalctl",
+            "journald.journalctl",
+            "/usr/bin/journalctl",
+            "file",
+            "uid",
+            0,
+            1,
+        ),
+        (
+            "journald/stig-journalctl-group",
+            "journald-journalctl",
+            "journald.journalctl",
+            "/usr/bin/journalctl",
+            "file",
+            "gid",
+            0,
+            4,
+        ),
+        (
+            "logs/directory-owner",
+            "logs-files",
+            "logs.files",
+            "/var/log",
+            "directory",
+            "uid",
+            0,
+            104,
+        ),
+        (
+            "logs/directory-group",
+            "logs-files",
+            "logs.files",
+            "/var/log",
+            "directory",
+            "gid",
+            110,
+            0,
+        ),
+        (
+            "logs/syslog-owner",
+            "logs-files",
+            "logs.files",
+            "/var/log/syslog",
+            "file",
+            "uid",
+            104,
+            0,
+        ),
+        (
+            "logs/syslog-group",
+            "logs-files",
+            "logs.files",
+            "/var/log/syslog",
+            "file",
+            "gid",
+            4,
+            110,
+        ),
+    ];
+    for (rule, id, into, path, kind, field, pass, fail) in ids {
+        assert_eq!(
+            one(rule, id, into, path, json!({"kind": kind, field: pass})),
+            Outcome::Pass,
+            "{rule} at {pass}"
+        );
+        assert_eq!(
+            one(rule, id, into, path, json!({"kind": kind, field: fail})),
+            Outcome::Fail,
+            "{rule} at {fail}"
+        );
+    }
+}

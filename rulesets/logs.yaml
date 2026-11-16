@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Log files under /var/log, and the directory itself, more open or differently owned than the STIG asks
+tags: [default]
+rules:
+  logs/file-mode:
+    title: Log file more open than 0640
+    fact: logs.files.*.mode
+    keys: {not: {pattern: "/([bw]tmp([.-][^/]*)?|lastlog(\\.[^/]*)?)$"}}
+    when: {logs.files.*.kind: file}
+    expect: {pattern: "^0[0246][04]0$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the STIG asks 0640 or stricter for every log but wtmp, btmp and lastlog"
+    fix: chmod 0640 the file, and set the mode its writer creates it with (rsyslog $FileCreateMode, logrotate create)
+    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
+    tags: [logging, stig-ubuntu-26.04:UBTU-24-700010, stig-ubuntu-26.04:UBTU-24-700150, '!default']
+  logs/directory-mode:
+    title: /var/log more open than 0755
+    fact: logs.files.*.mode
+    keys: {const: /var/log}
+    expect: {pattern: "^0[0-7][0145][0145]$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the STIG asks 0755 or stricter, where Ubuntu ships 0775 for its syslog group"
+    fix: chmod 0755 /var/log
+    remedy: {chmod: "ugo-st,go-w"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
+    tags: [logging, stig-ubuntu-26.04:UBTU-24-700120, '!default']
+  logs/directory-owner:
+    title: /var/log not owned by root
+    fact: logs.files.*.uid
+    keys: {const: /var/log}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} is owned by uid {got}, so that user can replace any log in it"
+    fix: chown root /var/log
+    remedy: {chown: 0}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
+    tags: [logging, stig-ubuntu-26.04:UBTU-24-700110, '!default']
+  logs/directory-group:
+    title: /var/log not in group syslog
+    fact: logs.files.*.gid
+    keys: {const: /var/log}
+    same: accounts.group.syslog.gid
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}, not syslog ({same})"
+    fix: chgrp syslog /var/log
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
+    tags: [logging, stig-ubuntu-26.04:UBTU-24-700100, '!default']
+  logs/syslog-owner:
+    title: /var/log/syslog not owned by syslog
+    fact: logs.files.*.uid
+    keys: {const: /var/log/syslog}
+    same: accounts.passwd.syslog.uid
+    severity: info
+    score: 1.0
+    message: "{subject} is owned by uid {got}, not syslog ({same})"
+    fix: chown syslog /var/log/syslog
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
+    tags: [logging, stig-ubuntu-26.04:UBTU-24-700140, '!default']
+  logs/syslog-group:
+    title: /var/log/syslog not in group adm
+    fact: logs.files.*.gid
+    keys: {const: /var/log/syslog}
+    same: accounts.group.adm.gid
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}, not adm ({same})"
+    fix: chgrp adm /var/log/syslog
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
+    tags: [logging, stig-ubuntu-26.04:UBTU-24-700130, '!default']

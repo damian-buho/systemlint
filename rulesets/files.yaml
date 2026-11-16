@@ -4,6 +4,8 @@
 
 description: files that grant root, hold password hashes or host keys, or sit in the PATH, kept to root alone
 tags: [default]
+vars:
+  system-gid-max: {default: 999}
 rules:
   files/world-writable:
     title: File writable by every user
@@ -115,7 +117,7 @@ rules:
     fix: chmod 0640 the file
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
-    tags: [files, audit, cis-ubuntu-26.04:6.2.4.5, '!default']
+    tags: [files, audit, cis-ubuntu-26.04:6.2.4.5, stig-ubuntu-26.04:UBTU-24-900040, '!default']
   files/accounts-group:
     title: Account database not in group root
     fact: files.accounts.*.gid
@@ -140,3 +142,73 @@ rules:
     fix: chgrp shadow the file
     docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
     tags: [files, cis-ubuntu-26.04:7.1.5, cis-ubuntu-26.04:7.1.6, cis-ubuntu-26.04:7.1.7, cis-ubuntu-26.04:7.1.8, dev-sec-linux-baseline:os-02, '!default']
+  files/audit-config-group:
+    title: Audit configuration not in group root
+    fact: files.audit-config.*.gid
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}; the benchmark asks group root, so no other group’s change of mode can let it rewrite what is audited"
+    fix: chgrp 0 the file
+    remedy: {chgrp: 0}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [files, audit, cis-ubuntu-26.04:6.2.4.7, stig-ubuntu-26.04:UBTU-24-900060, '!default']
+  files/audit-tools-mode:
+    title: Audit tool more open than 0755
+    fact: files.audit-tools.*.mode
+    when: {files.audit-tools.*.kind: file}
+    expect: {pattern: "^0[0-7][0145][0145]$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0755 or stricter, with no setuid, setgid or sticky bit"
+    fix: chmod 0755 the file
+    remedy: {chmod: "ugo-st,go-w"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditctl.8.html
+    tags: [files, audit, cis-ubuntu-26.04:6.2.4.8, stig-ubuntu-26.04:UBTU-24-901230, '!default']
+  files/audit-tools-group:
+    title: Audit tool not in group root
+    fact: files.audit-tools.*.gid
+    when: {files.audit-tools.*.kind: file}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}; the benchmark asks group root"
+    fix: chgrp 0 the file
+    remedy: {chgrp: 0}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditctl.8.html
+    tags: [files, audit, cis-ubuntu-26.04:6.2.4.10, stig-ubuntu-26.04:UBTU-24-901250, '!default']
+  files/library-group:
+    title: Shared library in a group of a user account
+    fact: files.libraries.*.gid
+    when: {files.libraries.*.kind: file}
+    expect: {maximum: "${system-gid-max}"}
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts rather than of the system"
+    fix: chgrp 0 the file
+    remedy: {chgrp: 0}
+    docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300009, '!default']
+  files/library-directory-group:
+    title: Shared library directory not in group root
+    fact: files.libraries.*.gid
+    when: {files.libraries.*.kind: directory}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}; the STIG asks group root"
+    fix: chgrp 0 the directory
+    remedy: {chgrp: 0}
+    docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300010, '!default']
+  files/command-group:
+    title: System command in a group of a user account
+    fact: files.commands.*.gid
+    expect: {maximum: "${system-gid-max}"}
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts rather than of the system"
+    fix: chgrp 0 the file
+    remedy: {chgrp: 0}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/chgrp.1.html
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300013, '!default']
