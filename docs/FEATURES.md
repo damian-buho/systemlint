@@ -15,6 +15,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 - The shipped apt rules judge Debian, Ubuntu and the distributions built on them, and stand aside everywhere else. See [apt sources](how-to/apt.md).
 - A procedure no fact can prove is a manual rule, listed for a person to review and never counted as a pass.
 
+### Fixes it makes itself, and only ones that take access away
+
+- `systemlint fix` makes the changes a report prints as `Run:` lines, on the live host or on an image’s root filesystem with `--root`, and asks first. See [remedies](how-to/rules.md#remedies).
+- A fix only removes access: it clears permission bits, gives a file to root or comments out a line that grants access, so a ruleset you did not write can never hand a file to a user.
+- A line edited since the lint is left alone, and an account’s only authorized key is kept, so a fix never locks you out.
+- Two apt sources that duplicate each other list as one problem with one fix, not two findings.
+
 ### Findings a person, a pipeline and a screen reader can read
 
 - Each failing rule is one block with its level, a 0.0–9.9 score, its title and why it matters, every subject it hit and one fix, the worst just above the summary. See [rules](how-to/rules.md).
@@ -22,6 +29,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 - `--plain` prints one tab-separated line per finding, for `grep`, `awk` and screen readers.
 - Colour only marks words that already carry the meaning, and turns off under `NO_COLOR`, `TERM=dumb` or a pipe.
 - JSON, SARIF 2.1.0 and node-exporter textfile carry the same findings for CI and monitoring. See [outputs](how-to/outputs.md).
+
+### Rules that cite the standards they satisfy
+
+- Each rule carries the controls it satisfies as tags, so `--tags 'cis-ubuntu-26.04:5.2.*'` runs one standard or one of its sections. See [rules](how-to/rules.md).
+- Where two standards contradict each other, such as forced password rotation against NIST SP 800-63B, the run reports one conflict naming the `--tags` that keeps each side, and fails the host on neither. See [conflicting standards](how-to/rule-book.md#conflicting-standards).
+- A threshold a standard picks defaults to that standard’s number and changes with `--var`, so following your own policy needs no rule of your own.
 
 ## Inherited from B19 / Ubuntu
 

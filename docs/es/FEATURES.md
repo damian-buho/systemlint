@@ -17,6 +17,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 - Las reglas de apt incluidas juzgan Debian, Ubuntu y las distribuciones basadas en ellos, y se hacen a un lado en todos los demás. Ver [fuentes de apt](../how-to/apt.md).
 - Un procedimiento que ningún dato puede probar es una regla manual, listada para que una persona la revise y nunca contada como aprobada.
 
+### Arreglos que hace por sí mismo, y solo los que quitan acceso
+
+- `systemlint fix` hace los cambios que un informe imprime como líneas `Run:`, en el host en vivo o en el sistema de archivos raíz de una imagen con `--root`, y pregunta antes. Ver [remedios](../how-to/rules.md#remedies).
+- Un arreglo solo quita acceso: borra bits de permiso, da un archivo a root o comenta una línea que concede acceso, así un conjunto de reglas que no escribiste nunca puede entregar un archivo a un usuario.
+- Una línea editada desde el análisis se deja intacta, y se conserva la única clave autorizada de una cuenta, así un arreglo nunca te deja fuera.
+- Dos fuentes apt que se duplican se listan como un problema con un arreglo, no como dos hallazgos.
+
 ### Hallazgos que leen una persona, un pipeline y un lector de pantalla
 
 - Cada regla que falla es un bloque con su nivel, una puntuación de 0.0 a 9.9, su título y por qué importa, cada sujeto afectado y un arreglo, con el peor justo encima del resumen. Ver [reglas](../how-to/rules.md).
@@ -24,6 +31,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 - `--plain` imprime una línea separada por tabuladores por hallazgo, para `grep`, `awk` y lectores de pantalla.
 - El color solo marca palabras que ya llevan el significado, y se apaga con `NO_COLOR`, `TERM=dumb` o una tubería.
 - JSON, SARIF 2.1.0 y el textfile de node-exporter llevan los mismos hallazgos a CI y a monitoreo. Ver [salidas](../how-to/outputs.md).
+
+### Reglas que citan los estándares que cumplen
+
+- Cada regla lleva como etiquetas los controles que cumple, así `--tags 'cis-ubuntu-26.04:5.2.*'` ejecuta un estándar o una de sus secciones. Ver [reglas](../how-to/rules.md).
+- Donde dos estándares se contradicen, como la rotación forzada de contraseñas frente a NIST SP 800-63B, la ejecución informa un conflicto que nombra las `--tags` que conservan cada lado, y no hace fallar al host por ninguno. Ver [estándares en conflicto](../how-to/rule-book.md#conflicting-standards).
+- Un umbral que elige un estándar toma por defecto el número de ese estándar y cambia con `--var`, así seguir tu propia política no requiere una regla propia.
 
 ## Heredado de B19 / Ubuntu
 
