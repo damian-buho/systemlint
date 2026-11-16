@@ -57,8 +57,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so only root changes who may schedule jobs"
-    fix: chmod 0640 {subject}
-    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
+    fix: chgrp crontab {subject}, then chmod 0640 it, since the command reads it through that group
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
     tags: [cron, cis-ubuntu-26.04:2.4.1.9, '!default']
   cron/access-owner:
