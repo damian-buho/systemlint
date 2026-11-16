@@ -2791,6 +2791,103 @@ fn pam_unix_keeps_no_history_and_hashes_strongly_and_the_common_stacks_call_thei
     }
 }
 
+// The pam rules over faillock.conf, pwhistory.conf and the two common stacks that use them.
+fn lockout_rule(
+    rule: &str,
+    conf: (&str, Value),
+    auth_args: &[&str],
+    password_args: &[&str],
+) -> Vec<Outcome> {
+    let pam = json!({
+        "/etc/pam.d/common-auth": [entry("auth", "requisite", "pam_faillock.so", &[&["preauth"], auth_args].concat())],
+        "/etc/pam.d/common-password": [entry("password", "requisite", "pam_pwhistory.so", password_args),
+                                       entry("password", "[success=1 default=ignore]", "pam_unix.so", &["use_authtok"])]});
+    let mut document = auth(json!({}), json!([]), pam);
+    document["auth"][conf.0] = conf.1;
+    document["collectors"][format!("auth-{}", conf.0)] =
+        json!({"status": "ok", "into": format!("auth.{}", conf.0)});
+    outcomes("pam", rule, &document)
+}
+
+#[test]
+fn faillock_conf_locks_after_at_most_five_failures_for_fifteen_minutes_root_included() {
+    let deny = |conf: Value, args: &[&str]| {
+        lockout_rule("pam/faillock-deny", ("faillock", conf), args, &[])
+    };
+    assert_eq!(deny(json!({"deny": 5}), &[]), [Outcome::Pass]);
+    assert_eq!(deny(json!({}), &[]), [Outcome::Pass], "unset is 3");
+    assert_eq!(deny(json!({"deny": 6}), &[]), [Outcome::Fail]);
+    assert_eq!(
+        deny(json!({"deny": 0}), &[]),
+        [Outcome::Fail],
+        "0 never locks"
+    );
+    assert_eq!(
+        deny(json!({"deny": 6}), &["deny=3"]),
+        [Outcome::Skip],
+        "the argument overrides the file"
+    );
+    let unlock =
+        |conf: Value| lockout_rule("pam/faillock-unlock-time", ("faillock", conf), &[], &[]);
+    assert_eq!(unlock(json!({"unlock_time": 900})), [Outcome::Pass]);
+    assert_eq!(
+        unlock(json!({"unlock_time": 0})),
+        [Outcome::Pass],
+        "0 waits for an administrator"
+    );
+    assert_eq!(unlock(json!({"unlock_time": 899})), [Outcome::Fail]);
+    assert_eq!(unlock(json!({})), [Outcome::Fail], "unset is 600");
+    let root = |conf: Value| lockout_rule("pam/faillock-root", ("faillock", conf), &[], &[]);
+    assert_eq!(root(json!({"even_deny_root": true})), [Outcome::Pass]);
+    assert_eq!(root(json!({"root_unlock_time": 60})), [Outcome::Pass]);
+    assert_eq!(
+        root(json!({"even_deny_root": true, "root_unlock_time": 59})),
+        [Outcome::Fail]
+    );
+    assert_eq!(root(json!({})), [Outcome::Fail]);
+}
+
+#[test]
+fn pwhistory_remembers_24_passwords_for_root_too_and_takes_the_checked_password() {
+    let remember =
+        |conf: Value| lockout_rule("pam/pwhistory-remember", ("pwhistory", conf), &[], &[]);
+    assert_eq!(remember(json!({"remember": 24})), [Outcome::Pass]);
+    assert_eq!(remember(json!({"remember": 23})), [Outcome::Fail]);
+    assert_eq!(remember(json!({})), [Outcome::Fail], "unset is 10");
+    let root = |conf: Value, args: &[&str]| {
+        lockout_rule("pam/pwhistory-root", ("pwhistory", conf), &[], args)
+    };
+    assert_eq!(
+        root(json!({"enforce_for_root": true}), &[]),
+        [Outcome::Pass]
+    );
+    assert_eq!(root(json!({}), &["enforce_for_root"]), [Outcome::Pass]);
+    assert_eq!(root(json!({}), &[]), [Outcome::Fail]);
+    let authtok = |args: &[&str]| {
+        lockout_rule(
+            "pam/pwhistory-use-authtok",
+            ("pwhistory", json!({})),
+            &[],
+            args,
+        )
+    };
+    assert_eq!(authtok(&["use_authtok"]), [Outcome::Pass]);
+    assert_eq!(authtok(&["remember=24"]), [Outcome::Fail]);
+    assert_eq!(
+        lockout_rule("pam/unix-use-authtok", ("pwhistory", json!({})), &[], &[]),
+        [Outcome::Pass]
+    );
+    let unix = json!({"/etc/pam.d/common-password": [entry("password", "required", "pam_unix.so", &["obscure", "yescrypt"])]});
+    assert_eq!(
+        outcomes(
+            "pam",
+            "pam/unix-use-authtok",
+            &auth(json!({}), json!([]), unix)
+        ),
+        [Outcome::Fail]
+    );
+}
+
 #[test]
 fn su_is_restricted_only_by_a_required_pam_wheel_with_use_uid_and_a_group() {
     let su = |control: &str, arguments: &[&str]| {

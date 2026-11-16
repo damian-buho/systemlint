@@ -25,6 +25,8 @@ systemlint check --root /mnt/image --tags auth
 | `auth-limits` | `/etc/security/limits.conf`, `limits.d/*.conf` | `words` | `auth.limits.<path>` |
 | `auth-pwquality` | `/etc/security/pwquality.conf`, `pwquality.conf.d/*.conf` | `ini` | `auth.pwquality.<path>` |
 | `auth-securetty` | `/etc/securetty` | `lines` | `auth.securetty.<path>` |
+| `auth-faillock` | `/etc/security/faillock.conf` | `kv`, a bare option `true` | `auth.faillock.<option>` |
+| `auth-pwhistory` | `/etc/security/pwhistory.conf` | `kv`, a bare option `true` | `auth.pwhistory.<option>` |
 
 ```yaml
 auth:
@@ -82,10 +84,20 @@ auth:
 | `pam/pwquality-enabled` | `common-password` has no password line calling `pam_pwquality` (*standard-only*) |
 | `pam/pwhistory-enabled` | `common-password` has no password line calling `pam_pwhistory` (*standard-only*) |
 | `pam/su-unrestricted` | `/etc/pam.d/su` has no `required` or `requisite` auth line calling `pam_wheel` with `use_uid` and a `group=` (*standard-only*; whether that group is empty is not judged) |
+| `pam/faillock-deny` | `faillock.conf` sets `deny` to 0 or above `faillock-deny` (5) (*standard-only*) |
+| `pam/faillock-unlock-time` | `faillock.conf` leaves `unlock_time` unset (600) or between 1 and `faillock-unlock-time` (900) (*standard-only*) |
+| `pam/faillock-root` | `faillock.conf` sets neither `even_deny_root` nor `root_unlock_time`, or a `root_unlock_time` below `faillock-root-unlock-time` (60) (*standard-only*) |
+| `pam/pwhistory-remember` | `pwhistory.conf` leaves `remember` unset (10) or below `pwhistory-remember` (24) (*standard-only*) |
+| `pam/pwhistory-root` | neither `pwhistory.conf` nor the `pam_pwhistory` line sets `enforce_for_root` (*standard-only*) |
+| `pam/pwhistory-use-authtok` | the `pam_pwhistory` line of `common-password` lacks `use_authtok` (*standard-only*) |
+| `pam/unix-use-authtok` | the `pam_unix` password line of `common-password` lacks `use_authtok` (*standard-only*) |
 | `coredump/no-hard-limit` | pam_limits has no `* hard core 0` (or `-`), or any hard core line with another value |
 
 `login-defs` is not applicable without `/etc/login.defs` and `pam` without
-`/etc/pam.d`; `coredump/no-hard-limit` skips a host without PAM, which never
+`/etc/pam.d`. The `faillock` and `pwhistory` rules judge only a host whose
+`common-auth` or `common-password` calls the module, and a file option only
+while that line passes no argument of the same name, which overrides it; such
+an argument is not judged. `coredump/no-hard-limit` skips a host without PAM, which never
 applies pam_limits. The `PASS_*` rules judge what new accounts get; the
 `accounts` ruleset judges each existing one. `login-defs/pass-max-days` and
 `login-defs/pass-rotation` contradict each other, so a run selecting both

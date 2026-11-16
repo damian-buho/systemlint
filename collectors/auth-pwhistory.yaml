@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: auth-pwhistory
+read:
+  files: [/etc/security/pwhistory.conf]
+parse: {plugin: formats, op: kv, with: {negate: "!", repeat: last}}
+into: auth.pwhistory

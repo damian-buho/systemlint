@@ -5,6 +5,11 @@
 description: PAM authentication stacks that let a login through without a password or without limit
 tags: [default]
 when: {auth.pam: {minProperties: 1}}
+vars:
+  faillock-deny: {default: 5}
+  faillock-unlock-time: {default: 900}
+  faillock-root-unlock-time: {default: 60}
+  pwhistory-remember: {default: 24}
 rules:
   pam/permit-sufficient:
     title: pam_permit alone authenticates
@@ -139,3 +144,87 @@ rules:
     fix: add auth required pam_wheel.so use_uid group=<an empty group> to {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_wheel.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.2.7, '!default']
+  pam/faillock-deny:
+    title: pam_faillock allows too many failed logins before locking
+    fact: auth.faillock
+    when: {"/auth/pam/~1etc~1pam.d~1common-auth": {allOf: [{contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}}}}, {not: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}, arguments: {contains: {pattern: "^deny="}}}}}}]}}
+    expect: {properties: {deny: {minimum: 1, maximum: "${faillock-deny}"}}}
+    severity: info
+    score: 2.0
+    message: "/etc/security/faillock.conf sets deny to {got}, so an account takes more than ${faillock-deny} wrong passwords, or with 0 any number, before it locks"
+    fix: set deny = ${faillock-deny} or less in /etc/security/faillock.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.1, '!default']
+  pam/faillock-unlock-time:
+    title: A locked account unlocks too soon
+    fact: auth.faillock
+    when: {"/auth/pam/~1etc~1pam.d~1common-auth": {allOf: [{contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}}}}, {not: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}, arguments: {contains: {pattern: "^unlock_time="}}}}}}]}}
+    expect: {required: [unlock_time], properties: {unlock_time: {anyOf: [{const: 0}, {minimum: "${faillock-unlock-time}"}]}}}
+    severity: info
+    score: 2.0
+    message: "/etc/security/faillock.conf leaves unlock_time below ${faillock-unlock-time} seconds (unset is 600), so a password guesser resumes soon after each lockout"
+    fix: set unlock_time = ${faillock-unlock-time} or more, or 0 to keep accounts locked until an administrator runs faillock --reset
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.2, '!default']
+  pam/faillock-root:
+    title: Failed logins never lock root
+    fact: auth.faillock
+    when: {"/auth/pam/~1etc~1pam.d~1common-auth": {allOf: [{contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}}}}, {not: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}, arguments: {contains: {pattern: "^root_unlock_time="}}}}}}]}}
+    expect:
+      anyOf:
+        - {required: [even_deny_root], properties: {even_deny_root: {const: true}}}
+        - {required: [root_unlock_time]}
+      properties: {root_unlock_time: {minimum: "${faillock-root-unlock-time}"}}
+    severity: info
+    score: 2.0
+    message: "/etc/security/faillock.conf sets neither even_deny_root nor a root_unlock_time of ${faillock-root-unlock-time} seconds or more, so root’s password may be guessed without a lockout"
+    fix: add even_deny_root, with root_unlock_time = ${faillock-root-unlock-time} or more, to /etc/security/faillock.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.3, '!default']
+  pam/pwhistory-remember:
+    title: pam_pwhistory remembers too few passwords
+    fact: auth.pwhistory
+    when: {"/auth/pam/~1etc~1pam.d~1common-password": {allOf: [{contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}}}}, {not: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}, arguments: {contains: {pattern: "^remember="}}}}}}]}}
+    expect: {required: [remember], properties: {remember: {minimum: "${pwhistory-remember}"}}}
+    severity: info
+    score: 2.0
+    message: "/etc/security/pwhistory.conf keeps fewer than ${pwhistory-remember} old passwords (unset is 10), so a user may cycle back to an old one"
+    fix: set remember = ${pwhistory-remember} or more in /etc/security/pwhistory.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwhistory.conf.5.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.3.1, '!default']
+  pam/pwhistory-root:
+    title: pam_pwhistory lets root reuse a password
+    when: {"/auth/pam/~1etc~1pam.d~1common-password": {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}}}}}
+    facts:
+      any:
+        - {fact: auth.pwhistory, expect: {required: [enforce_for_root], properties: {enforce_for_root: {const: true}}}}
+        - {fact: "/auth/pam/~1etc~1pam.d~1common-password", expect: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}, arguments: {contains: {pattern: "^enforce_for_root$"}}}}}}
+    severity: info
+    score: 2.0
+    message: "neither /etc/security/pwhistory.conf nor the pam_pwhistory line sets enforce_for_root, so root changing a password may reuse an old one"
+    fix: add enforce_for_root to /etc/security/pwhistory.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwhistory.8.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.3.2, '!default']
+  pam/pwhistory-use-authtok:
+    title: pam_pwhistory asks for the new password itself
+    fact: auth.pam.*
+    keys: {const: /etc/pam.d/common-password}
+    when: {"/auth/pam/~1etc~1pam.d~1common-password": {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}}}}}
+    expect: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}, arguments: {contains: {pattern: "^use_authtok$"}}}}}
+    severity: info
+    score: 2.0
+    message: "{subject} calls pam_pwhistory without use_authtok, so it prompts for the new password instead of taking the one pam_pwquality checked"
+    fix: add use_authtok to the pam_pwhistory line through its profile in /usr/share/pam-configs, then run pam-auth-update
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwhistory.8.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.3.3, '!default']
+  pam/unix-use-authtok:
+    title: pam_unix asks for the new password itself
+    fact: auth.pam.*
+    keys: {const: /etc/pam.d/common-password}
+    expect: {not: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_unix\\.so$"}, arguments: {not: {contains: {const: use_authtok}}}}}}}
+    severity: info
+    score: 2.0
+    message: "{subject} calls pam_unix to set passwords without use_authtok, so it may prompt for a new password the modules before it never checked"
+    fix: add use_authtok to the pam_unix password line through its profile in /usr/share/pam-configs, then run pam-auth-update
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.4.4, '!default']
