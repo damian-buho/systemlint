@@ -40,9 +40,11 @@ log "building systemlint ${version} for ${target_os}/${target_arch} (${triple})"
 mkdir -p dist
 export SYSTEMLINT_VERSION="${version}"
 cc_var="CC_$(printf '%s' "${triple}" | tr '-' '_')"
-if eval "[ -z \"\${${cc_var}:-}\" ]" && command -v musl-gcc >/dev/null 2>&1; then
-	log "compiling C for ${triple} with musl-gcc (${cc_var})"
-	export "${cc_var}=musl-gcc"
+cc="musl-gcc"
+[ "${triple%%-*}" = "$(uname -m)" ] || cc="${triple%%-*}-linux-gnu-gcc" # musl-gcc only targets the host architecture
+if eval "[ -z \"\${${cc_var}:-}\" ]" && command -v "${cc}" >/dev/null 2>&1; then
+	log "compiling C for ${triple} with ${cc} (${cc_var})"
+	export "${cc_var}=${cc}"
 fi
 
 cargo build --release --locked --quiet --workspace --target "${triple}"
