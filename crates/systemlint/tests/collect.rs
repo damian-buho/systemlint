@@ -9,7 +9,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::{Value, json};
 use systemlint::collect::{
-    HashKey, Named, Options, REDACTED, SCHEMA, base64, collect, collect_reporting, inputs,
+    HashKey, Named, Options, REDACTED, SCHEMA, base64, collect, collect_reporting, epoch, inputs,
     read_partial, rfc3339,
 };
 use systemlint::collector::Collector;
@@ -262,9 +262,10 @@ fn collector(yaml: &str) -> Collector {
 #[test]
 fn reply_lands_under_into_with_diagnostics_redaction_and_meta() {
     let c = collector(
-        "id: echo\nread:\n  files: [/etc/os-release]\nparse: {plugin: echo, op: parse}\ninto: deep.echo\n",
+        "id: echo\nread:\n  files: [/etc/os-release]\nparse: {plugin: echo, op: parse}\ninto: deep.echo\nttl: 0\n",
     );
     let doc = collect(&[c], &plugins(), &options(false));
+    assert_eq!(doc["collectors"]["echo"]["ttl"], 0);
     assert_eq!(doc["deep"]["echo"]["a"], 1);
     assert_eq!(doc["deep"]["echo"]["nested"]["secret"], REDACTED);
     assert!(!doc.to_string().contains("hunter2"));
@@ -923,6 +924,26 @@ fn rfc3339_edges() {
         "1970-01-01T00:00:00Z"
     );
     assert!(rfc3339(SystemTime::now()).starts_with("20"));
+}
+
+#[test]
+fn epoch_reads_back_what_rfc3339_writes_and_refuses_anything_else() {
+    for secs in [0, 951_782_400, 1_709_251_199, 1_709_251_200, 4_102_444_800] {
+        let text = rfc3339(UNIX_EPOCH + Duration::from_secs(secs));
+        assert_eq!(epoch(&text), Some(secs as i64), "{text}");
+    }
+    for bad in [
+        "",
+        "2026-11-15",
+        "2026-11-15T10:00:00",
+        "2026-11-15T10:00:00+01:00",
+        "2026-13-01T00:00:00Z",
+        "2026-11-15T24:00:00Z",
+        "2026-11-15 10:00:00Z",
+        "2026-1x-15T10:00:00Z",
+    ] {
+        assert_eq!(epoch(bad), None, "{bad}");
+    }
 }
 
 #[test]

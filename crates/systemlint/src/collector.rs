@@ -37,6 +37,8 @@ pub struct Collector {
     pub network: bool,
     #[serde(default)]
     pub containers: bool,
+    #[serde(default)]
+    pub ttl: Option<u64>,
     #[serde(skip)]
     pub inline: bool,
 }

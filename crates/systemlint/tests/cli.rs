@@ -588,6 +588,43 @@ fn an_output_counts_its_findings_one_in_the_singular() {
 }
 
 #[test]
+fn a_loaded_document_past_a_collector_ttl_leaves_its_rules_not_run() {
+    let dir = base("ttl");
+    let path = dir.join("facts.yaml");
+    let document = |ttl: &str| {
+        format!(
+            "meta: {{schema: {}, collected-at: '2020-01-01T00:00:00Z'}}\nx: 1\ncollectors: {{c: {{status: ok, into: x{ttl}}}}}\n",
+            systemlint::collect::SCHEMA
+        )
+    };
+    let config = "check:\n  rulesets:\n    t: {tags: [default], rules: {t/x: {fact: x, expect: {const: 2}, severity: error}}}\n";
+    let (facts, report) = (path.display().to_string(), dir.join("report.json"));
+    std::fs::write(&path, document("")).unwrap();
+    assert_eq!(
+        run(&dir, config, &["check", &facts]).0,
+        1,
+        "no ttl judges x: 1 forever"
+    );
+    std::fs::write(&path, document(", ttl: 0")).unwrap();
+    let args = [
+        "check",
+        "--format",
+        "json",
+        "--output",
+        report.to_str().unwrap(),
+        &facts,
+    ];
+    let (code, stderr) = run(&dir, config, &args);
+    assert_eq!(code, 0, "{stderr}");
+    let text = std::fs::read_to_string(&report).unwrap();
+    assert!(text.contains("facts from collector c are"), "{text}");
+    assert!(
+        text.contains("past their ttl of 0 s: collect again"),
+        "{text}"
+    );
+}
+
+#[test]
 fn ruleset_vars_come_from_var_then_vars_then_config_then_default() {
     let dir = base("vars");
     let path = dir.join("facts.yaml");

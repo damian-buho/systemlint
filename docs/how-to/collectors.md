@@ -39,6 +39,7 @@ into: apt.sources
 | `partial` | `true` to keep what the run may read: a path it may not read becomes the key `into.<path>`, which every rule under a `*` there answers `unknown` for; only for an op that keys its facts by input path |
 | `network` | `true` when it lists `addr`, `dns` or `http`, which only it may; skipped unless the run passes `--network` or sets `collect.network: true`, and under `--root` |
 | `containers` | `true` when it reads the environment of running containers, which belongs to their images; skipped unless the run passes `--containers` or sets `collect.containers: true` |
+| `ttl` | whole seconds its facts stay true after `meta.collected-at`, as `0` for the clock, kept as `collectors.<id>.ttl`; a `check` of a saved document older than that answers its rules `not run` [default: no limit] |
 | `read.addr` | `host:port` targets the core opens a TCP connection to |
 | `read.dns` | hostnames the core queries, each taken as fully qualified |
 | `read.dns-types` | the record types asked for each name: `A`, `AAAA`, `CAA`, `CNAME`, `MX`, `NS`, `PTR`, `SOA`, `SRV`, `TXT` [default: `A`, `AAAA`] |
@@ -194,7 +195,7 @@ document, with a `reason` when it is not `ok`:
 | --- | --- |
 | `ok` | the plugin replied and its facts are under `into` |
 | `error` | reading failed for any reason but a refusal, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
-| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`, a fact it needs or reads from whose collector was skipped (`needs fact sshd, which collector sshd skipped: …`), or the kernel refused a read (`can’t list /etc/cron.hourly without root`); the reason is kept, and `opt-in: true` marks an `image-config`, `network` or `containers` collector the run did not ask for |
+| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`, a fact it needs or reads from whose collector was skipped (`needs fact sshd, which collector sshd skipped: …`), or the kernel refused a read (`can’t list /etc/cron.hourly without root`), or a `check` read its saved facts past their `ttl` (`expired: true`, its facts dropped); the reason is kept, and `opt-in: true` marks an `image-config`, `network` or `containers` collector the run did not ask for |
 
 An `ok` collector also records its `plugin` and `op`, the plugin’s
 `diagnostics`, under `redacted` the JSON Pointers of the values the plugin
@@ -238,7 +239,12 @@ Facts sit at the top level beside `meta` and `collectors`. `meta.subject` is
 `{kind: host, name}` on a live host and `{kind: root, path}` under `--root`;
 `privileged` says whether the run was root, so an unprivileged collection is
 never mistaken for a full one. `collected-at` is the one clock: every plugin
-gets it as `now`, and a later `check` judges ages by it.
+gets it as `now`, and a later `check` judges ages by it. A `check` of a
+saved document compares it, plus each collector’s `ttl`, with its own clock:
+a document exactly `ttl` old is judged, one a second older (or dated after
+that clock) is not (`facts from collector clock are 3 h old, past their ttl of
+0 s: collect again`). A `check` that collects its own facts is always within
+every `ttl`.
 
 `systemlint facts -o PATH` (`--output`) writes the document atomically with
 mode 0600, as JSON when the name ends in `.json`, else YAML, unless `--format

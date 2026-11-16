@@ -10,7 +10,7 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::collect::SCHEMA;
+use crate::collect::{SCHEMA, epoch};
 
 /// The document as YAML, or as indented JSON when `json`.
 pub fn render(document: &Value, json: bool) -> Result<String, String> {
@@ -137,5 +137,70 @@ pub fn parse(text: &str) -> Result<Value, String> {
             "schema {schema}, this systemlint reads schema {SCHEMA}"
         )),
         None => Err("no meta.schema".to_owned()),
+    }
+}
+
+/// Marks `skipped` every `ok` collector whose `ttl` ended before `now`, seconds since the epoch, and drops its facts, so its rules are `not run`.
+pub fn expire(document: &mut Value, now: i64) {
+    let at = document["meta"]["collected-at"].as_str().map(str::to_owned);
+    let collected = at.as_deref().and_then(epoch);
+    let Some(collectors) = document
+        .get("collectors")
+        .and_then(Value::as_object)
+        .cloned()
+    else {
+        return;
+    };
+    for (id, outcome) in collectors {
+        let Some(ttl) = outcome["ttl"]
+            .as_u64()
+            .filter(|_| outcome["status"] == "ok")
+        else {
+            continue;
+        };
+        let reason = match collected {
+            None => format!(
+                "facts from collector {id} carry no valid meta.collected-at ({}), so their ttl of {} can’t be checked: collect again",
+                at.as_deref().unwrap_or("none"),
+                span(ttl)
+            ),
+            Some(c) if c > now => format!(
+                "facts from collector {id} were collected at {}, after this run’s clock: collect again",
+                at.as_deref().unwrap_or_default()
+            ),
+            Some(c) if (now - c).unsigned_abs() > ttl => format!(
+                "facts from collector {id} are {} old, past their ttl of {}: collect again",
+                span((now - c).unsigned_abs()),
+                span(ttl)
+            ),
+            Some(c) => {
+                log::debug!("collector {id} facts {} s old, within ttl {ttl} s", now - c);
+                continue;
+            }
+        };
+        log::debug!("collector {id} expired: {reason}");
+        let into = outcome["into"].as_str().unwrap_or_default().to_owned();
+        let (parent, leaf) = into.rsplit_once('.').unwrap_or(("", &into));
+        let pointer = parent
+            .split('.')
+            .filter(|k| !k.is_empty())
+            .fold(String::new(), |p, k| p + "/" + k);
+        if let Some(map) = document
+            .pointer_mut(&pointer)
+            .and_then(Value::as_object_mut)
+        {
+            map.remove(leaf);
+        }
+        document["collectors"][&id] = serde_json::json!({"status": "skipped", "reason": reason, "into": into, "ttl": ttl, "expired": true});
+    }
+}
+
+/// `seconds` in the largest unit that keeps it a whole number above one, as `3 h`.
+fn span(seconds: u64) -> String {
+    match seconds {
+        s if s >= 2 * 86_400 => format!("{} d", s / 86_400),
+        s if s >= 2 * 3600 => format!("{} h", s / 3600),
+        s if s >= 2 * 60 => format!("{} min", s / 60),
+        s => format!("{s} s"),
     }
 }

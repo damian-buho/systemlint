@@ -672,8 +672,8 @@ fn plural(count: usize, noun: &str) -> String {
     }
 }
 
-fn today() -> String {
-    collect::rfc3339(SystemTime::now())[..10].to_owned()
+fn today(now: SystemTime) -> String {
+    collect::rfc3339(now)[..10].to_owned()
 }
 
 /// What `check` runs: the `--tags` selectors and the ruleset var values.
@@ -701,7 +701,14 @@ fn lint(
         let fail_on = fail_on
             .or_else(|| config.check.fail_on.as_deref().and_then(|t| t.parse().ok()))
             .unwrap_or(FailOn::Level(rules::Severity::Error));
-        let (document, trusted) = facts_for(config, input, quiet)?;
+        let (mut document, trusted) = facts_for(config, input, quiet)?;
+        let now = SystemTime::now();
+        if input.facts.is_some() {
+            let epoch = now
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs());
+            document::expire(&mut document, i64::try_from(epoch).unwrap_or(i64::MAX));
+        }
         log::debug!(
             "linting facts of {} collected at {} with {} rules",
             document["meta"]["subject"],
@@ -718,7 +725,7 @@ fn lint(
                     .join(", ")
             );
         }
-        let checks = judge::lint(&document, &rules, &config.check.waivers, &today());
+        let checks = judge::lint(&document, &rules, &config.check.waivers, &today(now));
         let terminal =
             output.is_none_or(|p| p == Path::new("-")) && std::io::stdout().is_terminal();
         let plain = if look.plain || look.no_plain || look.format.is_some() {
@@ -802,7 +809,12 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
         };
         let (document, trusted) = gather(config, root, None, quiet)?;
         let systemlint::fix::Plan { changes, kept } = systemlint::fix::plan(
-            &judge::lint(&document, &rules, &config.check.waivers, &today()),
+            &judge::lint(
+                &document,
+                &rules,
+                &config.check.waivers,
+                &today(SystemTime::now()),
+            ),
             &rules,
             &document,
         );

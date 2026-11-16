@@ -306,6 +306,9 @@ pub fn collect_reporting(
     for collector in collectors {
         if let Some(outcome) = outcomes.get_mut(&collector.id) {
             outcome["into"] = Value::from(collector.into.clone());
+            if let Some(ttl) = collector.ttl {
+                outcome["ttl"] = Value::from(ttl);
+            }
         }
     }
     let mut subject = if options.live {
@@ -1215,6 +1218,33 @@ pub fn rfc3339(time: SystemTime) -> String {
         rest % 3600 / 60,
         rest % 60
     )
+}
+
+/// Seconds since the epoch of an RFC 3339 UTC time to the second, as `rfc3339` writes it.
+pub fn epoch(text: &str) -> Option<i64> {
+    let b = text.as_bytes();
+    let shape = b.len() == 20 && b[19] == b'Z' && b[10] == b'T';
+    let number = |from: usize, to: usize| text.get(from..to)?.parse::<i64>().ok();
+    if !shape || [4, 7].iter().any(|&i| b[i] != b'-') || [13, 16].iter().any(|&i| b[i] != b':') {
+        return None;
+    }
+    let (year, month, day) = (number(0, 4)?, number(5, 7)?, number(8, 10)?);
+    let (hour, minute, second) = (number(11, 13)?, number(14, 16)?, number(17, 19)?);
+    if !(1..=12).contains(&month)
+        || !(1..=31).contains(&day)
+        || hour > 23
+        || minute > 59
+        || second > 60
+    {
+        return None;
+    }
+    let y = year - i64::from(month <= 2);
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (month + if month > 2 { -3 } else { 9 }) + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    Some(days * 86_400 + hour * 3600 + minute * 60 + second)
 }
 
 /// Standard padded base64 of `bytes`.
