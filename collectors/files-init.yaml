@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: files-init
+read:
+  stat: [/etc/init.d, /etc/init.d/*, /etc/rc*.d, /etc/rc*.d/*, /etc/rc.d/*/*, /etc/rc.local, /etc/rc]
+parse: {plugin: formats, op: stat}
+into: files.init

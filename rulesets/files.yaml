@@ -20,6 +20,7 @@ rules:
     references:
       - {title: Lynis FILE-7524, url: "https://cisofy.com/lynis/controls/FILE-7524/"}
       - {title: Lynis AUTH-9252, url: "https://cisofy.com/lynis/controls/AUTH-9252/"}
+      - {title: Lynis BOOT-5184, url: "https://cisofy.com/lynis/controls/BOOT-5184/"}
     tags: [files, lynis]
   files/group-writable:
     title: File writable by its group

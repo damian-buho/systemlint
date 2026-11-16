@@ -18,7 +18,7 @@ use systemlint::source::Root;
 use systemlint::vars::{Supplied, apply};
 use systemlint_protocol::{PROTOCOL, Request};
 
-const COLLECTORS: [&str; 15] = [
+const COLLECTORS: [&str; 16] = [
     "files-shadow",
     "files-libraries",
     "files-commands",
@@ -32,6 +32,7 @@ const COLLECTORS: [&str; 15] = [
     "files-apt-sources",
     "files-apt-auth",
     "files-boot",
+    "files-init",
     "files-audit-config",
     "files-audit-tools",
 ];
@@ -43,7 +44,7 @@ fn repository() -> PathBuf {
 // A root whose modes git cannot keep, rebuilt with explicit modes on every run.
 fn root() -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("files-root");
-    let entries: [common::Entry; 17] = [
+    let entries: [common::Entry; 19] = [
         ("etc", None, 0o755),
         ("etc/passwd", Some("root:x:0:0::/root:/bin/sh\n"), 0o644),
         ("etc/apt", None, 0o755),
@@ -67,6 +68,8 @@ fn root() -> PathBuf {
         ("etc/ssh/ssh_host_ed25519_key", Some("private\n"), 0o644),
         ("etc/ssh/ssh_host_ed25519_key.pub", Some("public\n"), 0o644),
         ("etc/crontab", Some(""), 0o644),
+        ("etc/init.d", None, 0o755),
+        ("etc/init.d/ssh", Some("#!/bin/sh\n"), 0o757),
         ("usr", None, 0o755),
         ("usr/bin", None, 0o755),
     ];
@@ -187,6 +190,7 @@ fn a_0644_host_key_and_a_0666_sudoers_drop_in_fail_and_nothing_else_does() {
                 "files/ssh-host-key-mode",
                 "/etc/ssh/ssh_host_ed25519_key".to_owned()
             ),
+            ("files/world-writable", "init, /etc/init.d/ssh".to_owned()),
             (
                 "files/world-writable",
                 "sudoers, /etc/sudoers.d/deploy".to_owned()
@@ -204,7 +208,7 @@ fn a_0644_host_key_and_a_0666_sudoers_drop_in_fail_and_nothing_else_does() {
     );
     let root = rustix::process::geteuid().is_root();
     let owners: Vec<_> = checks.iter().filter(|c| c.rule == "files/owner").collect();
-    assert_eq!(owners.len(), 14);
+    assert_eq!(owners.len(), 16);
     assert!(
         owners.iter().all(|c| c.is_failing() != root),
         "a test file is owned by the runner: root passes, anyone else fails"

@@ -36,6 +36,7 @@ Each collector passes its `read.stat` globs to the `stat` op of
 | `files-apt-sources` | `/etc/apt/sources.list`, `sources.list.d` and its files, and the `auth.conf.d` directory | `files.apt-sources.<path>` |
 | `files-apt-auth` | `/etc/apt/auth.conf` and every file in `auth.conf.d` | `files.apt-auth.<path>` |
 | `files-boot` | `/boot/grub/grub.cfg` and `user.cfg` | `files.boot.<path>` |
+| `files-init` | `/etc/init.d`, every `/etc/rc*.d`, the entries of each and of `/etc/rc.d`’s subdirectories, `/etc/rc.local` and `/etc/rc` | `files.init.<path>` |
 | `files-audit-config` | `/etc/audit`, its `.conf` files, `rules.d` and `plugins.d` and their files | `files.audit-config.<path>` |
 | `files-audit-tools` | `auditctl`, `aureport`, `ausearch`, `autrace`, `auditd` and `augenrules` in `/usr/sbin` or `/usr/bin` | `files.audit-tools.<path>` |
 | `files-libraries` | `/usr/lib`, `/usr/lib64`, every `/usr/lib/*-linux-gnu*` directory and the `*.so*` files at their top | `files.libraries.<path>` |
