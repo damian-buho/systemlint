@@ -4,6 +4,6 @@
 
 id: auth-pwquality
 read:
-  files: [/etc/security/pwquality.conf, /etc/security/pwquality.conf.d/*.conf]
-parse: {plugin: formats, op: ini}
+  files: [/etc/security/pwquality.conf.d/*.conf, /etc/security/pwquality.conf]
+parse: {plugin: formats, op: kv, with: {negate: "!", repeat: last}}
 into: auth.pwquality

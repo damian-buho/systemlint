@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The `auth-*` collectors read how logins are checked and limited: shadow’s
 `/etc/login.defs`, the PAM service files, pam_limits, pam_pwquality and
-`/etc/securetty`. The `login-defs` and `pam` rulesets and one `coredump` rule
+`/etc/securetty`. The `login-defs`, `pam` and `pwquality` rulesets and one `coredump` rule
 judge them.
 
 ```sh
@@ -23,7 +23,8 @@ systemlint check --root /mnt/image --tags auth
 | `auth-login-defs` | `/etc/login.defs` | `kv` | `auth.login-defs.<NAME>` |
 | `auth-pam` | `/etc/pam.d/*` | `words` | `auth.pam.<path>` |
 | `auth-limits` | `/etc/security/limits.conf`, `limits.d/*.conf` | `words` | `auth.limits.<path>` |
-| `auth-pwquality` | `/etc/security/pwquality.conf`, `pwquality.conf.d/*.conf` | `ini` | `auth.pwquality.<path>` |
+| `auth-pwquality` | `/etc/security/pwquality.conf.d/*.conf`, then `pwquality.conf` | `kv`, a bare option `true`, the last line winning | `auth.pwquality.<option>` |
+| `auth-pwquality-module` | `pam_pwquality.so` under `/usr/lib` and `/lib` | `stat` | `auth.pwquality-module.<path>` |
 | `auth-securetty` | `/etc/securetty` | `lines` | `auth.securetty.<path>` |
 | `auth-faillock` | `/etc/security/faillock.conf` | `kv`, a bare option `true` | `auth.faillock.<option>` |
 | `auth-pwhistory` | `/etc/security/pwhistory.conf` | `kv`, a bare option `true` | `auth.pwhistory.<option>` |
@@ -91,13 +92,28 @@ auth:
 | `pam/pwhistory-root` | neither `pwhistory.conf` nor the `pam_pwhistory` line sets `enforce_for_root` (*standard-only*) |
 | `pam/pwhistory-use-authtok` | the `pam_pwhistory` line of `common-password` lacks `use_authtok` (*standard-only*) |
 | `pam/unix-use-authtok` | the `pam_unix` password line of `common-password` lacks `use_authtok` (*standard-only*) |
+| `pam/pwquality-missing` | no `pam_pwquality.so` is on disk (*standard-only*) |
+| `pwquality/minlen` | `minlen` is unset (8) or below `pwquality-minlen` (14, CIS) (*standard-only*) |
+| `pwquality/minlen-single-factor` | `minlen` is unset or below `pwquality-single-factor-minlen` (15, NIST SP 800-63B-4 and the STIG) |
+| `pwquality/credit` | a `dcredit`, `ucredit`, `lcredit` or `ocredit` above 0 counts characters of that class toward `minlen` |
+| `pwquality/composition` | a credit below 0 or a `minclass` above 1 imposes a composition rule, as NIST SP 800-63B-4 advises against |
+| `pwquality/stig-ucredit`, `stig-lcredit`, `stig-dcredit`, `stig-ocredit` | that credit is unset or above -1, where the STIG asks one character of the class (*standard-only*) |
+| `pwquality/difok` | `difok` is unset (1) or below `pwquality-difok` (2, CIS) (*standard-only*) |
+| `pwquality/stig-difok` | `difok` is unset or below `pwquality-stig-difok` (8) (*standard-only*) |
+| `pwquality/maxrepeat` | `maxrepeat` is unset, 0 or above `pwquality-maxrepeat` (3) (*standard-only*) |
+| `pwquality/maxsequence` | `maxsequence` is unset, 0 or above `pwquality-maxsequence` (3) (*standard-only*) |
+| `pwquality/dictcheck` | the effective `dictcheck`, the module argument over the file, is 0 |
+| `pwquality/enforcing` | the effective `enforcing`, the module argument over the file, is 0, so a weak password only draws a warning |
+| `pwquality/root` | neither `pwquality.conf` nor the `pam_pwquality` line sets `enforce_for_root` (*standard-only*) |
 | `coredump/no-hard-limit` | pam_limits has no `* hard core 0` (or `-`), or any hard core line with another value |
 
 `login-defs` is not applicable without `/etc/login.defs` and `pam` without
 `/etc/pam.d`. The `faillock` and `pwhistory` rules judge only a host whose
 `common-auth` or `common-password` calls the module, and a file option only
 while that line passes no argument of the same name, which overrides it; such
-an argument is not judged. `coredump/no-hard-limit` skips a host without PAM, which never
+an argument is not judged. The `pwquality` rules judge only a host whose
+`common-password` calls `pam_pwquality`, the same way, but for `dictcheck`
+and `enforcing`, whose argument is judged in place of the file. `coredump/no-hard-limit` skips a host without PAM, which never
 applies pam_limits. The `PASS_*` rules judge what new accounts get; the
 `accounts` ruleset judges each existing one. `login-defs/pass-max-days` and
 `login-defs/pass-rotation` contradict each other, so a run selecting both

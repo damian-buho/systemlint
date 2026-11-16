@@ -4988,3 +4988,172 @@ fn rsyslog_where_installed_runs_and_carries_a_tls_driver() {
         "masked"
     );
 }
+
+// One pwquality rule’s outcomes over `conf` as auth-pwquality reads it, the pam_pwquality line passing `args`.
+fn pwquality(rule: &str, conf: Value, args: &[&str]) -> Vec<Outcome> {
+    let pam = json!({"/etc/pam.d/common-password": [entry("password", "requisite", "pam_pwquality.so", args)]});
+    let mut document = auth(json!({}), json!([]), pam);
+    document["auth"]["pwquality"] = conf;
+    document["collectors"]["auth-pwquality"] = json!({"status": "ok", "into": "auth.pwquality"});
+    selected(
+        "pwquality",
+        &keeping("pwquality", rule),
+        &document,
+        json!({}),
+    )
+    .into_iter()
+    .filter(|c| c.rule == rule)
+    .map(|c| c.outcome)
+    .collect()
+}
+
+#[test]
+fn pwquality_reads_conf_d_before_the_main_file_and_a_bare_option_as_true() {
+    let file = |path: &str, content: &str| {
+        Input::File(serde_json::from_value(json!({"path": path, "content": content})).unwrap())
+    };
+    let inputs = [
+        file(
+            "/etc/security/pwquality.conf.d/50-pwlength.conf",
+            "minlen = 14\ndcredit = -1\n",
+        ),
+        file(
+            "/etc/security/pwquality.conf",
+            "# minlen = 9\nminlen = 12\nenforce_for_root\n",
+        ),
+    ];
+    let with = json!({"negate": "!", "repeat": "last"});
+    let facts = systemlint_formats::kv(&inputs, with.as_object().unwrap())
+        .unwrap()
+        .facts;
+    assert_eq!(
+        serde_json::to_value(facts).unwrap(),
+        json!({"minlen": 12, "dcredit": -1, "enforce_for_root": true}),
+        "the main file is read last and wins"
+    );
+}
+
+#[test]
+fn pwquality_rules_pass_at_their_edge_and_skip_a_setting_the_module_line_overrides() {
+    let edges = [
+        ("pwquality/minlen", "minlen", 14, 13),
+        ("pwquality/minlen-single-factor", "minlen", 15, 14),
+        ("pwquality/difok", "difok", 2, 1),
+        ("pwquality/stig-difok", "difok", 8, 7),
+        ("pwquality/maxrepeat", "maxrepeat", 3, 4),
+        ("pwquality/maxsequence", "maxsequence", 3, 4),
+        ("pwquality/stig-ucredit", "ucredit", -1, 0),
+        ("pwquality/stig-lcredit", "lcredit", -1, 0),
+        ("pwquality/stig-dcredit", "dcredit", -1, 0),
+        ("pwquality/stig-ocredit", "ocredit", -1, 0),
+    ];
+    for (rule, key, pass, fail) in edges {
+        assert_eq!(
+            pwquality(rule, json!({key: pass}), &[]),
+            [Outcome::Pass],
+            "{rule} at {pass}"
+        );
+        assert_eq!(
+            pwquality(rule, json!({key: fail}), &[]),
+            [Outcome::Fail],
+            "{rule} at {fail}"
+        );
+        assert_eq!(
+            pwquality(rule, json!({}), &[]),
+            [Outcome::Fail],
+            "{rule} unset"
+        );
+        assert_eq!(
+            pwquality(rule, json!({key: fail}), &[&format!("{key}={pass}")]),
+            [Outcome::Skip],
+            "{rule}: the argument overrides the file"
+        );
+    }
+    for rule in ["pwquality/maxrepeat", "pwquality/maxsequence"] {
+        let key = rule.trim_start_matches("pwquality/");
+        assert_eq!(pwquality(rule, json!({key: 1}), &[]), [Outcome::Pass]);
+        assert_eq!(
+            pwquality(rule, json!({key: 0}), &[]),
+            [Outcome::Fail],
+            "0 is no limit"
+        );
+    }
+    let credit = |conf: Value| pwquality("pwquality/credit", conf, &[]);
+    assert_eq!(credit(json!({})), [Outcome::Pass], "unset is 0");
+    assert_eq!(
+        credit(json!({"dcredit": 0, "ocredit": -2})),
+        [Outcome::Pass]
+    );
+    assert_eq!(credit(json!({"ucredit": 1})), [Outcome::Fail]);
+    let composed = |conf: Value| pwquality("pwquality/composition", conf, &[]);
+    assert_eq!(
+        composed(json!({"dcredit": 0, "minclass": 1})),
+        [Outcome::Pass]
+    );
+    assert_eq!(composed(json!({"lcredit": -1})), [Outcome::Fail]);
+    assert_eq!(composed(json!({"minclass": 2})), [Outcome::Fail]);
+    assert_eq!(
+        pwquality(
+            "pwquality/composition",
+            json!({"minclass": 4}),
+            &["minclass=1"]
+        ),
+        [Outcome::Skip]
+    );
+}
+
+#[test]
+fn pwquality_dictcheck_and_enforcing_fail_only_where_the_effective_value_is_zero() {
+    for key in ["dictcheck", "enforcing"] {
+        let rule = format!("pwquality/{key}");
+        let off = format!("{key}=0");
+        let on = format!("{key}=1");
+        assert_eq!(
+            pwquality(&rule, json!({}), &[]),
+            [Outcome::Pass],
+            "unset is 1"
+        );
+        assert_eq!(pwquality(&rule, json!({key: 1}), &[]), [Outcome::Pass]);
+        assert_eq!(pwquality(&rule, json!({key: 0}), &[]), [Outcome::Fail]);
+        assert_eq!(pwquality(&rule, json!({key: "00"}), &[]), [Outcome::Fail]);
+        assert_eq!(
+            pwquality(&rule, json!({key: 1}), &[&off]),
+            [Outcome::Fail],
+            "the argument wins"
+        );
+        assert_eq!(
+            pwquality(&rule, json!({key: 0}), &[&on]),
+            [Outcome::Pass],
+            "the argument wins"
+        );
+    }
+    let root = |conf: Value, args: &[&str]| pwquality("pwquality/root", conf, args);
+    assert_eq!(
+        root(json!({"enforce_for_root": true}), &[]),
+        [Outcome::Pass]
+    );
+    assert_eq!(root(json!({}), &["enforce_for_root"]), [Outcome::Pass]);
+    assert_eq!(root(json!({}), &[]), [Outcome::Fail]);
+    let unix =
+        json!({"/etc/pam.d/common-password": [entry("password", "required", "pam_unix.so", &[])]});
+    let mut document = auth(json!({}), json!([]), unix);
+    document["auth"]["pwquality"] = json!({});
+    assert!(
+        judge("pwquality", &document)
+            .iter()
+            .all(|(_, _, o)| *o == Outcome::NotApplicable),
+        "a stack without pam_pwquality is not judged"
+    );
+    let module = |stats: Value| {
+        let mut document = auth(json!({}), json!([]), json!({"/etc/pam.d/other": []}));
+        document["auth"]["pwquality-module"] = stats;
+        document["collectors"]["auth-pwquality-module"] =
+            json!({"status": "ok", "into": "auth.pwquality-module"});
+        outcomes("pam", "pam/pwquality-missing", &document)
+    };
+    assert_eq!(module(json!({})), [Outcome::Fail]);
+    assert_eq!(
+        module(json!({"/usr/lib/x86_64-linux-gnu/security/pam_pwquality.so": {"exists": true}})),
+        [Outcome::Pass]
+    );
+}

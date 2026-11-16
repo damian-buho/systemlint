@@ -114,7 +114,19 @@ rules:
     message: "{subject} never calls pam_pwquality, so a new password is not checked against a dictionary or a minimum length"
     fix: install libpam-pwquality, which adds pam_pwquality to {subject} through pam-auth-update
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
-    tags: [auth, pam, cis-ubuntu-26.04:5.3.2.3, stig-ubuntu-26.04:UBTU-24-300016, '!default']
+    references:
+      - {title: Lynis AUTH-9262, url: "https://cisofy.com/lynis/controls/AUTH-9262/"}
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.2.3, lynis, stig-ubuntu-26.04:UBTU-24-300016, '!default']
+  pam/pwquality-missing:
+    title: No pam_pwquality module on disk
+    fact: auth.pwquality-module
+    expect: {minProperties: 1}
+    severity: info
+    score: 1.0
+    message: "no pam_pwquality.so is under /usr/lib or /lib, so no PAM stack can check a new password’s strength"
+    fix: install libpam-pwquality (apt install libpam-pwquality on Ubuntu)
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
+    tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-100600, '!default']
   pam/pwhistory-enabled:
     title: Password changes skip pam_pwhistory
     fact: auth.pam.*
