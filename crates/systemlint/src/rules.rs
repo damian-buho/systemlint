@@ -121,6 +121,9 @@ pub struct Spec {
     pub manual: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub unique: bool,
+    /// A fact, bound like `when`, the rule’s fact must equal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub same: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub conflicts: Vec<String>,
     #[serde(skip)]
@@ -301,6 +304,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         tags,
         manual: over.manual || base.manual,
         unique: over.unique || base.unique,
+        same: over.same.or(base.same),
         conflicts: base.conflicts,
         pinned: over.pinned || (!score_set && base.pinned),
         applies,
@@ -336,7 +340,12 @@ impl Library {
                         "ruleset {name}: rule {id} is manual, so it takes no fact, expect or facts"
                     ));
                 }
-                if !spec.manual && !spec.unique && spec.facts.is_none() && spec.expect.is_none() {
+                if !spec.manual
+                    && !spec.unique
+                    && spec.same.is_none()
+                    && spec.facts.is_none()
+                    && spec.expect.is_none()
+                {
                     return Err(format!("ruleset {name}: rule {id} has fact but no expect"));
                 }
                 spec.applies_in(name, ruleset.when.as_ref());

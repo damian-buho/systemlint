@@ -1137,6 +1137,80 @@ fn unique_refuses_facts_and_a_fact_without_a_star() {
 }
 
 #[test]
+fn a_braced_segment_reads_its_key_from_another_fact() {
+    let document = json!({
+        "accounts": {"passwd": {
+            "ann": {"uid": 1000, "home": "/home/ann"},
+            "bob": {"uid": 1001, "home": "/home/ann"},
+            "cid": {"uid": 1002, "home": "/home/c.d"},
+            "dan": {"uid": 1003},
+        }},
+        "home": {"directories": {"/home/ann": {"uid": 1000}, "/home/c.d": {"uid": 1002}}},
+        "collectors": {
+            "accounts-passwd": {"status": "ok", "into": "accounts.passwd"},
+            "home-directories": {"status": "ok", "into": "home.directories"},
+        },
+    });
+    let dotted = "fact: accounts.passwd.*.uid\nsame: home.directories.{accounts.passwd.*.home}.uid\nmessage: '{subject} {got} {same}'\n";
+    let checks = run(dotted, &document);
+    assert_eq!(
+        outcomes(&checks),
+        [
+            ("ann".into(), Outcome::Pass),
+            ("bob".into(), Outcome::Fail),
+            ("cid".into(), Outcome::Pass),
+            ("dan".into(), Outcome::Unknown),
+        ],
+        "a dot inside the braces stays in the key it names"
+    );
+    assert_eq!(checks[1].message.as_deref(), Some("bob 1001 1000"));
+    assert!(
+        checks[3]
+            .reason
+            .as_deref()
+            .unwrap()
+            .contains("accounts.passwd.dan.home is absent"),
+        "the unknown names the fact that named no key: {:?}",
+        checks[3].reason
+    );
+    let pointer = run(
+        "fact: /accounts/passwd/*/uid\nsame: /home/directories/{/accounts/passwd/*/home}/uid\n",
+        &document,
+    );
+    assert_eq!(
+        outcomes(&pointer),
+        outcomes(&checks),
+        "a pointer reads the same"
+    );
+    let guarded = run(
+        "fact: accounts.passwd.*.uid\nwhen: {'home.directories.{accounts.passwd.*.home}.uid': 1000}\nexpect: {}\n",
+        &document,
+    );
+    assert_eq!(
+        guarded.iter().map(|c| c.outcome).collect::<Vec<_>>(),
+        [
+            Outcome::Pass,
+            Outcome::Pass,
+            Outcome::Skip,
+            Outcome::Unknown
+        ],
+        "a when path joins too"
+    );
+}
+
+#[test]
+fn a_braced_segment_is_refused_where_it_cannot_bind() {
+    let refused = |yaml: &str| compile("test/rule", spec(yaml)).err().unwrap();
+    let fact = refused("fact: a.{b.*.c}.d\nexpect: {}\n");
+    assert!(fact.contains("takes no {path} segment"), "{fact}");
+    let stars = refused("fact: a.*.b\nsame: c.{d.*.*.e}\n");
+    assert!(stars.contains("same has 2 *"), "{stars}");
+    let facts = refused("same: a.*.b\nfacts:\n  all:\n    - {fact: a.*.b, expect: {}}\n");
+    assert!(facts.contains("takes no facts"), "{facts}");
+    assert!(parse_path("a.{b.c").is_err() && parse_path("a.b}.c").is_err());
+}
+
+#[test]
 fn an_absent_collection_skips_when_the_rules_own_when_fails_and_is_unknown_otherwise() {
     let rule = "fact: mounts.active.*.options\nwhen: {mounts: {required: [active]}}\nexpect: {contains: {const: nodev}}\n";
     let skipped = json!({"mounts": {"fstab": {}}, "collectors": {"mounts-active": {"status": "skipped", "reason": "live", "into": "mounts.active"}}});

@@ -51,10 +51,13 @@ apt/https:
 | `tags` | slugs; a tag with `:` names a control of a standard |
 | `manual` | `true` for a procedure a person follows: no `fact` or `expect`, the steps in `rationale` |
 | `unique` | `true` to fail every subject whose fact value another subject holds too, see [Unique values](#unique-values); `expect` may then be left out |
+| `same` | a fact, bound like `when`, the rule’s fact must equal, its value in `{same}`; `expect` may then be left out, see [Joined facts](#joined-facts) |
 | `conflicts` | IDs of rules of another standard this rule contradicts, each naming this one back, else the rulesets are refused; while both are selected, every check of either answers `conflict` and none counts, see [Check output](#check-output-and-exit-codes); only a definition takes it |
 
 A fact path is dotted (`os.release.VERSION_ID`), or a JSON Pointer when it
 starts with `/`, for keys holding dots (`/files/~1etc~1ssh~1sshd_config.d~1a.conf/mode`).
+A `{path}` segment takes its key from the value of another fact, see
+[Joined facts](#joined-facts).
 
 ### Subjects
 
@@ -123,6 +126,28 @@ fails, and `{others}` names the rest, joined by a comma. A subject that is
 skipped, unknown, failed by `expect` or left out by `keys` takes no part, so
 it never makes another fail. The fact needs a `*`, and `facts` takes no
 `unique`.
+
+### Joined facts
+
+A `{path}` segment in a `when`, `facts`, `suggest` or `same` path reads its
+key from the string or number at `path`, bound to the rule’s subject as a
+`when` path is; `same` then compares two collections keyed differently:
+
+```yaml
+home/not-owned:
+  fact: accounts.passwd.*.uid
+  same: home.directories.{accounts.passwd.*.home}.uid
+  when:
+    home.directories.{accounts.passwd.*.home}.kind: directory
+  message: "{subject}’s home is owned by uid {same}, not {got}"
+```
+
+Each account looks its home up by the path its passwd entry names, dots in
+it included. When the named fact is absent, or neither a string nor a number,
+the check is `unknown` and its reason names that fact. `same` fails a fact
+that differs from the joined one and is `unknown` while that one is absent;
+it takes no `facts`. The rule’s own `fact` binds the subjects, so it takes no
+`{path}`. In a YAML flow map, quote such a path, since braces end the map there.
 
 ### Outcomes
 
@@ -409,4 +434,6 @@ facts need it:
 - `unique: true` sits beside `fact` and fails each subject that shares a value,
   where spiderlint’s `unique: <fact>` gives one finding per value, so a waiver
   or SARIF fingerprint still names one subject;
+- a `{path}` segment joins two collections by value, and `same` compares the
+  facts it reaches;
 - there are no `scope`, `hints` or built-in rules; `advice` replaces the `hint` level.

@@ -115,47 +115,115 @@ impl Check {
     }
 }
 
-/// One segment of a fact path: a key, or `*` binding a subject.
+/// One segment of a fact path: a key, `*` binding a subject, or `{path}`, the key another fact’s value names.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Segment {
     Key(String),
     Star,
+    From(Vec<Segment>),
 }
 
-/// A dotted path, or a JSON Pointer when it starts with `/`; a `*` segment binds a subject.
+/// `text` split on `separator` outside braces.
+fn split_outside_braces(text: &str, separator: char) -> Vec<&str> {
+    let (mut parts, mut depth, mut start) = (Vec::new(), 0usize, 0);
+    for (i, c) in text.char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => depth = depth.saturating_sub(1),
+            c if c == separator && depth == 0 => {
+                parts.push(&text[start..i]);
+                start = i + c.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    parts.push(&text[start..]);
+    parts
+}
+
+/// A dotted path, or a JSON Pointer when it starts with `/`; a `*` segment binds a subject, a `{path}` segment reads its key from that fact.
 pub fn parse_path(text: &str) -> Result<Vec<Segment>, String> {
     let raw: Vec<String> = match text.strip_prefix('/') {
-        Some(pointer) => pointer
-            .split('/')
-            .map(|s| s.replace("~1", "/").replace("~0", "~"))
+        Some(pointer) => split_outside_braces(pointer, '/')
+            .into_iter()
+            .map(|s| match s.starts_with('{') {
+                true => s.to_owned(),
+                false => s.replace("~1", "/").replace("~0", "~"),
+            })
             .collect(),
-        None => text.split('.').map(str::to_owned).collect(),
+        None => split_outside_braces(text, '.')
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
     };
     if text.is_empty() || raw.iter().any(String::is_empty) {
         return Err(format!("fact path {text:?} has an empty segment"));
     }
-    Ok(raw
-        .into_iter()
-        .map(|s| {
-            if s == "*" {
-                Segment::Star
-            } else {
-                Segment::Key(s)
-            }
-        })
-        .collect())
+    raw.into_iter()
+        .map(
+            |s| match s.strip_prefix('{').and_then(|r| r.strip_suffix('}')) {
+                Some(inner) => parse_path(inner).map(Segment::From),
+                None if s == "*" => Ok(Segment::Star),
+                None if s.contains(['{', '}']) => Err(format!(
+                    "fact path {text:?} has an unbalanced brace in {s:?}"
+                )),
+                None => Ok(Segment::Key(s)),
+            },
+        )
+        .collect()
 }
 
+/// The `*`s a path binds: its own, or a `{path}` segment’s when that holds more.
 fn stars(path: &[Segment]) -> usize {
-    path.iter().filter(|s| **s == Segment::Star).count()
+    let own = path.iter().filter(|s| **s == Segment::Star).count();
+    path.iter()
+        .filter_map(|s| match s {
+            Segment::From(inner) => Some(stars(inner)),
+            _ => None,
+        })
+        .fold(own, usize::max)
 }
 
+fn joins(path: &[Segment]) -> bool {
+    path.iter().any(|s| matches!(s, Segment::From(_)))
+}
+
+/// The keys of `path` on `bound`, each `{path}` replaced by the string or number at it; `Err` holds the keys of the first such fact that names no key.
+fn resolve(
+    document: &Value,
+    path: &[Segment],
+    bound: &[String],
+) -> Result<Vec<String>, Vec<String>> {
+    let mut stars = bound.iter();
+    let mut keys = Vec::new();
+    for segment in path {
+        keys.push(match segment {
+            Segment::Key(k) => k.clone(),
+            Segment::Star => stars.next().cloned().unwrap_or_else(|| "*".to_owned()),
+            Segment::From(inner) => {
+                let at = resolve(document, inner, bound)?;
+                match get(document, &at) {
+                    Some(Value::String(s)) => s.clone(),
+                    Some(Value::Number(n)) => n.to_string(),
+                    _ => {
+                        log::trace!("{} names no key under {bound:?}", at.join("."));
+                        return Err(at);
+                    }
+                }
+            }
+        });
+    }
+    Ok(keys)
+}
+
+/// The keys of a path without `{path}` segments on `bound`.
 fn concrete(path: &[Segment], bound: &[String]) -> Vec<String> {
     let mut keys = bound.iter();
     path.iter()
         .map(|s| match s {
             Segment::Key(k) => k.clone(),
             Segment::Star => keys.next().cloned().unwrap_or_else(|| "*".to_owned()),
+            Segment::From(_) => unreachable!("a binding path holds no {{path}} segment"),
         })
         .collect()
 }
@@ -203,6 +271,7 @@ fn walk(
     };
     let keys = match segment {
         Segment::Key(key) => child(value, key).map(|_| vec![key.clone()]),
+        Segment::From(_) => unreachable!("a binding path holds no {{path}} segment"),
         Segment::Star => children(value).map(|mut keys| {
             for owed in owed(document, at) {
                 if !keys.contains(&owed) {
@@ -468,6 +537,7 @@ pub struct Rule {
     fact: Vec<Segment>,
     keys: Option<Validator>,
     suggest: Option<(Vec<Segment>, String)>,
+    same: Option<Vec<Segment>>,
     applies: Vec<(String, Vec<Vec<Guard>>)>,
     when: Vec<Vec<Guard>>,
     members: Vec<(Vec<Segment>, Validator)>,
@@ -552,6 +622,7 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
             fact: vec![],
             keys: None,
             suggest: None,
+            same: None,
             applies,
             when: vec![],
             members: vec![],
@@ -561,6 +632,11 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
     if spec.unique && spec.facts.is_some() {
         return Err(fail(
             "is unique, which compares one fact across subjects, so it takes no facts".to_owned(),
+        ));
+    }
+    if spec.same.is_some() && spec.facts.is_some() {
+        return Err(fail(
+            "has same, which compares its one fact to another, so it takes no facts".to_owned(),
         ));
     }
     let (combine, written): (Combine, Vec<Member>) = match (&spec.facts, &spec.fact, &spec.expect) {
@@ -579,7 +655,7 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
                 expect: expect.clone(),
             }],
         ),
-        (None, Some(fact), None) if spec.unique => (
+        (None, Some(fact), None) if spec.unique || spec.same.is_some() => (
             Combine::All,
             vec![Member {
                 fact: fact.clone(),
@@ -605,6 +681,11 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         members.push((path, validator));
     }
     let fact = members[0].0.clone();
+    if joins(&fact) {
+        return Err(fail(format!(
+            "fact {fact_text} binds the subjects, so it takes no {{path}} segment"
+        )));
+    }
     if spec.unique && stars(&fact) == 0 {
         return Err(fail(format!(
             "is unique across the subjects a * binds, and fact {fact_text} has no *"
@@ -634,6 +715,19 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
             stars(&fact)
         )));
     }
+    let same = spec
+        .same
+        .as_deref()
+        .map(parse_path)
+        .transpose()
+        .map_err(fail)?;
+    if let Some(path) = same.as_ref().filter(|p| stars(p) > stars(&fact)) {
+        return Err(fail(format!(
+            "same has {} * where fact {fact_text} has {}, so it binds no subject",
+            stars(path),
+            stars(&fact)
+        )));
+    }
     let when = guards(
         spec.when.as_ref(),
         stars(&fact),
@@ -656,6 +750,7 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         fact,
         keys,
         suggest,
+        same,
         applies,
         when,
         members,
@@ -679,8 +774,9 @@ fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String], unproduced: bo
     for branch in when {
         let mut result = Tri::True;
         for g in branch {
-            let keys = concrete(&g.path, bound);
-            let Some(actual) = get(document, &keys) else {
+            let resolved = resolve(document, &g.path, bound);
+            let (Ok(keys) | Err(keys)) = resolved.clone();
+            let Some(actual) = resolved.ok().and_then(|_| get(document, &keys)) else {
                 let (reason, collector) = absent(document, &keys);
                 if unproduced && collector.is_none() {
                     log::debug!("when {} has no producer, so it is false", keys.join("."));
@@ -889,7 +985,13 @@ fn member<'a>(
     expect: &Validator,
     bound: &[String],
 ) -> Judged<'a> {
-    let keys = concrete(path, bound);
+    let keys = match resolve(document, path, bound) {
+        Ok(keys) => keys,
+        Err(at) => {
+            let (reason, collector) = absent(document, &at);
+            return Judged::Unknown(reason, collector);
+        }
+    };
     let Some(value) = get(document, &keys) else {
         let (reason, collector) = absent(document, &keys);
         return Judged::Unknown(reason, collector);
@@ -961,7 +1063,7 @@ fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged
             .collect(),
     };
     let (keys, value, pointer, error) = match verdict(rule.combine, judged) {
-        None => return base(rule, Outcome::Pass, bound),
+        None => return same(rule, document, bound),
         Some(Judged::Unknown(reason, collector)) => {
             return Check {
                 reason: Some(reason),
@@ -972,10 +1074,48 @@ fn check(rule: &Rule, document: &Value, bound: &[String], unbound: Option<Judged
         Some(Judged::Fails(keys, value, pointer, error)) => (keys, value, pointer, error),
         Some(Judged::Holds(..)) => unreachable!("a verdict is never a holding fact"),
     };
-    failure(rule, document, bound, &keys, value, &pointer, &error, None)
+    failure(rule, document, bound, &keys, value, &pointer, &error, &[])
 }
 
-/// The failing check of `rule` on `bound` for `value` at `keys`, its message filled; `others` names the subjects a `unique` value collides with.
+/// A check whose facts hold, judged against `same`: unknown when that fact is absent, a fail when it differs.
+fn same(rule: &Rule, document: &Value, bound: &[String]) -> Check {
+    let Some(path) = &rule.same else {
+        return base(rule, Outcome::Pass, bound);
+    };
+    let keys = concrete(&rule.fact, bound);
+    let other = resolve(document, path, bound);
+    let (Ok(at) | Err(at)) = other.clone();
+    let (Some(value), Some(expected)) = (
+        get(document, &keys),
+        other.ok().and_then(|_| get(document, &at)),
+    ) else {
+        let (reason, collector) = absent(document, &at);
+        log::debug!("rule {} has no same on {bound:?}: {reason}", rule.id);
+        return Check {
+            reason: Some(reason),
+            collector,
+            ..base(rule, Outcome::Unknown, bound)
+        };
+    };
+    if value == expected {
+        log::debug!("rule {} finds {} equal on {bound:?}", rule.id, at.join("."));
+        return base(rule, Outcome::Pass, bound);
+    }
+    let shown = describe(Some(expected));
+    let error = format!("differs from {}, which is {shown}", at.join("."));
+    failure(
+        rule,
+        document,
+        bound,
+        &keys,
+        value,
+        "",
+        &error,
+        &[("same", shown)],
+    )
+}
+
+/// The failing check of `rule` on `bound` for `value` at `keys`, its message filled, `extra` adding placeholders (`others`, `same`).
 #[allow(clippy::too_many_arguments)]
 fn failure(
     rule: &Rule,
@@ -985,7 +1125,7 @@ fn failure(
     value: &Value,
     pointer: &str,
     error: &str,
-    others: Option<String>,
+    extra: &[(&str, String)],
 ) -> Check {
     let got = describe(value.pointer(pointer));
     let field = pointer
@@ -1010,15 +1150,18 @@ fn failure(
     .into_iter()
     .map(|(k, v)| (k.to_owned(), v))
     .collect();
-    if let Some(others) = others {
-        variables.insert("others".to_owned(), others);
+    for (name, text) in extra {
+        variables.insert((*name).to_owned(), text.clone());
     }
     if let Some((path, otherwise)) = &rule.suggest {
-        let value = get(document, &concrete(path, bound)).filter(|v| {
-            !matches!(v, Value::Null)
-                && v.as_array().is_none_or(|a| !a.is_empty())
-                && v.as_str().is_none_or(|s| !s.is_empty())
-        });
+        let value = resolve(document, path, bound)
+            .ok()
+            .and_then(|keys| get(document, &keys))
+            .filter(|v| {
+                !matches!(v, Value::Null)
+                    && v.as_array().is_none_or(|a| !a.is_empty())
+                    && v.as_str().is_none_or(|s| !s.is_empty())
+            });
         let suggested = value.map_or_else(|| otherwise.clone(), |v| describe(Some(v)));
         log::debug!("rule {} suggests {suggested} for {:?}", rule.id, bound);
         variables.insert("suggested".to_owned(), suggested);
@@ -1169,7 +1312,7 @@ fn collide(rule: &Rule, document: &Value, bindings: &[Vec<String>], checks: &mut
                 value,
                 "",
                 &error,
-                Some(others),
+                &[("others", others)],
             );
         }
     }
