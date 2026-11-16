@@ -2707,6 +2707,122 @@ fn a_password_stack_without_faillock_fails_and_one_without_pam_unix_is_not_judge
     );
 }
 
+#[test]
+fn pam_unix_keeps_no_history_and_hashes_strongly_and_the_common_stacks_call_their_modules() {
+    let judged = |rule: &str, path: &str, entries: Value| {
+        outcomes(
+            "pam",
+            rule,
+            &auth(json!({}), json!([]), json!({path: entries})),
+        )
+    };
+    let common = "/etc/pam.d/common-password";
+    let unix = |arguments: &[&str]| {
+        json!([entry(
+            "password",
+            "[success=1 default=ignore]",
+            "pam_unix.so",
+            arguments
+        )])
+    };
+    assert_eq!(
+        judged("pam/unix-remember", common, unix(&["remember=5"])),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        judged(
+            "pam/unix-remember",
+            "/etc/pam.d/sshd",
+            unix(&["remember=0"])
+        ),
+        [Outcome::Fail],
+        "any file, any count"
+    );
+    assert_eq!(
+        judged("pam/unix-remember", common, unix(&["remembered"])),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        judged("pam/unix-hash", common, unix(&["obscure", "yescrypt"])),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        judged("pam/unix-hash", common, unix(&["sha512"])),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        judged("pam/unix-hash", common, unix(&["sha256"])),
+        [Outcome::Fail]
+    );
+    assert_eq!(judged("pam/unix-hash", common, unix(&[])), [Outcome::Fail]);
+    assert_eq!(
+        judged("pam/unix-hash", "/etc/pam.d/passwd", unix(&[])),
+        Vec::<Outcome>::new(),
+        "only common-password"
+    );
+    assert_eq!(
+        judged("pam/unix-enabled", "/etc/pam.d/common-session", unix(&[])),
+        [Outcome::Pass]
+    );
+    let sss = json!([entry("session", "required", "pam_sss.so", &[])]);
+    assert_eq!(
+        judged("pam/unix-enabled", "/etc/pam.d/common-session", sss.clone()),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        judged("pam/unix-enabled", "/etc/pam.d/login", sss),
+        Vec::<Outcome>::new()
+    );
+    for (rule, module) in [
+        ("pam/pwquality-enabled", "pam_pwquality.so"),
+        ("pam/pwhistory-enabled", "pam_pwhistory.so"),
+    ] {
+        let with = json!([
+            entry("password", "requisite", module, &[]),
+            entry("password", "required", "pam_unix.so", &[])
+        ]);
+        assert_eq!(judged(rule, common, with), [Outcome::Pass], "{rule}");
+        let session = json!([entry("session", "requisite", module, &[])]);
+        assert_eq!(
+            judged(rule, common, session),
+            [Outcome::Fail],
+            "{rule}: only a password line counts"
+        );
+    }
+}
+
+#[test]
+fn su_is_restricted_only_by_a_required_pam_wheel_with_use_uid_and_a_group() {
+    let su = |control: &str, arguments: &[&str]| {
+        let pam = json!({"/etc/pam.d/su": [entry("auth", control, "pam_wheel.so", arguments)]});
+        outcomes(
+            "pam",
+            "pam/su-unrestricted",
+            &auth(json!({}), json!([]), pam),
+        )
+    };
+    assert_eq!(
+        su("required", &["use_uid", "group=sugroup"]),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        su("requisite", &["group=sugroup", "use_uid"]),
+        [Outcome::Pass],
+        "either order"
+    );
+    assert_eq!(
+        su("required", &["use_uid"]),
+        [Outcome::Fail],
+        "no group= falls back to wheel or root’s gid"
+    );
+    assert_eq!(su("required", &["use_uid", "group="]), [Outcome::Fail]);
+    assert_eq!(su("required", &["group=sugroup"]), [Outcome::Fail]);
+    assert_eq!(
+        su("sufficient", &["use_uid", "group=sugroup"]),
+        [Outcome::Fail]
+    );
+}
+
 // A pam_limits core entry.
 fn core(domain: &str, kind: &str, value: Value) -> Value {
     json!({"domain": domain, "type": kind, "item": "core", "value": value, "line": 1})

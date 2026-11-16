@@ -54,3 +54,88 @@ rules:
     references:
       - {title: Lynis AUTH-9408, url: "https://cisofy.com/lynis/controls/AUTH-9408/"}
     tags: [auth, lynis, pam]
+  pam/unix-remember:
+    title: pam_unix keeps old passwords
+    fact: auth.pam.*
+    expect:
+      not:
+        contains:
+          required: [module, arguments]
+          properties:
+            module: {pattern: "(^|/)pam_unix\\.so$"}
+            arguments: {contains: {pattern: "^remember="}}
+    severity: warning
+    score: 3.0
+    message: "{subject} passes remember= to pam_unix, which keeps old password hashes in /etc/security/opasswd in a format pam_pwhistory has replaced"
+    fix: remove remember= from the pam_unix lines in {subject}, and set it on pam_pwhistory instead if you keep a history
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.4.2]
+  pam/unix-hash:
+    title: pam_unix names no strong hashing scheme for new passwords
+    fact: auth.pam.*
+    keys: {const: /etc/pam.d/common-password}
+    expect:
+      not:
+        contains:
+          required: [type, module, arguments]
+          properties:
+            type: {pattern: "(?i)^-?password$"}
+            module: {pattern: "(^|/)pam_unix\\.so$"}
+            arguments: {not: {contains: {enum: [sha512, yescrypt]}}}
+    severity: info
+    score: 2.0
+    message: "{subject} calls pam_unix to set passwords without sha512 or yescrypt, so the scheme of each new hash comes from ENCRYPT_METHOD in /etc/login.defs"
+    fix: add yescrypt, or sha512, to the pam_unix password line through its profile in /usr/share/pam-configs, then run pam-auth-update
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.3.4.3, '!default']
+  pam/unix-enabled:
+    title: A common PAM stack does not call pam_unix
+    fact: auth.pam.*
+    keys: {enum: [/etc/pam.d/common-account, /etc/pam.d/common-auth, /etc/pam.d/common-password, /etc/pam.d/common-session, /etc/pam.d/common-session-noninteractive]}
+    expect: {contains: {required: [module], properties: {module: {pattern: "(^|/)pam_unix\\.so$"}}}}
+    severity: info
+    score: 2.0
+    message: "{subject} never calls pam_unix, so local accounts are not checked against /etc/passwd and /etc/shadow in this stack"
+    fix: enable the Unix authentication profile with pam-auth-update --enable unix
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.2.1, '!default']
+  pam/pwquality-enabled:
+    title: Password changes skip pam_pwquality
+    fact: auth.pam.*
+    keys: {const: /etc/pam.d/common-password}
+    expect: {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwquality\\.so$"}}}}
+    severity: info
+    score: 2.0
+    message: "{subject} never calls pam_pwquality, so a new password is not checked against a dictionary or a minimum length"
+    fix: install libpam-pwquality, which adds pam_pwquality to {subject} through pam-auth-update
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.2.3, '!default']
+  pam/pwhistory-enabled:
+    title: Password changes skip pam_pwhistory
+    fact: auth.pam.*
+    keys: {const: /etc/pam.d/common-password}
+    expect: {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}}}}
+    severity: info
+    score: 2.0
+    message: "{subject} never calls pam_pwhistory, so a user may set a password they used before"
+    fix: add a pam_pwhistory profile under /usr/share/pam-configs and enable it with pam-auth-update
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwhistory.8.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.3.2.4, '!default']
+  pam/su-unrestricted:
+    title: su is open to every user
+    fact: auth.pam.*
+    keys: {const: /etc/pam.d/su}
+    expect:
+      contains:
+        required: [type, control, module, arguments]
+        properties:
+          type: {pattern: "(?i)^auth$"}
+          control: {pattern: "(?i)^(required|requisite)$"}
+          module: {pattern: "(^|/)pam_wheel\\.so$"}
+          arguments: {allOf: [{contains: {const: use_uid}}, {contains: {pattern: "^group=\\S+$"}}]}
+    severity: info
+    score: 2.0
+    message: "{subject} has no required pam_wheel line with use_uid and group=, so every user may try root’s password through su"
+    fix: add auth required pam_wheel.so use_uid group=<an empty group> to {subject}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_wheel.8.html
+    tags: [auth, pam, cis-ubuntu-26.04:5.2.7, '!default']

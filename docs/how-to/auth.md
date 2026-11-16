@@ -76,6 +76,12 @@ auth:
 | `pam/permit-sufficient` | an auth line makes `pam_permit` `sufficient` or `success=done`, so it settles the stack |
 | `pam/nullok` | an auth line passes `nullok` or `nullok_secure` to `pam_unix` |
 | `pam/no-lockout` | a file checks passwords with `pam_unix` in its auth stack but never calls `pam_faillock` there |
+| `pam/unix-remember` | a line in any file passes `remember=` to `pam_unix` |
+| `pam/unix-hash` | the `common-password` password line of `pam_unix` names neither `sha512` nor `yescrypt`, leaving the scheme to `ENCRYPT_METHOD` (*standard-only*) |
+| `pam/unix-enabled` | a `common-account`, `-auth`, `-password`, `-session` or `-session-noninteractive` file never calls `pam_unix` (*standard-only*) |
+| `pam/pwquality-enabled` | `common-password` has no password line calling `pam_pwquality` (*standard-only*) |
+| `pam/pwhistory-enabled` | `common-password` has no password line calling `pam_pwhistory` (*standard-only*) |
+| `pam/su-unrestricted` | `/etc/pam.d/su` has no `required` or `requisite` auth line calling `pam_wheel` with `use_uid` and a `group=` (*standard-only*; whether that group is empty is not judged) |
 | `coredump/no-hard-limit` | pam_limits has no `* hard core 0` (or `-`), or any hard core line with another value |
 
 `login-defs` is not applicable without `/etc/login.defs` and `pam` without
