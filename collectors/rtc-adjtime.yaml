@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: rtc-adjtime
+read:
+  files: [/etc/adjtime]
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^(?P<key>UTC|LOCAL)$'}
+into: rtc.adjtime

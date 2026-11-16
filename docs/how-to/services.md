@@ -81,7 +81,10 @@ dev-sec alone asks a few more, each `'!default'` and tagged
 `arp-announce` 2 on `all`, `shared-media` 1, the IPv6 router solicitation,
 router advertisement and autoconfiguration keys 0, `ipv6-max-addresses` 1,
 `kernel/sysrq` 0, and `coredump/core-pattern-absolute`, an absolute or piped
-`kernel.core_pattern` while `fs.suid_dumpable` is 2.
+`kernel.core_pattern` while `fs.suid_dumpable` is 2. `kernel/stig-fips` (STIG
+600030, *standard-only*) fails unless `/proc/sys/crypto/fips_enabled`, which
+the live `kernel-fips` collector matches, reads 1; a kernel built without FIPS
+has no such file and fails too.
 
 ## Kernel modules
 
@@ -261,6 +264,8 @@ carry `default`, the others the CIS control alone:
 | `auditd/log-directory-mode` | warning | `/var/log/audit` is group-writable or reaches other users |
 | `auditd/stig-log-mode` | info | an audit log is wider than 0600 (STIG only) |
 | `auditd/stig-log-group` | info | an audit log is in a group other than root (STIG only) |
+| `auditd/stig-space-left` | info | `space_left_action` is not `email`, or `space_left` is not a share of 25% or more (STIG only) |
+| `auditd/stig-mail-account` | info | `action_mail_acct` is set to an account other than `root` (STIG only) |
 | `auditd/stig-no-remote` | info | `au-remote.conf` does not set `active = yes`, or `audisp-remote.conf` names no `remote_server`, both read by `auditd-remote` through `kv` (STIG only) |
 
 auditd compares keywords and values without case (`auditd-config.c`), so the
@@ -393,6 +398,8 @@ whose exposure score it does not reproduce.
 `rescue.target` gets a root shell unasked. Stock units run
 `systemd-sulogin-shell` and pass. A reset with no command after it passes
 too: systemd refuses a service with no `ExecStart=`, so no shell opens.
+`ctrl-alt-del/reboots` (STIG 300026, *standard-only*) fails while
+`ctrl-alt-del.target` is not masked.
 
 ## systemd unit state
 
@@ -520,6 +527,9 @@ not.
   `systemd-timesyncd.service`, `ntpsec.service` or `ntp.service`, and
   `timesync/stig-chrony-makestep` (600180) a `chrony.conf` with no
   `makestep 1 -1` line while chrony is installed.
+- `timesync/rtc-local` (STIG 901220) fails when `/etc/adjtime`, which the
+  `rtc-adjtime` collector matches, says the hardware clock keeps `LOCAL`
+  time; no such file means UTC.
 
 ```yaml
 chrony:

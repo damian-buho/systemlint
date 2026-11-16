@@ -10,6 +10,7 @@ vars:
   password-warn-days: {default: 7}
   password-inactive-days: {default: 45}
   uid-min: {default: 1000}
+  stig-password-inactive-days: {default: 35}
 rules:
   accounts/uid-zero:
     title: An account other than root has uid 0
@@ -248,3 +249,33 @@ rules:
     fix: run usermod --shell /usr/sbin/nologin {subject}, unless a person logs in as it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
     tags: [accounts, cis-ubuntu-26.04:5.4.2.7, '!default']
+  accounts/useradd-inactive:
+    title: New accounts keep an expired password usable longer than asked
+    fact: auth.useradd
+    expect: {required: [INACTIVE], properties: {INACTIVE: {type: integer, minimum: 0, maximum: "${password-inactive-days}"}}}
+    severity: info
+    score: 1.0
+    message: "INACTIVE in /etc/default/useradd is unset (-1, never) or above ${password-inactive-days}, so an account made from now on stays usable that long after its password expires"
+    fix: run useradd -D -f ${password-inactive-days}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/useradd.8.html
+    tags: [accounts, cis-ubuntu-26.04:5.4.1.5, '!default']
+  accounts/stig-useradd-inactive:
+    title: New accounts are not disabled after 35 days of inactivity
+    fact: auth.useradd
+    expect: {required: [INACTIVE], properties: {INACTIVE: {type: integer, minimum: 0, maximum: "${stig-password-inactive-days}"}}}
+    severity: info
+    score: 1.0
+    message: "INACTIVE in /etc/default/useradd is unset (-1, never) or above ${stig-password-inactive-days}"
+    fix: run useradd -D -f ${stig-password-inactive-days}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/useradd.8.html
+    tags: [accounts, stig-ubuntu-26.04:UBTU-24-200260, '!default']
+  accounts/stig-root-unlocked:
+    title: root’s password is not locked
+    fact: accounts.shadow.root.password
+    expect: {const: locked}
+    severity: info
+    score: 1.0
+    message: "root’s password in /etc/shadow is {got}, not locked, so root may log in directly with it, leaving no record of which administrator did"
+    fix: run passwd --lock root, once every administrator reaches root through sudo
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/passwd.1.html
+    tags: [accounts, stig-ubuntu-26.04:UBTU-24-400110, '!default']

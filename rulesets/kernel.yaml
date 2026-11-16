@@ -110,3 +110,13 @@ rules:
     fix: set kernel.sysrq = 0
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html
     tags: [kernel, sysctl, dev-sec-linux-baseline:sysctl-30, '!default']
+  kernel/stig-fips:
+    title: The kernel runs outside FIPS mode
+    fact: kernel.fips
+    expect: {required: ["1"]}
+    severity: info
+    score: 1.0
+    message: "/proc/sys/crypto/fips_enabled is 0 or absent, so the kernel and the libraries that follow it may use algorithms outside FIPS 140-3"
+    fix: enable FIPS mode through Ubuntu Pro (pro enable fips-updates), then reboot
+    docs: https://ubuntu.com/security/certifications/docs/fips
+    tags: [kernel, sysctl, stig-ubuntu-26.04:UBTU-24-600030, '!default']

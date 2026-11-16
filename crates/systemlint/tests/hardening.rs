@@ -5753,3 +5753,180 @@ fn grub_passes_only_with_superusers_and_a_pbkdf2_password_and_never_keeps_the_ha
         Outcome::NotApplicable
     );
 }
+
+#[test]
+fn stig_account_and_login_limits_pass_at_their_edge() {
+    let useradd = |rule: &str, value: Value| {
+        the(
+            rule,
+            &facts(&[("auth.useradd", json!({"INACTIVE": value}))]),
+        )
+    };
+    assert_eq!(
+        useradd("accounts/useradd-inactive", json!(45)),
+        Outcome::Pass
+    );
+    assert_eq!(
+        useradd("accounts/useradd-inactive", json!(46)),
+        Outcome::Fail
+    );
+    assert_eq!(
+        useradd("accounts/useradd-inactive", json!("-1")),
+        Outcome::Fail,
+        "never"
+    );
+    assert_eq!(
+        useradd("accounts/stig-useradd-inactive", json!(35)),
+        Outcome::Pass
+    );
+    assert_eq!(
+        useradd("accounts/stig-useradd-inactive", json!(36)),
+        Outcome::Fail
+    );
+    assert_eq!(
+        the(
+            "accounts/stig-useradd-inactive",
+            &facts(&[("auth.useradd", json!({"SHELL": "/bin/sh"}))])
+        ),
+        Outcome::Fail
+    );
+    let root = |password: &str| {
+        the(
+            "accounts/stig-root-unlocked",
+            &facts(&[("accounts.shadow", json!({"root": {"password": password}}))]),
+        )
+    };
+    assert_eq!(root("locked"), Outcome::Pass);
+    assert_eq!(root("hash"), Outcome::Fail);
+    let pam = |name: &str, entries: Value, extra: (&str, Value)| {
+        let mut document = facts(&[
+            ("auth.pam", json!({"/etc/pam.d/common-auth": entries})),
+            extra,
+        ]);
+        document["collectors"]["auth-pam"] = json!({"status": "ok", "into": "auth.pam"});
+        the(name, &document)
+    };
+    let faillock = json!([entry("auth", "requisite", "pam_faillock.so", &["preauth"])]);
+    let stig = |conf: Value| {
+        pam(
+            "pam/stig-faillock",
+            faillock.clone(),
+            ("auth.faillock", conf),
+        )
+    };
+    assert_eq!(
+        stig(json!({"deny": 3, "unlock_time": 0, "fail_interval": 900})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        stig(json!({"deny": 4, "unlock_time": 0, "fail_interval": 900})),
+        Outcome::Fail
+    );
+    assert_eq!(
+        stig(json!({"deny": 3, "unlock_time": 900, "fail_interval": 900})),
+        Outcome::Fail
+    );
+    assert_eq!(
+        stig(json!({"deny": 3, "unlock_time": 0, "fail_interval": 899})),
+        Outcome::Fail
+    );
+    let delay = |args: &[&str]| {
+        pam(
+            "pam/stig-faildelay",
+            json!([entry("auth", "optional", "pam_faildelay.so", args)]),
+            ("auth.faillock", json!({})),
+        )
+    };
+    assert_eq!(delay(&["delay=4000000"]), Outcome::Pass);
+    assert_eq!(delay(&["delay=10000000"]), Outcome::Pass);
+    assert_eq!(delay(&["delay=3999999"]), Outcome::Fail);
+    assert_eq!(delay(&[]), Outcome::Fail);
+    let limit = |domain: &str, kind: &str, value: Value| {
+        let limits = json!({"/etc/security/limits.d/50-maxlogins.conf": [{"domain": domain, "type": kind, "item": "maxlogins", "value": value, "line": 1}]});
+        pam("pam/stig-maxlogins", json!([]), ("auth.limits", limits))
+    };
+    assert_eq!(limit("*", "hard", json!(10)), Outcome::Pass);
+    assert_eq!(limit("*", "-", json!(1)), Outcome::Pass);
+    assert_eq!(limit("*", "hard", json!(11)), Outcome::Fail);
+    assert_eq!(
+        limit("*", "soft", json!(10)),
+        Outcome::Fail,
+        "a user may raise a soft limit"
+    );
+    assert_eq!(limit("@users", "hard", json!(10)), Outcome::Fail);
+}
+
+#[test]
+fn stig_audit_mail_fips_rtc_and_ctrl_alt_del_pass_at_their_edge() {
+    let on = json!({"/usr/sbin/auditd": {"kind": "file"}});
+    let conf = |rule: &str, conf: Value| {
+        the(
+            rule,
+            &facts(&[("auditd.binary", on.clone()), ("auditd.conf", conf)]),
+        )
+    };
+    assert_eq!(
+        conf(
+            "auditd/stig-space-left",
+            json!({"space_left": "25%", "space_left_action": "EMAIL"})
+        ),
+        Outcome::Pass
+    );
+    assert_eq!(
+        conf(
+            "auditd/stig-space-left",
+            json!({"space_left": "24%", "space_left_action": "email"})
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        conf(
+            "auditd/stig-space-left",
+            json!({"space_left": 75, "space_left_action": "email"})
+        ),
+        Outcome::Fail,
+        "megabytes, not a share"
+    );
+    assert_eq!(
+        conf(
+            "auditd/stig-space-left",
+            json!({"space_left": "25%", "space_left_action": "syslog"})
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        conf("auditd/stig-mail-account", json!({})),
+        Outcome::Pass,
+        "unset is root"
+    );
+    assert_eq!(
+        conf(
+            "auditd/stig-mail-account",
+            json!({"action_mail_acct": "admin"})
+        ),
+        Outcome::Fail
+    );
+    let fips = |value: Value| the("kernel/stig-fips", &facts(&[("kernel.fips", value)]));
+    assert_eq!(fips(json!({"1": {}})), Outcome::Pass);
+    assert_eq!(fips(json!({"0": {}})), Outcome::Fail);
+    assert_eq!(
+        fips(json!({})),
+        Outcome::Fail,
+        "a kernel built without FIPS has no such file"
+    );
+    let rtc = |value: Value| the("timesync/rtc-local", &facts(&[("rtc.adjtime", value)]));
+    assert_eq!(rtc(json!({"UTC": {}})), Outcome::Pass);
+    assert_eq!(rtc(json!({})), Outcome::Pass, "no /etc/adjtime means UTC");
+    assert_eq!(rtc(json!({"LOCAL": {}})), Outcome::Fail);
+    let target = |masked: bool| {
+        the(
+            "ctrl-alt-del/reboots",
+            &facts(&[(
+                "systemd.state",
+                json!({"ctrl-alt-del.target": {"enabled": false, "masked": masked}}),
+            )]),
+        )
+    };
+    assert_eq!(target(true), Outcome::Pass);
+    assert_eq!(target(false), Outcome::Fail);
+}

@@ -228,7 +228,7 @@ rules:
     message: "{subject} has Banner none, so no usage notice is shown before authentication"
     fix: set Banner /etc/issue.net, with a notice that names no system details
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.6, '!default']
+    tags: [ssh, cis-ubuntu-26.04:5.1.6, stig-ubuntu-26.04:UBTU-24-200640, '!default']
   ssh/client-alive-interval:
     title: sshd never checks that an idle client is still there
     fact: sshd.settings.clientaliveinterval.*

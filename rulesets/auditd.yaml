@@ -197,3 +197,31 @@ rules:
     fix: install audispd-plugins, set active = yes in /etc/audit/plugins.d/au-remote.conf and remote_server in /etc/audit/audisp-remote.conf, then run systemctl restart auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/audisp-remote.conf.5.html
     tags: [audit, stig-ubuntu-26.04:UBTU-24-100450]
+  auditd/stig-space-left:
+    title: auditd mails no warning at a quarter of its disk left
+    fact: auditd.conf
+    when: {auditd.binary: {minProperties: 1}}
+    expect:
+      allOf:
+        - not: {propertyNames: {not: {pattern: "(?i)^space_left_action$"}}}
+        - not: {propertyNames: {not: {pattern: "(?i)^space_left$"}}}
+      patternProperties:
+        "(?i)^space_left_action$": {pattern: "(?i)^email$"}
+        "(?i)^space_left$": {type: string, pattern: "^(2[5-9]|[3-9][0-9]|100)%$"}
+    severity: info
+    score: 1.0
+    message: "auditd.conf does not set space_left_action = email with space_left at 25% or more, as the STIG asks"
+    fix: set space_left = 25% and space_left_action = email in /etc/audit/auditd.conf, then run systemctl restart auditd.service
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [audit, stig-ubuntu-26.04:UBTU-24-900960]
+  auditd/stig-mail-account:
+    title: auditd mails its warnings to someone other than root
+    fact: auditd.conf
+    when: {auditd.binary: {minProperties: 1}}
+    expect: {patternProperties: {"(?i)^action_mail_acct$": {const: root}}}
+    severity: info
+    score: 1.0
+    message: "action_mail_acct in /etc/audit/auditd.conf is not root, where the STIG asks root"
+    fix: set action_mail_acct = root in /etc/audit/auditd.conf, and forward root’s mail to the administrators
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [audit, stig-ubuntu-26.04:UBTU-24-900980]

@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: A Ctrl-Alt-Del at the console that reboots the host
+tags: [default]
+rules:
+  ctrl-alt-del/reboots:
+    title: Ctrl-Alt-Del at the console reboots the host
+    fact: systemd.state
+    expect: {required: [ctrl-alt-del.target], properties: {ctrl-alt-del.target: {required: [masked], properties: {masked: {const: true}}}}}
+    severity: info
+    score: 1.0
+    message: "ctrl-alt-del.target is not masked, so anyone at the console, or a stray key press, reboots the host without logging in"
+    fix: run systemctl mask ctrl-alt-del.target, and set CtrlAltDelBurstAction=none in /etc/systemd/system.conf.d/
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/systemd.1.html
+    tags: [boot, stig-ubuntu-26.04:UBTU-24-300026, '!default']

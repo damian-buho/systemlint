@@ -92,6 +92,9 @@ auth:
 | `pam/pwhistory-root` | neither `pwhistory.conf` nor the `pam_pwhistory` line sets `enforce_for_root` (*standard-only*) |
 | `pam/pwhistory-use-authtok` | the `pam_pwhistory` line of `common-password` lacks `use_authtok` (*standard-only*) |
 | `pam/unix-use-authtok` | the `pam_unix` password line of `common-password` lacks `use_authtok` (*standard-only*) |
+| `pam/stig-faillock` | `faillock.conf` does not set `deny` 1 to `stig-faillock-deny` (3), `unlock_time` 0 and `fail_interval` `stig-faillock-fail-interval` (900) or more (STIG 200610, *standard-only*) |
+| `pam/stig-faildelay` | `common-auth` has no auth line calling `pam_faildelay` with `delay=` `stig-faildelay` (4000000) microseconds or more (STIG 300017, *standard-only*) |
+| `pam/stig-maxlogins` | no limits file sets `* hard maxlogins` (or `-`) between 1 and `stig-maxlogins` (10) (STIG 200000, *standard-only*) |
 | `pam/pwquality-missing` | no `pam_pwquality.so` is on disk (*standard-only*) |
 | `pwquality/minlen` | `minlen` is unset (8) or below `pwquality-minlen` (14, CIS) (*standard-only*) |
 | `pwquality/minlen-single-factor` | `minlen` is unset or below `pwquality-single-factor-minlen` (15, NIST SP 800-63B-4 and the STIG) |

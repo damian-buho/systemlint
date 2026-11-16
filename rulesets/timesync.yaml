@@ -109,3 +109,13 @@ rules:
     fix: add makestep 1 -1 to /etc/chrony/chrony.conf, then run systemctl restart chrony.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-600180]
+  timesync/rtc-local:
+    title: The hardware clock keeps local time
+    fact: rtc.adjtime
+    expect: {not: {required: [LOCAL]}}
+    severity: info
+    score: 1.0
+    message: "/etc/adjtime says LOCAL, so the hardware clock jumps with daylight saving and times read from it before the time daemon starts are off"
+    fix: run timedatectl set-local-rtc 0
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/adjtime_config.5.html
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-901220]

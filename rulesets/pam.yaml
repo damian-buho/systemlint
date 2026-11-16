@@ -10,6 +10,10 @@ vars:
   faillock-unlock-time: {default: 900}
   faillock-root-unlock-time: {default: 60}
   pwhistory-remember: {default: 24}
+  stig-faillock-deny: {default: 3}
+  stig-faillock-fail-interval: {default: 900}
+  stig-maxlogins: {default: 10}
+  stig-faildelay: {default: 4000000}
 rules:
   pam/permit-sufficient:
     title: pam_permit alone authenticates
@@ -240,3 +244,40 @@ rules:
     fix: add use_authtok to the pam_unix password line through its profile in /usr/share/pam-configs, then run pam-auth-update
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.4.4, '!default']
+  pam/stig-faillock:
+    title: A locked account unlocks without an administrator
+    fact: auth.faillock
+    when: {"/auth/pam/~1etc~1pam.d~1common-auth": {allOf: [{contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}}}}, {not: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}, arguments: {contains: {pattern: "^(deny|unlock_time|fail_interval)="}}}}}}]}}
+    expect:
+      required: [deny, unlock_time, fail_interval]
+      properties:
+        deny: {minimum: 1, maximum: "${stig-faillock-deny}"}
+        unlock_time: {const: 0}
+        fail_interval: {minimum: "${stig-faillock-fail-interval}"}
+    severity: info
+    score: 1.0
+    message: "/etc/security/faillock.conf does not set deny 1 to ${stig-faillock-deny}, unlock_time 0 and fail_interval ${stig-faillock-fail-interval} or more, as the STIG asks"
+    fix: set deny = ${stig-faillock-deny}, fail_interval = ${stig-faillock-fail-interval} and unlock_time = 0 in /etc/security/faillock.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
+    tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-200610, '!default']
+  pam/stig-faildelay:
+    title: A failed login is answered at once
+    fact: auth.pam.*
+    keys: {const: /etc/pam.d/common-auth}
+    expect: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faildelay\\.so$"}, arguments: {contains: {pattern: "^delay=([4-9][0-9]{6}|[1-9][0-9]{7,})$"}}}}}
+    severity: info
+    score: 1.0
+    message: "{subject} has no auth line calling pam_faildelay with delay=${stig-faildelay} or more microseconds, so a password guesser may retry at once"
+    fix: add auth required pam_faildelay.so delay=${stig-faildelay} to {subject} through a profile in /usr/share/pam-configs
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_faildelay.8.html
+    tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-300017, '!default']
+  pam/stig-maxlogins:
+    title: Accounts may open any number of sessions
+    fact: auth.limits
+    expect: {not: {additionalProperties: {not: {contains: {required: [domain, type, item, value], properties: {domain: {const: "*"}, type: {pattern: "(?i)^(hard|-)$"}, item: {pattern: "(?i)^maxlogins$"}, value: {type: integer, minimum: 1, maximum: "${stig-maxlogins}"}}}}}}}
+    severity: info
+    score: 1.0
+    message: "no limits file sets * hard maxlogins ${stig-maxlogins} or less, so each account may log in any number of times at once"
+    fix: add * hard maxlogins ${stig-maxlogins} to /etc/security/limits.d/50-maxlogins.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/limits.conf.5.html
+    tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-200000, '!default']
