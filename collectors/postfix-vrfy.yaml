@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: postfix-vrfy
+live: true
+read:
+  exec: [/usr/sbin/postconf, -h, disable_vrfy_command]
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^(?P<key>yes|no)$'}
+into: postfix.vrfy

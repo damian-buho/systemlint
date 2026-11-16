@@ -391,6 +391,26 @@ The rule covers part of
 [`systemd-analyze security`](https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html),
 whose exposure score it does not reproduce.
 
+### Services left open
+
+Each ruleset applies where its server is on disk (`redis-binary`,
+`mongodb-binary`, `postfix-binary`, `snmp-binary`), and the network rules
+join the `ports` facts, so a server bound to the loopback, or not listening,
+passes:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `redis/open-without-password` | error | TCP 6379 listens beyond the loopback, `redis.conf` sets `protected-mode no` and no `requirepass` (Lynis DBS-1884, DBS-1888); `redis-password` matches the keyword alone, never the password |
+| `mongodb/no-authorization` | error | TCP 27017 listens beyond the loopback and `/etc/mongod.conf` (`yaml`) leaves `security.authorization` other than `enabled` (Lynis DBS-1820) |
+| `snmp/default-community` | warning | UDP 161 listens beyond the loopback and a `com2sec`, `rocommunity` or `rwcommunity` line names `public` or `private`, the only words `snmp-communities` captures (Lynis SNMP-3306) |
+| `cups/listens-network` | warning | TCP 631 listens beyond the loopback (Lynis PRNT-2308) |
+| `docker/world-writable` | error | `/run/docker.sock`, `/etc/docker`, a file in it or `/etc/default/docker` is writable by others (Lynis CONT-8108) |
+| `postfix/vrfy` | info | `postconf -h disable_vrfy_command` (live) answers `no`, Postfix’s default (Lynis MAIL-8820, out of `default`) |
+| `cups/config-mode` | info | `/etc/cups/cupsd.conf` is more open than 0660 or reaches others (Lynis PRNT-2307, out of `default`) |
+| `squid/config-readable` | info | `/etc/squid/squid.conf` grants others any access (Lynis SQD-3613, out of `default`) |
+| `postgresql/config-readable` | info | a `.conf` file under `/etc/postgresql` grants others any access, stock `postgresql.conf` included (Lynis DBS-1828, out of `default`) |
+| `mysql/datadir-open` | info | `/var/lib/mysql` grants others any access (out of `default`) |
+
 ### USB devices
 
 `usb/authorized-default` (Lynis USB-2000, *standard-only*) fails a USB host

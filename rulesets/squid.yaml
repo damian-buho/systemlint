@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: A Squid configuration other users may read
+tags: [default]
+rules:
+  squid/config-readable:
+    title: squid.conf reaches other users
+    fact: squid.conf.*.mode
+    when: {squid.conf.*.kind: file}
+    expect: {pattern: "^[0-7]{3}0$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}, so every user reads it, the logins of its cache_peer lines included"
+    fix: chmod 0640 {subject} and chgrp proxy {subject}
+    remedy: {chmod: o-rwx}
+    docs: https://www.squid-cache.org/Doc/config/cache_peer/
+    references:
+      - {title: Lynis SQD-3613, url: "https://cisofy.com/lynis/controls/SQD-3613/"}
+    tags: [proxy, lynis, '!default']

@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: redis-protected-mode
+read:
+  files: [/etc/redis/redis.conf, /etc/redis.conf]
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^\s*(?P<key>protected-mode)\s+(?P<value>yes|no)\s*$'}
+into: redis.protected-mode

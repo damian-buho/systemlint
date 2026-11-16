@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: A CUPS configuration others may read, or that listens beyond the loopback
+tags: [default]
+rules:
+  cups/config-mode:
+    title: cupsd.conf more open than 0660
+    fact: cups.conf.*.mode
+    when: {cups.conf.*.kind: file}
+    expect: {pattern: "^0[46][0246]0$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; it needs 0640 or stricter, readable by root and the lp group, with no execute bit"
+    fix: chmod 0640 {subject}
+    remedy: {chmod: "u-xs,g-xs,o-rwxt"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/cupsd.conf.5.html
+    references:
+      - {title: Lynis PRNT-2307, url: "https://cisofy.com/lynis/controls/PRNT-2307/"}
+    tags: [printing, lynis, '!default']
+  cups/listens-network:
+    title: CUPS listens beyond the loopback
+    fact: ports.*.addresses
+    keys: {const: "tcp:631"}
+    expect: {items: {pattern: "^(127\\.|::1$)"}}
+    severity: warning
+    score: 5.0
+    message: "{subject} listens on {got}, so any host that reaches it talks to cupsd, its web interface and its printer drivers"
+    fix: replace Port 631 with Listen localhost:631 in /etc/cups/cupsd.conf, then run systemctl restart cups, unless this host shares printers
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/cupsd.conf.5.html
+    references:
+      - {title: Lynis PRNT-2308, url: "https://cisofy.com/lynis/controls/PRNT-2308/"}
+    tags: [printing, network, lynis]

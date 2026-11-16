@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: A MongoDB server that any host reaching it may use without logging in
+tags: [default]
+when: {mongodb.binary: {minProperties: 1}}
+rules:
+  mongodb/no-authorization:
+    title: MongoDB answers the network without access control
+    facts:
+      any:
+        - {fact: ports, expect: {properties: {"tcp:27017": {properties: {addresses: {items: {pattern: "^(127\\.|::1$)"}}}}}}}
+        - {fact: "/mongodb/conf/~1etc~1mongod.conf", expect: {required: [security], properties: {security: {required: [authorization], properties: {authorization: {const: enabled}}}}}}
+    severity: error
+    score: 9.0
+    message: "mongod listens beyond the loopback on TCP 27017 and /etc/mongod.conf leaves security.authorization unset or disabled, so whoever reaches it reads and drops every database"
+    fix: create an administrator, then set security.authorization to enabled in /etc/mongod.conf and restart mongod
+    docs: https://www.mongodb.com/docs/manual/tutorial/enable-authentication/
+    references:
+      - {title: Lynis DBS-1820, url: "https://cisofy.com/lynis/controls/DBS-1820/"}
+    tags: [database, network, lynis]

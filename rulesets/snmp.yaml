@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: An SNMP agent that answers the network with a community anyone guesses
+tags: [default]
+when: {snmp.binary: {minProperties: 1}}
+rules:
+  snmp/default-community:
+    title: snmpd answers the network with community public or private
+    facts:
+      any:
+        - {fact: ports, expect: {properties: {"udp:161": {properties: {addresses: {items: {pattern: "^(127\\.|::1$)"}}}}}}}
+        - {fact: snmp.communities, expect: {maxProperties: 0}}
+    severity: warning
+    score: 6.0
+    message: "snmpd listens beyond the loopback on UDP 161 and a com2sec, rocommunity or rwcommunity line names public or private, so whoever reaches it reads, or with rw changes, what the agent exposes"
+    fix: replace the community with a long random one, or move to SNMPv3 users (createUser), in /etc/snmp/snmpd.conf
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/snmpd.conf.5.html
+    references:
+      - {title: Lynis SNMP-3306, url: "https://cisofy.com/lynis/controls/SNMP-3306/"}
+    tags: [network, lynis]

@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: A Redis server that any host reaching it may use without a password
+tags: [default]
+when: {redis.binary: {minProperties: 1}}
+rules:
+  redis/open-without-password:
+    title: Redis answers the network without a password
+    facts:
+      any:
+        - {fact: ports, expect: {properties: {"tcp:6379": {properties: {addresses: {items: {pattern: "^(127\\.|::1$)"}}}}}}}
+        - {fact: redis.password, expect: {required: [requirepass]}}
+        - {fact: redis.protected-mode, expect: {not: {required: [protected-mode], properties: {protected-mode: {properties: {value: {const: "no"}}}}}}}
+    severity: error
+    score: 9.0
+    message: "Redis listens beyond the loopback on TCP 6379 with protected-mode no and no requirepass, so whoever reaches it reads and rewrites every key, and through CONFIG SET writes files as the redis user"
+    fix: set requirepass, or an ACL user with a password, in /etc/redis/redis.conf, bind 127.0.0.1 -::1, and keep protected-mode yes
+    docs: https://redis.io/docs/latest/operate/oss_and_stack/management/security/
+    references:
+      - {title: Lynis DBS-1884, url: "https://cisofy.com/lynis/controls/DBS-1884/"}
+      - {title: Lynis DBS-1888, url: "https://cisofy.com/lynis/controls/DBS-1888/"}
+    tags: [database, network, lynis]

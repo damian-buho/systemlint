@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Docker’s socket and configuration writable by every user
+tags: [default]
+rules:
+  docker/world-writable:
+    title: A Docker file writable by every user
+    fact: docker.files.*.world-writable
+    expect: {const: false}
+    severity: error
+    score: 9.5
+    message: "{subject} is writable by every user, who then runs containers as root through the socket, or rewrites how dockerd starts"
+    fix: chmod o-w {subject}
+    remedy: {chmod: o-w}
+    docs: https://docs.docker.com/engine/security/#docker-daemon-attack-surface
+    references:
+      - {title: Lynis CONT-8108, url: "https://cisofy.com/lynis/controls/CONT-8108/"}
+    tags: [docker, lynis]

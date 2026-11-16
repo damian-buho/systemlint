@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: PostgreSQL configuration files other users may read
+tags: [default]
+rules:
+  postgresql/config-readable:
+    title: A PostgreSQL configuration file reaches other users
+    fact: postgresql.conf.*.mode
+    when: {postgresql.conf.*.kind: file}
+    expect: {pattern: "^[0-7]{3}0$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}, so every user reads which hosts and users the server trusts, and how"
+    fix: chmod 0640 {subject}, keeping it in group postgres
+    remedy: {chmod: o-rwx}
+    docs: https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
+    references:
+      - {title: Lynis DBS-1828, url: "https://cisofy.com/lynis/controls/DBS-1828/"}
+    tags: [database, lynis, '!default']

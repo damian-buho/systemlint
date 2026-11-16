@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: snmp-communities
+read:
+  files: [/etc/snmp/snmpd.conf, /etc/snmp/snmpd.conf.d/*.conf]
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^\s*(?:com2sec6?\s+\S+\s+\S+|r[ow]community6?)\s+(?P<key>public|private)(\s|$)'}
+into: snmp.communities

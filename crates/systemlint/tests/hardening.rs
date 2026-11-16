@@ -6001,3 +6001,193 @@ fn lynis_singles_hidepid_ufw_logging_time_daemon_and_usb_pass_at_their_edge() {
     assert_eq!(usb(&["2"]), Outcome::Pass, "internal ports only");
     assert_eq!(usb(&["1"]), Outcome::Fail);
 }
+
+#[test]
+fn a_service_left_open_fails_only_once_it_listens_beyond_the_loopback_unguarded() {
+    let on = json!({"/usr/bin/x": {"kind": "file"}});
+    let public = json!({"tcp:6379": {"addresses": ["0.0.0.0"]}, "tcp:27017": {"addresses": ["::"]}, "udp:161": {"addresses": ["0.0.0.0"]}});
+    let local = json!({"tcp:6379": {"addresses": ["127.0.0.1", "::1"]}});
+    let redis = |ports: &Value, password: Value, mode: Value| {
+        the(
+            "redis/open-without-password",
+            &facts(&[
+                ("redis.binary", on.clone()),
+                ("ports", ports.clone()),
+                ("redis.password", password),
+                ("redis.protected-mode", mode),
+            ]),
+        )
+    };
+    let off = json!({"protected-mode": {"value": "no"}});
+    assert_eq!(redis(&public, json!({}), off.clone()), Outcome::Fail);
+    assert_eq!(redis(&local, json!({}), off.clone()), Outcome::Pass);
+    assert_eq!(
+        redis(&json!({}), json!({}), off.clone()),
+        Outcome::Pass,
+        "not listening"
+    );
+    assert_eq!(
+        redis(&public, json!({"requirepass": {}}), off.clone()),
+        Outcome::Pass
+    );
+    assert_eq!(
+        redis(&public, json!({}), json!({})),
+        Outcome::Pass,
+        "protected-mode is yes unset"
+    );
+    assert_eq!(
+        the(
+            "redis/open-without-password",
+            &facts(&[("redis.binary", json!({})), ("ports", public.clone())])
+        ),
+        Outcome::NotApplicable
+    );
+    let mongo = |ports: &Value, conf: Value| {
+        the(
+            "mongodb/no-authorization",
+            &facts(&[
+                ("mongodb.binary", on.clone()),
+                ("ports", ports.clone()),
+                ("mongodb.conf", json!({"/etc/mongod.conf": conf})),
+            ]),
+        )
+    };
+    assert_eq!(
+        mongo(&public, json!({"net": {"bindIp": "0.0.0.0"}})),
+        Outcome::Fail
+    );
+    assert_eq!(
+        mongo(&public, json!({"security": {"authorization": "enabled"}})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        mongo(&public, json!({"security": {"authorization": "disabled"}})),
+        Outcome::Fail
+    );
+    assert_eq!(mongo(&json!({}), json!({})), Outcome::Pass);
+    let snmp = |ports: &Value, communities: Value| {
+        the(
+            "snmp/default-community",
+            &facts(&[
+                ("snmp.binary", on.clone()),
+                ("ports", ports.clone()),
+                ("snmp.communities", communities),
+            ]),
+        )
+    };
+    assert_eq!(snmp(&public, json!({"public": {}})), Outcome::Fail);
+    assert_eq!(
+        snmp(
+            &json!({"udp:161": {"addresses": ["127.0.0.1"]}}),
+            json!({"public": {}})
+        ),
+        Outcome::Pass,
+        "Debian’s stock agent listens on the loopback"
+    );
+    assert_eq!(snmp(&public, json!({})), Outcome::Pass);
+    let community = |text: &str| {
+        let file = Input::File(
+            serde_json::from_value(json!({"path": "/etc/snmp/snmpd.conf", "content": text}))
+                .unwrap(),
+        );
+        let with = json!({"pattern": r"^\s*(?:com2sec6?\s+\S+\s+\S+|r[ow]community6?)\s+(?P<key>public|private)(\s|$)"});
+        serde_json::to_value(
+            systemlint_formats::r#match(&[file], with.as_object().unwrap())
+                .unwrap()
+                .facts,
+        )
+        .unwrap()
+    };
+    assert_eq!(
+        community("rocommunity  public default -V systemonly\n"),
+        json!({"public": {}})
+    );
+    assert_eq!(
+        community("com2sec readonly default private\n"),
+        json!({"private": {}})
+    );
+    assert_eq!(
+        community("rocommunity s3cr3t-and-long default\n#rocommunity public\n"),
+        json!({})
+    );
+    let vrfy = |answer: &str| {
+        the(
+            "postfix/vrfy",
+            &facts(&[
+                ("postfix.binary", on.clone()),
+                ("postfix.vrfy", json!({answer: {}})),
+            ]),
+        )
+    };
+    assert_eq!(vrfy("yes"), Outcome::Pass);
+    assert_eq!(vrfy("no"), Outcome::Fail);
+    let cups = |addresses: Value| {
+        the(
+            "cups/listens-network",
+            &facts(&[("ports", json!({"tcp:631": {"addresses": addresses}}))]),
+        )
+    };
+    assert_eq!(cups(json!(["127.0.0.1", "::1"])), Outcome::Pass);
+    assert_eq!(cups(json!(["0.0.0.0"])), Outcome::Fail);
+    let mode = |rule: &str, into: &str, path: &str, kind: &str, pass: &str, fail: &str| {
+        let one = |mode: &str| {
+            the(
+                rule,
+                &facts(&[(into, json!({path: {"kind": kind, "mode": mode}}))]),
+            )
+        };
+        assert_eq!(one(pass), Outcome::Pass, "{rule} at {pass}");
+        assert_eq!(one(fail), Outcome::Fail, "{rule} at {fail}");
+    };
+    mode(
+        "cups/config-mode",
+        "cups.conf",
+        "/etc/cups/cupsd.conf",
+        "file",
+        "0640",
+        "0644",
+    );
+    mode(
+        "cups/config-mode",
+        "cups.conf",
+        "/etc/cups/cupsd.conf",
+        "file",
+        "0660",
+        "0740",
+    );
+    mode(
+        "squid/config-readable",
+        "squid.conf",
+        "/etc/squid/squid.conf",
+        "file",
+        "0640",
+        "0641",
+    );
+    mode(
+        "postgresql/config-readable",
+        "postgresql.conf",
+        "/etc/postgresql/18/main/pg_hba.conf",
+        "file",
+        "0640",
+        "0644",
+    );
+    mode(
+        "mysql/datadir-open",
+        "mysql.datadir",
+        "/var/lib/mysql",
+        "directory",
+        "0750",
+        "0751",
+    );
+    let docker = |writable: bool| {
+        the(
+            "docker/world-writable",
+            &facts(&[(
+                "docker.files",
+                json!({"/run/docker.sock": {"world-writable": writable}}),
+            )]),
+        )
+    };
+    assert_eq!(docker(false), Outcome::Pass);
+    assert_eq!(docker(true), Outcome::Fail);
+}

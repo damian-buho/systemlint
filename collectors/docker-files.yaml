@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: docker-files
+read:
+  stat: [/run/docker.sock, /etc/docker, /etc/docker/*, /etc/default/docker]
+parse: {plugin: formats, op: stat}
+into: docker.files
