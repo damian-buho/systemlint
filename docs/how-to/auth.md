@@ -65,6 +65,14 @@ auth:
 | Rule | Fails when |
 | --- | --- |
 | `login-defs/umask` | `UMASK` is unset (022) or leaves group write or any other-user bit open: 027 or stricter passes |
+| `login-defs/umask-077` | `UMASK` is unset or leaves any group bit open, where the STIG asks 077 (*standard-only*) |
+| `login-defs/encrypt-method` | `ENCRYPT_METHOD` is unset or not `SHA512` or `YESCRYPT`, compared with case as shadow does, which falls back to DES |
+| `login-defs/encrypt-method-sha512` | `ENCRYPT_METHOD` is not `SHA512`, the STIG’s FIPS scheme (*standard-only*) |
+| `login-defs/sha-rounds` | under `SHA256` or `SHA512`, `SHA_CRYPT_MIN_ROUNDS`, or a lone `SHA_CRYPT_MAX_ROUNDS`, is below the default 5000 |
+| `login-defs/pass-max-days` | `PASS_MAX_DAYS` is unset or outside 1 to `password-max-days` (365, CIS; the STIG asks 60) (*standard-only*) |
+| `login-defs/pass-rotation` | `PASS_MAX_DAYS` sets any expiry below 99999, as NIST SP 800-63B advises against |
+| `login-defs/pass-min-days` | `PASS_MIN_DAYS` is unset or below `password-min-days` (1) (*standard-only*) |
+| `login-defs/pass-warn-age` | `PASS_WARN_AGE` is unset or below `password-warn-days` (7) (*standard-only*) |
 | `pam/permit-sufficient` | an auth line makes `pam_permit` `sufficient` or `success=done`, so it settles the stack |
 | `pam/nullok` | an auth line passes `nullok` or `nullok_secure` to `pam_unix` |
 | `pam/no-lockout` | a file checks passwords with `pam_unix` in its auth stack but never calls `pam_faillock` there |
@@ -72,9 +80,10 @@ auth:
 
 `login-defs` is not applicable without `/etc/login.defs` and `pam` without
 `/etc/pam.d`; `coredump/no-hard-limit` skips a host without PAM, which never
-applies pam_limits. Password expiry (`PASS_MAX_DAYS`) has no rule here: NIST
-SP 800-63B advises against forced rotation, so it belongs to a standard that
-demands it, tagged with that standard’s control.
+applies pam_limits. The `PASS_*` rules judge what new accounts get; the
+`accounts` ruleset judges each existing one. `login-defs/pass-max-days` and
+`login-defs/pass-rotation` contradict each other, so a run selecting both
+reports one `Conflict`: keep the standard you follow with `--tags`.
 
 ## sudo
 

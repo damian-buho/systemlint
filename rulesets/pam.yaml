@@ -51,4 +51,6 @@ rules:
     message: "{subject} checks passwords with pam_unix but never calls pam_faillock, so an attacker may guess passwords without limit"
     fix: add pam_faillock to the auth stack of {subject}, preauth before pam_unix and authfail after it, and to its account stack
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_faillock.8.html
-    tags: [auth, pam]
+    references:
+      - {title: Lynis AUTH-9408, url: "https://cisofy.com/lynis/controls/AUTH-9408/"}
+    tags: [auth, lynis, pam]

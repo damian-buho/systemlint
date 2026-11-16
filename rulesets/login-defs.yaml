@@ -2,9 +2,13 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-description: Account defaults in /etc/login.defs that hand new files to other users
+description: Account defaults in /etc/login.defs that hand new files to other users, hash passwords weakly or set new accounts’ password ageing
 tags: [default]
 when: {auth.login-defs: {minProperties: 1}}
+vars:
+  password-max-days: {default: 365}
+  password-min-days: {default: 1}
+  password-warn-days: {default: 7}
 rules:
   login-defs/umask:
     title: The login umask leaves new files open to other users
@@ -17,4 +21,103 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
       - {title: Lynis AUTH-9328, url: "https://cisofy.com/lynis/controls/AUTH-9328/"}
+    tags: [auth, cis-ubuntu-26.04:5.4.3.3, lynis]
+  login-defs/umask-077:
+    title: The login umask lets the group read new files
+    fact: auth.login-defs
+    expect: {required: [UMASK], properties: {UMASK: {type: string, pattern: "^0[0-7]?77$"}}}
+    severity: info
+    score: 2.0
+    message: "UMASK in /etc/login.defs is unset (022) or leaves a group bit open, where 077 is asked, so a user’s new files are readable by the members of their group"
+    fix: set UMASK 077 in /etc/login.defs
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
+    tags: [auth, stig-ubuntu-26.04:UBTU-24-300030, '!default']
+  login-defs/encrypt-method:
+    title: New passwords are hashed with a weak or unknown scheme
+    fact: auth.login-defs
+    expect: {required: [ENCRYPT_METHOD], properties: {ENCRYPT_METHOD: {enum: [SHA512, YESCRYPT]}}}
+    severity: warning
+    score: 5.0
+    message: "ENCRYPT_METHOD in /etc/login.defs is unset or names a scheme other than SHA512 or YESCRYPT, written in capitals, so chpasswd, newusers and pam_unix with no hash option fall back to DES or MD5, whose hashes crack offline in hours"
+    fix: set ENCRYPT_METHOD YESCRYPT in /etc/login.defs, then have every user change their password so it is hashed again
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
+    references:
+      - {title: Lynis AUTH-9229, url: "https://cisofy.com/lynis/controls/AUTH-9229/"}
+    tags: [auth, cis-ubuntu-26.04:5.4.1.4, lynis]
+  login-defs/encrypt-method-sha512:
+    title: New passwords are hashed with a scheme other than SHA512
+    fact: auth.login-defs
+    expect: {required: [ENCRYPT_METHOD], properties: {ENCRYPT_METHOD: {const: SHA512}}}
+    severity: info
+    score: 2.0
+    message: "ENCRYPT_METHOD in /etc/login.defs is {got}, where SHA512, the FIPS 140-3 approved scheme, is asked"
+    fix: set ENCRYPT_METHOD SHA512 in /etc/login.defs, then have every user change their password so it is hashed again
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
+    tags: [auth, stig-ubuntu-26.04:UBTU-24-400400, '!default']
+  login-defs/sha-rounds:
+    title: SHA password hashes take fewer rounds than the default
+    fact: auth.login-defs
+    when: {auth.login-defs: {required: [ENCRYPT_METHOD], properties: {ENCRYPT_METHOD: {enum: [SHA256, SHA512]}}}}
+    expect:
+      anyOf:
+        - {required: [SHA_CRYPT_MIN_ROUNDS], properties: {SHA_CRYPT_MIN_ROUNDS: {type: integer, minimum: 5000}}}
+        - {not: {required: [SHA_CRYPT_MIN_ROUNDS]}, properties: {SHA_CRYPT_MAX_ROUNDS: {type: integer, minimum: 5000}}}
+    severity: info
+    score: 2.0
+    message: "SHA_CRYPT_MIN_ROUNDS, or SHA_CRYPT_MAX_ROUNDS when it is the only one set, in /etc/login.defs is below 5000, the default, so new password hashes cost an offline attacker less than an unconfigured host’s"
+    fix: set SHA_CRYPT_MIN_ROUNDS 5000 in /etc/login.defs, or remove both SHA_CRYPT_*_ROUNDS lines to get the default
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
+    references:
+      - {title: Lynis AUTH-9230, url: "https://cisofy.com/lynis/controls/AUTH-9230/"}
     tags: [auth, lynis]
+  login-defs/pass-max-days:
+    title: New accounts get no maximum password age, or one above the maximum
+    fact: auth.login-defs
+    expect: {required: [PASS_MAX_DAYS], properties: {PASS_MAX_DAYS: {type: integer, minimum: 1, maximum: "${password-max-days}"}}}
+    severity: info
+    score: 2.0
+    message: "PASS_MAX_DAYS in /etc/login.defs is unset or outside 1 to ${password-max-days}, so accounts made from now on get that maximum password age"
+    fix: set PASS_MAX_DAYS ${password-max-days} in /etc/login.defs, and run chage --maxdays ${password-max-days} for existing accounts
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
+    references:
+      - {title: Lynis AUTH-9286, url: "https://cisofy.com/lynis/controls/AUTH-9286/"}
+    tags: [auth, cis-ubuntu-26.04:5.4.1.1, lynis, '!default']
+    conflicts: [login-defs/pass-rotation]
+  login-defs/pass-rotation:
+    title: New accounts must change their password on a schedule
+    fact: auth.login-defs
+    expect:
+      anyOf:
+        - {not: {required: [PASS_MAX_DAYS]}}
+        - {properties: {PASS_MAX_DAYS: {anyOf: [{type: integer, minimum: 99999}, {enum: [-1, "-1"]}]}}}
+    severity: info
+    score: 2.0
+    message: "PASS_MAX_DAYS in /etc/login.defs is {got}, so accounts made from now on must change their password on a schedule, which steers people to predictable successors of the old one"
+    fix: set PASS_MAX_DAYS 99999 in /etc/login.defs, and force a change only on evidence of compromise
+    docs: https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver
+    references:
+      - {title: NIST SP 800-63B-4 3.1.1.2, url: "https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver"}
+    tags: [auth, nist-sp-800-63b-4:3.1.1.2]
+    conflicts: [login-defs/pass-max-days]
+  login-defs/pass-min-days:
+    title: New accounts can change their password again before the minimum age
+    fact: auth.login-defs
+    expect: {required: [PASS_MIN_DAYS], properties: {PASS_MIN_DAYS: {type: integer, minimum: "${password-min-days}"}}}
+    severity: info
+    score: 2.0
+    message: "PASS_MIN_DAYS in /etc/login.defs is unset or below ${password-min-days}, so on accounts made from now on a forced password change can be undone at once"
+    fix: set PASS_MIN_DAYS ${password-min-days} in /etc/login.defs, and run chage --mindays ${password-min-days} for existing accounts
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
+    references:
+      - {title: Lynis AUTH-9286, url: "https://cisofy.com/lynis/controls/AUTH-9286/"}
+    tags: [auth, cis-ubuntu-26.04:5.4.1.2, lynis, stig-ubuntu-26.04:UBTU-24-400300, '!default']
+  login-defs/pass-warn-age:
+    title: New accounts get less password expiry warning than asked
+    fact: auth.login-defs
+    expect: {required: [PASS_WARN_AGE], properties: {PASS_WARN_AGE: {type: integer, minimum: "${password-warn-days}"}}}
+    severity: info
+    score: 2.0
+    message: "PASS_WARN_AGE in /etc/login.defs is unset or below ${password-warn-days}, so accounts made from now on get less warning before their password expires"
+    fix: set PASS_WARN_AGE ${password-warn-days} in /etc/login.defs, and run chage --warndays ${password-warn-days} for existing accounts
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
+    tags: [auth, cis-ubuntu-26.04:5.4.1.3, '!default']

@@ -2344,6 +2344,173 @@ fn the_login_umask_passes_from_027_and_fails_at_022_or_unset() {
     assert_eq!(umask(json!({})), [Outcome::NotApplicable], "no login.defs");
 }
 
+// The outcomes one login-defs rule gives over the given keys, its vars from `config`, the rules it conflicts with left out.
+fn login_defs(rule: &str, defs: Value, config: Value) -> Vec<Outcome> {
+    let document = auth(defs, json!([]), json!({}));
+    selected(
+        "login-defs",
+        &keeping("login-defs", rule),
+        &document,
+        config,
+    )
+    .into_iter()
+    .filter(|c| c.rule == rule)
+    .map(|c| c.outcome)
+    .collect()
+}
+
+#[test]
+fn the_stig_umask_passes_only_077() {
+    let umask = |defs: Value| login_defs("login-defs/umask-077", defs, json!({}));
+    for strict in ["077", "0077"] {
+        assert_eq!(umask(json!({"UMASK": strict})), [Outcome::Pass], "{strict}");
+    }
+    for loose in ["027", "067"] {
+        assert_eq!(umask(json!({"UMASK": loose})), [Outcome::Fail], "{loose}");
+    }
+    assert_eq!(
+        umask(json!({"PASS_MAX_DAYS": 99999})),
+        [Outcome::Fail],
+        "unset is 022"
+    );
+}
+
+#[test]
+fn the_hash_scheme_passes_sha512_or_yescrypt_in_capitals_and_the_stig_only_sha512() {
+    let method = |rule: &str, value: Option<&str>| {
+        let defs = value.map_or(json!({"UMASK": "027"}), |v| json!({"ENCRYPT_METHOD": v}));
+        login_defs(rule, defs, json!({}))
+    };
+    for strong in ["SHA512", "YESCRYPT"] {
+        assert_eq!(
+            method("login-defs/encrypt-method", Some(strong)),
+            [Outcome::Pass],
+            "{strong}"
+        );
+    }
+    for weak in ["SHA256", "MD5", "DES", "sha512", "yescrypt"] {
+        assert_eq!(
+            method("login-defs/encrypt-method", Some(weak)),
+            [Outcome::Fail],
+            "{weak}"
+        );
+    }
+    assert_eq!(
+        method("login-defs/encrypt-method", None),
+        [Outcome::Fail],
+        "unset is DES"
+    );
+    assert_eq!(
+        method("login-defs/encrypt-method-sha512", Some("SHA512")),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        method("login-defs/encrypt-method-sha512", Some("YESCRYPT")),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        method("login-defs/encrypt-method-sha512", None),
+        [Outcome::Fail]
+    );
+}
+
+#[test]
+fn sha_rounds_fail_below_5000_on_the_lower_key_set_and_skip_other_schemes() {
+    let rounds = |defs: Value| login_defs("login-defs/sha-rounds", defs, json!({}));
+    let sha = |extra: Value| {
+        let mut defs = json!({"ENCRYPT_METHOD": "SHA512"});
+        defs.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        rounds(defs)
+    };
+    assert_eq!(sha(json!({})), [Outcome::Pass], "unset is the default 5000");
+    assert_eq!(sha(json!({"SHA_CRYPT_MIN_ROUNDS": 5000})), [Outcome::Pass]);
+    assert_eq!(sha(json!({"SHA_CRYPT_MIN_ROUNDS": 4999})), [Outcome::Fail]);
+    assert_eq!(sha(json!({"SHA_CRYPT_MAX_ROUNDS": 5000})), [Outcome::Pass]);
+    assert_eq!(
+        sha(json!({"SHA_CRYPT_MAX_ROUNDS": 4999})),
+        [Outcome::Fail],
+        "a lone maximum is the count"
+    );
+    assert_eq!(
+        sha(json!({"SHA_CRYPT_MIN_ROUNDS": 5000, "SHA_CRYPT_MAX_ROUNDS": 1000})),
+        [Outcome::Pass],
+        "shadow raises a maximum below the minimum to it"
+    );
+    assert_eq!(
+        sha(json!({"SHA_CRYPT_MIN_ROUNDS": 4999, "SHA_CRYPT_MAX_ROUNDS": 9000})),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        rounds(json!({"ENCRYPT_METHOD": "SHA256", "SHA_CRYPT_MIN_ROUNDS": 4999})),
+        [Outcome::Fail]
+    );
+    for other in [
+        json!({"ENCRYPT_METHOD": "YESCRYPT", "SHA_CRYPT_MIN_ROUNDS": 1000}),
+        json!({"SHA_CRYPT_MIN_ROUNDS": 1000}),
+    ] {
+        assert_eq!(rounds(other.clone()), [Outcome::Skip], "{other}");
+    }
+}
+
+#[test]
+fn new_account_ageing_fails_past_each_bound_and_unset() {
+    let age = |rule: &str, key: &str, value: Option<i64>| {
+        let defs = value.map_or(json!({"UMASK": "027"}), |v| json!({key: v}));
+        login_defs(rule, defs, json!({}))
+    };
+    let edges = [
+        ("login-defs/pass-min-days", "PASS_MIN_DAYS", 1, 0),
+        ("login-defs/pass-warn-age", "PASS_WARN_AGE", 7, 6),
+        ("login-defs/pass-max-days", "PASS_MAX_DAYS", 365, 366),
+        ("login-defs/pass-max-days", "PASS_MAX_DAYS", 1, 0),
+    ];
+    for (rule, key, pass, fail) in edges {
+        assert_eq!(age(rule, key, Some(pass)), [Outcome::Pass], "{rule} {pass}");
+        assert_eq!(age(rule, key, Some(fail)), [Outcome::Fail], "{rule} {fail}");
+        assert_eq!(age(rule, key, None), [Outcome::Fail], "{rule} unset");
+    }
+    let stig = |days: i64| {
+        login_defs(
+            "login-defs/pass-max-days",
+            json!({"PASS_MAX_DAYS": days}),
+            json!({"password-max-days": 60}),
+        )
+    };
+    assert_eq!(stig(60), [Outcome::Pass]);
+    assert_eq!(stig(61), [Outcome::Fail], "the STIG’s 60 is a var");
+}
+
+#[test]
+fn nist_rotation_fails_any_new_account_expiry_and_contradicts_the_cis_maximum() {
+    let rotation = |defs: Value| login_defs("login-defs/pass-rotation", defs, json!({}));
+    for never in [
+        json!({"UMASK": "027"}),
+        json!({"PASS_MAX_DAYS": 99999}),
+        json!({"PASS_MAX_DAYS": -1}),
+        json!({"PASS_MAX_DAYS": "-1"}),
+    ] {
+        assert_eq!(rotation(never.clone()), [Outcome::Pass], "{never}");
+    }
+    for scheduled in [99998, 365, 0] {
+        assert_eq!(
+            rotation(json!({"PASS_MAX_DAYS": scheduled})),
+            [Outcome::Fail],
+            "{scheduled}"
+        );
+    }
+    let both: Vec<Outcome> = checks(
+        "login-defs",
+        &auth(json!({"PASS_MAX_DAYS": 365}), json!([]), json!({})),
+    )
+    .into_iter()
+    .filter(|c| c.rule.starts_with("login-defs/pass-r") || c.rule == "login-defs/pass-max-days")
+    .map(|c| c.outcome)
+    .collect();
+    assert_eq!(both, [Outcome::Conflict; 2]);
+}
+
 // A PAM entry as the auth-pam collector’s words columns write it.
 fn entry(kind: &str, control: &str, module: &str, arguments: &[&str]) -> Value {
     json!({"line": 1, "type": kind, "control": control, "module": module, "arguments": arguments})
