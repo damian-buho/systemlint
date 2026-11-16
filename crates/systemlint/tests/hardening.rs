@@ -6348,8 +6348,8 @@ fn a_service_left_open_fails_only_once_it_listens_beyond_the_loopback_unguarded(
         "cups.conf",
         "/etc/cups/cupsd.conf",
         "file",
+        "0600",
         "0660",
-        "0740",
     );
     mode(
         "squid/config-readable",

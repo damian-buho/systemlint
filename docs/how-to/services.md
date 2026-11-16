@@ -423,7 +423,7 @@ passes:
 | `cups/listens-network` | warning | TCP 631 listens beyond the loopback (Lynis PRNT-2308) |
 | `docker/world-writable` | error | `/run/docker.sock`, `/etc/docker`, a file in it or `/etc/default/docker` is writable by others (Lynis CONT-8108) |
 | `postfix/vrfy` | info | `postconf -h disable_vrfy_command` (live) answers `no`, Postfix’s default (Lynis MAIL-8820, out of `default`) |
-| `cups/config-mode` | info | `/etc/cups/cupsd.conf` is more open than 0660 or reaches others (Lynis PRNT-2307, out of `default`) |
+| `cups/config-mode` | info | `/etc/cups/cupsd.conf` is more open than 0640, the mode cupsd writes it with (Lynis PRNT-2307) |
 | `squid/config-readable` | info | `/etc/squid/squid.conf` grants others any access (Lynis SQD-3613, out of `default`) |
 | `postgresql/config-readable` | info | a `.conf` file under `/etc/postgresql` grants others any access, stock `postgresql.conf` included (Lynis DBS-1828, out of `default`) |
 | `mysql/datadir-open` | info | `/var/lib/mysql` grants others any access (out of `default`) |

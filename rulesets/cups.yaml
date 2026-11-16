@@ -6,16 +6,16 @@ description: A CUPS configuration others may read, or that listens beyond the lo
 tags: [default]
 rules:
   cups/config-mode:
-    title: cupsd.conf more open than 0660
+    title: cupsd.conf is more open than 0640
     fact: cups.conf.*.mode
     when: {cups.conf.*.kind: file}
-    expect: {pattern: "^0[46][0246]0$"}
+    expect: {pattern: "^0[46][04]0$"}
     severity: info
     score: 1.0
-    message: "{subject} has mode {got}; it needs 0640 or stricter, readable by root and the lp group, with no execute bit"
+    message: "{subject} has mode {got}, more than the 0640 cupsd writes itself, so any local user reads which hosts and accounts may administer printing, or the lp group rewrites that policy"
     fix: run “chmod 0640 {subject}”
-    remedy: {chmod: "u-xs,g-xs,o-rwxt"}
-    docs: https://manpages.ubuntu.com/manpages/resolute/man5/cupsd.conf.5.html
+    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/cups-files.conf.5.html
     references:
       - {title: Lynis PRNT-2307, url: "https://cisofy.com/lynis/controls/PRNT-2307/"}
     tags: [printing, lynis]
