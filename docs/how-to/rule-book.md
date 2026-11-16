@@ -66,6 +66,11 @@ Put the guard in the ruleset’s `when`, so a host without the tool answers
 when: {ufw.binary: {minProperties: 1}}
 ```
 
+A standard asking for the tool itself (`auditd/not-installed`) is a rule over
+the binary fact with `expect: {minProperties: 1}`, in the tool’s own ruleset;
+that ruleset then carries no guard, and each of its other rules puts the same
+guard in its own `when`, so a host without the tool skips them.
+
 A collector that stats a binary globs the usual directories with `*`
 (`/usr/*bin/ufw`), since an unmatched glob passes nothing and leaves the
 object empty.
