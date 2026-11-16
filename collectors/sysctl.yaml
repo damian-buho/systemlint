@@ -9,7 +9,6 @@ read:
   exec: [/usr/sbin/sysctl, -a]
   prefer: exec
 parse:
-  plugin: formats
-  op: kv
-  with: {comments: ["#", ";"], repeat: last, nest: ".", swap: /, strip: "-"}
+  - {plugin: formats, op: kv, with: {comments: ["#", ";"], repeat: last, swap: /., strip: "-"}}
+  - {nest: "."}
 into: sysctl.settings

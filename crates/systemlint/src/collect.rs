@@ -714,10 +714,11 @@ fn call(
     collector: &Collector,
     plugin: &Plugin,
     facts: BTreeMap<String, Value>,
-    inputs: Vec<Input>,
+    mut inputs: Vec<Input>,
     options: &Options,
     now: &str,
 ) -> Result<(Value, Vec<Diagnostic>, Vec<String>, usize), Failure> {
+    crate::steps::text(&collector.parse.text, &mut inputs);
     let request = Request {
         protocol: PROTOCOL,
         op: collector.parse.op.clone(),
@@ -745,6 +746,17 @@ fn call(
         )
     })?;
     let mut value = Value::Object(reply.facts.into_iter().collect());
+    let mut diagnostics = reply.diagnostics;
+    if !collector.parse.tree.is_empty() {
+        if !(reply.hash.is_empty() && reply.redact.is_empty()) {
+            return Err(format!(
+                "plugin {} {} marks secrets to hash or redact, so its reply takes no tree step",
+                plugin.name, collector.parse.op
+            )
+            .into());
+        }
+        crate::steps::tree(&collector.parse.tree, &mut value, &mut diagnostics);
+    }
     let mut marked = reply.hash;
     if collector.secret {
         strings_at(&value, String::new(), &mut marked);
@@ -767,7 +779,7 @@ fn call(
             None => log::debug!("collector {}: redact {pointer} names no fact", collector.id),
         }
     }
-    Ok((value, reply.diagnostics, redacted, hashed))
+    Ok((value, diagnostics, redacted, hashed))
 }
 
 /// The JSON Pointer of every string under `value`, appended to `out`.

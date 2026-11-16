@@ -276,14 +276,186 @@ pub fn prefix(pattern: &str) -> String {
         .join(".")
 }
 
-/// The `parse:` plugin op.
+/// The `parse:` plugin op, with the text steps before it and the tree steps after it.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(try_from = "serde_json::Value")]
 pub struct Parse {
     pub plugin: String,
     pub op: String,
-    #[serde(default)]
     pub with: serde_json::Map<String, serde_json::Value>,
+    pub text: Vec<Text>,
+    pub tree: Vec<Tree>,
+}
+
+/// A step over each input’s text before the op reads it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Text {
+    /// Only the indented lines under each line starting with this header, up to a blank or unindented line.
+    Section(String),
+    /// Every line after the first N.
+    Skip(usize),
+}
+
+/// A step over the op’s facts at `at`, a dotted fact path whose `*` matches any key, none meaning the whole reply.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Tree {
+    pub at: Option<String>,
+    pub shape: Shape,
+}
+
+/// What a tree step does.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Shape {
+    /// A map’s keys split on the character into nested maps.
+    Nest(char),
+    /// Nested maps joined back into keys on the character.
+    Flatten(char),
+    /// Each value split on blanks (`None`) or a literal into a list, or into a map of `fields`.
+    Split(Option<String>, Option<Vec<String>>),
+    /// Each `<integer> <unit>` value into a number of bytes.
+    Bytes,
+    /// Each `a-b` or `a` list on the separator into `[{from, to}]`.
+    Ranges(String),
+}
+
+/// One `parse:` list entry as written.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Entry {
+    plugin: Option<String>,
+    op: Option<String>,
+    #[serde(default)]
+    with: serde_json::Map<String, serde_json::Value>,
+    section: Option<String>,
+    skip: Option<usize>,
+    nest: Option<char>,
+    flatten: Option<char>,
+    split: Option<String>,
+    fields: Option<Vec<String>>,
+    unit: Option<String>,
+    ranges: Option<String>,
+    at: Option<String>,
+}
+
+/// The word `split` takes for a run of blanks.
+pub const WHITESPACE: &str = "whitespace";
+
+impl TryFrom<serde_json::Value> for Parse {
+    type Error = String;
+
+    fn try_from(value: serde_json::Value) -> Result<Self, String> {
+        let entries = match value {
+            serde_json::Value::Array(items) => items,
+            one @ serde_json::Value::Object(_) => vec![one],
+            _ => return Err("parse is neither an op nor a list of steps".to_owned()),
+        };
+        let (mut op, mut text, mut tree) = (None, Vec::new(), Vec::new());
+        for (index, entry) in (1..).zip(entries) {
+            let entry: Entry =
+                serde_json::from_value(entry).map_err(|e| format!("parse step {index}: {e}"))?;
+            let step = Step::try_from(entry).map_err(|e| format!("parse step {index}: {e}"))?;
+            match (step, &op) {
+                (Step::Op(plugin, name, with), None) => op = Some((plugin, name, with)),
+                (Step::Op(..), Some(_)) => {
+                    return Err(format!(
+                        "parse step {index} is a second op; give exactly one"
+                    ));
+                }
+                (Step::Text(t), None) => text.push(t),
+                (Step::Text(_), Some(_)) => {
+                    return Err(format!(
+                        "parse step {index} reads text, so it goes before the op"
+                    ));
+                }
+                (Step::Tree(_), None) => {
+                    return Err(format!(
+                        "parse step {index} shapes facts, so it goes after the op"
+                    ));
+                }
+                (Step::Tree(t), Some(_)) => tree.push(t),
+            }
+        }
+        let (plugin, op, with) = op.ok_or("parse names no plugin op")?;
+        Ok(Self {
+            plugin,
+            op,
+            with,
+            text,
+            tree,
+        })
+    }
+}
+
+/// One checked `parse:` entry.
+enum Step {
+    Op(String, String, serde_json::Map<String, serde_json::Value>),
+    Text(Text),
+    Tree(Tree),
+}
+
+impl TryFrom<Entry> for Step {
+    type Error = String;
+
+    fn try_from(e: Entry) -> Result<Self, String> {
+        let shapes = [
+            e.nest.is_some(),
+            e.flatten.is_some(),
+            e.split.is_some(),
+            e.unit.is_some(),
+            e.ranges.is_some(),
+        ];
+        let kinds = usize::from(e.plugin.is_some() || e.op.is_some())
+            + usize::from(e.section.is_some())
+            + usize::from(e.skip.is_some())
+            + shapes.iter().filter(|s| **s).count();
+        if kinds != 1 {
+            return Err("give exactly one of plugin with op, section, skip, nest, flatten, split, unit, ranges".to_owned());
+        }
+        if e.fields.is_some() && e.split.is_none() {
+            return Err("fields names what split yields; give split".to_owned());
+        }
+        if !e.with.is_empty() && e.op.is_none() {
+            return Err("with belongs to the op".to_owned());
+        }
+        if e.at.is_some() && !shapes.contains(&true) {
+            return Err("at belongs to a tree step".to_owned());
+        }
+        if let Some(at) = e.at.as_ref().filter(|at| {
+            at.split('.')
+                .any(|s| s.is_empty() || (s.contains('*') && s != "*"))
+        }) {
+            return Err(format!(
+                "at {at:?} is not a dotted fact path whose wildcards are whole segments"
+            ));
+        }
+        let shape = match (
+            e.plugin, e.op, e.section, e.skip, e.nest, e.flatten, e.split, e.unit, e.ranges,
+        ) {
+            (Some(plugin), Some(op), ..) => return Ok(Self::Op(plugin, op, e.with)),
+            (Some(_), None, ..) | (None, Some(_), ..) => {
+                return Err("plugin and op go together".to_owned());
+            }
+            (_, _, Some(header), ..) if header.is_empty() => {
+                return Err("section is empty".to_owned());
+            }
+            (_, _, Some(header), ..) => return Ok(Self::Text(Text::Section(header))),
+            (_, _, _, Some(lines), ..) => return Ok(Self::Text(Text::Skip(lines))),
+            (_, _, _, _, Some(c), ..) => Shape::Nest(c),
+            (_, _, _, _, _, Some(c), ..) => Shape::Flatten(c),
+            (.., Some(by), _, _) if by.is_empty() => {
+                return Err("split is empty; give whitespace or a literal".to_owned());
+            }
+            (.., Some(by), _, _) => Shape::Split((by != WHITESPACE).then_some(by), e.fields),
+            (.., Some(unit), _) if unit == "bytes" => Shape::Bytes,
+            (.., Some(unit), _) => return Err(format!("unit {unit} is not bytes")),
+            (.., Some(by)) if by.is_empty() => {
+                return Err("ranges is empty; give the separator between ranges".to_owned());
+            }
+            (.., Some(by)) => Shape::Ranges(by),
+            _ => unreachable!("one kind is set"),
+        };
+        Ok(Self::Tree(Tree { at: e.at, shape }))
+    }
 }
 
 impl Collector {

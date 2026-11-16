@@ -30,28 +30,33 @@ fn parsed(id: &str, sudo: &str, file: &str) -> Value {
     let stdout =
         std::fs::read_to_string(repository().join(format!("fixtures/sudo/{sudo}/{file}.txt")))
             .unwrap();
-    let input = Input::Exec(ExecInput {
+    let mut inputs = vec![Input::Exec(ExecInput {
         argv,
         stdout,
         stderr: String::new(),
         exit: 0,
-    });
+    })];
+    systemlint::steps::text(&collector.parse.text, &mut inputs);
     let request = Request {
         protocol: PROTOCOL,
         op: collector.parse.op.clone(),
         root: "/".to_owned(),
         now: None,
-        inputs: vec![input],
+        inputs,
         facts: BTreeMap::new(),
         with: collector.parse.with.clone(),
     };
     let reply = systemlint_formats::op(request).unwrap();
-    assert!(
-        reply.diagnostics.is_empty(),
-        "{id} {sudo} {file}: {:?}",
-        reply.diagnostics
+    let (mut facts, mut diagnostics) = (
+        Value::Object(reply.facts.into_iter().collect()),
+        reply.diagnostics,
     );
-    Value::Object(reply.facts.into_iter().collect())
+    systemlint::steps::tree(&collector.parse.tree, &mut facts, &mut diagnostics);
+    assert!(
+        diagnostics.is_empty(),
+        "{id} {sudo} {file}: {diagnostics:?}"
+    );
+    facts
 }
 
 // Each account's facts from the shipped collector `id` under `sudo`.

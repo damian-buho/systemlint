@@ -275,6 +275,27 @@ fn collector(yaml: &str) -> Collector {
 }
 
 #[test]
+fn tree_steps_shape_the_reply_before_it_lands_and_refuse_one_marking_secrets() {
+    let shaped = collector(
+        "id: users\nread:\n  files: [/etc/os-release]\nparse:\n  - {plugin: users, op: parse}\n  - {flatten: /}\ninto: shaped\n",
+    );
+    let marked = collector(
+        "id: echo\nread:\n  files: [/etc/os-release]\nparse:\n  - {plugin: echo, op: parse}\n  - {nest: .}\ninto: marked\n",
+    );
+    let doc = collect(&[shaped, marked], &plugins(), &options(false));
+    assert_eq!(
+        (&doc["shaped"]["root/uid"], &doc["shaped"]["alice/uid"]),
+        (&json!(0), &json!(1000)),
+        "{doc}"
+    );
+    assert_eq!(doc["collectors"]["echo"]["status"], "error", "{doc}");
+    assert!(
+        doc["marked"].is_null() && !doc.to_string().contains("hunter2"),
+        "{doc}"
+    );
+}
+
+#[test]
 fn reply_lands_under_into_with_diagnostics_redaction_and_meta() {
     let c = collector(
         "id: echo\nread:\n  files: [/etc/os-release]\nparse: {plugin: echo, op: parse}\ninto: deep.echo\nttl: 0\n",
@@ -635,6 +656,8 @@ fn exec_is_skipped_under_root_and_runs_live() {
             plugin: "live".into(),
             op: "parse".into(),
             with: Default::default(),
+            text: Vec::new(),
+            tree: Vec::new(),
         },
         into: "exec2".into(),
         ..c

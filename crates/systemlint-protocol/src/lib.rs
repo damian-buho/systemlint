@@ -346,6 +346,19 @@ fn emit(bin: &str, value: &impl Serialize, stdout: &mut impl Write, stderr: &mut
     }
 }
 
+/// A bare word as a fact: a decimal integer with no leading zero becomes a number, anything else stays text.
+pub fn scalar(word: &str) -> serde_json::Value {
+    let digits = word.strip_prefix('-').unwrap_or(word);
+    let integer = !digits.is_empty()
+        && digits.bytes().all(|b| b.is_ascii_digit())
+        && (digits == "0" || !digits.starts_with('0'))
+        && word != "-0";
+    match word.parse::<i64>() {
+        Ok(n) if integer => serde_json::Value::from(n),
+        _ => serde_json::Value::from(word),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

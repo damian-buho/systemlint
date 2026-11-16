@@ -34,7 +34,8 @@ fn facts(id: &str) -> Value {
         network: None,
         containers: false,
     };
-    let given = inputs(&c, &options).unwrap();
+    let mut given = inputs(&c, &options).unwrap();
+    systemlint::steps::text(&c.parse.text, &mut given);
     assert!(
         given.iter().all(|i| matches!(i, Input::File(_))),
         "exec never runs under --root"
@@ -53,12 +54,13 @@ fn facts(id: &str) -> Value {
         _ => systemlint_formats::op(request),
     }
     .unwrap();
-    assert!(
-        reply.diagnostics.is_empty(),
-        "{id}: {:?}",
-        reply.diagnostics
+    let (mut facts, mut diagnostics) = (
+        Value::Object(reply.facts.into_iter().collect()),
+        reply.diagnostics,
     );
-    Value::Object(reply.facts.into_iter().collect())
+    systemlint::steps::tree(&c.parse.tree, &mut facts, &mut diagnostics);
+    assert!(diagnostics.is_empty(), "{id}: {diagnostics:?}");
+    facts
 }
 
 #[test]

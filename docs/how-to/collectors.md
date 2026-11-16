@@ -50,6 +50,7 @@ into: apt.sources
 | `read.order` | the order `files` reach the plugin: `path` [default], or `drop-in`, as systemd reads a conf directory set: per filename the match of the earliest glob in `files` hides the others, in name order, then each path with no wildcard in listed order |
 | `read.prefer` | `exec`: the command alone when it exited 0, else the files alone (under `--root`, with the program absent or failing); needs both `exec` and `files` |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
+| `parse` | the plugin op, or a list of [steps](#steps) holding exactly one op |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |
 | `parse.op` | an op the plugin lists in `--describe` |
 | `parse.with` | the typed options of a family op (`kv`, `words`, `options`, `match`), passed in the request’s `with`; see [Family ops](#family-ops) |
@@ -402,10 +403,8 @@ typed.
 | `separator` | the string between key and value, blanks around it trimmed, or `whitespace` for the first run of blanks, a key alone then holding `""` [default: `=`] |
 | `comments` | the markers that open a comment line [default: `["#"]`] |
 | `repeat` | for a key seen again, in input order: `first` [default], `last`, or `list` keeping every value |
-| `nest` | the character that nests a key (`.` puts `net.ipv4.ip_forward` at `net` → `ipv4` → `ip_forward`) |
-| `swap` | a character exchanged with `nest` in a key where it comes first, as sysctl.d(5) writes `net/ipv4/conf/eth0.100/rp_filter`; needs `nest` |
-| `strip` | characters dropped from a key’s start, such as sysctl.d’s `-` |
-| `section` | read only the indented lines under a line starting with this literal text, up to a blank or unindented line, as `sudo --list` prints `Matching Defaults entries` |
+| `swap` | two characters exchanged in a key where the first comes before the second, as sysctl.d(5) writes `net/ipv4/conf/eth0.100/rp_filter` for `/.`; before `repeat`, so both spellings are one key |
+| `strip` | characters dropped from a key’s start, such as sysctl.d’s `-`; before `repeat`, so `-a` and `a` are one key |
 | `records` | the character that splits a line into several key and value records, outside `"…"` and unless escaped by a backslash; a bare value is then unescaped |
 | `negate` | a record with no separator is a flag: `true`, or `false` behind this prefix (`!authenticate`) |
 
@@ -420,9 +419,8 @@ read:
   exec: [/usr/sbin/sysctl, -a]
   prefer: exec
 parse:
-  plugin: formats
-  op: kv
-  with: {comments: ["#", ";"], repeat: last, nest: ".", swap: /, strip: "-"}
+  - {plugin: formats, op: kv, with: {comments: ["#", ";"], repeat: last, swap: /., strip: "-"}}
+  - {nest: "."}
 into: sysctl.settings
 ```
 
@@ -476,6 +474,46 @@ parse:
   op: match
   with: {pattern: '^Inst (?P<key>\S+) (?:\[(?P<installed>[^\]]+)\] )?\((?P<candidate>\S+)'}
 into: apt.upgrades
+```
+
+## Steps
+
+`parse` may be a list: text steps, then exactly one op, then tree steps. The
+core runs the steps, on the inputs before the request and on the reply
+before it lands at `into`, so a domain op gets them too and a plugin stays a
+parser. Steps are a closed set of typed shapes, never a pattern or an
+expression. A secret collector hashes after the last step, and an op whose
+reply marks values to hash or redact takes no tree step.
+
+| Text step | Meaning |
+| --- | --- |
+| `section` | only the indented lines under each line starting with this literal text, up to a blank or unindented line, as `sudo --list` prints `Matching Defaults entries` |
+| `skip` | every line after the first N, as a table’s header line |
+
+Each tree step takes `at`, a dotted fact path in the reply whose `*` is a
+whole segment matching every key; without it the step takes the whole
+reply. A key step works on the map at `at`; a value step on every value at
+or below it, a list’s items included. A value that does not fit stays as it
+was and is named in a diagnostic.
+
+| Tree step | Meaning |
+| --- | --- |
+| `nest` | split each key on this character into nested maps (`.` puts `net.ipv4.ip_forward` at `net` → `ipv4` → `ip_forward`); a key crossing a value is a diagnostic |
+| `flatten` | join nested maps back into keys on this character, an empty map kept as a value |
+| `split` | `whitespace` or a literal: a value into its typed words, empty fields kept for a literal; with `fields`, a map of those names, a different count being a diagnostic |
+| `unit` | `bytes`: `<integer> <unit>` into bytes, units `B`, `K`, `M`, `G`, `T` with or without `B` or `iB`, all binary, as the kernel prints `kB` for 1024; a number stays as it is |
+| `ranges` | the separator between `a-b` or `a` items: a value into `[{from, to}]`, empty for an empty text, a range running backwards a diagnostic |
+
+The kernel’s memory counters in bytes:
+
+```yaml
+id: memory-info
+read: {files: [/proc/meminfo]}
+parse:
+  - {plugin: formats, op: kv, with: {separator: ":"}}
+  - {unit: bytes}
+into: memory.info
+live: true
 ```
 
 ## Derived facts

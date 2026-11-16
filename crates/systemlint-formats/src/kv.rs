@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 use systemlint_protocol::{Diagnostic, Input, Reply, Result};
 
-use crate::{nest, options, scalar, text, unquote};
+use crate::{options, scalar, text, unquote};
 
 /// What to keep when a key comes again.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
@@ -30,11 +30,9 @@ struct Options {
     comments: Vec<String>,
     #[serde(default)]
     repeat: Repeat,
-    nest: Option<char>,
-    swap: Option<char>,
+    swap: Option<String>,
     #[serde(default)]
     strip: String,
-    section: Option<String>,
     records: Option<char>,
     negate: Option<String>,
 }
@@ -56,11 +54,17 @@ pub fn kv(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     if options.separator.is_empty() {
         return Err("kv with.separator is empty".into());
     }
-    if options.swap.is_some() && options.nest.is_none() {
-        return Err("kv with.swap needs with.nest".into());
-    }
-    if options.negate.as_deref() == Some("") || options.section.as_deref() == Some("") {
-        return Err("kv with.negate and with.section must not be empty".into());
+    let swap = match options
+        .swap
+        .as_deref()
+        .map(|s| s.chars().collect::<Vec<_>>())
+    {
+        None => None,
+        Some(pair) if pair.len() == 2 && pair[0] != pair[1] => Some((pair[0], pair[1])),
+        Some(_) => return Err("kv with.swap is not two different characters".into()),
+    };
+    if options.negate.as_deref() == Some("") {
+        return Err("kv with.negate must not be empty".into());
     }
     let mut reply = Reply::default();
     let mut flat: Vec<(String, Value)> = Vec::new();
@@ -68,7 +72,6 @@ pub fn kv(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
         let Some((path, content)) = text(input, &mut reply.diagnostics) else {
             continue;
         };
-        let mut inside = options.section.is_none();
         for (index, raw) in content.lines().enumerate() {
             let mut diagnose = |message: String| {
                 reply.diagnostics.push(Diagnostic {
@@ -77,18 +80,8 @@ pub fn kv(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
                     message,
                 })
             };
-            if let Some(header) = &options.section {
-                if raw.starts_with(header.as_str()) {
-                    inside = true;
-                    continue;
-                }
-                if raw.trim().is_empty() || !raw.starts_with(char::is_whitespace) {
-                    inside = false;
-                }
-            }
             let line = raw.trim();
-            if !inside
-                || line.is_empty()
+            if line.is_empty()
                 || options
                     .comments
                     .iter()
@@ -134,7 +127,7 @@ pub fn kv(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
                         continue;
                     }
                 };
-                flat.push((swapped(key, options.nest, options.swap), typed));
+                flat.push((swapped(key, swap), typed));
             }
         }
     }
@@ -147,21 +140,7 @@ pub fn kv(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
             _ => drop(kept.insert(key, value)),
         }
     }
-    let Some(separator) = options.nest else {
-        reply.facts.extend(kept);
-        return Ok(reply);
-    };
-    let mut nested = Map::new();
-    for (key, value) in kept {
-        if let Err(message) = nest(&mut nested, &key, separator, value) {
-            reply.diagnostics.push(Diagnostic {
-                path: key,
-                line: None,
-                message,
-            });
-        }
-    }
-    reply.facts.extend(nested);
+    reply.facts.extend(kept);
     Ok(reply)
 }
 
@@ -200,9 +179,9 @@ fn unescape(value: &str) -> String {
     out
 }
 
-/// `key` with `swap` and `nest` exchanged when `swap` comes first, as sysctl.d(5) writes `net/ipv4/conf/eth0.100/rp_filter`.
-fn swapped(key: &str, nest: Option<char>, swap: Option<char>) -> String {
-    let (Some(nest), Some(swap)) = (nest, swap) else {
+/// `key` with the `swap` pair exchanged when its first character comes first, as sysctl.d(5) writes `net/ipv4/conf/eth0.100/rp_filter`.
+fn swapped(key: &str, swap: Option<(char, char)>) -> String {
+    let Some((swap, nest)) = swap else {
         return key.to_owned();
     };
     match key.chars().find(|c| *c == nest || *c == swap) {
@@ -274,7 +253,7 @@ mod tests {
     }
 
     #[test]
-    fn nest_swap_and_strip_read_sysctl_files_and_its_output() {
+    fn swap_and_strip_read_sysctl_files_and_its_output() {
         let reply = run(
             &[
                 file(
@@ -288,26 +267,24 @@ mod tests {
                     exit: 0,
                 }),
             ],
-            json!({"comments": ["#", ";"], "repeat": "last", "nest": ".", "swap": "/", "strip": "-"}),
+            json!({"comments": ["#", ";"], "repeat": "last", "swap": "/.", "strip": "-"}),
         );
         assert_eq!(
             json!(reply.facts),
             json!({
-                "net": {"ipv4": {"ip_forward": 1, "conf": {"eth0/100": {"rp_filter": 1}}}},
-                "kernel": {"printk": "4\t4\t1\t7"},
-                "fs": {"suid_dumpable": 0},
+                "net.ipv4.ip_forward": 1, "net.ipv4.conf.eth0/100.rp_filter": 1,
+                "kernel.printk": "4\t4\t1\t7", "fs.suid_dumpable": 0,
             })
         );
     }
 
     #[test]
-    fn list_keeps_every_value_and_a_crossing_key_is_named() {
+    fn list_keeps_every_value() {
         let reply = run(
             &[file("/f", "a.b=1\na.b=2\na.b.c=3\n")],
-            json!({"repeat": "list", "nest": "."}),
+            json!({"repeat": "list"}),
         );
-        assert_eq!(json!(reply.facts), json!({"a": {"b": [1, 2]}}));
-        assert_eq!(reply.diagnostics.len(), 1, "{:?}", reply.diagnostics);
+        assert_eq!(json!(reply.facts), json!({"a.b": [1, 2], "a.b.c": [3]}));
     }
 
     #[test]
@@ -319,11 +296,11 @@ mod tests {
     }
 
     #[test]
-    fn section_records_and_negate_read_a_sudo_defaults_list() {
-        let out = "Matching Defaults entries for bob on h:\n    env_reset, secure_path=/usr/sbin\\:/bin, use_pty, env_keep+=\"LANG LC_*\", logfile=\"/var/log/a, b\", !use_pty, ! authenticate, timestamp_timeout=-1, a\\,b\n\nRunas and Command-specific defaults for bob:\n    Defaults>postgres !use_pty\n\nUser bob may run the following commands on h:\n    (root) /usr/bin/id\n";
+    fn records_and_negate_read_a_sudo_defaults_list() {
+        let out = "    env_reset, secure_path=/usr/sbin\\:/bin, use_pty, env_keep+=\"LANG LC_*\", logfile=\"/var/log/a, b\", !use_pty, ! authenticate, timestamp_timeout=-1, a\\,b\n";
         let reply = run(
             &[file("sudo", out)],
-            json!({"section": "Matching Defaults entries", "records": ",", "negate": "!", "repeat": "last"}),
+            json!({"records": ",", "negate": "!", "repeat": "last"}),
         );
         assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
         assert_eq!(
@@ -333,17 +310,8 @@ mod tests {
                 "env_keep+": "LANG LC_*", "logfile": "/var/log/a, b", "authenticate": false,
                 "timestamp_timeout": -1, "a\\,b": true,
             }),
-            "the last of a key wins, a quoted or escaped comma splits nothing, other blocks are not read"
+            "the last of a key wins, a quoted or escaped comma splits nothing"
         );
-        let none = run(
-            &[file(
-                "sudo",
-                "User daemon is not allowed to run sudo on h.\n",
-            )],
-            json!({"section": "Matching Defaults entries"}),
-        );
-        assert_eq!(json!(none.facts), json!({}));
-        assert!(none.diagnostics.is_empty(), "{:?}", none.diagnostics);
     }
 
     #[test]
@@ -351,11 +319,12 @@ mod tests {
         for (with, says) in [
             (json!({"pattern": "x"}), "unknown field"),
             (json!({"separator": ""}), "empty"),
-            (json!({"swap": "/"}), "needs with.nest"),
+            (json!({"swap": "/"}), "two different characters"),
+            (json!({"swap": ".."}), "two different characters"),
             (json!({"repeat": "append"}), "kv with"),
-            (json!({"nest": ".."}), "kv with"),
+            (json!({"nest": "."}), "unknown field"),
             (json!({"negate": ""}), "must not be empty"),
-            (json!({"section": ""}), "must not be empty"),
+            (json!({"section": "x"}), "unknown field"),
             (json!({"records": ",,"}), "kv with"),
         ] {
             let error = kv(&[], with.as_object().unwrap()).unwrap_err().to_string();

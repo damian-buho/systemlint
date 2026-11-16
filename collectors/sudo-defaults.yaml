@@ -10,8 +10,7 @@ read:
     argv: [/usr/bin/sudo, --list, '--other-user={key}']
     split: true
 parse:
-  plugin: formats
-  op: kv
-  with: {section: Matching Defaults entries, records: ",", negate: "!", repeat: last}
+  - {section: Matching Defaults entries}
+  - {plugin: formats, op: kv, with: {records: ",", negate: "!", repeat: last}}
 into: sudo.defaults
 privileged: true

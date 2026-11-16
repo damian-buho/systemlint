@@ -137,19 +137,7 @@ pub fn options<T: serde::de::DeserializeOwned>(op: &str, with: &Map<String, Valu
     serde_json::from_value(Value::Object(with.clone()))
         .map_err(|e| format!("{op} with: {e}").into())
 }
-
-/// A bare word as a fact: a decimal integer with no leading zero becomes a number, anything else stays text.
-pub fn scalar(word: &str) -> Value {
-    let digits = word.strip_prefix('-').unwrap_or(word);
-    let integer = !digits.is_empty()
-        && digits.bytes().all(|b| b.is_ascii_digit())
-        && (digits == "0" || !digits.starts_with('0'))
-        && word != "-0";
-    match word.parse::<i64>() {
-        Ok(n) if integer => Value::from(n),
-        _ => Value::from(word),
-    }
-}
+pub use systemlint_protocol::scalar;
 
 /// An error naming the first command that exited non-zero, 127 (absent) aside, so its collector fails rather than reading as empty.
 fn ran(inputs: &[Input]) -> Result<()> {
@@ -843,30 +831,6 @@ fn kind(value: &Value) -> &'static str {
         Value::Bool(_) => "boolean",
         _ => "null",
     }
-}
-
-/// Places `value` at `key` split on `separator` in `map`, refusing a key that crosses a value.
-pub fn nest(
-    map: &mut Map<String, Value>,
-    key: &str,
-    separator: char,
-    value: Value,
-) -> std::result::Result<(), String> {
-    let segments: Vec<&str> = key.split(separator).collect();
-    let (last, parents) = segments.split_last().ok_or("empty key")?;
-    let mut at = map;
-    for segment in parents {
-        at = at
-            .entry((*segment).to_owned())
-            .or_insert_with(|| Value::Object(Map::new()))
-            .as_object_mut()
-            .ok_or_else(|| format!("{key} crosses {segment}, which holds a value"))?;
-    }
-    if at.get(*last).is_some_and(Value::is_object) {
-        return Err(format!("{key} holds both a value and keys below it"));
-    }
-    at.insert((*last).to_owned(), value);
-    Ok(())
 }
 
 /// One unit of `systemctl list-units --output=json`.

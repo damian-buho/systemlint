@@ -7,7 +7,6 @@ privileged: true
 read:
   exec: [/usr/sbin/sysctl, --all, --pattern, '^kernel\.apparmor_restrict_unprivileged_']
 parse:
-  plugin: formats
-  op: kv
-  with: {repeat: last, nest: ".", swap: /, strip: "-"}
+  - {plugin: formats, op: kv, with: {repeat: last, swap: /., strip: "-"}}
+  - {nest: "."}
 into: sysctl.apparmor
