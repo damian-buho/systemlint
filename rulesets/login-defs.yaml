@@ -39,7 +39,7 @@ rules:
     severity: warning
     score: 5.0
     message: "ENCRYPT_METHOD in /etc/login.defs is unset or names a scheme other than SHA512 or YESCRYPT, written in capitals, so chpasswd, newusers and pam_unix with no hash option fall back to DES or MD5, whose hashes crack offline in hours"
-    fix: set “ENCRYPT_METHOD YESCRYPT” in “/etc/login.defs”, then have every user change their password so it is hashed again
+    fix: set “ENCRYPT_METHOD YESCRYPT” in “/etc/login.defs”, or “ENCRYPT_METHOD SHA512” where FIPS 140-3 applies, then have every user change their password so it is hashed again
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
       - {title: Lynis AUTH-9229, url: "https://cisofy.com/lynis/controls/AUTH-9229/"}
