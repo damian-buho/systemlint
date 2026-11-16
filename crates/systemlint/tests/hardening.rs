@@ -3007,6 +3007,7 @@ fn cron(stats: Option<Value>) -> Vec<(String, Outcome)> {
     }
     judge("cron", &document)
         .into_iter()
+        .filter(|(rule, _, _)| rule == "cron/world-readable")
         .map(|(_, subject, o)| (subject, o))
         .collect()
 }
@@ -4610,5 +4611,147 @@ fn chrony_passes_on_a_server_or_pool_in_its_config_or_source_files_and_while_ena
         outcomes("timesync", "timesync/chrony-off", &under_root),
         [Outcome::Pass],
         "--root reads no active state"
+    );
+}
+
+#[test]
+fn cron_runs_while_installed_and_restricts_crontab_through_a_root_owned_allow_list() {
+    let running = |unit: Value| {
+        outcomes(
+            "cron",
+            "cron/off",
+            &json!({"systemd": {"state": {"cron.service": unit}}}),
+        )
+    };
+    let unit = |enabled: bool, active: &str| json!({"enabled": enabled, "masked": false, "active": active});
+    assert_eq!(running(unit(true, "active")), [Outcome::Pass]);
+    assert_eq!(running(unit(true, "failed")), [Outcome::Fail]);
+    assert_eq!(running(unit(false, "active")), [Outcome::Fail]);
+    assert_eq!(
+        running(json!({"enabled": false, "masked": true})),
+        [Outcome::Skip],
+        "masked"
+    );
+    assert_eq!(
+        running(json!({"active": "inactive", "sub": "dead"})),
+        [Outcome::Skip],
+        "a unit only the manager knows"
+    );
+    let file = |mode: &str, uid: u32, gid: u32| json!({"exists": true, "kind": "file", "mode": mode, "uid": uid, "gid": gid});
+    let absent = json!({"exists": false});
+    let doc = |allow: Value, deny: Value, crontab: bool| {
+        json!({"cron": {"access": {"/etc/cron.allow": allow, "/etc/cron.deny": deny, "/usr/bin/crontab": {"exists": crontab}}},
+               "accounts": {"group": {"crontab": {"gid": 997}}}})
+    };
+    let judge = |rule: &str, d: &Value| outcomes("cron", rule, d);
+    assert_eq!(
+        judge("cron/no-allow", &doc(absent.clone(), absent.clone(), true)),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        judge(
+            "cron/no-allow",
+            &doc(file("0640", 0, 997), absent.clone(), true)
+        ),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        judge("cron/no-allow", &doc(absent.clone(), absent.clone(), false)),
+        [Outcome::Skip],
+        "no crontab"
+    );
+    let both = doc(file("0640", 0, 0), file("0644", 0, 0), true);
+    assert_eq!(
+        judge("cron/access-mode", &both),
+        [Outcome::Pass, Outcome::Fail]
+    );
+    assert_eq!(
+        judge(
+            "cron/access-mode",
+            &doc(file("0600", 0, 0), absent.clone(), true)
+        ),
+        [Outcome::Pass, Outcome::Skip]
+    );
+    assert_eq!(
+        judge(
+            "cron/access-mode",
+            &doc(file("0650", 0, 0), absent.clone(), true)
+        ),
+        [Outcome::Fail, Outcome::Skip],
+        "group execute"
+    );
+    assert_eq!(
+        judge(
+            "cron/access-owner",
+            &doc(file("0640", 1000, 0), absent.clone(), true)
+        ),
+        [Outcome::Fail, Outcome::Skip]
+    );
+    assert_eq!(
+        judge(
+            "cron/access-group",
+            &doc(file("0640", 0, 0), file("0640", 0, 997), true)
+        ),
+        [Outcome::Skip, Outcome::Pass],
+        "root, then crontab"
+    );
+    assert_eq!(
+        judge(
+            "cron/access-group",
+            &doc(file("0640", 0, 998), absent.clone(), true)
+        ),
+        [Outcome::Fail, Outcome::Skip]
+    );
+}
+
+#[test]
+fn at_restricts_scheduling_through_a_root_owned_allow_list_in_group_root_or_daemon() {
+    let file = |mode: &str, uid: u32, gid: u32| json!({"exists": true, "kind": "file", "mode": mode, "uid": uid, "gid": gid});
+    let absent = json!({"exists": false});
+    let doc = |allow: Value, deny: Value, at: bool| {
+        json!({"at": {"access": {"/etc/at.allow": allow, "/etc/at.deny": deny, "/usr/bin/at": {"exists": at}}},
+               "accounts": {"group": {"daemon": {"gid": 1}}}})
+    };
+    let judge = |rule: &str, d: &Value| outcomes("at", rule, d);
+    assert_eq!(
+        judge(
+            "at/no-allow",
+            &doc(absent.clone(), file("0640", 0, 1), true)
+        ),
+        [Outcome::Fail],
+        "the stock at.deny alone"
+    );
+    assert_eq!(
+        judge(
+            "at/no-allow",
+            &doc(file("0640", 0, 1), absent.clone(), true)
+        ),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        judge("at/no-allow", &doc(absent.clone(), absent.clone(), false)),
+        [Outcome::Skip],
+        "no at"
+    );
+    assert_eq!(
+        judge(
+            "at/access-mode",
+            &doc(file("0640", 0, 1), file("0604", 0, 1), true)
+        ),
+        [Outcome::Pass, Outcome::Fail]
+    );
+    assert_eq!(
+        judge(
+            "at/access-owner",
+            &doc(absent.clone(), file("0640", 1, 1), true)
+        ),
+        [Outcome::Skip, Outcome::Fail]
+    );
+    assert_eq!(
+        judge(
+            "at/access-group",
+            &doc(file("0640", 0, 1), file("0640", 0, 2), true)
+        ),
+        [Outcome::Pass, Outcome::Fail]
     );
 }

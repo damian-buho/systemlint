@@ -138,6 +138,22 @@ The files inside a directory are not judged, since a 0700 directory already
 hides them, nor are `cron.allow`, `cron.deny`, `at.allow` and `at.deny`, whose
 usernames `/etc/passwd` already shows to everyone.
 
+CIS asks more, *standard-only*, so these rules are out of `default`
+(`--tags 'cis-ubuntu-26.04:2.4.*'`). The `cron-access` and `at-access`
+collectors stat `cron.allow`, `cron.deny` and `/usr/bin/crontab` into
+`cron.access.<path>`, and `at.allow`, `at.deny` and `/usr/bin/at` into
+`at.access.<path>`, a missing path as `exists: false`. The `at` ruleset is
+also out of `default` (`--tags at`).
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `cron/off` | info | `cron.service` is on disk and not masked, but not both enabled and active (CIS 2.4.1.1) |
+| `cron/no-allow` | info | `crontab` is installed and `cron.allow` is missing, so every user `cron.deny` leaves out may schedule jobs (CIS 2.4.1.9) |
+| `cron/access-mode`, `at/access-mode` | info | an existing allow or deny file is more open than 0640 (CIS 2.4.1.9, 2.4.2.1) |
+| `cron/access-owner`, `at/access-owner` | info | an existing allow or deny file is not owned by uid 0 |
+| `cron/access-group`, `at/access-group` | info | an existing allow or deny file is in a group other than root and `crontab`, or root and `daemon`, the gid read from `accounts.group` |
+| `at/no-allow` | info | `at` is installed and `at.allow` is missing; the stock `at.deny` alone fails (CIS 2.4.2.1) |
+
 ## Temporary directories
 
 The `tmp-dirs` collector stats `/tmp`, `/var/tmp` and `/dev/shm` into

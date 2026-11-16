@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: cron-access
+read:
+  stat: [/etc/cron.allow, /etc/cron.deny, /usr/bin/crontab]
+  stat-absent: true
+parse: {plugin: formats, op: stat}
+into: cron.access

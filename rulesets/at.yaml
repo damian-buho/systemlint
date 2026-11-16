@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Users the at command lets schedule one-off jobs
+tags: [at]
+rules:
+  at/no-allow:
+    title: at is open to users not named in at.allow
+    fact: at.access.*.exists
+    keys: {const: /etc/at.allow}
+    when: {/at/access/~1usr~1bin~1at/exists: true}
+    expect: {const: true}
+    severity: info
+    score: 1.0
+    message: "{subject} does not exist, so every user at.deny leaves out may schedule jobs with at"
+    fix: write the users allowed to schedule jobs, one per line, to {subject}, then chown root:daemon and chmod 0640 it
+    docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
+    tags: [at, cis-ubuntu-26.04:2.4.2.1]
+  at/access-mode:
+    title: at.allow or at.deny more open than 0640
+    fact: at.access.*.mode
+    keys: &access {enum: [/etc/at.allow, /etc/at.deny]}
+    when: &exists {at.access.*.exists: true}
+    expect: {pattern: "^0[0246][04]0$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so only root changes who may schedule jobs"
+    fix: chmod 0640 {subject}
+    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
+    docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
+    tags: [at, cis-ubuntu-26.04:2.4.2.1]
+  at/access-owner:
+    title: at.allow or at.deny not owned by root
+    fact: at.access.*.uid
+    keys: *access
+    when: *exists
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} is owned by uid {got}, not root, so that user decides who may schedule jobs"
+    fix: chown root {subject}
+    remedy: {chown: 0}
+    docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
+    tags: [at, cis-ubuntu-26.04:2.4.2.1]
+  at/access-group:
+    title: at.allow or at.deny in a group other than root or daemon
+    fact: at.access.*.gid
+    keys: *access
+    when: {at.access.*.exists: true, at.access.*.gid: {not: {const: 0}}}
+    same: accounts.group.daemon.gid
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}, not root or daemon (gid {same}); the benchmark asks one of the two"
+    fix: chgrp daemon {subject}
+    docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
+    tags: [at, cis-ubuntu-26.04:2.4.2.1]

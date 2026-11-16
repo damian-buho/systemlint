@@ -21,3 +21,68 @@ rules:
     references:
       - {title: Lynis FILE-7524, url: "https://cisofy.com/lynis/controls/FILE-7524/"}
     tags: [cron, files, lynis]
+  cron/off:
+    title: cron is installed but not enabled and running
+    fact: systemd.state.*
+    keys: {const: cron.service}
+    when:
+      systemd.state:
+        required: [cron.service]
+        properties: {cron.service: {required: [masked], properties: {masked: {const: false}}}}
+    expect: {required: [enabled], properties: {enabled: {const: true}, active: {const: active}}}
+    severity: info
+    score: 1.0
+    message: "{subject} is not both enabled and running, so the jobs in /etc/crontab and /etc/cron.d, log rotation and other upkeep among them, never run"
+    fix: run systemctl enable --now {subject}, or remove the cron package if no job is wanted
+    docs: https://manpages.debian.org/unstable/cron/cron.8.en.html
+    tags: [cron, cis-ubuntu-26.04:2.4.1.1, '!default']
+  cron/no-allow:
+    title: crontab is open to users not named in cron.allow
+    fact: cron.access.*.exists
+    keys: {const: /etc/cron.allow}
+    when: {/cron/access/~1usr~1bin~1crontab/exists: true}
+    expect: {const: true}
+    severity: info
+    score: 1.0
+    message: "{subject} does not exist, so every user cron.deny leaves out may schedule jobs with crontab"
+    fix: write the users allowed to schedule jobs, one per line, to {subject}, then chown root:crontab and chmod 0640 it
+    docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9, '!default']
+  cron/access-mode:
+    title: cron.allow or cron.deny more open than 0640
+    fact: cron.access.*.mode
+    keys: &cron-access {enum: [/etc/cron.allow, /etc/cron.deny]}
+    when: &cron-exists {cron.access.*.exists: true}
+    expect: {pattern: "^0[0246][04]0$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so only root changes who may schedule jobs"
+    fix: chmod 0640 {subject}
+    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
+    docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9, '!default']
+  cron/access-owner:
+    title: cron.allow or cron.deny not owned by root
+    fact: cron.access.*.uid
+    keys: *cron-access
+    when: *cron-exists
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} is owned by uid {got}, not root, so that user decides who may schedule jobs"
+    fix: chown root {subject}
+    remedy: {chown: 0}
+    docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9, '!default']
+  cron/access-group:
+    title: cron.allow or cron.deny in a group other than root or crontab
+    fact: cron.access.*.gid
+    keys: *cron-access
+    when: {cron.access.*.exists: true, cron.access.*.gid: {not: {const: 0}}}
+    same: accounts.group.crontab.gid
+    severity: info
+    score: 1.0
+    message: "{subject} belongs to gid {got}, not root or crontab (gid {same}); the benchmark asks one of the two"
+    fix: chgrp crontab {subject}
+    docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9, '!default']
