@@ -132,7 +132,7 @@ impl Root {
         }
     }
 
-    /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component and never a leading dot, `**` as the whole last component every path below, see [`Root::walk`].
+    /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component, never a leading dot nor below a symlinked directory, `**` as the whole last component every path below, see [`Root::walk`].
     pub fn glob(&self, pattern: &str) -> Result<Vec<String>, Failure> {
         self.glob_under("", pattern)
     }
@@ -159,15 +159,20 @@ impl Root {
                     continue;
                 }
                 let dir = if base.is_empty() { "/" } else { base };
-                let fd = match self.open_at(dir, OFlags::RDONLY | OFlags::DIRECTORY) {
+                let fd = match self
+                    .open_at(dir, OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW)
+                {
                     Ok(fd) => fd,
                     Err(e)
                         if matches!(
                             e.kind(),
                             io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
-                        ) =>
+                        ) || e.raw_os_error()
+                            == Some(rustix::io::Errno::LOOP.raw_os_error()) =>
                     {
-                        log::trace!("glob {pattern}: {dir} is absent, no match under it");
+                        log::trace!(
+                            "glob {pattern}: {dir} is absent or a symlink, no match under it: {e}"
+                        );
                         continue;
                     }
                     Err(e) => return Err(Failure::of("list", dir, e)),

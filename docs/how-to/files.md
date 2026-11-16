@@ -40,7 +40,7 @@ Each collector passes its `read.stat` globs to the `stat` op of
 | `files-audit-config` | `/etc/audit`, its `.conf` files, `rules.d` and `plugins.d` and their files | `files.audit-config.<path>` |
 | `files-audit-tools` | `auditctl`, `aureport`, `ausearch`, `autrace`, `auditd` and `augenrules` in `/usr/sbin` or `/usr/bin` | `files.audit-tools.<path>` |
 | `files-libraries` | `/usr/lib`, `/usr/lib64`, every `/usr/lib/*-linux-gnu*` directory and the `*.so*` files at their top | `files.libraries.<path>` |
-| `files-commands` | every regular file in `/usr/bin`, `/usr/sbin`, `/usr/local/bin` and `/usr/local/sbin` | `files.commands.<path>` |
+| `files-commands` | every regular file in `/usr/bin`, `/usr/sbin`, `/usr/local/bin`, `/usr/local/sbin`, and in `/bin` and `/sbin` where they are directories, not merged `/usr`’s symlinks | `files.commands.<path>` |
 
 A stat holds `kind` (`file`, `directory`, `symlink`, `other`), `mode` as four
 octal digits, `uid`, `gid`, `size`, and the `world-writable`,

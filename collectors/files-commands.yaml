@@ -4,7 +4,7 @@
 
 id: files-commands
 read:
-  stat: [/usr/bin/*, /usr/sbin/*, /usr/local/bin/*, /usr/local/sbin/*]
+  stat: [/usr/bin/*, /usr/sbin/*, /usr/local/bin/*, /usr/local/sbin/*, /bin/*, /sbin/*]
   stat-keep: {properties: {kind: {const: file}}}
 parse: {plugin: formats, op: stat}
 into: files.commands

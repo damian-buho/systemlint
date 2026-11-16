@@ -96,6 +96,18 @@ fn glob_matches_one_component_and_skips_dotfiles() {
 }
 
 #[test]
+fn a_star_never_lists_a_symlinked_directory_but_crosses_one_above() {
+    let dir = fixture("glob-symlink");
+    std::fs::create_dir_all(dir.join("usr/lib/x")).unwrap();
+    std::fs::write(dir.join("usr/lib/x/ls"), "").unwrap();
+    symlink("usr/lib", dir.join("lib")).unwrap();
+    let root = Root::open(&dir).unwrap();
+    assert_eq!(root.glob("/usr/lib/*").unwrap(), ["/usr/lib/x"]);
+    assert_eq!(root.glob("/lib/*").unwrap(), Vec::<String>::new());
+    assert_eq!(root.glob("/lib/x/*").unwrap(), ["/lib/x/ls"]);
+}
+
+#[test]
 fn wildcard_edges() {
     assert!(wildcard("*", "x"));
     assert!(wildcard("*", ""));
