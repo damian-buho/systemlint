@@ -70,3 +70,90 @@ rules:
     fix: set net.ipv4.conf.all.route_localnet = 0 and net.ipv4.conf.default.route_localnet = 0, then each listed interface’s key; on a Kubernetes node, run kube-proxy with --iptables-localhost-nodeports=false
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.19]
+  ip-routing/ipv4-ip-forward:
+    title: IPv4 forwarding on
+    fact: sysctl.settings.net.ipv4.ip_forward
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.ip_forward is {got}, so this host routes IPv4 packets between its interfaces"
+    fix: set net.ipv4.ip_forward = 0, unless this host is a router or runs containers that need it
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.1, dev-sec-linux-baseline:sysctl-01, '!default']
+  ip-routing/ipv4-forwarding:
+    title: IPv4 forwarding on
+    fact: sysctl.settings.net.ipv4.conf.*.forwarding
+    keys: {enum: [all, default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.conf.{subject}.forwarding is {got}, so this host routes IPv4 packets between its interfaces"
+    fix: set net.ipv4.conf.all.forwarding = 0 and net.ipv4.conf.default.forwarding = 0, unless this host is a router or runs containers that need it
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.2, cis-ubuntu-26.04:3.3.1.3, dev-sec-linux-baseline:sysctl-01, '!default']
+  ip-routing/ipv6-forwarding:
+    title: IPv6 forwarding on
+    fact: sysctl.settings.net.ipv6.conf.*.forwarding
+    keys: {enum: [all, default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv6.conf.{subject}.forwarding is {got}, so this host routes IPv6 packets between its interfaces"
+    fix: set net.ipv6.conf.all.forwarding = 0 and net.ipv6.conf.default.forwarding = 0, unless this host is a router or runs containers that need it
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.1, cis-ubuntu-26.04:3.3.2.2, dev-sec-linux-baseline:sysctl-19, '!default']
+  ip-routing/ipv4-send-redirects:
+    title: IPv4 redirects sent
+    fact: sysctl.settings.net.ipv4.conf.*.send_redirects
+    keys: {enum: [all, default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.conf.{subject}.send_redirects is {got}, so this host tells its neighbours to reroute traffic, which only a router should"
+    fix: set net.ipv4.conf.all.send_redirects = 0 and net.ipv4.conf.default.send_redirects = 0
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.4, cis-ubuntu-26.04:3.3.1.5, dev-sec-linux-baseline:sysctl-16, '!default']
+  ip-routing/ipv4-rp-filter-strict:
+    title: IPv4 reverse path filter not strict
+    fact: sysctl.settings.net.ipv4.conf.*.rp_filter
+    keys: {enum: [all, default]}
+    expect: {const: 1}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.conf.{subject}.rp_filter is {got}, not the strict 1 the benchmark asks; systemd ships the loose 2, which a host with several uplinks needs"
+    fix: set net.ipv4.conf.all.rp_filter = 1 and net.ipv4.conf.default.rp_filter = 1, unless replies may arrive on another interface than the request left
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.12, cis-ubuntu-26.04:3.3.1.13, dev-sec-linux-baseline:sysctl-02, '!default']
+  ip-routing/ipv4-log-martians:
+    title: Martian IPv4 packets not logged
+    fact: sysctl.settings.net.ipv4.conf.*.log_martians
+    keys: {enum: [all, default]}
+    expect: {const: 1}
+    severity: info
+    score: 1.0
+    message: "net.ipv4.conf.{subject}.log_martians is {got}, so packets with impossible source addresses arrive unlogged"
+    fix: set net.ipv4.conf.all.log_martians = 1 and net.ipv4.conf.default.log_martians = 1
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.16, cis-ubuntu-26.04:3.3.1.17, dev-sec-linux-baseline:sysctl-17, '!default']
+  ip-routing/ipv6-source-route:
+    title: IPv6 source routing accepted
+    fact: sysctl.settings.net.ipv6.conf.*.accept_source_route
+    keys: {enum: [all, default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv6.conf.{subject}.accept_source_route is {got}, so a sender may choose the path its IPv6 packets take through this host"
+    fix: set net.ipv6.conf.all.accept_source_route = 0 and net.ipv6.conf.default.accept_source_route = 0
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.5, cis-ubuntu-26.04:3.3.2.6, dev-sec-linux-baseline:sysctl-13, '!default']
+  ip-routing/ipv6-accept-ra:
+    title: IPv6 router advertisements accepted
+    fact: sysctl.settings.net.ipv6.conf.*.accept_ra
+    keys: {enum: [all, default]}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "net.ipv6.conf.{subject}.accept_ra is {got}, so any host on the link may announce itself as the IPv6 router; a host that takes its address from SLAAC needs it"
+    fix: set net.ipv6.conf.all.accept_ra = 0 and net.ipv6.conf.default.accept_ra = 0, unless this host configures IPv6 from router advertisements
+    docs: https://docs.kernel.org/networking/ip-sysctl.html
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.7, cis-ubuntu-26.04:3.3.2.8, dev-sec-linux-baseline:sysctl-25, '!default']

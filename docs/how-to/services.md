@@ -63,6 +63,14 @@ the highest of `/etc/sysctl.d`, `/run/sysctl.d`, `/usr/local/lib/sysctl.d`,
 glob key (`net.ipv4.conf.*.rp_filter`) stays as written, with `*` as its
 segment.
 
+The `ip-routing` rules CIS and dev-sec alone ask for carry `'!default'`, each
+judging the `all` and `default` keys at the benchmark’s value: IPv4 and IPv6
+forwarding 0 (`ipv4-ip-forward`, `ipv4-forwarding`, `ipv6-forwarding`; a
+router or a container host forwards by design), `ipv4-send-redirects` 0,
+`ipv4-rp-filter-strict` 1 (systemd ships the loose 2), `ipv4-log-martians` 1,
+`ipv6-source-route` 0 and `ipv6-accept-ra` 0 (a host configured by SLAAC
+needs it).
+
 ## Kernel modules
 
 Five collectors compose kmod’s own answers with `formats words`, or `formats

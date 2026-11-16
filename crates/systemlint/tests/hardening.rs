@@ -3752,3 +3752,50 @@ fn every_unused_service_fails_enabled_or_running_and_passes_masked_or_off() {
         assert!(absent.is_empty(), "{rule}: no unit, no check");
     }
 }
+
+#[test]
+fn the_benchmark_sysctl_keys_pass_only_at_their_value_on_all_and_default() {
+    let rules = [
+        ("ipv4-ip-forward", "ipv4", "", 0),
+        ("ipv4-forwarding", "ipv4", "forwarding", 0),
+        ("ipv6-forwarding", "ipv6", "forwarding", 0),
+        ("ipv4-send-redirects", "ipv4", "send_redirects", 0),
+        ("ipv4-rp-filter-strict", "ipv4", "rp_filter", 1),
+        ("ipv4-log-martians", "ipv4", "log_martians", 1),
+        ("ipv6-source-route", "ipv6", "accept_source_route", 0),
+        ("ipv6-accept-ra", "ipv6", "accept_ra", 0),
+    ];
+    for (name, family, key, good) in rules {
+        let rule = format!("ip-routing/{name}");
+        let judged = |value: i64| {
+            let settings = if key.is_empty() {
+                json!({"net": {"ipv4": {"ip_forward": value}}})
+            } else {
+                let interfaces =
+                    json!({"all": {key: value}, "default": {key: value}, "eth0": {key: value}});
+                json!({"net": {family: {"conf": interfaces}}})
+            };
+            let outcomes = outcomes(
+                "ip-routing",
+                &rule,
+                &json!({"sysctl": {"settings": settings}}),
+            );
+            assert_eq!(
+                outcomes.len(),
+                if key.is_empty() { 1 } else { 2 },
+                "{rule}: all and default only"
+            );
+            outcomes
+        };
+        assert!(
+            judged(good).iter().all(|o| *o == Outcome::Pass),
+            "{rule} at {good}"
+        );
+        for bad in [good - 1, good + 1] {
+            assert!(
+                judged(bad).iter().all(|o| *o == Outcome::Fail),
+                "{rule} at {bad}"
+            );
+        }
+    }
+}
