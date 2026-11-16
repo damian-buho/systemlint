@@ -443,8 +443,20 @@ ports:
 The `ports` rules fail a listener on any address outside `127.0.0.0/8` and
 `::1`, for services that answer whoever reaches them: `ports/docker-api-plain`
 (TCP 2375, Docker’s API without TLS), `ports/cups-browsed` (UDP 631, legacy
-CUPS browsing, CVE-2024-47176) and `ports/memcached-udp` (UDP 11211, a
-reflection amplifier).
+CUPS browsing, CVE-2024-47176), `ports/memcached-udp` (UDP 11211, a
+reflection amplifier) and `ports/mta-public` (TCP 25, 465 or 587, a mail
+server meant for local mail, CIS 2.1.22; waive it on a host that receives mail
+for others).
+
+## Journal and display manager
+
+`journald/remote-listening` (CIS 6.1.1.1.2) fails
+`systemd-journal-remote.socket` or `.service` while enabled or active and not
+masked, since it writes whatever the network sends into the journal.
+`gdm/xdmcp` (CIS 1.7.6) fails a GDM file (`custom.conf` or `daemon.conf` under
+`/etc/gdm3` or `/etc/gdm`, read by the `gdm-config` collector through `ini`)
+whose `[xdmcp]` section sets `Enable` to `true` or `1` in any case; the `gdm`
+ruleset is not applicable without one.
 
 ## nftables
 

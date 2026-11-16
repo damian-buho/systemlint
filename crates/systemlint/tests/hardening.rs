@@ -3444,6 +3444,9 @@ fn a_plain_listener_fails_from_its_first_address_beyond_the_loopback() {
         ("tcp:2375", "ports/docker-api-plain"),
         ("udp:631", "ports/cups-browsed"),
         ("udp:11211", "ports/memcached-udp"),
+        ("tcp:25", "ports/mta-public"),
+        ("tcp:465", "ports/mta-public"),
+        ("tcp:587", "ports/mta-public"),
     ] {
         let one = |o| vec![(rule.to_owned(), o)];
         assert_eq!(
@@ -3470,6 +3473,13 @@ fn a_plain_listener_fails_from_its_first_address_beyond_the_loopback() {
         );
     }
     assert_eq!(ports("tcp:2376", json!(["0.0.0.0"])), vec![], "TLS port");
+    for port in ["tcp:24", "tcp:26", "tcp:586", "udp:25"] {
+        assert_eq!(
+            ports(port, json!(["0.0.0.0"])),
+            vec![],
+            "{port} is no mail port"
+        );
+    }
     assert_eq!(
         ports("tcp:631", json!(["0.0.0.0"])),
         vec![],
@@ -3617,4 +3627,83 @@ fn a_rescue_shell_fails_only_once_its_effective_command_skips_sulogin() {
         "only the rescue and emergency units are judged"
     );
     assert!(rescue(&[("ssh.service", json!(["/usr/sbin/sshd -D"]))]).is_empty());
+}
+
+#[test]
+fn xdmcp_fails_only_where_a_gdm_file_enables_it() {
+    let gdm = |text: Value| {
+        let document = json!({"gdm": {"config": {"/etc/gdm3/custom.conf": text}},
+                              "collectors": {"gdm-config": {"status": "ok", "into": "gdm.config"}}});
+        outcomes("gdm", "gdm/xdmcp", &document)
+    };
+    assert_eq!(gdm(json!({"xdmcp": {"Enable": ["true"]}})), [Outcome::Fail]);
+    assert_eq!(
+        gdm(json!({"xdmcp": {"Enable": ["False", " TRUE "]}})),
+        [Outcome::Fail],
+        "any value, any case"
+    );
+    assert_eq!(gdm(json!({"xdmcp": {"Enable": ["1"]}})), [Outcome::Fail]);
+    assert_eq!(
+        gdm(json!({"xdmcp": {"Enable": ["false"]}})),
+        [Outcome::Pass]
+    );
+    assert_eq!(gdm(json!({"xdmcp": {}})), [Outcome::Pass]);
+    assert_eq!(
+        gdm(json!({"daemon": {"AutomaticLoginEnable": ["true"]}})),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        outcomes("gdm", "gdm/xdmcp", &json!({"gdm": {"config": {}}})),
+        [Outcome::NotApplicable],
+        "no GDM"
+    );
+}
+
+#[test]
+fn systemd_journal_remote_fails_once_enabled_or_running_and_never_masked() {
+    let remote = |state: Value| {
+        outcomes(
+            "journald",
+            "journald/remote-listening",
+            &json!({"systemd": {"state": state}}),
+        )
+    };
+    let socket = |enabled: bool, masked: bool, active: &str| {
+        json!({"systemd-journal-remote.socket": {"enabled": enabled, "masked": masked, "active": active},
+               "systemd-journald.service": {"enabled": true, "masked": false, "active": "active"}})
+    };
+    assert_eq!(remote(socket(false, false, "inactive")), [Outcome::Pass]);
+    assert_eq!(remote(socket(true, false, "inactive")), [Outcome::Fail]);
+    assert_eq!(remote(socket(false, false, "active")), [Outcome::Fail]);
+    assert_eq!(
+        remote(socket(true, true, "inactive")),
+        [Outcome::Pass],
+        "masked"
+    );
+    assert_eq!(remote(json!({})), Vec::<Outcome>::new(), "not installed");
+}
+
+#[test]
+fn sshd_offers_a_post_quantum_key_exchange() {
+    let kex = |algorithms: Value| {
+        let document =
+            json!({"sshd": {"global": {"/etc/ssh/sshd_config": {"kexalgorithms": algorithms}}}});
+        outcomes("ssh", "ssh/kex-post-quantum", &document)
+    };
+    assert_eq!(
+        kex(json!(["mlkem768x25519-sha256", "curve25519-sha256"])),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        kex(json!([
+            "curve25519-sha256",
+            "sntrup761x25519-sha512@openssh.com"
+        ])),
+        [Outcome::Pass],
+        "anywhere in the list"
+    );
+    assert_eq!(
+        kex(json!(["curve25519-sha256", "curve25519-sha256@libssh.org"])),
+        [Outcome::Fail]
+    );
 }

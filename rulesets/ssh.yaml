@@ -161,6 +161,16 @@ rules:
     fix: remove {got} from KexAlgorithms
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-02]
+  ssh/kex-post-quantum:
+    title: No post-quantum key exchange offered
+    fact: sshd.global.*.kexalgorithms
+    expect: {contains: {enum: [mlkem768x25519-sha256, sntrup761x25519-sha512, sntrup761x25519-sha512@openssh.com]}}
+    severity: warning
+    score: 4.0
+    message: "{subject} offers no post-quantum key exchange, so a session recorded today can be decrypted once a quantum computer breaks its key exchange: {got}"
+    fix: add mlkem768x25519-sha256 and sntrup761x25519-sha512 to the front of KexAlgorithms, or remove the KexAlgorithms line to get OpenSSH’s defaults
+    docs: https://www.openssh.com/pq.html
+    tags: [ssh, cis-ubuntu-26.04:5.1.14]
   ssh/max-auth-tries:
     title: Many authentication attempts allowed
     fact: sshd.settings.maxauthtries.*

@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: systemd journal services that take log entries from the network
+tags: [default]
+rules:
+  journald/remote-listening:
+    title: systemd-journal-remote accepts logs from the network
+    fact: systemd.state.*
+    keys: {enum: [systemd-journal-remote.socket, systemd-journal-remote.service]}
+    expect:
+      anyOf:
+        - {properties: {masked: {const: true}}, required: [masked]}
+        - properties:
+            enabled: {const: false}
+            active: {not: {enum: [active, activating, reloading]}}
+    severity: warning
+    score: 5.0
+    message: "{subject} is enabled or running, so any host that reaches its port can write entries into this host’s journal, flooding the disk or forging records"
+    fix: run systemctl mask --now {subject}, unless this host collects other hosts’ logs, then limit who reaches its port
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journal-remote.service.8.html
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.2]

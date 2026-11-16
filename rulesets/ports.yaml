@@ -44,3 +44,14 @@ rules:
     references:
       - {title: Lynis NETW-3012, url: "https://cisofy.com/lynis/controls/NETW-3012/"}
     tags: [network, lynis]
+  ports/mta-public:
+    title: A mail server listens beyond the loopback
+    fact: ports.*.addresses
+    keys: {enum: ["tcp:25", "tcp:465", "tcp:587"]}
+    expect: *loopback
+    severity: warning
+    score: 5.0
+    message: "{subject} listens on {got}, so a mail server meant for local mail takes connections from the network, where an open relay or a parser flaw is reachable"
+    fix: set inet_interfaces = loopback-only in /etc/postfix/main.cf (or the local interfaces of your MTA) and restart it, unless this host receives mail for others
+    docs: https://www.postfix.org/postconf.5.html#inet_interfaces
+    tags: [mail, network, cis-ubuntu-26.04:2.1.22]

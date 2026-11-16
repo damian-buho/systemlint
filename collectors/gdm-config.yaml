@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: gdm-config
+read:
+  files: [/etc/gdm3/custom.conf, /etc/gdm3/daemon.conf, /etc/gdm/custom.conf, /etc/gdm/daemon.conf]
+parse: {plugin: formats, op: ini}
+into: gdm.config

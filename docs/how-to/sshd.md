@@ -90,6 +90,7 @@ thresholds are systemlint’s own.
 | `ssh/empty-passwords` | sshd-28 | error | `PermitEmptyPasswords` is not `no` |
 | `ssh/ciphers` | sshd-01 | error | `Ciphers` offers a CBC, 3DES, RC4, Blowfish or CAST cipher |
 | `ssh/kex` | sshd-02 | error | `KexAlgorithms` offers a SHA-1 or 1024-bit group exchange |
+| `ssh/kex-post-quantum` | CIS 5.1.14 | warning | `KexAlgorithms` offers neither `mlkem768x25519-sha256` nor `sntrup761x25519-sha512`, in any position, since the client’s order decides |
 | `ssh/macs` | sshd-03 | warning | `MACs` offers MD5, SHA-1, a 96-bit or a 64-bit UMAC tag |
 | `ssh/password-authentication` | sshd-27 | warning | `PasswordAuthentication` is not `no` |
 | `ssh/keyboard-interactive` | sshd-29 | warning | `KbdInteractiveAuthentication` is not `no` |

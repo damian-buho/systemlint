@@ -85,7 +85,7 @@ fn checks_with(document: &Value, config: Value) -> Vec<Check> {
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
-    assert_eq!(rules.len(), 17);
+    assert_eq!(rules.len(), 18);
     lint(document, &rules, &[], "2026-11-11")
 }
 
