@@ -3666,6 +3666,34 @@ fn xdmcp_fails_only_where_a_gdm_file_enables_it() {
 }
 
 #[test]
+fn wayland_passes_only_where_a_gdm_file_turns_it_off_and_never_back_on() {
+    let gdm = |text: Value| {
+        let document = json!({"gdm": {"config": {"/etc/gdm3/custom.conf": text}},
+                              "collectors": {"gdm-config": {"status": "ok", "into": "gdm.config"}}});
+        outcomes("gdm", "gdm/wayland-enabled", &document)
+    };
+    assert_eq!(
+        gdm(json!({"daemon": {"WaylandEnable": ["false"]}})),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        gdm(json!({"daemon": {"WaylandEnable": ["0"]}})),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        gdm(json!({"daemon": {"WaylandEnable": ["true"]}})),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        gdm(json!({"daemon": {"WaylandEnable": ["false", "true"]}})),
+        [Outcome::Fail],
+        "turned back on"
+    );
+    assert_eq!(gdm(json!({"daemon": {}})), [Outcome::Fail], "unset is on");
+    assert_eq!(gdm(json!({"xdmcp": {}})), [Outcome::Fail], "no [daemon]");
+}
+
+#[test]
 fn systemd_journal_remote_fails_once_enabled_or_running_and_never_masked() {
     let remote = |state: Value| {
         outcomes(

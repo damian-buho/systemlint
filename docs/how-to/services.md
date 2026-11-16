@@ -519,7 +519,10 @@ masked, since it writes whatever the network sends into the journal.
 `gdm/xdmcp` (CIS 1.7.6) fails a GDM file (`custom.conf` or `daemon.conf` under
 `/etc/gdm3` or `/etc/gdm`, read by the `gdm-config` collector through `ini`)
 whose `[xdmcp]` section sets `Enable` to `true` or `1` in any case; the `gdm`
-ruleset is not applicable without one.
+ruleset is not applicable without one. `gdm/wayland-enabled` (CIS 1.7.7,
+*standard-only*) fails a GDM file whose `[daemon]` section does not set
+`WaylandEnable` to `false` or `0`, or also sets it to `true` or `1`, since
+Wayland sessions run X11 programs through Xwayland.
 
 ## nftables
 

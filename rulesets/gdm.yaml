@@ -19,3 +19,18 @@ rules:
     fix: remove Enable=true from the [xdmcp] section of {subject} and restart gdm, then reach this desktop over SSH or a VPN
     docs: https://help.gnome.org/admin/gdm/stable/configuration.html.en
     tags: [gdm, cis-ubuntu-26.04:1.7.6]
+  gdm/wayland-enabled:
+    title: GDM offers Wayland sessions, which run X11 programs through Xwayland
+    fact: gdm.config.*
+    expect:
+      required: [daemon]
+      properties:
+        daemon:
+          required: [WaylandEnable]
+          properties: {WaylandEnable: {contains: {pattern: "^(false|0)\\s*$"}, not: {contains: {pattern: "^(true|1)\\s*$"}}}}
+    severity: info
+    score: 1.0
+    message: "{subject} leaves WaylandEnable on, so X11 programs in a Wayland session run under Xwayland, where any X client can read the keystrokes of the others"
+    fix: set WaylandEnable=false in the [daemon] section of {subject} and restart gdm
+    docs: https://help.gnome.org/admin/gdm/stable/configuration.html.en
+    tags: ['!default', gdm, cis-ubuntu-26.04:1.7.7]
