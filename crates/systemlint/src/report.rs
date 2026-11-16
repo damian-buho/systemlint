@@ -306,6 +306,7 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     }
     let problems = clusters(group);
     let shared = problems.iter().all(|p| p[0].fix == problems[0][0].fix);
+    let commanded = |checks: &[&Check]| checks.iter().all(|c| c.remedy.is_some());
     for problem in &problems {
         for check in problem {
             let (subject, said) = (
@@ -332,11 +333,19 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
                 let _ = writeln!(out, "  Run: {command}");
             }
         }
-        if let Some(fix) = problem[0].fix.as_deref().filter(|_| !shared) {
+        if let Some(fix) = problem[0]
+            .fix
+            .as_deref()
+            .filter(|_| !shared && !commanded(problem))
+        {
             let _ = writeln!(out, "  Fix: {}", sentence(fix));
         }
     }
-    if let Some(fix) = problems[0][0].fix.as_deref().filter(|_| shared) {
+    if let Some(fix) = problems[0][0]
+        .fix
+        .as_deref()
+        .filter(|_| shared && !commanded(group))
+    {
         let _ = writeln!(out, "Fix: {}", sentence(fix));
     }
     if group.iter().any(|c| c.remedy.is_some() && c.is_failing()) {
@@ -386,82 +395,130 @@ fn by_rule<'a>(checks: impl Iterator<Item = &'a Check>) -> BTreeMap<&'a str, Vec
     groups
 }
 
-/// The failing groups, lowest score first, so the worst sits just above the summary.
+/// The failing groups, worst first: highest level, then highest score, then rule.
 fn ranked(checks: &[Check]) -> Vec<Vec<&Check>> {
     let mut groups: Vec<Vec<&Check>> = by_rule(checks.iter().filter(|c| c.is_failing()))
         .into_values()
         .collect();
     let worst = |g: &Vec<&Check>| {
-        g.iter()
-            .map(|c| c.score.unwrap_or_default())
-            .fold(0.0, f64::max)
+        (
+            g.iter().filter_map(|c| c.severity).max(),
+            g.iter()
+                .map(|c| c.score.unwrap_or_default())
+                .fold(0.0, f64::max),
+        )
     };
     groups.sort_by(|a, b| {
-        worst(a)
-            .total_cmp(&worst(b))
+        let ((level_a, score_a), (level_b, score_b)) = (worst(a), worst(b));
+        level_b
+            .cmp(&level_a)
+            .then_with(|| score_b.total_cmp(&score_a))
             .then_with(|| a[0].rule.cmp(&b[0].rule))
     });
     groups
 }
 
-/// `count` and its noun, plural unless one.
-fn counted(count: usize, one: &str, many: &str) -> String {
-    format!("{count} {}", if count == 1 { one } else { many })
+/// One summary row: the label padded to a column, then its value.
+fn row(label: &str, value: &str) -> String {
+    format!("{label:<18}{value}\n")
 }
 
-/// The closing line: rating, failures by level, then the other outcomes, zero counts beyond the levels left out.
-fn summary_line(document: &Value, checks: &[Check], on: bool) -> String {
+/// The summary counts as label, count and what the count means: each level’s failures, the passes, the other outcomes, then what did not run, split into what the user can turn on and what this host has nothing for; zero counts left out but the levels and the passes.
+fn counts(
+    document: &Value,
+    checks: &[Check],
+    left_out: usize,
+) -> Vec<(&'static str, usize, &'static str, Option<Severity>)> {
     let failing = |level: Severity| {
         checks
             .iter()
             .filter(|c| c.is_failing() && c.severity == Some(level))
             .count()
     };
+    let s = summary(checks);
+    let n = |key: &str| s[key].as_u64().unwrap_or_default() as usize;
+    let not_run = checks
+        .iter()
+        .filter(|c| skip_reason(document, c).is_some())
+        .count();
+    let level = |label, l| (label, failing(l), "", Some(l));
+    [
+        level("Errors", Severity::Error),
+        level("Warnings", Severity::Warning),
+        level("Info", Severity::Info),
+        level("Advice", Severity::Advice),
+        ("Passed", n("pass"), "", None),
+        ("Waived", n("waived"), "", None),
+        ("Unknown", n("unknown") - not_run, "", None),
+        ("Manual", n("manual"), ", for a person to check", None),
+        ("Conflict", n("conflict"), "", None),
+        (
+            "Not selected",
+            left_out,
+            ", run them by naming their ruleset in --tags",
+            None,
+        ),
+        (
+            "Not run",
+            not_run,
+            ", they need root, an opt-in flag or fresher facts",
+            None,
+        ),
+        (
+            "Nothing to check",
+            n("skip") + n("not-applicable"),
+            ", the host has nothing these rules judge",
+            None,
+        ),
+    ]
+    .into_iter()
+    .filter(|(label, count, _, level)| {
+        log::debug!("{count} {label}");
+        *count > 0 || *label == "Passed" || level.is_some_and(|l| l != Severity::Advice)
+    })
+    .collect()
+}
+
+/// The closing rows: the rating, then one row per count, a level’s failures in its colour.
+fn summary_rows(document: &Value, checks: &[Check], left_out: usize, on: bool) -> String {
     let rating = rate(checks).map_or_else(
-        || "No rating".to_owned(),
+        || "none, since no check was judged".to_owned(),
         |r| {
             let code = match r.grade {
                 'S' | 'A' => "32",
                 'B' | 'C' => "33",
                 _ => "31",
             };
-            format!(
-                "Rating {}",
-                paint(on, &format!("1;{code}"), &r.grade.to_string())
-            )
+            paint(on, &format!("1;{code}"), &r.grade.to_string())
         },
     );
-    let mut levels = vec![
-        counted(failing(Severity::Error), "error", "errors"),
-        counted(failing(Severity::Warning), "warning", "warnings"),
-        format!("{} info", failing(Severity::Info)),
-    ];
-    let advice = failing(Severity::Advice);
-    if advice > 0 {
-        levels.push(format!("{advice} advice"));
+    let mut out = row("Rating", &rating);
+    for (label, count, why, level) in counts(document, checks, left_out) {
+        let shown = match level.filter(|_| count > 0) {
+            Some(l) => paint(on, level_word(Some(l)).1, &count.to_string()),
+            None => count.to_string(),
+        };
+        out += &row(label, &format!("{shown}{why}"));
     }
-    let s = summary(checks);
-    let not_run = checks
+    out
+}
+
+/// One line naming every ruleset whose `when` this host does not meet, after the summary.
+fn not_applicable(checks: &[Check]) -> Option<String> {
+    let rulesets: BTreeSet<&str> = checks
         .iter()
-        .filter(|c| skip_reason(document, c).is_some())
-        .count();
-    let unknown = s["unknown"].as_u64().unwrap_or_default() as usize - not_run;
-    let n = |key: &str| s[key].as_u64().unwrap_or_default() as usize;
-    let rest: Vec<String> = [
-        ("pass", n("pass")),
-        ("waived", n("waived")),
-        ("unknown", unknown),
-        ("not run", not_run),
-        ("skip", n("skip")),
-        ("not applicable", n("not-applicable")),
-        ("manual", n("manual")),
-        ("conflict", n("conflict")),
-    ]
-    .into_iter()
-    .filter(|(name, n)| *n > 0 || *name == "pass")
-    .map(|(name, n)| format!("{n} {name}"))
-    .collect();
-    format!("{rating} · {} · {}\n", levels.join(", "), rest.join(", "))
+        .filter(|c| c.outcome == Outcome::NotApplicable)
+        .map(|c| {
+            c.rule
+                .split_once('/')
+                .map_or(c.rule.as_str(), |(owner, _)| owner)
+        })
+        .collect();
+    log::debug!("{} rulesets not applicable", rulesets.len());
+    (!rulesets.is_empty()).then(|| {
+        let names: Vec<&str> = rulesets.into_iter().collect();
+        format!("\nNot applicable to this host: {}.\n", names.join(", "))
+    })
 }
 
 /// The rules of `checks` grouped by their reason, each reason once.
@@ -510,10 +567,11 @@ fn collector_blocks<'a>(
     }
 }
 
-/// One block per rule: not run reasons, unreadable paths, not applicable reasons, unknowns, manual rules, waivers, failures lowest score first (with references when `verbose`), then the rating and counts unless `quiet`.
+/// One block per rule: not run reasons, unreadable paths, unknowns, manual rules, waivers, failures worst first (with references when `verbose`), then unless `quiet` the summary rows, `left_out` among them, and the rulesets not applicable.
 pub fn lint_human(
     document: &Value,
     checks: &[Check],
+    left_out: usize,
     quiet: bool,
     verbose: bool,
     on: bool,
@@ -540,19 +598,6 @@ pub fn lint_human(
         }),
         on,
     );
-    for (reason, rules) in by_reason(
-        checks
-            .iter()
-            .filter(|c| c.outcome == Outcome::NotApplicable),
-    ) {
-        log::debug!("{} rules not applicable: {reason}", rules.len());
-        let _ = writeln!(out, "Not applicable: {reason}");
-        out.push_str(&wrap(
-            &rules.iter().map(|r| (*r).to_owned()).collect::<Vec<_>>(),
-            on,
-        ));
-        out.push('\n');
-    }
     for group in by_rule(checks.iter().filter(|c| {
         c.outcome == Outcome::Unknown
             && skip_reason(document, c).is_none()
@@ -606,7 +651,8 @@ pub fn lint_human(
         failure_block(&mut out, &group, verbose, on);
     }
     if !quiet {
-        out.push_str(&summary_line(document, checks, on));
+        out.push_str(&summary_rows(document, checks, left_out, on));
+        out.extend(not_applicable(checks));
     }
     out
 }
@@ -729,12 +775,11 @@ pub fn lint_plain(document: &Value, checks: &[Check], quiet: bool) -> String {
     }
     if !quiet {
         let grade = rate(checks).map_or_else(|| "-".to_owned(), |r| r.grade.to_string());
-        let line = summary_line(document, checks, false);
-        let counts = line
-            .trim_end()
-            .split_once(" · ")
-            .map_or(line.trim_end(), |(_, counts)| counts);
-        let _ = writeln!(out, "rating\t{grade}\t\t\t{}\t", field(counts));
+        let counts: Vec<String> = counts(document, checks, 0)
+            .into_iter()
+            .map(|(label, count, _, _)| format!("{label} {count}"))
+            .collect();
+        let _ = writeln!(out, "rating\t{grade}\t\t\t{}\t", counts.join(", "));
     }
     out
 }

@@ -853,7 +853,7 @@ fn no_project_config_skips_the_working_directory_file() {
 }
 
 #[test]
-fn a_run_without_tags_names_the_rules_the_default_left_out() {
+fn a_run_without_tags_counts_the_rules_the_default_left_out_in_the_summary() {
     let dir = base("left-out");
     let path = dir.join("facts.yaml");
     std::fs::write(
@@ -862,16 +862,28 @@ fn a_run_without_tags_names_the_rules_the_default_left_out() {
     )
     .unwrap();
     let facts = path.display().to_string();
-    let config = "check:\n  rulesets:\n    perf: {tags: [performance], rules: {perf/x: {fact: x, expect: {const: 2}, severity: error}, perf/y: {fact: x, expect: {const: 3}}}}\n";
-    let (code, stderr) = run(&dir, config, &["check", &facts]);
-    assert_eq!(code, 0, "{stderr}");
+    std::fs::write(dir.join("config.yaml"), "check:\n  rulesets:\n    perf: {tags: [performance], rules: {perf/x: {fact: x, expect: {const: 2}, severity: error}, perf/y: {fact: x, expect: {const: 3}}}}\n").unwrap();
+    let report = |args: &[&str]| {
+        let out = core()
+            .arg("--config")
+            .arg(dir.join("config.yaml"))
+            .args(args)
+            .env("LC_ALL", "C")
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout).into_owned()
+            + &String::from_utf8_lossy(&out.stderr);
+        (out.status.code().unwrap(), text)
+    };
+    let (code, text) = report(&["check", &facts]);
+    assert_eq!(code, 0, "{text}");
     assert!(
-        stderr.contains("2 rules not selected: perf (2). Name them in --tags to run them."),
-        "{stderr}"
+        text.contains("Not selected      2, run them by naming their ruleset in --tags\n"),
+        "{text}"
     );
-    let (code, stderr) = run(&dir, config, &["check", "--tags", "performance", &facts]);
-    assert_eq!(code, 1, "{stderr}");
-    assert!(!stderr.contains("not selected"), "{stderr}");
-    let (_, quiet) = run(&dir, config, &["--quiet", "check", &facts]);
-    assert!(!quiet.contains("not selected"), "{quiet}");
+    let (code, text) = report(&["check", "--tags", "performance", &facts]);
+    assert_eq!(code, 1, "{text}");
+    assert!(!text.contains("Not selected"), "{text}");
+    let (_, quiet) = report(&["--quiet", "check", &facts]);
+    assert!(!quiet.contains("Not selected"), "{quiet}");
 }

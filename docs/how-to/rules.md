@@ -23,7 +23,7 @@ apt/https:
   severity: warning
   score: 6.0
   message: "{subject} fetches over {got}"
-  fix: switch the source to https://
+  fix: switch the source to “https://”
   docs: https://wiki.debian.org/SourcesList
   rationale: anyone on the path can swap a package or hold back an update
   references:
@@ -297,12 +297,12 @@ not. A selector matching nothing is an error.
 
 `--tags performance` replaces the default, `--tags default,performance` extends
 it, `--tags '*'` runs every rule, and `check.tags` sets a site’s own default.
-A run on the default prints one stderr line naming what it left out, per
-defining ruleset, so a rule of your own without `default` never vanishes
-silently (`-q` drops it):
+A run on the default counts what it left out in a `Not selected` summary
+row, so a rule of your own without `default` never vanishes silently; `-v`
+logs the count per defining ruleset:
 
 ```text
-12 rules not selected: containers (3), performance (9). Name them in --tags to run them.
+Not selected      12, run them by naming their ruleset in --tags
 ```
 
 ```sh
@@ -318,7 +318,7 @@ applies to each failing subject that is an absolute path:
 
 ```yaml
 files/world-writable:
-  fix: chmod o-w the file
+  fix: run “chmod o-w” on the file
   remedy: {chmod: o-w}
 ```
 
@@ -369,16 +369,34 @@ expiry is the only judgement that reads the clock at lint time.
 live-only under `--root`) with its rules wrapped under it, none for an opt-in the
 run did not ask for (`--image-config`, `--network`, `--containers`), which only the counts show, a
 `Not read` block per path a collector could not read (still `unknown` in the
-counts and every machine format), then a `Not applicable` block per ruleset reason with its rules wrapped under it,
+counts and every machine format),
 one `Conflict` block per set of selected rules declaring `conflicts` on each other, naming each with its control tags and the `--tags '!ID'` that keeps the other (their checks answer `conflict` in every format, `kind: review` in SARIF, and never fail the run),
-`Unknown`, `Manual` (with the `Why:` procedure) and `Waived` blocks, then the failures, lowest score first, so the
-worst sits just above the rating and counts
-(`Rating B · 5 errors, 9 warnings, 0 info · 577 pass, 24 not run, 21 skip`).
+`Unknown`, `Manual` (with the `Why:` procedure) and `Waived` blocks, then the failures, worst first: errors,
+then warnings, info and advice, each level highest score first. The summary
+follows, one count per row: the rating, each level, the passes, then what did
+not run in two kinds. `Not selected` and `Not run` are yours to turn on (name
+the ruleset in `--tags`; run as root, add the opt-in flag, or collect fresh
+facts), while `Nothing to check` is a rule this host has nothing for (no
+such program, a ruleset whose `when` the host does not meet). One last line
+names the rulesets not applicable to the host:
+
+```text
+Rating            B
+Errors            5
+Warnings          9
+Info              0
+Passed            577
+Not run           24, they need root, an opt-in flag or fresher facts
+Nothing to check  21, the host has nothing these rules judge
+
+Not applicable to this host: gdm, nftables, tls.
+```
+
 A failure block opens with the level, the highest score of the rule, its ID and
 `title`, then a `Why:` line with the `rationale`, lists each subject on its own dash line with the value it failed on, and
 ends with one `Fix:` line, or a fix under each subject when they differ. A rule
 with a remedy puts its command under each subject as a `Run:` line with no full
-stop, so it pastes into a shell, and closes with the `systemlint fix --tags`
+stop, so it pastes into a shell, in place of the `Fix:` line, and closes with the `systemlint fix --tags`
 call that makes every change; `-v` adds a `See:` line per reference.
 Failures that name each other, the two sides of `apt/overlap`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome

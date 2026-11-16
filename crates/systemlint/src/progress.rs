@@ -10,9 +10,6 @@ use serde_json::Value;
 
 use crate::collector::Collector;
 
-/// A run shorter than this ends without a closing line.
-pub const SLOW: Duration = Duration::from_secs(1);
-
 /// The commands a live collection ran: each `exec`, and each `exec-from` per entry, of a collector that ended `ok` on the host.
 pub fn commands(document: &Value, collectors: &[Collector]) -> Vec<String> {
     let live = document
@@ -67,18 +64,13 @@ pub fn reached(document: &Value, collectors: &[Collector]) -> Vec<String> {
         .collect()
 }
 
-/// The closing line of a run that took `SLOW` or longer, or reached the network: the time spent, the commands run, the targets asked.
+/// The closing line of a run that reached the network, naming each target asked; the time spent and the commands run go to the log only.
 pub fn finished(elapsed: Duration, commands: &[String], reached: &[String]) -> Option<String> {
-    let list = |verb: &str, items: &[String]| match items.is_empty() {
-        true => String::new(),
-        false => format!("; {verb} {}", items.join(", ")),
-    };
-    (elapsed >= SLOW || !reached.is_empty()).then(|| {
-        format!(
-            "Collected in {:.1} s{}{}.",
-            elapsed.as_secs_f64(),
-            list("ran", commands),
-            list("asked the network about", reached)
-        )
-    })
+    log::info!(
+        "collected in {:.1} s, ran {} commands: {}",
+        elapsed.as_secs_f64(),
+        commands.len(),
+        commands.join(", ")
+    );
+    (!reached.is_empty()).then(|| format!("Asked the network about {}.", reached.join(", ")))
 }

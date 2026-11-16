@@ -252,9 +252,10 @@ mode 0600, as JSON when the name ends in `.json`, else YAML, unless `--format
 yaml|json` says; `-o -` prints it as without `-o`. A save then prints one
 stderr line naming the file, the
 collectors run and failed, and the `check` command that reads it; `-q` drops
-it. On a terminal, `facts` and `check` show which collector runs now, and a
-run of a second or more ends with its time and the commands it ran
-(`Collected in 2.3 s; ran sshd -T.`); `-q` drops both, `-v` the first. `systemlint check PATH`, or
+it. On a terminal, `facts` and `check` show which collector runs now; a run
+that reached the network ends naming each target it asked (`Asked the network
+about kiota.ch:443.`), and `-v` logs the time spent and every command run;
+`-q` drops both. `systemlint check PATH`, or
 `check -` for stdin, judges a saved document with no access to the subject.
 
 ## Where collectors come from

@@ -246,7 +246,7 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
         .unwrap()
     });
     let checks = lint(&document, &rules, &[], "2026-11-11");
-    let text = lint_human(&document, &checks, false, false, false);
+    let text = lint_human(&document, &checks, 0, false, false, false);
     assert!(text.contains("Not run (env-defaults, env-processes): needs root, and this run is unprivileged\n  env/a, env/b\n\n"), "{text}");
     assert_eq!(text.matches("Not run (").count(), 1, "{text}");
     assert!(
@@ -254,7 +254,7 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
         "an error stays its own line: {text}"
     );
     assert!(
-        text.ends_with(" · 2 pass, 2 unknown, 4 not run\n"),
+        text.ends_with("Passed            2\nUnknown           2\nNot run           4, they need root, an opt-in flag or fresher facts\n"),
         "{text}"
     );
     assert!(
@@ -277,13 +277,16 @@ fn an_opt_in_left_off_prints_no_block_and_still_counts() {
         .unwrap()
     });
     let checks = lint(&document, &rules, &[], "2026-11-14");
-    let text = lint_human(&document, &checks, false, false, false);
+    let text = lint_human(&document, &checks, 0, false, false, false);
     assert!(!text.contains("image-config"), "{text}");
     assert!(
         text.contains("Not run (env-processes): can’t read /proc/1/environ without root\n"),
         "{text}"
     );
-    assert!(text.ends_with(" · 0 pass, 2 not run\n"), "{text}");
+    assert!(
+        text.ends_with("Not run           2, they need root, an opt-in flag or fresher facts\n"),
+        "{text}"
+    );
     let plain = lint_plain(&document, &checks, true);
     assert!(
         !plain.contains("image-config") && plain.contains("without root"),
@@ -306,7 +309,7 @@ fn human_folds_an_unreadable_path_into_one_line_for_every_rule() {
         .unwrap()
     });
     let checks = lint(&document, &rules, &[], "2026-11-13");
-    let text = lint_human(&document, &checks, false, false, false);
+    let text = lint_human(&document, &checks, 0, false, false, false);
     assert!(
         text.starts_with(
             "Not read (env-defaults): /etc/default/cacerts, permission denied\n  env/a, env/b\n\n"
@@ -315,7 +318,7 @@ fn human_folds_an_unreadable_path_into_one_line_for_every_rule() {
     );
     assert!(!text.contains("Unknown: ["), "{text}");
     assert!(
-        text.ends_with(" · 2 pass, 2 unknown\n"),
+        text.ends_with("Passed            2\nUnknown           2\n"),
         "the summary keeps them unknown: {text}"
     );
 }
@@ -479,14 +482,14 @@ fn sources() -> (Value, Vec<Check>) {
 }
 
 #[test]
-fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_last() {
+fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_first() {
     let (document, checks) = sources();
-    let text = lint_human(&document, &checks, false, false, false);
-    let expected = "Warning (4.5): [apt/overlap] Repository partly listed in two places\n- /a.list:1.\n- /b.sources:1.\nFix: list each suite and component in one entry only, then run sudo apt update.\n\n\
-        Error (7.5): [apt/stale-suite] Source fetches an older release’s suite\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
-        Rating F · 2 errors, 2 warnings, 0 info · 2 pass\n";
+    let text = lint_human(&document, &checks, 0, false, false, false);
+    let expected = "Error (7.5): [apt/stale-suite] Source fetches an older release’s suite\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
+        Warning (4.5): [apt/overlap] Repository partly listed in two places\n- /a.list:1.\n- /b.sources:1.\nFix: list each suite and component in one entry only, then run sudo apt update.\n\n\
+        Rating            F\nErrors            2\nWarnings          2\nInfo              0\nPassed            2\n";
     assert_eq!(text, expected);
-    let painted = lint_human(&document, &checks, true, false, true);
+    let painted = lint_human(&document, &checks, 0, true, false, true);
     assert!(
         painted.contains("\x1b[31mError\x1b[0m (7.5): \x1b[1m[apt/stale-suite]\x1b[0m")
             && painted.contains("\x1b[33mWarning\x1b[0m"),
@@ -502,6 +505,7 @@ fn human_puts_a_fix_under_each_location_when_the_fixes_differ() {
     let text = lint_human(
         &document,
         &lint(&document, &[rule], &[], "2026-11-11"),
+        0,
         true,
         false,
         false,
@@ -519,6 +523,7 @@ fn human_prints_the_whole_message_of_a_subjectless_check_that_names_no_value() {
     let text = lint_human(
         &document,
         &lint(&document, &[rule], &[], "2026-11-11"),
+        0,
         true,
         false,
         false,
@@ -530,7 +535,8 @@ fn human_prints_the_whole_message_of_a_subjectless_check_that_names_no_value() {
 }
 
 #[test]
-fn human_puts_each_remedy_command_under_its_location_unstopped_so_it_pastes() {
+fn human_puts_each_remedy_command_under_its_location_unstopped_so_it_pastes_and_no_fix_repeats_it()
+{
     let rule = compile(
         "x/mode",
         systemlint::yaml::from_str(
@@ -543,13 +549,14 @@ fn human_puts_each_remedy_command_under_its_location_unstopped_so_it_pastes() {
     let text = lint_human(
         &document,
         &lint(&document, &[rule], &[], "2026-11-11"),
+        0,
         true,
         false,
         false,
     );
     assert_eq!(
         text,
-        "Warning (5.0): [x/mode]\n- files./etc/a: 0 was expected.\n  Run: chmod o-w /etc/a\n- files./etc/b b: 0 was expected.\n  Run: chmod o-w '/etc/b b'\nFix: clear it.\nOr run systemlint fix --tags x/mode to make every change.\n\n"
+        "Warning (5.0): [x/mode]\n- files./etc/a: 0 was expected.\n  Run: chmod o-w /etc/a\n- files./etc/b b: 0 was expected.\n  Run: chmod o-w '/etc/b b'\nOr run systemlint fix --tags x/mode to make every change.\n\n"
     );
 }
 
@@ -561,11 +568,11 @@ fn rationale_and_references_reach_every_format_and_the_human_references_only_und
     let document = json!({"v": 1});
     let checks = lint(&document, &[rule], &[], "2026-11-11");
     assert_eq!(
-        lint_human(&document, &checks, true, false, false),
+        lint_human(&document, &checks, 0, true, false, false),
         "Warning (5.0): [x/drop] Dropped value\nWhy: a value [here] leaks.\n- v: 0 was expected.\nFix: drop it.\n\n"
     );
     assert_eq!(
-        lint_human(&document, &checks, true, true, false),
+        lint_human(&document, &checks, 0, true, true, false),
         "Warning (5.0): [x/drop] Dropped value\nWhy: a value [here] leaks.\n- v: 0 was expected.\nFix: drop it.\nSee: CIS 1.2 <https://example.org/cis>\nSee: Man page <https://example.org/man>\n\n"
     );
     let report: Value = serde_json::from_str(&lint_json(&document, &checks)).unwrap();
@@ -617,6 +624,7 @@ fn human_wraps_a_long_not_run_list_within_80_columns() {
     let text = lint_human(
         &document,
         &lint(&document, &rules, &[], "2026-11-11"),
+        0,
         true,
         false,
         false,
@@ -670,16 +678,16 @@ fn plain_prints_one_tab_separated_line_per_finding() {
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 5, "{text}");
     assert_eq!(
-        lines[0],
+        lines[2],
         "warning\t4.5\tapt/overlap\t/a.list:1\tlists some of the same suites and components as “/b.sources:1”.\tList each suite and component in one entry only, then run sudo apt update."
     );
     assert!(
-        lines[2].starts_with("error\t7.5\tapt/stale-suite\t/a.list:1\t"),
+        lines[0].starts_with("error\t7.5\tapt/stale-suite\t/a.list:1\t"),
         "{text}"
     );
     assert_eq!(
         lines[4],
-        "rating\tF\t\t\t2 errors, 2 warnings, 0 info · 2 pass\t"
+        "rating\tF\t\t\tErrors 2, Warnings 2, Info 0, Passed 2\t"
     );
     assert!(
         lines
@@ -723,7 +731,7 @@ fn a_subject_of_several_keys_shows_its_last_and_keeps_all_of_them_for_waivers() 
         checks[0].message.as_deref(),
         Some("/usr is owned by uid 1000")
     );
-    assert!(lint_human(&document, &checks, true, false, false).contains("\n- /usr: 1000.\n"));
+    assert!(lint_human(&document, &checks, 0, true, false, false).contains("\n- /usr: 1000.\n"));
     assert!(
         lint_plain(&document, &checks, true)
             .contains("\tfiles/owner\t/usr\tis owned by uid 1000.\t")
@@ -895,12 +903,15 @@ fn two_selected_rules_in_conflict_print_one_block_and_fail_nothing() {
             Some(Outcome::Fail)
         )
     );
-    let human = lint_human(&json!({}), &checks, false, false, false);
+    let human = lint_human(&json!({}), &checks, 0, false, false, false);
     let line = "Conflict: pw/keep (nist:5.1.1.2) and pw/rotate (cis:5.4.1.1) contradict each other, so none of them counts; keep the standard you follow by leaving the other out with --tags '!pw/keep' or '!pw/rotate'.\n";
     assert_eq!(human.matches("Conflict:").count(), 1, "{human}");
     assert!(human.contains(line), "{human}");
-    assert!(human.contains("1 error"), "only pw/other fails: {human}");
-    assert!(human.contains("2 conflict"), "{human}");
+    assert!(
+        human.contains("Errors            1\n"),
+        "only pw/other fails: {human}"
+    );
+    assert!(human.contains("Conflict          2\n"), "{human}");
     let conflicted: Vec<Check> = checks
         .iter()
         .filter(|c| c.rule != "pw/other")

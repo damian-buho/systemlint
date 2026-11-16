@@ -33,6 +33,15 @@ const EXIT_INPUT: u8 = 6;
 /// Exit code when the facts or the report can’t be written.
 const EXIT_OUTPUT: u8 = 7;
 
+/// Whether a line went to stderr before the report, which then needs a blank line above it.
+static NOTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Prints `line` on stderr ahead of the report, and records that it did.
+fn note(line: impl std::fmt::Display) {
+    NOTED.store(true, std::sync::atomic::Ordering::Relaxed);
+    eprintln!("{line}");
+}
+
 /// Exit code when the operating system can’t give a random hash key.
 const EXIT_INTERNAL: u8 = 70;
 
@@ -443,30 +452,27 @@ fn gather(
     )
     .filter(|_| !quiet)
     {
-        eprintln!("{line}");
+        note(line);
     }
     if collectors.is_empty() && !quiet {
-        eprintln!(
+        note(format!(
             "No collectors found. Searched: {}",
             collector::directories(&exe(), &config.collect.directories)
                 .iter()
                 .map(|d| d.display().to_string())
                 .collect::<Vec<_>>()
                 .join(", ")
-        );
+        ));
     }
     if let Some(outcomes) = document["collectors"].as_object() {
         for (id, outcome) in outcomes.iter().filter(|(_, o)| o["status"] == "error") {
-            eprintln!(
-                "{}",
-                traced(
-                    &trail::collector(id),
-                    format!(
-                        "collector {id}: {}",
-                        outcome["reason"].as_str().unwrap_or_default()
-                    )
-                )
-            );
+            note(traced(
+                &trail::collector(id),
+                format!(
+                    "collector {id}: {}",
+                    outcome["reason"].as_str().unwrap_or_default()
+                ),
+            ));
         }
     }
     Ok((document, refusals.is_empty()))
@@ -585,13 +591,12 @@ fn library(config: &Config, vars: &Vars) -> Result<Library, u8> {
     }
 }
 
-/// The selected rules compiled; with no `--tags` and unless `quiet`, one stderr line names the rules left out.
+/// The selected rules compiled, and how many rules a run with no `--tags` left out.
 fn compiled(
     library: &Library,
     selection: &Selection,
     config: &Config,
-    quiet: bool,
-) -> Result<Vec<Rule>, u8> {
+) -> Result<(Vec<Rule>, usize), u8> {
     let base = if selection.tags.is_empty() {
         &config.check.tags
     } else {
@@ -599,32 +604,23 @@ fn compiled(
     };
     let selected = trail::scoped(trail::CONFIG, || {
         library.select_for(base).and_then(|selected| {
-            let implicit = selection.tags.is_empty();
-            if let Some(line) = left_out(&selected.left_out).filter(|_| implicit && !quiet) {
-                eprintln!("{line}");
-            }
+            let left_out = left_out(&selected.left_out).filter(|_| selection.tags.is_empty());
             selected
                 .rules
                 .into_iter()
                 .map(|(id, spec)| judge::compile(&id, spec))
                 .collect::<Result<Vec<_>, _>>()
+                .map(|rules| (rules, left_out.unwrap_or_default()))
         })
     });
     selected.map_err(fail(trail::CONFIG, EXIT_CONFIG))
 }
 
-/// `12 rules not selected: performance (9), containers (3).`, with how to run them; none when nothing was left out.
-fn left_out(counts: &std::collections::BTreeMap<String, usize>) -> Option<String> {
+/// How many rules the selection left out, each ruleset’s count logged; none when nothing was.
+fn left_out(counts: &std::collections::BTreeMap<String, usize>) -> Option<usize> {
     let total: usize = counts.values().sum();
-    log::debug!("{total} rules not selected in {} rulesets", counts.len());
-    (total > 0).then(|| {
-        let each: Vec<String> = counts.iter().map(|(r, n)| format!("{r} ({n})")).collect();
-        format!(
-            "{} not selected: {}. Name them in --tags to run them.",
-            plural(total, "rule"),
-            each.join(", ")
-        )
-    })
+    log::debug!("{total} rules not selected: {counts:?}");
+    (total > 0).then_some(total)
 }
 
 /// The error `line`, then each debug record kept under `tag`, indented on its own line.
@@ -693,10 +689,10 @@ fn lint(
 ) -> u8 {
     let run = || -> Result<u8, u8> {
         let library = library(config, &selection.vars)?;
-        let rules = if library.definitions.is_empty() {
-            Vec::new()
+        let (rules, left_out) = if library.definitions.is_empty() {
+            (Vec::new(), 0)
         } else {
-            compiled(&library, selection, config, quiet)?
+            compiled(&library, selection, config)?
         };
         let fail_on = fail_on
             .or_else(|| config.check.fail_on.as_deref().and_then(|t| t.parse().ok()))
@@ -716,14 +712,14 @@ fn lint(
             rules.len()
         );
         if library.definitions.is_empty() && !quiet {
-            eprintln!(
+            note(format!(
                 "No rules found. Searched: {}",
                 rules::directories(&exe(), &config.check.directories)
                     .iter()
                     .map(|d| d.display().to_string())
                     .collect::<Vec<_>>()
                     .join(", ")
-            );
+            ));
         }
         let checks = judge::lint(&document, &rules, &config.check.waivers, &today(now));
         let terminal =
@@ -745,6 +741,7 @@ fn lint(
             Format::Human => report::lint_human(
                 &document,
                 &checks,
+                left_out,
                 quiet,
                 look.verbose,
                 report::colour(color, |n| std::env::var(n).ok(), terminal),
@@ -753,6 +750,12 @@ fn lint(
             Format::Sarif => report::lint_sarif(&document, &checks),
             Format::Textfile => report::lint_textfile(&document, &checks),
         };
+        if format == Format::Human
+            && output.is_none_or(|p| p == Path::new("-"))
+            && NOTED.load(std::sync::atomic::Ordering::Relaxed)
+        {
+            eprintln!();
+        }
         document::write(output.unwrap_or(Path::new("-")), &text, 0o644).map_err(|error| {
             eprintln!("{error}");
             EXIT_OUTPUT
@@ -802,10 +805,10 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
     }
     let run = || -> Result<u8, u8> {
         let library = library(config, &selection.vars)?;
-        let rules = if library.definitions.is_empty() {
-            Vec::new()
+        let (rules, _) = if library.definitions.is_empty() {
+            (Vec::new(), 0)
         } else {
-            compiled(&library, selection, config, quiet)?
+            compiled(&library, selection, config)?
         };
         let (document, trusted) = gather(config, root, None, quiet)?;
         let systemlint::fix::Plan { changes, kept } = systemlint::fix::plan(
