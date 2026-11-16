@@ -1802,6 +1802,37 @@ fn group_root_and_group_shadow_belong_to_no_account_but_their_own() {
 }
 
 #[test]
+fn a_system_account_below_uid_min_or_nobody_has_no_login_shell() {
+    let entry = |uid: u32, shell: bool| json!({"uid": uid, "login-shell": shell, "password": "shadow", "shadowed": []});
+    let document = accounts(
+        json!({"root": entry(0, true), "sync": entry(4, true), "postgres": entry(999, true), "daemon": entry(1, false),
+               "alice": entry(1000, true), "nobody": entry(65534, true), "high": entry(65533, true)}),
+        json!({}),
+        json!({}),
+    );
+    assert_eq!(
+        account_rule("accounts/system-login-shell", &document),
+        [
+            ("alice".into(), Outcome::Skip),
+            ("daemon".into(), Outcome::Pass),
+            ("high".into(), Outcome::Skip),
+            ("nobody".into(), Outcome::Fail),
+            ("postgres".into(), Outcome::Fail),
+        ],
+        "999 and 65534 are judged, 1000 and 65533 are not; root and sync are CIS’s exceptions"
+    );
+    let raised = account_rule_with(
+        "accounts/system-login-shell",
+        &document,
+        json!({"uid-min": 500}),
+    );
+    assert!(
+        raised.contains(&("postgres".into(), Outcome::Skip)),
+        "{raised:?}"
+    );
+}
+
+#[test]
 fn nologin_in_etc_shells_fails_unless_commented_out() {
     let shells = |lines: Value| {
         json!({"accounts": {"shells": {"/etc/shells": lines}},

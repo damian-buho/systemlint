@@ -9,6 +9,7 @@ vars:
   password-min-days: {default: 1}
   password-warn-days: {default: 7}
   password-inactive-days: {default: 45}
+  uid-min: {default: 1000}
 rules:
   accounts/uid-zero:
     title: An account other than root has uid 0
@@ -233,3 +234,17 @@ rules:
     fix: delete the nologin lines from {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shells.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.3.1]
+  accounts/system-login-shell:
+    title: A system account has a login shell
+    fact: accounts.passwd.*.login-shell
+    keys: {not: {enum: [root, halt, sync, shutdown, nfsnobody]}}
+    when:
+      - {accounts.passwd.*.uid: {exclusiveMaximum: "${uid-min}"}}
+      - {accounts.passwd.*.uid: 65534}
+    expect: {const: false}
+    severity: info
+    score: 2.0
+    message: "{subject} is a system account with a shell listed in /etc/shells, so anyone who gets its password or key gets a shell"
+    fix: run usermod --shell /usr/sbin/nologin {subject}, unless a person logs in as it on purpose
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
+    tags: [accounts, cis-ubuntu-26.04:5.4.2.7, '!default']
