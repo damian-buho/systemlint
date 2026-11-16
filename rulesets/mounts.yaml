@@ -202,3 +202,16 @@ rules:
     fix: add noexec to the mount’s options in /etc/fstab or its .mount unit, then run mount -o remount,noexec {subject}
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.6.4, cis-ubuntu-26.04:1.1.2.7.4, '!default']
+  mounts/proc-hidepid:
+    title: Every user sees every process
+    fact: mounts.active./proc.options
+    when: {mounts: {required: [active]}}
+    expect: {contains: {pattern: "^hidepid=([12]|noaccess|invisible)$"}}
+    severity: info
+    score: 1.0
+    message: "/proc is mounted without hidepid, so every user reads every other user’s processes and their command lines, a password passed as an argument included"
+    fix: "add hidepid=invisible,gid=<a group polkit and your monitoring run in> to /proc in /etc/fstab, then run mount -o remount /proc"
+    docs: https://docs.kernel.org/filesystems/proc.html#mount-options
+    references:
+      - {title: Lynis FILE-6344, url: "https://cisofy.com/lynis/controls/FILE-6344/"}
+    tags: [mounts, lynis, '!default']

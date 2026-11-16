@@ -391,6 +391,14 @@ The rule covers part of
 [`systemd-analyze security`](https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html),
 whose exposure score it does not reproduce.
 
+### USB devices
+
+`usb/authorized-default` (Lynis USB-2000, *standard-only*) fails a USB host
+controller whose `authorized_default`, which the live
+`usb-authorized-default` collector reads from `/sys/bus/usb/devices/usb*`
+through `lines`, is 1, so a newly plugged device works unapproved; 0 and 2
+(internal ports only) pass.
+
 ### Rescue shells
 
 `rescue/no-sulogin` fails `rescue.service` or `emergency.service` when an
@@ -454,6 +462,7 @@ incoming and outgoing policies pass as `DROP` or `REJECT`, either case:
 | `ufw/input-accepted` | warning | `DEFAULT_INPUT_POLICY` accepts, so every port no rule denies is open (CIS 4.1.3) |
 | `ufw/output-accepted` | info | `DEFAULT_OUTPUT_POLICY` accepts, as stock ufw does (CIS 4.1.4, *standard-only*, out of `default`) |
 | `ufw/routed-accepted` | info | `DEFAULT_FORWARD_POLICY` is other than `DROP`, whether or not the kernel forwards, as CIS reads the file then (CIS 4.1.5, *standard-only*, out of `default`) |
+| `ufw/logging-off` | info | ufw is enabled and `ufw.conf` sets `LOGLEVEL=off` (Lynis FIRE-4586, out of `default`) |
 
 ## Plain-text servers
 
@@ -527,6 +536,9 @@ not.
   `systemd-timesyncd.service`, `ntpsec.service` or `ntp.service`, and
   `timesync/stig-chrony-makestep` (600180) a `chrony.conf` with no
   `makestep 1 -1` line while chrony is installed.
+- `timesync/none-running` (Lynis TIME-3104) fails while none of
+  `systemd-timesyncd`, chrony, ntpsec, ntp or openntpd is active, and skips
+  under `--root`, where no unit has an active state.
 - `timesync/rtc-local` (STIG 901220) fails when `/etc/adjtime`, which the
   `rtc-adjtime` collector matches, says the hardware clock keeps `LOCAL`
   time; no such file means UTC.

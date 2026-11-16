@@ -5930,3 +5930,74 @@ fn stig_audit_mail_fips_rtc_and_ctrl_alt_del_pass_at_their_edge() {
     assert_eq!(target(true), Outcome::Pass);
     assert_eq!(target(false), Outcome::Fail);
 }
+
+#[test]
+fn lynis_singles_hidepid_ufw_logging_time_daemon_and_usb_pass_at_their_edge() {
+    let proc = |options: &[&str]| {
+        the(
+            "mounts/proc-hidepid",
+            &facts(&[("mounts.active", json!({"/proc": {"options": options}}))]),
+        )
+    };
+    assert_eq!(
+        proc(&["rw", "nosuid", "hidepid=invisible", "gid=27"]),
+        Outcome::Pass
+    );
+    assert_eq!(proc(&["rw", "hidepid=2"]), Outcome::Pass);
+    assert_eq!(proc(&["rw", "hidepid=0"]), Outcome::Fail);
+    assert_eq!(proc(&["rw", "nosuid"]), Outcome::Fail);
+    let ufw = |conf: Value| {
+        the(
+            "ufw/logging-off",
+            &facts(&[
+                ("ufw.binary", json!({"/usr/sbin/ufw": {"kind": "file"}})),
+                ("ufw.conf", conf),
+            ]),
+        )
+    };
+    assert_eq!(
+        ufw(json!({"ENABLED": "yes", "LOGLEVEL": "low"})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        ufw(json!({"ENABLED": "yes"})),
+        Outcome::Pass,
+        "unset is low"
+    );
+    assert_eq!(
+        ufw(json!({"ENABLED": "yes", "LOGLEVEL": "off"})),
+        Outcome::Fail
+    );
+    assert_eq!(
+        ufw(json!({"ENABLED": "no", "LOGLEVEL": "off"})),
+        Outcome::Skip
+    );
+    let time = |units: Value| the("timesync/none-running", &facts(&[("systemd.state", units)]));
+    assert_eq!(
+        time(json!({"chrony.service": {"active": "active"}, "cron.service": {"active": "active"}})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        time(
+            json!({"systemd-timesyncd.service": {"active": "inactive"}, "cron.service": {"active": "active"}})
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        time(json!({"systemd-timesyncd.service": {"enabled": true}})),
+        Outcome::Skip,
+        "under --root no unit runs"
+    );
+    let usb = |lines: &[&str]| {
+        the(
+            "usb/authorized-default",
+            &facts(&[(
+                "usb.authorized-default",
+                json!({"/sys/bus/usb/devices/usb1/authorized_default": lines}),
+            )]),
+        )
+    };
+    assert_eq!(usb(&["0"]), Outcome::Pass);
+    assert_eq!(usb(&["2"]), Outcome::Pass, "internal ports only");
+    assert_eq!(usb(&["1"]), Outcome::Fail);
+}

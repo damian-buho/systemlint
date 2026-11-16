@@ -15,7 +15,9 @@ rules:
     message: "{subject} is on disk: NIS sends account maps, password hashes included, unencrypted to any host that binds to the domain"
     fix: remove the package that ships {subject} (apt purge nis ypbind-mt yp-tools), unless this host is an NIS client on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ypbind.8.html
-    tags: [clients, cis-ubuntu-26.04:2.2.1]
+    references:
+      - {title: Lynis INSE-8314, url: "https://cisofy.com/lynis/controls/INSE-8314/"}
+    tags: [clients, lynis, cis-ubuntu-26.04:2.2.1]
   clients/rsh:
     title: An rsh client is on disk
     fact: clients.binaries.*
@@ -26,7 +28,9 @@ rules:
     message: "{subject} is on disk: rsh, rcp and rlogin send the session, and rlogin a password, in plain text"
     fix: remove the package that ships {subject} (apt purge rsh-client) and use ssh, scp or sftp
     docs: https://manpages.debian.org/bookworm/rsh-client/netkit-rsh.1.en.html
-    tags: [clients, cis-ubuntu-26.04:2.2.2]
+    references:
+      - {title: Lynis INSE-8300, url: "https://cisofy.com/lynis/controls/INSE-8300/"}
+    tags: [clients, lynis, cis-ubuntu-26.04:2.2.2]
   clients/talk:
     title: A talk client is on disk
     fact: clients.binaries.*
@@ -48,7 +52,9 @@ rules:
     message: "{subject} is on disk: telnet sends the session, password included, in plain text"
     fix: remove the package that ships {subject} (apt purge telnet inetutils-telnet telnet-ssl) and use ssh
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/inetutils-telnet.1.html
-    tags: [clients, cis-ubuntu-26.04:2.2.4]
+    references:
+      - {title: Lynis INSE-8310, url: "https://cisofy.com/lynis/controls/INSE-8310/"}
+    tags: [clients, lynis, cis-ubuntu-26.04:2.2.4]
   clients/ldap:
     title: The OpenLDAP command-line clients are on disk
     fact: clients.binaries.*
@@ -70,4 +76,6 @@ rules:
     message: "{subject} is on disk: FTP sends the password in plain text, and TFTP has no login at all"
     fix: remove the package that ships {subject} (apt purge ftp tnftp atftp inetutils-ftp ftp-ssl) and use sftp, scp or curl
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/tnftp.1.html
-    tags: [clients, cis-ubuntu-26.04:2.2.6]
+    references:
+      - {title: Lynis INSE-8318, url: "https://cisofy.com/lynis/controls/INSE-8318/"}
+    tags: [clients, lynis, cis-ubuntu-26.04:2.2.6]

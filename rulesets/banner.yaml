@@ -14,7 +14,10 @@ rules:
     message: "{subject} holds an agetty escape (\\s, \\r, \\v or \\m), so whoever reaches the login prompt reads the operating system, kernel release or architecture"
     fix: remove the \s, \r, \v and \m escapes from the file
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/agetty.8.html
-    tags: ['!default', banner, cis-ubuntu-26.04:1.6.1, cis-ubuntu-26.04:1.6.2, cis-ubuntu-26.04:1.6.3, cis-ubuntu-26.04:1.6.4, cis-ubuntu-26.04:1.6.5]
+    references:
+      - {title: Lynis BANN-7126, url: "https://cisofy.com/lynis/controls/BANN-7126/"}
+      - {title: Lynis BANN-7130, url: "https://cisofy.com/lynis/controls/BANN-7130/"}
+    tags: ['!default', banner, lynis, cis-ubuntu-26.04:1.6.1, cis-ubuntu-26.04:1.6.2, cis-ubuntu-26.04:1.6.3, cis-ubuntu-26.04:1.6.4, cis-ubuntu-26.04:1.6.5]
   banner/writable:
     title: Login banner writable by other users
     facts:

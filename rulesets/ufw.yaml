@@ -103,3 +103,16 @@ rules:
     fix: run ufw default deny routed, then ufw route allow each forward the host needs
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.5, '!default']
+  ufw/logging-off:
+    title: ufw logs no blocked packet
+    fact: ufw.conf
+    when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes"}
+    expect: {properties: {LOGLEVEL: {not: {pattern: "(?i)^off$"}}}}
+    severity: info
+    score: 1.0
+    message: "/etc/ufw/ufw.conf sets LOGLEVEL=off, so a blocked probe or a refused connection leaves no trace"
+    fix: run ufw logging low
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
+    references:
+      - {title: Lynis FIRE-4586, url: "https://cisofy.com/lynis/controls/FIRE-4586/"}
+    tags: [ufw, firewall, lynis, '!default']

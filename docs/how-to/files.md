@@ -280,6 +280,7 @@ active table, a `--root` run the declared one:
 | `mounts/nosuid`, `mounts/fstab-nosuid` | warning | the mount lacks `nosuid`, so a set-user-ID file left there runs with its owner’s rights |
 | `mounts/nodev`, `mounts/fstab-nodev` | warning | the mount lacks `nodev`, so a device file unpacked there opens the device it names |
 | `mounts/noexec`, `mounts/fstab-noexec` | warning | the mount lacks `noexec`, so a program dropped there runs straight from it |
+| `mounts/proc-hidepid` | info | `/proc` is mounted without `hidepid=1`, `2`, `noaccess` or `invisible`, so every user reads every process’s command line (Lynis FILE-6344, out of `default`: polkit and monitoring need a `gid=` group) |
 
 Stock Debian and Ubuntu mount `/tmp` and `/dev/shm` without `noexec`, and fail
 `mounts/noexec` all the same. An interpreter still runs a script from a

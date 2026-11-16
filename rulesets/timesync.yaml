@@ -119,3 +119,22 @@ rules:
     fix: run timedatectl set-local-rtc 0
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/adjtime_config.5.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-901220]
+  timesync/none-running:
+    title: No time daemon is running
+    fact: systemd.state
+    when: {systemd.state: {not: {additionalProperties: {not: {required: [active]}}}}}
+    expect:
+      anyOf:
+        - {required: [systemd-timesyncd.service], properties: {systemd-timesyncd.service: {required: [active], properties: {active: {const: active}}}}}
+        - {required: [chrony.service], properties: {chrony.service: {required: [active], properties: {active: {const: active}}}}}
+        - {required: [ntpsec.service], properties: {ntpsec.service: {required: [active], properties: {active: {const: active}}}}}
+        - {required: [ntp.service], properties: {ntp.service: {required: [active], properties: {active: {const: active}}}}}
+        - {required: [openntpd.service], properties: {openntpd.service: {required: [active], properties: {active: {const: active}}}}}
+    severity: info
+    score: 2.0
+    message: "none of systemd-timesyncd, chrony, ntpsec, ntp or openntpd is running, so the clock drifts and log times stop matching other hosts’"
+    fix: run systemctl enable --now systemd-timesyncd.service, or install and start chrony
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
+    references:
+      - {title: Lynis TIME-3104, url: "https://cisofy.com/lynis/controls/TIME-3104/"}
+    tags: [timesync, lynis]

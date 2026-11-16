@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: USB host controllers that let every newly plugged device talk to the host
+tags: [default]
+rules:
+  usb/authorized-default:
+    title: Every new USB device is authorized on plugging
+    fact: usb.authorized-default.*
+    expect: {not: {contains: {const: "1"}}}
+    severity: info
+    score: 1.0
+    message: "{subject} is 1, so a device plugged into that controller, a keyboard that types commands among them, works before anyone approves it"
+    fix: authorize devices with usbguard, or write 0 (none) or 2 (internal ports only) to the authorized_default files from a udev rule
+    docs: https://docs.kernel.org/usb/authorization.html
+    references:
+      - {title: Lynis USB-2000, url: "https://cisofy.com/lynis/controls/USB-2000/"}
+    tags: [usb, lynis, '!default']
