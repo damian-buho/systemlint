@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: grub-users
+read:
+  files: [/boot/grub/grub.cfg]
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^\s*(?:set\s+)?(?P<key>superusers|password_pbkdf2)[\s=]'}
+into: grub.users

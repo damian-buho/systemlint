@@ -5,5 +5,5 @@
 id: chrony-conf
 read:
   files: [/etc/chrony/chrony.conf, /etc/chrony.conf]
-parse: {plugin: formats, op: words, with: {comments: ["#", "!", ";", "%"], directives: [server, pool, confdir, sourcedir], repeat: append}}
+parse: {plugin: formats, op: words, with: {comments: ["#", "!", ";", "%"], directives: [server, pool, confdir, sourcedir, makestep], repeat: append}}
 into: chrony.conf

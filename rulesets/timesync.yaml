@@ -68,3 +68,44 @@ rules:
     fix: run systemctl enable --now {subject}, or mask it if another time daemon keeps the clock
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/chronyd.8.html
     tags: [timesync, cis-ubuntu-26.04:2.3.3.3]
+  timesync/stig-chrony-missing:
+    title: chrony is not the time daemon
+    fact: systemd.state
+    expect: {required: [chrony.service], properties: {chrony.service: *installed}}
+    severity: info
+    score: 1.0
+    message: "chrony.service is not on disk, or is masked; the STIG asks for chrony as the time daemon"
+    fix: install chrony (apt install chrony), which replaces systemd-timesyncd
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/chronyd.8.html
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-100700]
+  timesync/stig-timesyncd-present:
+    title: systemd-timesyncd is installed
+    fact: systemd.state
+    expect: {properties: {systemd-timesyncd.service: *absent}}
+    severity: info
+    score: 1.0
+    message: "systemd-timesyncd.service is on disk and not masked; the STIG asks that only chrony keep the clock"
+    fix: install chrony, which removes systemd-timesyncd, or run systemctl mask --now systemd-timesyncd.service
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-100010]
+  timesync/stig-ntp-present:
+    title: An ntp daemon is installed
+    fact: systemd.state
+    expect: {properties: {ntpsec.service: *absent, ntp.service: *absent}}
+    severity: info
+    score: 1.0
+    message: "ntpsec.service or ntp.service is on disk and not masked; the STIG asks that only chrony keep the clock"
+    fix: remove the ntp daemon (apt purge ntpsec ntp) and install chrony
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/ntpd.8.html
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-100020]
+  timesync/stig-chrony-makestep:
+    title: chrony slews a large clock error instead of stepping it
+    fact: chrony.conf
+    when: *chrony
+    expect: {not: {additionalProperties: {not: {required: [makestep], properties: {makestep: {anyOf: [{const: [1, -1]}, {const: ["1.0", -1]}]}}}}}}
+    severity: info
+    score: 1.0
+    message: "chrony.conf has no makestep 1 -1 line, so chrony corrects a clock off by more than a second slowly, leaving log times wrong meanwhile"
+    fix: add makestep 1 -1 to /etc/chrony/chrony.conf, then run systemctl restart chrony.service
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
+    tags: [timesync, stig-ubuntu-26.04:UBTU-24-600180]

@@ -96,6 +96,11 @@ thresholds are systemlint’s own.
 | `ssh/access-unlisted` | CIS 5.1.5 | info | none of `AllowUsers`, `AllowGroups`, `DenyUsers`, `DenyGroups` is set (*standard-only*) |
 | `ssh/banner-none` | CIS 5.1.6 | info | `Banner` is `none` (*standard-only*) |
 | `ssh/client-alive-interval`, `ssh/client-alive-count-max` | CIS 5.1.8 | info | `ClientAliveInterval` or `ClientAliveCountMax` is 0 (*standard-only*) |
+| `ssh/stig-client-alive-interval` | STIG 600010 | info | `ClientAliveInterval` is 0 or above `ssh-stig-client-alive-interval` (600) (*standard-only*) |
+| `ssh/stig-client-alive-count-max` | STIG 600000 | info | `ClientAliveCountMax` is not 1 (*standard-only*) |
+| `ssh/x11-use-localhost` | STIG 300023 | warning | `X11UseLocalhost` is not `yes`, so a forwarded display listens on the network |
+| `ssh/stig-not-installed` | STIG 100800 | info | no `sshd` is on disk, which the `ssh-binary` collector stats into `ssh.binary` (*standard-only*) |
+| `ssh/stig-not-running` | STIG 100810 | info | `sshd` is on disk and neither `ssh.service` nor `ssh.socket` is both enabled and active (*standard-only*) |
 | `ssh/max-sessions` | CIS 5.1.19 | info | `MaxSessions` is above `ssh-max-sessions` (10) (*standard-only*) |
 | `ssh/max-startups` | CIS 5.1.20 | info | `MaxStartups` is looser than `10:30:60`: a start above 10, a rate below 30 or a full above 60 (*standard-only*; stock is `10:30:100`) |
 | `ssh/macs` | sshd-03 | warning | `MACs` offers MD5, SHA-1, a 96-bit or a 64-bit UMAC tag |

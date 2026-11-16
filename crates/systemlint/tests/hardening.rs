@@ -5430,3 +5430,326 @@ fn stig_file_modes_and_owners_pass_at_their_edge_and_fail_one_bit_beyond() {
         );
     }
 }
+
+// A facts document holding each (into, facts) pair, every collector named by its into ok.
+fn facts(pairs: &[(&str, Value)]) -> Value {
+    let mut document = json!({"collectors": {}});
+    for (into, facts) in pairs {
+        let mut at = &mut document;
+        for part in into.split('.') {
+            at = &mut at[part];
+        }
+        *at = facts.clone();
+        document["collectors"][into.replace('.', "-")] = json!({"status": "ok", "into": into});
+    }
+    document
+}
+
+// The one outcome a rule gives over `document`, each rule it conflicts with left out.
+fn the(rule: &str, document: &Value) -> Outcome {
+    let ruleset = rule.split('/').next().unwrap();
+    let found: Vec<_> = selected(ruleset, &keeping(ruleset, rule), document, json!({}))
+        .into_iter()
+        .filter(|c| c.rule == rule)
+        .map(|c| c.outcome)
+        .collect();
+    assert_eq!(found.len(), 1, "{rule}: {found:?}");
+    found[0]
+}
+
+#[test]
+fn tools_the_stig_asks_for_fail_off_disk_or_off_and_pass_once_present_and_running() {
+    let on = json!({"/usr/sbin/x": {"kind": "file"}});
+    let aide = |into: &str, value: Value| {
+        the(
+            &format!("aide/{into}"),
+            &facts(&[
+                ("aide.binary", on.clone()),
+                (
+                    &format!(
+                        "aide.{}",
+                        match into {
+                            "no-config" => "config",
+                            "no-database" => "database",
+                            _ => "default",
+                        }
+                    ),
+                    value,
+                ),
+            ]),
+        )
+    };
+    assert_eq!(aide("no-config", json!({})), Outcome::Fail);
+    assert_eq!(aide("no-config", on.clone()), Outcome::Pass);
+    assert_eq!(aide("no-database", json!({})), Outcome::Fail);
+    assert_eq!(aide("no-database", on.clone()), Outcome::Pass);
+    assert_eq!(
+        aide("silent-reports", json!({"SILENTREPORTS": "no"})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        aide("silent-reports", json!({"SILENTREPORTS": "yes"})),
+        Outcome::Fail
+    );
+    assert_eq!(aide("silent-reports", json!({})), Outcome::Fail);
+    assert_eq!(
+        the(
+            "aide/no-database",
+            &facts(&[("aide.binary", json!({})), ("aide.database", json!({}))])
+        ),
+        Outcome::Skip
+    );
+    let remote = |conf: Value| {
+        the(
+            "auditd/stig-no-remote",
+            &facts(&[("auditd.binary", on.clone()), ("auditd.remote", conf)]),
+        )
+    };
+    assert_eq!(
+        remote(json!({"active": "yes", "remote_server": "10.0.0.9"})),
+        Outcome::Pass
+    );
+    assert_eq!(
+        remote(json!({"active": "no", "remote_server": "10.0.0.9"})),
+        Outcome::Fail
+    );
+    assert_eq!(
+        remote(json!({"active": "yes", "remote_server": ""})),
+        Outcome::Fail
+    );
+    assert_eq!(remote(json!({})), Outcome::Fail);
+    assert_eq!(
+        the("sudo/not-installed", &facts(&[("sudo.binary", json!({}))])),
+        Outcome::Fail
+    );
+    assert_eq!(
+        the("sudo/not-installed", &facts(&[("sudo.binary", on.clone())])),
+        Outcome::Pass
+    );
+    assert_eq!(
+        the(
+            "sudo/invalid-sudoers",
+            &facts(&[
+                ("sudo.binary", json!({})),
+                ("sudo.check", json!({"exit-status": 1}))
+            ])
+        ),
+        Outcome::Skip,
+        "the other sudo rules wait for sudo on disk"
+    );
+    assert_eq!(
+        the(
+            "ssh/stig-not-installed",
+            &facts(&[("ssh.binary", json!({}))])
+        ),
+        Outcome::Fail
+    );
+    let running = |units: Value| {
+        the(
+            "ssh/stig-not-running",
+            &facts(&[("ssh.binary", on.clone()), ("systemd.state", units)]),
+        )
+    };
+    let up = json!({"enabled": true, "masked": false, "active": "active"});
+    assert_eq!(running(json!({"ssh.socket": up})), Outcome::Pass);
+    assert_eq!(running(json!({"ssh.service": up})), Outcome::Pass);
+    assert_eq!(
+        running(json!({"ssh.service": {"enabled": true, "active": "inactive"}})),
+        Outcome::Fail
+    );
+    assert_eq!(running(json!({})), Outcome::Fail);
+    assert_eq!(
+        the(
+            "session-lock/no-vlock",
+            &facts(&[("session-lock.vlock", json!({}))])
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        the(
+            "session-lock/no-vlock",
+            &facts(&[("session-lock.vlock", on)])
+        ),
+        Outcome::Pass
+    );
+}
+
+#[test]
+fn sshd_stig_keepalive_and_x11_use_localhost_pass_at_their_edge() {
+    let one = |rule: &str, keyword: &str, value: Value| {
+        the(
+            rule,
+            &facts(&[(
+                "sshd.settings",
+                json!({keyword: {"/etc/ssh/sshd_config": value}}),
+            )]),
+        )
+    };
+    assert_eq!(
+        one(
+            "ssh/stig-client-alive-interval",
+            "clientaliveinterval",
+            json!(600)
+        ),
+        Outcome::Pass
+    );
+    assert_eq!(
+        one(
+            "ssh/stig-client-alive-interval",
+            "clientaliveinterval",
+            json!(601)
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one(
+            "ssh/stig-client-alive-interval",
+            "clientaliveinterval",
+            json!(0)
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one(
+            "ssh/stig-client-alive-count-max",
+            "clientalivecountmax",
+            json!(1)
+        ),
+        Outcome::Pass
+    );
+    assert_eq!(
+        one(
+            "ssh/stig-client-alive-count-max",
+            "clientalivecountmax",
+            json!(3)
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one("ssh/x11-use-localhost", "x11uselocalhost", json!("yes")),
+        Outcome::Pass
+    );
+    assert_eq!(
+        one("ssh/x11-use-localhost", "x11uselocalhost", json!("no")),
+        Outcome::Fail
+    );
+}
+
+#[test]
+fn the_stig_time_daemon_is_chrony_alone_stepping_past_one_second() {
+    let installed = json!({"enabled": true, "masked": false});
+    let state = |units: &[&str]| {
+        Value::Object(
+            units
+                .iter()
+                .map(|u| (u.to_string(), installed.clone()))
+                .collect(),
+        )
+    };
+    let one = |rule: &str, units: &[&str]| the(rule, &facts(&[("systemd.state", state(units))]));
+    assert_eq!(
+        one("timesync/stig-chrony-missing", &["chrony.service"]),
+        Outcome::Pass
+    );
+    assert_eq!(one("timesync/stig-chrony-missing", &[]), Outcome::Fail);
+    assert_eq!(
+        one("timesync/stig-timesyncd-present", &["chrony.service"]),
+        Outcome::Pass
+    );
+    assert_eq!(
+        one(
+            "timesync/stig-timesyncd-present",
+            &["systemd-timesyncd.service"]
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one("timesync/stig-ntp-present", &["ntpsec.service"]),
+        Outcome::Fail
+    );
+    assert_eq!(one("timesync/stig-ntp-present", &[]), Outcome::Pass);
+    let masked = facts(&[(
+        "systemd.state",
+        json!({"ntpsec.service": {"enabled": false, "masked": true}}),
+    )]);
+    assert_eq!(the("timesync/stig-ntp-present", &masked), Outcome::Pass);
+    let makestep = |text: &str| {
+        let file = Input::File(
+            serde_json::from_value(json!({"path": "/etc/chrony/chrony.conf", "content": text}))
+                .unwrap(),
+        );
+        let with = json!({"comments": ["#", "!", ";", "%"], "directives": ["server", "pool", "confdir", "sourcedir", "makestep"], "repeat": "append"});
+        let conf = systemlint_formats::words(&[file], with.as_object().unwrap())
+            .unwrap()
+            .facts;
+        the(
+            "timesync/stig-chrony-makestep",
+            &facts(&[
+                ("systemd.state", state(&["chrony.service"])),
+                ("chrony.conf", serde_json::to_value(conf).unwrap()),
+            ]),
+        )
+    };
+    assert_eq!(
+        makestep("pool ntp.ubuntu.com iburst\nmakestep 1 -1\n"),
+        Outcome::Pass
+    );
+    assert_eq!(makestep("makestep 1.0 -1\n"), Outcome::Pass);
+    assert_eq!(
+        makestep("makestep 1 3\n"),
+        Outcome::Fail,
+        "Ubuntu’s stock line steps only in the first updates"
+    );
+    assert_eq!(makestep("pool ntp.ubuntu.com iburst\n"), Outcome::Fail);
+}
+
+#[test]
+fn grub_passes_only_with_superusers_and_a_pbkdf2_password_and_never_keeps_the_hash() {
+    let grub = |text: &str| {
+        let file = Input::File(
+            serde_json::from_value(json!({"path": "/boot/grub/grub.cfg", "content": text}))
+                .unwrap(),
+        );
+        let with = json!({"pattern": r"^\s*(?:set\s+)?(?P<key>superusers|password_pbkdf2)[\s=]"});
+        let users = systemlint_formats::r#match(&[file], with.as_object().unwrap())
+            .unwrap()
+            .facts;
+        assert!(
+            !serde_json::to_string(&users)
+                .unwrap()
+                .contains("grub.pbkdf2"),
+            "{users:?}"
+        );
+        the(
+            "grub/no-password",
+            &facts(&[
+                (
+                    "files.boot",
+                    json!({"/boot/grub/grub.cfg": {"kind": "file"}}),
+                ),
+                ("grub.users", serde_json::to_value(users).unwrap()),
+            ]),
+        )
+    };
+    let hash = "grub.pbkdf2.sha512.10000.AB.CD";
+    assert_eq!(
+        grub(&format!(
+            "set superusers=\"root\"\npassword_pbkdf2 root {hash}\n"
+        )),
+        Outcome::Pass
+    );
+    assert_eq!(
+        grub(&format!("  password_pbkdf2 root {hash}\n")),
+        Outcome::Fail,
+        "no superuser, no check"
+    );
+    assert_eq!(grub("set superusers=\"root\"\n"), Outcome::Fail);
+    assert_eq!(grub("menuentry 'Ubuntu' {\n}\n"), Outcome::Fail);
+    assert_eq!(
+        the(
+            "grub/no-password",
+            &facts(&[("files.boot", json!({})), ("grub.users", json!({}))])
+        ),
+        Outcome::NotApplicable
+    );
+}

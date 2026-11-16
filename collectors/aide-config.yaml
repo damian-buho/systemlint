@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: aide-config
+read:
+  stat: [/etc/aide/aide.conf, /etc/aide.conf]
+  stat-keep: {properties: {kind: {const: file}}}
+parse: {plugin: formats, op: stat}
+into: aide.config

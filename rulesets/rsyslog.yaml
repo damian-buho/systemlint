@@ -20,7 +20,7 @@ rules:
     message: "{subject} is not both enabled and running, so nothing writes the log files in /var/log or forwards them to a log host"
     fix: run systemctl enable --now {subject}, or remove rsyslog if the journal is the chosen logger
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
-    tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.2]
+    tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.2, stig-ubuntu-26.04:UBTU-24-100200]
   rsyslog/no-tls-driver:
     title: rsyslog has no TLS network stream driver
     fact: rsyslog.tls-drivers

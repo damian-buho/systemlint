@@ -4,11 +4,21 @@
 
 description: sudo grants that skip the password, and sudoers lines sudo skips as broken
 tags: [default]
-when: {sudo.binary: {minProperties: 1}}
 rules:
+  sudo/not-installed:
+    title: No sudo on disk
+    fact: sudo.binary
+    expect: {minProperties: 1}
+    severity: info
+    score: 1.0
+    message: "no sudo program is in /usr/bin, /bin or /usr/local/bin, so administrators share root’s password and leave no record of who ran what"
+    fix: install sudo (apt install sudo), then grant administrators through /etc/sudoers.d with visudo
+    docs: https://www.sudo.ws/docs/man/sudo.man/
+    tags: [sudo, cis-ubuntu-26.04:5.2.1, '!default']
   sudo/nopasswd:
     title: Account runs sudo commands without a password
     fact: sudo.grants.*
+    when: {sudo.binary: {minProperties: 1}}
     expect: {additionalProperties: {properties: {commands: {not: {pattern: "(^|, )NOPASSWD: "}}}}}
     severity: warning
     score: 6.0
@@ -19,6 +29,7 @@ rules:
   sudo/invalid-sudoers:
     title: sudoers file sudo cannot parse
     fact: sudo.check.exit-status
+    when: {sudo.binary: {minProperties: 1}}
     expect: {const: 0}
     severity: warning
     score: 4.0

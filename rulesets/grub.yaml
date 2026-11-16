@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: A GRUB menu anyone at the console may edit to boot a root shell
+tags: [default]
+when: {files.boot: {required: [/boot/grub/grub.cfg]}}
+rules:
+  grub/no-password:
+    title: GRUB asks no password to edit a boot entry
+    fact: grub.users
+    expect: {required: [superusers, password_pbkdf2]}
+    severity: info
+    score: 2.0
+    message: "/boot/grub/grub.cfg sets no superusers with a password_pbkdf2 hash, so anyone at the console may edit a boot entry, add init=/bin/sh and get a root shell"
+    fix: "run grub-mkpasswd-pbkdf2, add set superusers=\"<name>\" and password_pbkdf2 <name> <hash> to /etc/grub.d/40_custom, then run update-grub"
+    docs: https://www.gnu.org/software/grub/manual/grub/html_node/Authentication-and-authorisation.html
+    references:
+      - {title: Lynis BOOT-5122, url: "https://cisofy.com/lynis/controls/BOOT-5122/"}
+    tags: [boot, cis-ubuntu-26.04:1.4.1, lynis, stig-ubuntu-26.04:UBTU-24-102000, '!default']

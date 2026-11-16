@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: No way for a user to lock a text session they step away from
+tags: [default]
+rules:
+  session-lock/no-vlock:
+    title: No vlock on disk
+    fact: session-lock.vlock
+    expect: {minProperties: 1}
+    severity: info
+    score: 1.0
+    message: "no vlock program is in /usr/bin or /usr/local/bin, so a user at a text console has no command to lock it"
+    fix: install vlock (apt install vlock)
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/vlock.1.html
+    tags: [session-lock, stig-ubuntu-26.04:UBTU-24-101000, '!default']

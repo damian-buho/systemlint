@@ -261,6 +261,7 @@ carry `default`, the others the CIS control alone:
 | `auditd/log-directory-mode` | warning | `/var/log/audit` is group-writable or reaches other users |
 | `auditd/stig-log-mode` | info | an audit log is wider than 0600 (STIG only) |
 | `auditd/stig-log-group` | info | an audit log is in a group other than root (STIG only) |
+| `auditd/stig-no-remote` | info | `au-remote.conf` does not set `active = yes`, or `audisp-remote.conf` names no `remote_server`, both read by `auditd-remote` through `kv` (STIG only) |
 
 auditd compares keywords and values without case (`auditd-config.c`), so the
 rules match `(?i)`; an unset key takes auditd’s default (`rotate`, `suspend`,
@@ -276,11 +277,17 @@ alike in a parameter name, so `audit-backlog-limit=8192` passes too.
 
 ## AIDE
 
-The `aide` ruleset carries CIS controls alone: `aide/not-installed` fails when
+The `aide` ruleset carries standard controls alone: `aide/not-installed` fails when
 `aide-binary` finds no `aide` program, and `aide/unscheduled`, once it does,
 when `dailyaidecheck.timer` is missing, not enabled or not active, or
 `dailyaidecheck.service` is masked. Under `--root` no unit has an active
-state, so the timer passes on being enabled.
+state, so the timer passes on being enabled. Once aide is on disk,
+`aide/no-config` (Lynis FINT-4315) fails without `/etc/aide/aide.conf` or
+`/etc/aide.conf` (`aide-config`), `aide/no-database` (Lynis FINT-4316, STIG
+100110) without `/var/lib/aide/aide.db` (`aide-database`), and
+`aide/silent-reports` (STIG 100130, *standard-only*) while
+`/etc/default/aide`, read through `kv` by `aide-default`, leaves
+`SILENTREPORTS` unset or other than `no`.
 
 ## AppArmor
 
@@ -507,6 +514,12 @@ not.
   is in `chrony.conf`, which the `chrony-conf` collector reads into
   `chrony.conf`, or in a file its `confdir` and `sourcedir` lines name, which
   `chrony-sources` reads into `chrony.sources`.
+- the STIG’s choice of chrony alone: `timesync/stig-chrony-missing` (100700)
+  fails without an unmasked `chrony.service`, `timesync/stig-timesyncd-present`
+  (100010) and `timesync/stig-ntp-present` (100020) an unmasked
+  `systemd-timesyncd.service`, `ntpsec.service` or `ntp.service`, and
+  `timesync/stig-chrony-makestep` (600180) a `chrony.conf` with no
+  `makestep 1 -1` line while chrony is installed.
 
 ```yaml
 chrony:

@@ -94,6 +94,13 @@ depends on its environment, which these collectors do not read.
 | `files/library-directory-group` | info | a library directory is in a group other than root (STIG only) |
 | `files/command-group` | info | a system command is in a group above `system-gid-max` (999) (STIG only) |
 
+The `grub` ruleset applies where `/boot/grub/grub.cfg` exists. The
+`grub-users` collector matches its `superusers` and `password_pbkdf2` lines
+through `match`, keeping the keyword alone, never the user or the hash, and
+`grub/no-password` (CIS 1.4.1, Lynis BOOT-5122, STIG 102000, *standard-only*)
+fails unless both are there. `session-lock/no-vlock` (STIG 101000,
+*standard-only*) fails without a `vlock` program (`vlock-binary`).
+
 A subject of the first three rules is the group and the path, such as
 `sudoers, /etc/sudoers.d/deploy`. “0640 or stricter” means no execute bit, no
 special bit, a group that may only read and no access for others, so 0600 and

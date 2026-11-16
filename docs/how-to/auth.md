@@ -142,8 +142,9 @@ stays one line.
 | --- | --- |
 | `sudo/nopasswd` | a grant to the account carries the `NOPASSWD` tag, so a program running as it gets the rights unasked |
 | `sudo/invalid-sudoers` | `visudo --check` exits non-zero: both implementations skip a line they cannot parse and run on without it |
+| `sudo/not-installed` | no `sudo` program is on disk (CIS 5.2.1, *standard-only*) |
 
-The ruleset is not applicable without `sudo` on disk. The tag is matched
+Every rule but `sudo/not-installed` skips a host without `sudo` on disk. The tag is matched
 where sudo prints one, after the runas list or a comma and a blank; under
 sudo-rs, which prints an escaped comma bare, a command argument written as
 `x\, NOPASSWD: y` would read as a tag.

@@ -14,7 +14,7 @@ rules:
     message: "no ufw program is in /usr/sbin, /sbin or /usr/local/sbin; the benchmark asks for ufw as the host firewall"
     fix: install ufw (apt install ufw), allow your own SSH session with ufw allow ssh, then run ufw enable
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
-    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.1, '!default']
+    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.1, stig-ubuntu-26.04:UBTU-24-100300, '!default']
   ufw/disabled:
     title: ufw installed but switched off
     fact: ufw.conf.ENABLED

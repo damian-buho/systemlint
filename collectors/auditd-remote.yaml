@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: auditd-remote
+read:
+  files: [/etc/audit/plugins.d/au-remote.conf, /etc/audit/audisp-remote.conf]
+parse: {plugin: formats, op: kv, with: {repeat: last}}
+into: auditd.remote

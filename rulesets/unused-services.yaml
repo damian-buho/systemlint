@@ -108,7 +108,7 @@ rules:
     message: "{subject} is enabled or running: the NFS server exports file systems to the network, a service to leave off unless this host offers it"
     fix: run systemctl mask --now {subject}, or remove its package, unless this host serves it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/nfsd.8.html
-    tags: [services, cis-ubuntu-26.04:2.1.9]
+    tags: [services, cis-ubuntu-26.04:2.1.9, stig-ubuntu-26.04:UBTU-24-100050]
   unused-services/print-server:
     title: The CUPS print server is enabled or running
     fact: systemd.state.*

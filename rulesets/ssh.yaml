@@ -8,6 +8,7 @@ vars:
   ssh-max-sessions: {default: 10}
   ssh-max-auth-tries: {default: 4}
   ssh-login-grace-time: {default: 60}
+  ssh-stig-client-alive-interval: {default: 600}
 rules:
   ssh/root-login:
     title: Root may log in with a password
@@ -288,3 +289,57 @@ rules:
     fix: set UsePAM yes
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.24, stig-ubuntu-26.04:UBTU-24-500050]
+  ssh/x11-use-localhost:
+    title: Forwarded X11 displays listen on every address
+    fact: sshd.settings.x11uselocalhost.*
+    expect: {const: "yes"}
+    severity: warning
+    score: 3.0
+    message: "{subject} has X11UseLocalhost {got}, so a forwarded X11 display listens on the network, where any host may connect to the user’s session"
+    fix: set X11UseLocalhost yes
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, stig-ubuntu-26.04:UBTU-24-300023]
+  ssh/stig-client-alive-interval:
+    title: sshd keeps an idle session past ten minutes
+    fact: sshd.settings.clientaliveinterval.*
+    expect: {minimum: 1, maximum: "${ssh-stig-client-alive-interval}"}
+    severity: info
+    score: 1.0
+    message: "{subject} has ClientAliveInterval {got}; the STIG asks 1 to ${ssh-stig-client-alive-interval} seconds"
+    fix: set ClientAliveInterval ${ssh-stig-client-alive-interval}
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, stig-ubuntu-26.04:UBTU-24-600010, '!default']
+  ssh/stig-client-alive-count-max:
+    title: sshd waits more than one missed check before dropping a client
+    fact: sshd.settings.clientalivecountmax.*
+    expect: {const: 1}
+    severity: info
+    score: 1.0
+    message: "{subject} has ClientAliveCountMax {got}; the STIG asks 1, so a session ends at the first unanswered check"
+    fix: set ClientAliveCountMax 1
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
+    tags: [ssh, stig-ubuntu-26.04:UBTU-24-600000, '!default']
+  ssh/stig-not-installed:
+    title: No sshd on disk
+    fact: ssh.binary
+    expect: {minProperties: 1}
+    severity: info
+    score: 1.0
+    message: "no sshd program is in /usr/sbin or /usr/local/sbin; the STIG asks for SSH as the remote access"
+    fix: install openssh-server (apt install openssh-server)
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd.8.en.html
+    tags: [ssh, stig-ubuntu-26.04:UBTU-24-100800, '!default']
+  ssh/stig-not-running:
+    title: sshd installed but neither its service nor its socket enabled and running
+    fact: systemd.state
+    when: {ssh.binary: {minProperties: 1}}
+    expect:
+      anyOf:
+        - {required: [ssh.service], properties: {ssh.service: &up {required: [enabled], properties: {enabled: {const: true}, active: {const: active}}}}}
+        - {required: [ssh.socket], properties: {ssh.socket: *up}}
+    severity: info
+    score: 1.0
+    message: "neither ssh.service nor ssh.socket is both enabled and running; the STIG asks for SSH as the remote access"
+    fix: run systemctl enable --now ssh.socket, or ssh.service
+    docs: https://manpages.debian.org/unstable/openssh-server/sshd.8.en.html
+    tags: [ssh, stig-ubuntu-26.04:UBTU-24-100810, '!default']

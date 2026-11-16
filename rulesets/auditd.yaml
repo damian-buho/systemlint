@@ -15,7 +15,7 @@ rules:
     message: "no auditd program is in /usr/sbin, /sbin or /usr/local/sbin, so no audit record is kept on disk"
     fix: install auditd (apt install auditd audispd-plugins on Ubuntu), then add rules to /etc/audit/rules.d/
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditd.8.html
-    tags: [audit, cis-ubuntu-26.04:6.2.1.1]
+    tags: [audit, cis-ubuntu-26.04:6.2.1.1, stig-ubuntu-26.04:UBTU-24-100400]
   auditd/boot-unaudited:
     title: Processes started before auditd go unaudited
     fact: kernel.cmdline
@@ -26,7 +26,7 @@ rules:
     message: "the running kernel was booted without audit=1, so whatever starts before auditd.service leaves no audit record"
     fix: append audit=1 to GRUB_CMDLINE_LINUX in a file under /etc/default/grub.d/ ending in .cfg, keeping the value it extends, then run update-grub and reboot
     docs: https://docs.kernel.org/admin-guide/kernel-parameters.html
-    tags: [audit, cis-ubuntu-26.04:6.2.1.3]
+    tags: [audit, cis-ubuntu-26.04:6.2.1.3, stig-ubuntu-26.04:UBTU-24-102010]
   auditd/boot-backlog:
     title: Audit backlog too small while the system boots
     fact: kernel.cmdline
@@ -51,7 +51,7 @@ rules:
     message: "auditd.service is not enabled, so after the next boot no audit record is written"
     fix: run systemctl unmask auditd.service, then systemctl enable --now auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditd.8.html
-    tags: [audit, cis-ubuntu-26.04:6.2.1.2]
+    tags: [audit, cis-ubuntu-26.04:6.2.1.2, stig-ubuntu-26.04:UBTU-24-100410]
   auditd/inactive:
     title: auditd installed but not running
     fact: systemd.state.*.active
@@ -186,3 +186,14 @@ rules:
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, stig-ubuntu-26.04:UBTU-24-901350]
+  auditd/stig-no-remote:
+    title: Audit records are kept on this host alone
+    fact: auditd.remote
+    when: {auditd.binary: {minProperties: 1}}
+    expect: {required: [active, remote_server], properties: {active: {pattern: "(?i)^yes$"}, remote_server: {type: string, minLength: 1}}}
+    severity: info
+    score: 1.0
+    message: "the au-remote plugin is not active, or audisp-remote.conf names no remote_server, so whoever takes root here can erase the only copy of the audit trail"
+    fix: install audispd-plugins, set active = yes in /etc/audit/plugins.d/au-remote.conf and remote_server in /etc/audit/audisp-remote.conf, then run systemctl restart auditd.service
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/audisp-remote.conf.5.html
+    tags: [audit, stig-ubuntu-26.04:UBTU-24-100450]
