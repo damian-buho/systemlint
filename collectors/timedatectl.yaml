@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: timedatectl
+host: true
 live: true
 read:
   exec: [/usr/bin/timedatectl, show]

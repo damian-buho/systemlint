@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: files-boot
+host: true
 read:
   stat: [/boot/grub/grub.cfg, /boot/grub/user.cfg]
 parse: {plugin: formats, op: stat}

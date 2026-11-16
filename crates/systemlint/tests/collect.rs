@@ -267,6 +267,7 @@ fn options(live: bool) -> Options {
         jobs: 1,
         network: None,
         containers: false,
+        target: None,
     }
 }
 
@@ -867,6 +868,7 @@ fn two_jobs_run_two_collectors_at_once() {
             jobs: 2,
             network: None,
             containers: false,
+            target: None,
             ..options(false)
         },
     );
@@ -895,6 +897,7 @@ fn any_jobs_give_the_sequential_document() {
             jobs: 1,
             network: None,
             containers: false,
+            target: None,
             ..options(false)
         },
     );
@@ -913,6 +916,7 @@ fn any_jobs_give_the_sequential_document() {
             jobs: 64,
             network: None,
             containers: false,
+            target: None,
             ..options(false)
         },
     );
@@ -1322,6 +1326,7 @@ fn a_containers_collector_runs_only_when_asked() {
     assert_eq!(off["collectors"]["optin"]["opt-in"], true, "{off}");
     let asked = Options {
         containers: true,
+        target: None,
         ..options(false)
     };
     let on = collect(&[collector(yaml)], &plugins(), &asked);

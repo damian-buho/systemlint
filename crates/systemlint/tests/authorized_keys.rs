@@ -160,6 +160,7 @@ fn document() -> Value {
         jobs: 1,
         network: None,
         containers: false,
+        target: None,
     };
     let mut document =
         json!({"sshd": sshd(), "collectors": {"sshd": {"status": "ok", "into": "sshd"}}});

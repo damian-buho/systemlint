@@ -39,7 +39,8 @@ into: apt.sources
 | `secret` | `true` to replace every string the op returns with its keyed hash, as for values a plugin marks, so a command’s output compares without being stored |
 | `partial` | `true` to keep what the run may read: a path it may not read becomes the key `into.<path>`, which every rule under a `*` there answers `unknown` for; only for an op that keys its facts by input path |
 | `network` | `true` when it lists `addr`, `dns` or `http`, which only it may; skipped unless the run passes `--network` or sets `collect.network: true`, and under `--root` |
-| `containers` | `true` when it reads the environment of running containers, which belongs to their images; skipped unless the run passes `--containers` or sets `collect.containers: true` |
+| `containers` | `true` when it reads the environment of running containers, which belongs to their images; skipped unless the run passes `--containers` or sets `collect.containers: true`, and inside a container |
+| `host` | `true` when it reads what the kernel, the boot or the hardware holds for the whole machine, such as sysctl, kernel modules or GRUB; skipped inside a container, whose rules over it answer `not-applicable`, so one host setting never becomes a finding per container |
 | `ttl` | whole seconds its facts stay true after `meta.collected-at`, as `0` for the clock, kept as `collectors.<id>.ttl`; a `check` of a saved document older than that answers its rules `not run` [default: no limit] |
 | `read.addr` | `host:port` targets the core opens a TCP connection to |
 | `read.dns` | hostnames the core queries, each taken as fully qualified |
@@ -266,6 +267,43 @@ that reached the network ends naming each target it asked (`Asked the network
 about kiota.ch:443.`), and `-v` logs the time spent and every command run;
 `-q` drops both. `systemlint check PATH`, or
 `check -` for stdin, judges a saved document with no access to the subject.
+
+## Containers
+
+`check --containers` (or `collect.containers: true`) judges the host, then
+every running container, nested ones included (Docker in Docker, kind and k3d
+nodes), with the same rules, one report per container. It needs root;
+unprivileged, or under `--root`, it prints one `Containers not checked` line
+and judges the host alone.
+
+- Discovery reads the host’s `/proc`, never an engine CLI or socket. A
+  process belongs to the container its cgroup names: a `docker-`, `libpod-`
+  (Podman), `cri-containerd-` or `crio-` scope, or a `docker/<ID>` group, the
+  last one in the path when several nest. Its init is the lowest PID whose
+  parent sits outside that container. Two containers sharing a mount
+  namespace are judged once.
+- A Docker container is named as `docker ps` names it (`config.v2.json`,
+  read from the parent container for a nested one), any other by the first
+  12 characters of its ID. A nested container’s key is its parent’s, a `/`,
+  and its name: `ci/runner`.
+- Files are read through `/proc/<init>/root`, so a distroless image works
+  and nothing is copied into the container. `/proc/self` and `/proc/net`
+  name the container’s init, so its own mounts and sockets are read.
+- Each `exec` command runs in the container’s namespaces with its own
+  binaries (`php -v`, `sshd -T`): systemlint joins every namespace the init
+  holds apart from the host, forks into its PID namespace, keeps only the
+  capabilities in the init’s bounding set and sets no-new-privileges.
+  The container’s seccomp and AppArmor profiles are not applied to the command.
+- Plugins and rules stay on the host: plugins only parse what the core read.
+
+The facts document keeps each container’s full document under
+`targets.<key>`, its `meta.subject` `{kind: container, engine, name, id,
+parent}`. `check --format human` prints the host’s report, then a
+`Container <key> (<engine> <ID>)` heading and a report per container; `json`
+adds `targets.<key>`, `sarif` one run per container with `automationDetails.id`
+naming it, `textfile` a `target` label on each container’s samples, and
+`--plain` a `target<TAB><key>` line before each container’s lines. The exit
+code is the worst of them.
 
 ## Where collectors come from
 

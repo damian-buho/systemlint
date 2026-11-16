@@ -1062,3 +1062,94 @@ pub enum Format {
     Sarif,
     Textfile,
 }
+
+/// One container’s report beside the host’s: its key under `targets`, facts and checks.
+pub type Target<'a> = (&'a str, &'a Value, &'a [Check]);
+
+/// [`lint_json`] of the host, each container’s under `targets.<key>`.
+pub fn lint_json_targets(document: &Value, checks: &[Check], targets: &[Target]) -> String {
+    let parsed = |text: String| serde_json::from_str::<Value>(&text).unwrap_or_default();
+    let mut report = parsed(lint_json(document, checks));
+    if !targets.is_empty() {
+        report["targets"] = targets
+            .iter()
+            .map(|(key, doc, checks)| ((*key).to_owned(), parsed(lint_json(doc, checks))))
+            .collect::<serde_json::Map<_, _>>()
+            .into();
+    }
+    serde_json::to_string_pretty(&report).unwrap_or_default() + "\n"
+}
+
+/// [`lint_sarif`] with one more run per container, named by its key in `automationDetails.id`.
+pub fn lint_sarif_targets(document: &Value, checks: &[Check], targets: &[Target]) -> String {
+    let parsed = |text: String| serde_json::from_str::<Value>(&text).unwrap_or_default();
+    let mut log = parsed(lint_sarif(document, checks));
+    for (key, doc, checks) in targets {
+        let mut run = parsed(lint_sarif(doc, checks))["runs"][0].take();
+        run["automationDetails"] = json!({"id": key});
+        if let Some(runs) = log["runs"].as_array_mut() {
+            runs.push(run);
+        }
+    }
+    serde_json::to_string_pretty(&log).unwrap_or_default() + "\n"
+}
+
+/// [`lint_textfile`] of the host, then each container’s samples with a `target` label, every metric family under one `HELP` and `TYPE`.
+pub fn lint_textfile_targets(document: &Value, checks: &[Check], targets: &[Target]) -> String {
+    let mut families: Vec<(String, Vec<String>)> = Vec::new();
+    let texts = std::iter::once((None, lint_textfile(document, checks))).chain(
+        targets
+            .iter()
+            .map(|(key, doc, checks)| (Some(*key), lint_textfile(doc, checks))),
+    );
+    for (key, text) in texts {
+        for line in text.lines() {
+            let family = line
+                .strip_prefix("# HELP ")
+                .or_else(|| line.strip_prefix("# TYPE "))
+                .unwrap_or(line)
+                .split(['{', ' '])
+                .next()
+                .unwrap_or_default()
+                .to_owned();
+            let at = match families.iter().position(|(f, _)| *f == family) {
+                Some(at) => at,
+                None => {
+                    families.push((family, Vec::new()));
+                    families.len() - 1
+                }
+            };
+            let lines = &mut families[at].1;
+            match key {
+                _ if line.starts_with('#') && lines.iter().any(|l| l == line) => {}
+                Some(key) if !line.starts_with('#') => lines.push(targeted(line, key)),
+                _ => lines.push(line.to_owned()),
+            }
+        }
+    }
+    families
+        .into_iter()
+        .flat_map(|(_, lines)| lines)
+        .map(|l| l + "\n")
+        .collect()
+}
+
+/// A textfile sample with `target="key"` as its first label.
+fn targeted(line: &str, key: &str) -> String {
+    let target = format!("target=\"{}\"", label(key));
+    match line.split_once('{') {
+        Some((name, rest)) => format!("{name}{{{target},{rest}"),
+        None => line.replacen(' ', &format!("{{{target}}} "), 1),
+    }
+}
+
+/// The line above a container’s human report: its key, then its engine and short ID.
+pub fn target_heading(key: &str, document: &Value, on: bool) -> String {
+    let subject = &document["meta"]["subject"];
+    let engine = subject["engine"].as_str().unwrap_or("container");
+    let id = subject["id"].as_str().unwrap_or_default();
+    format!(
+        "{} ({engine} {id})",
+        paint(on, "1", &format!("Container {key}"))
+    )
+}

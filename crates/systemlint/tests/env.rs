@@ -54,6 +54,7 @@ fn document() -> Value {
             jobs: 1,
             network: None,
             containers: false,
+            target: None,
         };
         let request = Request {
             protocol: PROTOCOL,

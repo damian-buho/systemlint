@@ -1235,10 +1235,31 @@ fn failure(
 
 /// Every check of `rule` on `document`: one not-applicable, unknown or manual check, else one per subject, none when its subjects exist and are empty.
 pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
-    if rule.cel {
+    let checks = if rule.cel {
         crate::expression::with_facts(document, || judged(rule, document))
     } else {
         judged(rule, document)
+    };
+    checks.into_iter().map(|c| hosted(document, c)).collect()
+}
+
+/// `check` not-applicable when it waited on a collector a container leaves to the host, else unchanged.
+fn hosted(document: &Value, check: Check) -> Check {
+    match check.collector.as_deref() {
+        Some(id)
+            if check.outcome == Outcome::Unknown && document["collectors"][id]["host"] == true =>
+        {
+            log::debug!(
+                "rule {} not applicable: collector {id} runs on the host",
+                check.rule
+            );
+            Check {
+                outcome: Outcome::NotApplicable,
+                reason: Some(format!("{id} is judged on the host")),
+                ..check
+            }
+        }
+        _ => check,
     }
 }
 

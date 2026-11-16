@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: sysctl-apparmor
+host: true
 privileged: true
 read:
   exec: [/usr/sbin/sysctl, --all, --pattern, '^kernel\.apparmor_restrict_unprivileged_']

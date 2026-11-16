@@ -59,7 +59,7 @@ collect:
   timeout: 30          # seconds per command, plugin call or network attempt, 1 or more
   jobs: 4              # the default --jobs: collectors run at once, 1 to 64
   network: false       # true runs the network: true collectors, as --network does
-  containers: false    # true runs the containers: true collectors, as --containers does
+  containers: false    # true checks every running container too, as --containers does
   hash-key: ...        # 16 characters or more
   collectors: []       # inline collectors, never exec nor network; see collectors.md
   format: json         # the default facts --format, over the --output extension: yaml or json

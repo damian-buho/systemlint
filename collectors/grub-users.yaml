@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: grub-users
+host: true
 read:
   files: [/boot/grub/grub.cfg]
 parse:

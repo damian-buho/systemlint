@@ -38,6 +38,8 @@ pub struct Collector {
     #[serde(default)]
     pub containers: bool,
     #[serde(default)]
+    pub host: bool,
+    #[serde(default)]
     pub ttl: Option<u64>,
     #[serde(skip)]
     pub inline: bool,

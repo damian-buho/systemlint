@@ -90,6 +90,7 @@ fn options() -> Options {
         jobs: 1,
         network: None,
         containers: false,
+        target: None,
     }
 }
 

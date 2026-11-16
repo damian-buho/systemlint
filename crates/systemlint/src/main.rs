@@ -18,7 +18,7 @@ use systemlint::net;
 use systemlint::report::{self, Colour, FailOn, Format};
 use systemlint::rules::Library;
 use systemlint::source::Root;
-use systemlint::{collector, crash, document, progress, rules, runner, trail};
+use systemlint::{collector, crash, document, progress, rules, runner, targets, trail};
 use systemlint_protocol::{OpSpec, VERSION};
 
 /// Exit code when `check` finds failures at `--fail-on`, or a `facts` collector failed.
@@ -93,7 +93,7 @@ struct Cli {
     /// Run the network: true collectors, which connect, query DNS and fetch URLs from this host [default: collect.network, else off]
     #[arg(long, global = true)]
     network: bool,
-    /// Run the containers: true collectors, which read the environment of every running container [default: collect.containers, else off]
+    /// Also check every running container, nested ones included, as root: files through its root, commands in its namespaces [default: collect.containers, else off]
     #[arg(long, global = true)]
     containers: bool,
     #[command(subcommand)]
@@ -423,6 +423,7 @@ fn gather(
             .unwrap_or(false)
             .then(|| net::Proxies::from_env(|name| std::env::var(name).ok())),
         containers: config.collect.containers.unwrap_or(false),
+        target: None,
     };
     log::debug!(
         "collect.jobs {:?}, running {} at once, network {:?}, containers {}",
@@ -433,17 +434,22 @@ fn gather(
     );
     let started = Instant::now();
     let status = !quiet && !log::log_enabled!(log::Level::Debug) && std::io::stderr().is_terminal();
-    if status {
-        eprint!("Collecting from {}…", options.root.path().display());
-    }
-    let document =
-        collect::collect_reporting(&collectors, &plugins, &options, &mut |done, total, id| {
-            if status {
-                eprint!("\r\x1b[KCollecting {}/{total}: {id}…", done + 1);
-            }
-        });
-    if status {
-        eprint!("\r\x1b[K");
+    let mut document = collected(
+        &collectors,
+        &plugins,
+        &options,
+        status,
+        &options.root.path().display().to_string(),
+    );
+    if options.containers {
+        containers(
+            &collectors,
+            &plugins,
+            &options,
+            &mut document,
+            status,
+            quiet,
+        );
     }
     if let Some(line) = progress::finished(
         started.elapsed(),
@@ -464,18 +470,132 @@ fn gather(
                 .join(", ")
         ));
     }
-    if let Some(outcomes) = document["collectors"].as_object() {
-        for (id, outcome) in outcomes.iter().filter(|(_, o)| o["status"] == "error") {
-            note(traced(
-                &trail::collector(id),
-                format!(
-                    "collector {id}: {}",
-                    outcome["reason"].as_str().unwrap_or_default()
-                ),
-            ));
-        }
+    for (target, id, outcome) in errors(&document) {
+        let place = target.map(|t| format!(" in {t}")).unwrap_or_default();
+        note(traced(
+            &trail::collector(id),
+            format!(
+                "collector {id}{place}: {}",
+                outcome["reason"].as_str().unwrap_or_default()
+            ),
+        ));
     }
     Ok((document, refusals.is_empty()))
+}
+
+/// Every collector that ended in error, the host’s first, then each container’s by its key.
+fn errors(document: &Value) -> Vec<(Option<&str>, &str, &Value)> {
+    std::iter::once((None, document))
+        .chain(
+            document["targets"]
+                .as_object()
+                .into_iter()
+                .flatten()
+                .map(|(k, d)| (Some(k.as_str()), d)),
+        )
+        .flat_map(|(target, doc)| {
+            doc["collectors"]
+                .as_object()
+                .into_iter()
+                .flatten()
+                .filter(|(_, o)| o["status"] == "error")
+                .map(move |(id, o)| (target, id.as_str(), o))
+        })
+        .collect()
+}
+
+/// One collection, with a `Collecting` line on stderr naming `what` when `status` is on.
+fn collected(
+    collectors: &[collector::Collector],
+    plugins: &[discovery::Plugin],
+    options: &Options,
+    status: bool,
+    what: &str,
+) -> Value {
+    if status {
+        eprint!("Collecting from {what}…");
+    }
+    let document =
+        collect::collect_reporting(collectors, plugins, options, &mut |done, total, id| {
+            if status {
+                eprint!("\r\x1b[KCollecting from {what} {}/{total}: {id}…", done + 1);
+            }
+        });
+    if status {
+        eprint!("\r\x1b[K");
+    }
+    document
+}
+
+/// Collects every running container into `document`’s `targets`, keyed as [`targets::Found`] keys it, or says why none was.
+fn containers(
+    collectors: &[collector::Collector],
+    plugins: &[discovery::Plugin],
+    host: &Options,
+    document: &mut Value,
+    status: bool,
+    quiet: bool,
+) {
+    let refused = match (host.live, host.privileged) {
+        (false, _) => Some(format!(
+            "reads running containers on the live host only, and --root {} was given",
+            host.root.path().display()
+        )),
+        (_, false) => Some("needs root, and this run is unprivileged".to_owned()),
+        _ => None,
+    };
+    if let Some(reason) = refused {
+        log::debug!("containers not collected: {reason}");
+        if !quiet {
+            note(format!("Containers not checked: {reason}."));
+        }
+        document["meta"]["containers"] = serde_json::json!({"status": "skipped", "reason": reason});
+        return;
+    }
+    let namespace = |pid: u32| {
+        use std::os::unix::fs::MetadataExt;
+        std::fs::metadata(format!("/proc/{pid}/ns/mnt"))
+            .ok()
+            .map(|m| (m.dev(), m.ino()))
+    };
+    let found = targets::discover(&host.root, &namespace);
+    log::debug!("{} containers found", found.len());
+    let mut documents = serde_json::Map::new();
+    for container in found {
+        let opened = Root::process(container.pid, container.inner).and_then(|root| {
+            let status = std::fs::read_to_string(format!("/proc/{}/status", container.pid))?;
+            Ok((root, runner::Inside::of(container.pid, &status)?))
+        });
+        let (root, inside) = match opened {
+            Ok(opened) => opened,
+            Err(error) => {
+                log::debug!("container {} not collected: {error}", container.key);
+                continue;
+            }
+        };
+        let options = Options {
+            root,
+            live: true,
+            privileged: true,
+            now: host.now,
+            timeout: host.timeout,
+            hash_key: host.hash_key.clone(),
+            image_config: None,
+            jobs: host.jobs,
+            network: None,
+            containers: true,
+            target: Some(collect::Target {
+                inside,
+                subject: container.subject(),
+            }),
+        };
+        let what = format!("container {}", container.key);
+        documents.insert(
+            container.key.clone(),
+            collected(collectors, plugins, &options, status, &what),
+        );
+    }
+    document["targets"] = Value::Object(documents);
 }
 
 fn facts(
@@ -505,9 +625,7 @@ fn facts(
         eprintln!("{error}");
         return EXIT_OUTPUT;
     }
-    let failed = document["collectors"]
-        .as_object()
-        .map_or(0, |o| o.values().filter(|c| c["status"] == "error").count());
+    let failed = errors(&document).len();
     if let Some(path) = saved.filter(|_| !quiet) {
         let ran = document["collectors"]
             .as_object()
@@ -698,12 +816,22 @@ fn lint(
             .or_else(|| config.check.fail_on.as_deref().and_then(|t| t.parse().ok()))
             .unwrap_or(FailOn::Level(rules::Severity::Error));
         let (mut document, trusted) = facts_for(config, input, quiet)?;
+        let mut targets: Vec<(String, Value)> = match document["targets"].take() {
+            Value::Object(map) => map.into_iter().collect(),
+            _ => Vec::new(),
+        };
+        if let Some(map) = document.as_object_mut() {
+            map.remove("targets");
+        }
         let now = SystemTime::now();
         if input.facts.is_some() {
             let epoch = now
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |d| d.as_secs());
-            document::expire(&mut document, i64::try_from(epoch).unwrap_or(i64::MAX));
+            let epoch = i64::try_from(epoch).unwrap_or(i64::MAX);
+            for doc in std::iter::once(&mut document).chain(targets.iter_mut().map(|(_, d)| d)) {
+                document::expire(doc, epoch);
+            }
         }
         log::debug!(
             "linting facts of {} collected at {} with {} rules",
@@ -722,6 +850,18 @@ fn lint(
             ));
         }
         let checks = judge::lint(&document, &rules, &config.check.waivers, &today(now));
+        let judged: Vec<(String, Value, Vec<judge::Check>)> = targets
+            .into_iter()
+            .map(|(key, doc)| {
+                let checks = judge::lint(&doc, &rules, &config.check.waivers, &today(now));
+                log::debug!("container {key}: {} checks", checks.len());
+                (key, doc, checks)
+            })
+            .collect();
+        let others: Vec<report::Target> = judged
+            .iter()
+            .map(|(k, d, c)| (k.as_str(), d, c.as_slice()))
+            .collect();
         let terminal =
             output.is_none_or(|p| p == Path::new("-")) && std::io::stdout().is_terminal();
         let plain = if look.plain || look.no_plain || look.format.is_some() {
@@ -736,20 +876,38 @@ fn lint(
         };
         let color = look.color.or(config.check.color).unwrap_or(Colour::Auto);
         log::debug!("report as {format:?}, plain {plain}, colour {color:?}");
-        let text = match format {
-            Format::Human if plain => report::lint_plain(&document, &checks, quiet),
-            Format::Human => report::lint_human(
-                &document,
-                &checks,
-                left_out,
-                quiet,
-                look.verbose,
-                report::colour(color, |n| std::env::var(n).ok(), terminal),
-            ),
-            Format::Json => report::lint_json(&document, &checks),
-            Format::Sarif => report::lint_sarif(&document, &checks),
-            Format::Textfile => report::lint_textfile(&document, &checks),
+        let on = report::colour(color, |n| std::env::var(n).ok(), terminal);
+        let human = |doc: &Value, checks: &[judge::Check], left_out: usize| {
+            report::lint_human(doc, checks, left_out, quiet, look.verbose, on)
         };
+        let text = match format {
+            Format::Human if plain => others.iter().fold(
+                report::lint_plain(&document, &checks, quiet),
+                |out, (key, doc, checks)| {
+                    format!(
+                        "{out}target\t{key}\n{}",
+                        report::lint_plain(doc, checks, quiet)
+                    )
+                },
+            ),
+            Format::Human => others.iter().fold(
+                human(&document, &checks, left_out),
+                |out, (key, doc, checks)| {
+                    format!(
+                        "{out}\n{}\n\n{}",
+                        report::target_heading(key, doc, on),
+                        human(doc, checks, 0)
+                    )
+                },
+            ),
+            Format::Json => report::lint_json_targets(&document, &checks, &others),
+            Format::Sarif => report::lint_sarif_targets(&document, &checks, &others),
+            Format::Textfile => report::lint_textfile_targets(&document, &checks, &others),
+        };
+        let every: Vec<&judge::Check> = checks
+            .iter()
+            .chain(judged.iter().flat_map(|(_, _, c)| c))
+            .collect();
         if format == Format::Human
             && output.is_none_or(|p| p == Path::new("-"))
             && NOTED.load(std::sync::atomic::Ordering::Relaxed)
@@ -763,11 +921,14 @@ fn lint(
         if let Some(path) = output.filter(|p| !quiet && *p != Path::new("-")) {
             eprintln!(
                 "Wrote {} to {}.",
-                plural(checks.iter().filter(|c| c.is_failing()).count(), "finding"),
+                plural(every.iter().filter(|c| c.is_failing()).count(), "finding"),
                 path.display()
             );
         }
-        let failed = u8::from(fail_on.reached(&checks)) * EXIT_FAIL;
+        let reached = std::iter::once(checks.as_slice())
+            .chain(judged.iter().map(|(_, _, c)| c.as_slice()))
+            .any(|c| fail_on.reached(c));
+        let failed = u8::from(reached) * EXIT_FAIL;
         log::debug!("check exits on {failed} at {fail_on:?}, trusted {trusted}");
         Ok(if failed != 0 {
             failed

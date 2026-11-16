@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: kernel-cmdline
+host: true
 live: true
 read:
   files: [/proc/cmdline]

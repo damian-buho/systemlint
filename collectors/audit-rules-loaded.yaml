@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: audit-rules-loaded
+host: true
 privileged: true
 read:
   exec: [/usr/sbin/auditctl, -l]

@@ -41,6 +41,7 @@ fn document(root: &str) -> Value {
         jobs: 1,
         network: None,
         containers: false,
+        target: None,
     };
     let mut facts = Map::new();
     let mut outcomes = Map::new();

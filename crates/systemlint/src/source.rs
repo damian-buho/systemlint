@@ -71,6 +71,8 @@ impl From<Failure> for String {
 pub struct Root {
     fd: OwnedFd,
     path: PathBuf,
+    /// The process `/proc/self` names inside a container’s procfs, where the core itself has no PID.
+    proc_self: Option<u32>,
 }
 
 impl Root {
@@ -99,7 +101,44 @@ impl Root {
         )
         .map_err(|e| explain(&e.into()))?;
         log::debug!("root {} opened", path.display());
-        Ok(Self { fd, path })
+        Ok(Self {
+            fd,
+            path,
+            proc_self: None,
+        })
+    }
+
+    /// The root of the process `pid` sees, its `/proc/self` read as `/proc/<inner>`, the same process in its own PID namespace.
+    pub fn process(pid: u32, inner: u32) -> io::Result<Self> {
+        let path = PathBuf::from(format!("/proc/{pid}/root"));
+        let fd = rustix::fs::open(
+            &path,
+            OFlags::PATH | OFlags::DIRECTORY | OFlags::CLOEXEC,
+            Mode::empty(),
+        )?;
+        log::debug!("root of process {pid} opened, /proc/self as /proc/{inner}");
+        Ok(Self {
+            fd,
+            path,
+            proc_self: Some(inner),
+        })
+    }
+
+    /// `path` with a leading `/proc/self` or `/proc/net` naming [`Root::process`]’s process, else unchanged.
+    fn resolved<'a>(&self, path: &'a str) -> std::borrow::Cow<'a, str> {
+        let Some(inner) = self.proc_self else {
+            return path.into();
+        };
+        let split = path
+            .strip_prefix("/proc/self")
+            .map(|rest| ("", rest))
+            .or_else(|| path.strip_prefix("/proc/net").map(|rest| ("/net", rest)));
+        match split {
+            Some((below, rest)) if rest.is_empty() || rest.starts_with('/') => {
+                format!("/proc/{inner}{below}{rest}").into()
+            }
+            _ => path.into(),
+        }
     }
 
     /// The canonical path of the root on this host.
@@ -108,6 +147,7 @@ impl Root {
     }
 
     fn open_at(&self, path: &str, flags: OFlags) -> io::Result<OwnedFd> {
+        let path = &*self.resolved(path);
         let resolve = ResolveFlags::IN_ROOT | ResolveFlags::NO_MAGICLINKS;
         let mut tries = 0;
         loop {
@@ -376,6 +416,7 @@ impl Root {
         let root = Self {
             fd: self.fd.try_clone()?,
             path: self.path.clone(),
+            proc_self: self.proc_self,
         };
         let (sender, answer) = std::sync::mpsc::channel();
         let owned = path.to_owned();

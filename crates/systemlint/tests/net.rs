@@ -678,6 +678,7 @@ fn options(live: bool, network: bool) -> Options {
         jobs: 1,
         network: network.then(Proxies::default),
         containers: false,
+        target: None,
     }
 }
 

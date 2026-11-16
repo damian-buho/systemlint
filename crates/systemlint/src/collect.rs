@@ -55,6 +55,14 @@ pub struct Options {
     pub jobs: usize,
     pub network: Option<crate::net::Proxies>,
     pub containers: bool,
+    pub target: Option<Target>,
+}
+
+/// A container judged on its own: the process whose namespaces its commands join, and the `meta.subject` naming it.
+#[derive(Debug, Clone)]
+pub struct Target {
+    pub inside: runner::Inside,
+    pub subject: Value,
 }
 
 /// The key every value a plugin marks for hashing is keyed with: random per run unless the config sets one.
@@ -163,6 +171,15 @@ pub fn collect_reporting(
             (_, true) => Some("needs root, and this run is unprivileged".to_owned()),
             _ => None,
         };
+        let hosted = options.target.is_some()
+            && (collector.host || collector.containers || collector.network);
+        let skip = match hosted {
+            true => {
+                Some("reads the kernel, boot or every container, judged on the host".to_owned())
+            }
+            false => skip,
+        };
+        let opt_in = opt_in.filter(|_| !hosted);
         if let Some(reason) = opt_in.clone().or(skip) {
             log::debug!(
                 "collector {} skipped, opt-in {}: {reason}",
@@ -172,6 +189,9 @@ pub fn collect_reporting(
             let mut outcome = json!({"status": "skipped", "reason": reason});
             if opt_in.is_some() {
                 outcome["opt-in"] = Value::Bool(true);
+            }
+            if hosted {
+                outcome["host"] = Value::Bool(true);
             }
             outcomes.insert(collector.id.clone(), outcome);
             continue;
@@ -311,7 +331,9 @@ pub fn collect_reporting(
             }
         }
     }
-    let mut subject = if options.live {
+    let mut subject = if let Some(target) = &options.target {
+        target.subject.clone()
+    } else if options.live {
         json!({"kind": "host", "name": rustix::system::uname().nodename().to_string_lossy()})
     } else {
         json!({"kind": "root", "path": options.root.path()})
@@ -1148,6 +1170,7 @@ fn execute(
         None,
         options.timeout,
         OUTPUT_CAP,
+        options.target.as_ref().map(|t| t.inside),
     )
     .map_err(|e| format!("{}: {e}", argv[0]))?;
     log::debug!(

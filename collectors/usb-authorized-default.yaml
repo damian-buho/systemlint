@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: usb-authorized-default
+host: true
 live: true
 read:
   files: [/sys/bus/usb/devices/usb*/authorized_default]

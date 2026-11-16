@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: kernel-modules-builtin
+host: true
 read:
   files: [/lib/modules/*/modules.builtin]
 parse:

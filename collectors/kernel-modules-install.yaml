@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: kernel-modules-install
+host: true
 read:
   files: [/etc/modprobe.d/*.conf, /run/modprobe.d/*.conf, /usr/local/lib/modprobe.d/*.conf, /usr/lib/modprobe.d/*.conf, /lib/modprobe.d/*.conf]
   order: drop-in

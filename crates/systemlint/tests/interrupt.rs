@@ -30,8 +30,9 @@ fn stopping_the_children_kills_a_running_plugin_and_frees_its_slot() {
     std::fs::write(&temporary, "#!/bin/sh\nexec sleep 600\n").unwrap();
     std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o755)).unwrap();
     std::fs::rename(&temporary, &path).unwrap();
-    let plugin =
-        std::thread::spawn(move || run(&path, &[], None, Duration::from_secs(600), OUTPUT_CAP));
+    let plugin = std::thread::spawn(move || {
+        run(&path, &[], None, Duration::from_secs(600), OUTPUT_CAP, None)
+    });
     wait_for("a tracked child", || !running().is_empty());
     assert_eq!(stop_children(), 1);
     assert_eq!(

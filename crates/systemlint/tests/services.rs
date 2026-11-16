@@ -33,6 +33,7 @@ fn facts(id: &str) -> Value {
         jobs: 1,
         network: None,
         containers: false,
+        target: None,
     };
     let mut given = inputs(&c, &options).unwrap();
     systemlint::steps::text(&c.parse.text, &mut given);

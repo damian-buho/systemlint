@@ -5,7 +5,8 @@
 //! Runs a plugin or a collector command with an empty environment, a timeout and an output cap.
 
 use std::io::{Read, Write};
-use std::os::unix::process::ExitStatusExt;
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicI32, Ordering};
@@ -74,21 +75,178 @@ impl Output {
     }
 }
 
-/// Runs `path` with `args` and `stdin`, failing on a timeout or an output over `cap` bytes; any exit code is returned.
+/// The namespaces of a running process a command joins, and the capabilities it keeps.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Inside {
+    /// The process, by its PID in this core’s namespace.
+    pub pid: u32,
+    /// The `CLONE_NEW*` namespaces it holds that differ from this core’s.
+    pub namespaces: i32,
+    /// Its capability bounding set, which the command is cut down to.
+    pub bounding: u64,
+}
+
+/// One namespace a container can hold apart: its `/proc/<pid>/ns` name and `CLONE_NEW*` flag, the user namespace first so the rest join under it.
+const NAMESPACES: [(&str, i32); 8] = [
+    ("user", libc::CLONE_NEWUSER),
+    ("mnt", libc::CLONE_NEWNS),
+    ("pid", libc::CLONE_NEWPID),
+    ("net", libc::CLONE_NEWNET),
+    ("ipc", libc::CLONE_NEWIPC),
+    ("uts", libc::CLONE_NEWUTS),
+    ("cgroup", libc::CLONE_NEWCGROUP),
+    ("time", libc::CLONE_NEWTIME),
+];
+
+impl Inside {
+    /// The namespaces of `pid` that differ from this core’s, compared by inode, and its bounding set from `status`.
+    pub fn of(pid: u32, status: &str) -> std::io::Result<Self> {
+        use std::os::unix::fs::MetadataExt;
+        let mut namespaces = 0;
+        for (name, flag) in NAMESPACES {
+            let theirs = std::fs::metadata(format!("/proc/{pid}/ns/{name}"));
+            let ours = std::fs::metadata(format!("/proc/self/ns/{name}"));
+            match (theirs, ours) {
+                (Ok(t), Ok(o)) if (t.dev(), t.ino()) != (o.dev(), o.ino()) => namespaces |= flag,
+                (Err(e), _) if name != "time" => return Err(e),
+                _ => {}
+            }
+        }
+        let bounding = bounding(status).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "no CapBnd line")
+        })?;
+        log::debug!("process {pid} holds namespaces {namespaces:#x}, bounding {bounding:#x}");
+        Ok(Self {
+            pid,
+            namespaces,
+            bounding,
+        })
+    }
+}
+
+/// The `CapBnd` mask of a `/proc/<pid>/status` text.
+pub fn bounding(status: &str) -> Option<u64> {
+    status
+        .lines()
+        .find_map(|l| l.strip_prefix("CapBnd:"))
+        .and_then(|hex| u64::from_str_radix(hex.trim(), 16).ok())
+}
+
+/// The kernel’s capability header and one 32-bit half of each set, as `capset(2)` takes them.
+#[repr(C)]
+struct CapHeader {
+    version: u32,
+    pid: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct CapData {
+    effective: u32,
+    permitted: u32,
+    inheritable: u32,
+}
+
+/// `_LINUX_CAPABILITY_VERSION_3`, two [`CapData`] halves.
+const CAP_VERSION_3: u32 = 0x2008_0522;
+
+/// In a forked child: joins `inside`’s namespaces through `pidfd`, forks once more so the command lands in its PID namespace, and keeps only its capabilities; the middle process waits and exits as the command did.
+///
+/// # Safety
+/// Runs between fork and exec, so it calls only async-signal-safe functions.
+unsafe fn enter(pidfd: i32, inside: Inside) -> std::io::Result<()> {
+    let last = std::io::Error::last_os_error;
+    // SAFETY: setns, fork, waitpid, close_range, prctl, capset and _exit are async-signal-safe syscalls on plain values.
+    unsafe {
+        if inside.namespaces != 0 && libc::setns(pidfd, inside.namespaces) != 0 {
+            return Err(last());
+        }
+        match libc::fork() {
+            -1 => return Err(last()),
+            0 => {}
+            child => {
+                libc::syscall(libc::SYS_close_range, 3u32, u32::MAX, 0u32);
+                let mut status = 0;
+                while libc::waitpid(child, &raw mut status, 0) == -1 {}
+                libc::_exit(if libc::WIFEXITED(status) {
+                    libc::WEXITSTATUS(status)
+                } else {
+                    128 + libc::WTERMSIG(status)
+                });
+            }
+        }
+        libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL);
+        libc::prctl(
+            libc::PR_CAP_AMBIENT,
+            libc::PR_CAP_AMBIENT_CLEAR_ALL,
+            0,
+            0,
+            0,
+        );
+        for cap in (0..64).filter(|c| inside.bounding & (1 << c) == 0) {
+            libc::prctl(libc::PR_CAPBSET_DROP, cap);
+        }
+        let mut header = CapHeader {
+            version: CAP_VERSION_3,
+            pid: 0,
+        };
+        let mut data = [CapData::default(); 2];
+        if libc::syscall(libc::SYS_capget, &raw mut header, data.as_mut_ptr()) != 0 {
+            return Err(last());
+        }
+        for (half, set) in data.iter_mut().enumerate() {
+            let keep = (inside.bounding >> (32 * half)) as u32;
+            set.effective &= keep;
+            set.permitted &= keep;
+            set.inheritable &= keep;
+        }
+        if libc::syscall(libc::SYS_capset, &raw mut header, data.as_ptr()) != 0 {
+            return Err(last());
+        }
+        if libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 {
+            return Err(last());
+        }
+    }
+    Ok(())
+}
+
+/// Runs `path` with `args` and `stdin`, inside another process’s namespaces when `inside` names one, failing on a timeout or an output over `cap` bytes; any exit code is returned.
 pub fn run(
     path: &Path,
     args: &[&str],
     stdin: Option<Vec<u8>>,
     timeout: Duration,
     cap: u64,
+    inside: Option<Inside>,
 ) -> Result<Output, String> {
     log::debug!(
-        "running {} {} with {} bytes on stdin",
+        "running {} {} with {} bytes on stdin, inside {inside:?}",
         path.display(),
         args.join(" "),
         stdin.as_ref().map_or(0, Vec::len)
     );
-    let mut child = Command::new(path)
+    let mut command = Command::new(path);
+    let pidfd = match inside {
+        Some(inside) => {
+            // SAFETY: pidfd_open takes a PID and flags and returns a new descriptor or -1.
+            let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, inside.pid, 0) };
+            if fd < 0 {
+                return Err(format!(
+                    "can’t reach process {}: {}",
+                    inside.pid,
+                    std::io::Error::last_os_error()
+                ));
+            }
+            // SAFETY: the kernel just returned this descriptor, owned by nobody else.
+            let fd = unsafe { OwnedFd::from_raw_fd(i32::try_from(fd).unwrap_or(-1)) };
+            let raw = fd.as_raw_fd();
+            // SAFETY: enter calls only async-signal-safe functions, and the pidfd outlives the spawn.
+            unsafe { command.pre_exec(move || enter(raw, inside)) };
+            Some(fd)
+        }
+        None => None,
+    };
+    let mut child = command
         .args(args)
         .env_clear()
         .env("LC_ALL", "C")
@@ -101,6 +259,7 @@ pub fn run(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("can’t start it: {e}"))?;
+    drop(pidfd);
     let pid = i32::try_from(child.id()).unwrap_or_default();
     let slot = track(pid);
     let feed = child
@@ -174,7 +333,7 @@ pub fn call(
     timeout: Duration,
     cap: u64,
 ) -> Result<Output, String> {
-    let output = run(path, args, stdin, timeout, cap)?;
+    let output = run(path, args, stdin, timeout, cap, None)?;
     if !output.status.success() {
         let said = String::from_utf8_lossy(&output.stderr);
         return Err(format!("exited with {}: {}", output.status, said.trim()));
