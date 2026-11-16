@@ -4807,3 +4807,122 @@ fn ufw_is_asked_for_and_its_default_policies_deny_once_it_is_switched_on() {
         "ufw/disabled reports it"
     );
 }
+
+#[test]
+fn journald_runs_and_its_effective_settings_forward_persist_and_compress() {
+    let rule = |name: &str, document: &Value| outcomes("journald", name, document);
+    let doc = |main: Value, drop_ins: Value| json!({"journald": {"main": main, "drop-ins": drop_ins}, "systemd": {"state": {"rsyslog.service": {"enabled": true, "masked": false}}}});
+    let none = json!({});
+    assert_eq!(
+        rule(
+            "journald/no-syslog-forward",
+            &doc(none.clone(), json!({"ForwardToSyslog": "yes"}))
+        ),
+        [Outcome::Pass],
+        "Ubuntu’s vendor drop-in"
+    );
+    assert_eq!(
+        rule(
+            "journald/no-syslog-forward",
+            &doc(none.clone(), none.clone())
+        ),
+        [Outcome::Fail],
+        "unset"
+    );
+    assert_eq!(
+        rule(
+            "journald/no-syslog-forward",
+            &doc(json!({"ForwardToSyslog": 1}), json!({"ForwardToSyslog": 0}))
+        ),
+        [Outcome::Fail],
+        "a drop-in turns it off, as a number"
+    );
+    assert_eq!(
+        rule(
+            "journald/no-syslog-forward",
+            &doc(json!({"ForwardToSyslog": 1}), none.clone())
+        ),
+        [Outcome::Pass]
+    );
+    let mut no_rsyslog = doc(none.clone(), none.clone());
+    no_rsyslog["systemd"]["state"] =
+        json!({"rsyslog.service": {"active": "inactive", "sub": "dead"}});
+    assert_eq!(
+        rule("journald/no-syslog-forward", &no_rsyslog),
+        [Outcome::Skip],
+        "rsyslog only the manager knows"
+    );
+    assert_eq!(
+        rule(
+            "journald/storage-not-persistent",
+            &doc(json!({"Storage": "persistent"}), none.clone())
+        ),
+        [Outcome::Pass]
+    );
+    assert_eq!(
+        rule(
+            "journald/storage-not-persistent",
+            &doc(json!({"Storage": "persistent"}), json!({"Storage": "auto"}))
+        ),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        rule(
+            "journald/storage-not-persistent",
+            &doc(none.clone(), none.clone())
+        ),
+        [Outcome::Fail],
+        "the auto default"
+    );
+    for (value, outcome) in [
+        (json!("yes"), Outcome::Pass),
+        (json!(""), Outcome::Pass),
+        (json!(1), Outcome::Pass),
+        (json!(512), Outcome::Pass),
+        (json!("1M"), Outcome::Pass),
+        (json!(0), Outcome::Fail),
+        (json!("no"), Outcome::Fail),
+        (json!("off"), Outcome::Fail),
+    ] {
+        assert_eq!(
+            rule(
+                "journald/compress-off",
+                &doc(json!({"Compress": "yes"}), json!({"Compress": value}))
+            ),
+            [outcome],
+            "Compress={value}"
+        );
+    }
+    assert_eq!(
+        rule("journald/compress-off", &doc(none.clone(), none.clone())),
+        [Outcome::Pass],
+        "the default"
+    );
+    assert_eq!(
+        rule(
+            "journald/compress-off",
+            &doc(json!({"Compress": "no"}), none.clone())
+        ),
+        [Outcome::Fail]
+    );
+    let active = |state: Value| {
+        rule(
+            "journald/inactive",
+            &json!({"systemd": {"state": {"systemd-journald.service": state}}}),
+        )
+    };
+    assert_eq!(
+        active(json!({"enabled": false, "masked": false, "active": "active"})),
+        [Outcome::Pass],
+        "a static unit"
+    );
+    assert_eq!(
+        active(json!({"enabled": false, "masked": false, "active": "failed"})),
+        [Outcome::Fail]
+    );
+    assert_eq!(
+        active(json!({"enabled": false, "masked": false})),
+        [Outcome::Skip],
+        "--root"
+    );
+}

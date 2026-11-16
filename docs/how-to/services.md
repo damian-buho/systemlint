@@ -567,6 +567,21 @@ for others).
 `journald/remote-listening` (CIS 6.1.1.1.2) fails
 `systemd-journal-remote.socket` or `.service` while enabled or active and not
 masked, since it writes whatever the network sends into the journal.
+`journald/inactive` (CIS 6.1.1.1.1) fails `systemd-journald.service` while its
+`active` state is other than `active`, and skips under `--root`.
+
+The `journald-main` and `journald-drop-ins` collectors read `journald.conf`
+and its drop-in directories into `journald.main` and `journald.drop-ins`, as
+the timesyncd pair does, a drop-in key overriding the main file. Ubuntu ships
+`ForwardToSyslog=yes` in `/usr/lib/systemd/journald.conf.d/syslog.conf`. Out of
+`default`, *standard-only*:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `journald/no-syslog-forward` | info | `rsyslog.service` is on disk and not masked, and the effective `ForwardToSyslog` is not a true boolean (CIS 6.1.1.1.3) |
+| `journald/storage-not-persistent` | info | the effective `Storage` is not `persistent`, its `auto` default included (CIS 6.1.1.1.6) |
+| `journald/compress-off` | info | the effective `Compress` is a false boolean; unset, empty and a size threshold pass (CIS 6.1.1.1.7) |
+
 `gdm/xdmcp` (CIS 1.7.6) fails a GDM file (`custom.conf` or `daemon.conf` under
 `/etc/gdm3` or `/etc/gdm`, read by the `gdm-config` collector through `ini`)
 whose `[xdmcp]` section sets `Enable` to `true` or `1` in any case; the `gdm`

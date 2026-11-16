@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: journald-drop-ins
+read:
+  files: [/etc/systemd/journald.conf.d/*.conf, /run/systemd/journald.conf.d/*.conf, /usr/local/lib/systemd/journald.conf.d/*.conf, /usr/lib/systemd/journald.conf.d/*.conf]
+  order: drop-in
+parse: {plugin: formats, op: kv, with: {comments: ["#", ";", "["], repeat: last}}
+into: journald.drop-ins

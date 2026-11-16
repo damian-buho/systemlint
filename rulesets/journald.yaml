@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-description: systemd journal services that take log entries from the network
+description: The systemd journal kept running, on disk, compressed and forwarded to rsyslog, and its services that take log entries from the network
 tags: [default]
 rules:
   journald/remote-listening:
@@ -21,3 +21,59 @@ rules:
     fix: run systemctl mask --now {subject}, unless this host collects other hosts’ logs, then limit who reaches its port
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journal-remote.service.8.html
     tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.2]
+  journald/inactive:
+    title: systemd-journald is not running
+    fact: systemd.state.*.active
+    keys: {const: systemd-journald.service}
+    when: {systemd.state.*: {required: [active]}}
+    expect: {const: active}
+    severity: warning
+    score: 5.0
+    message: "{subject} is {got}, so programs that log to the journal or to syslog lose what they write"
+    fix: run systemctl unmask {subject}, then systemctl start {subject}, and read journalctl --boot for why it stopped
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.1]
+  journald/no-syslog-forward:
+    title: journald does not forward to rsyslog
+    fact: journald
+    when:
+      systemd.state:
+        required: [rsyslog.service]
+        properties: {rsyslog.service: {required: [masked], properties: {masked: {const: false}}}}
+    expect:
+      anyOf:
+        - {required: [drop-ins], properties: {drop-ins: {required: [ForwardToSyslog], properties: {ForwardToSyslog: &true {anyOf: [{const: 1}, {type: string, pattern: "(?i)^(yes|y|true|t|on)$"}]}}}}}
+        - {required: [main], properties: {drop-ins: {not: {required: [ForwardToSyslog]}}, main: {required: [ForwardToSyslog], properties: {ForwardToSyslog: *true}}}}
+    severity: info
+    score: 1.0
+    message: "journald.conf and its drop-ins leave ForwardToSyslog off while rsyslog is installed; the benchmark asks rsyslog to receive every entry"
+    fix: set ForwardToSyslog=yes under [Journal] in /etc/systemd/journald.conf.d/60-journald.conf, then run systemctl restart systemd-journald.service
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.3, '!default']
+  journald/storage-not-persistent:
+    title: journald not set to keep the journal on disk
+    fact: journald
+    expect:
+      anyOf:
+        - {required: [drop-ins], properties: {drop-ins: {required: [Storage], properties: {Storage: &persistent {const: persistent}}}}}
+        - {required: [main], properties: {drop-ins: {not: {required: [Storage]}}, main: {required: [Storage], properties: {Storage: *persistent}}}}
+    severity: info
+    score: 1.0
+    message: "journald.conf and its drop-ins do not set Storage=persistent, so the journal stays in memory, lost at reboot, unless /var/log/journal happens to exist"
+    fix: set Storage=persistent under [Journal] in /etc/systemd/journald.conf.d/60-journald.conf, then run systemctl restart systemd-journald.service
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.6, '!default']
+  journald/compress-off:
+    title: journald set not to compress the journal
+    fact: journald
+    expect:
+      anyOf:
+        - {required: [drop-ins], properties: {drop-ins: {required: [Compress], properties: {Compress: &compress {anyOf: [*true, {const: ""}, {type: integer, not: {const: 0}}, {type: string, pattern: "^[0-9]+[KMGTPE]?$"}]}}}}}
+        - {required: [main], properties: {drop-ins: {not: {required: [Compress]}}, main: {required: [Compress], properties: {Compress: *compress}}}}
+        - {properties: {drop-ins: {not: {required: [Compress]}}, main: {not: {required: [Compress]}}}}
+    severity: info
+    score: 1.0
+    message: "journald.conf or a drop-in turns Compress off, so large journal entries fill the disk sooner"
+    fix: remove the Compress line, or set Compress=yes, under [Journal], then run systemctl restart systemd-journald.service
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.7, '!default']
