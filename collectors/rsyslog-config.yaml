@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: rsyslog-config
+read:
+  files: [/etc/rsyslog.conf, /etc/rsyslog.d/*.conf]
+parse: {plugin: formats, op: rainerscript}
+into: rsyslog.config

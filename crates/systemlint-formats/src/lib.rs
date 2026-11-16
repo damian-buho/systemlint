@@ -10,10 +10,12 @@ pub mod deb822;
 mod kv;
 mod options;
 pub mod proc;
+mod rainerscript;
 mod words;
 pub use deb822::deb822;
 pub use kv::kv;
 pub use options::flags;
+pub use rainerscript::rainerscript;
 pub use words::words;
 
 use serde_json::{Map, Value};
@@ -67,6 +69,7 @@ pub fn describe() -> Describe {
             ("options", &[]),
             ("passwd", &[]),
             ("probes", &[]),
+            ("rainerscript", &[]),
             ("shadow", &[]),
             ("stat", &[]),
             ("statfs", &[]),
@@ -98,6 +101,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "options" => flags(&request.inputs, &request.with),
         "passwd" => passwd_with(&request.inputs, &request.with),
         "probes" => Ok(probes(&request.inputs)),
+        "rainerscript" => Ok(rainerscript(&request.inputs)),
         "shadow" => shadow_with(&request.inputs, &request.with),
         "stat" => Ok(stat(&request.inputs)),
         "statfs" => Ok(statfs(&request.inputs)),
@@ -110,8 +114,19 @@ pub fn op(request: Request) -> Result<Reply> {
 }
 
 /// The generic ops that read a command’s stdout as text, so a failed command fails them.
-const TEXT_OPS: [&str; 11] = [
-    "csv", "deb822", "ini", "json", "kv", "lines", "match", "options", "toml", "words", "yaml",
+const TEXT_OPS: [&str; 12] = [
+    "csv",
+    "deb822",
+    "ini",
+    "json",
+    "kv",
+    "lines",
+    "match",
+    "options",
+    "rainerscript",
+    "toml",
+    "words",
+    "yaml",
 ];
 
 /// The family ops that take typed options under `with`.
@@ -1129,8 +1144,25 @@ mod tests {
                 .map(|o| o.op.as_str())
                 .collect::<Vec<_>>(),
             [
-                "csv", "deb822", "exec", "ini", "json", "kv", "lines", "match", "options",
-                "passwd", "probes", "shadow", "stat", "statfs", "systemd", "toml", "words", "yaml"
+                "csv",
+                "deb822",
+                "exec",
+                "ini",
+                "json",
+                "kv",
+                "lines",
+                "match",
+                "options",
+                "passwd",
+                "probes",
+                "rainerscript",
+                "shadow",
+                "stat",
+                "statfs",
+                "systemd",
+                "toml",
+                "words",
+                "yaml"
             ]
         );
         assert!(describe.ops.iter().all(|o| o.needs.is_empty()));

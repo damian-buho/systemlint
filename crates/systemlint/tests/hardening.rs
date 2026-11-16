@@ -5747,6 +5747,158 @@ fn the_stig_chrony_maxpoll_passes_16_and_an_unset_one_and_fails_17() {
     assert_eq!(maxpoll("server a maxpoll 17\n", json!({})), Outcome::Skip);
 }
 
+// The outcome of an rsyslog rule over the given files, read as the shipped rsyslog-config collector asks.
+fn rsyslog(rule: &str, files: &[(&str, &str)]) -> Outcome {
+    let inputs: Vec<Input> = files
+        .iter()
+        .map(|(path, text)| {
+            Input::File(serde_json::from_value(json!({"path": path, "content": text})).unwrap())
+        })
+        .collect();
+    let reply = systemlint_formats::rainerscript(&inputs);
+    assert!(reply.diagnostics.is_empty(), "{:?}", reply.diagnostics);
+    the(
+        rule,
+        &facts(&[
+            (
+                "rsyslog.binary",
+                json!({"/usr/sbin/rsyslogd": {"kind": "file"}}),
+            ),
+            ("rsyslog.config", json!(reply.facts)),
+        ]),
+    )
+}
+
+#[test]
+fn rsyslog_passes_ubuntus_stock_files_and_fails_each_rule_at_its_edge() {
+    let main = "module(load=\"imuxsock\")\n$FileOwner syslog\n$FileCreateMode 0640\n$IncludeConfig /etc/rsyslog.d/*.conf\n";
+    let rules = "auth,authpriv.*\t/var/log/auth.log\n*.*;auth,authpriv.none\t-/var/log/syslog\n*.emerg\t:omusrmsg:*\n";
+    let stock = [
+        ("/etc/rsyslog.conf", main),
+        ("/etc/rsyslog.d/50-default.conf", rules),
+    ];
+    for rule in [
+        "rsyslog/file-create-mode-unset",
+        "rsyslog/stig-auth-unlogged",
+    ] {
+        assert_eq!(rsyslog(rule, &stock), Outcome::Pass, "{rule}");
+    }
+    let one = |rule: &str, text: &str| rsyslog(rule, &[("/etc/rsyslog.conf", text)]);
+    for rule in [
+        "rsyslog/file-create-mode-open",
+        "rsyslog/receives-network",
+        "rsyslog/forwards-in-clear",
+    ] {
+        assert_eq!(one(rule, main), Outcome::Pass, "{rule}");
+        assert_eq!(one(rule, rules), Outcome::Pass, "{rule}");
+    }
+    let unset = "rsyslog/file-create-mode-unset";
+    assert_eq!(one(unset, rules), Outcome::Fail);
+    assert_eq!(
+        one(
+            unset,
+            "module(load=\"builtin:omfile\" fileCreateMode=\"0600\")\n"
+        ),
+        Outcome::Pass
+    );
+    let open = "rsyslog/file-create-mode-open";
+    for mode in ["0640", "0600", "0400", "0000"] {
+        assert_eq!(
+            one(open, &format!("$FileCreateMode {mode}\n")),
+            Outcome::Pass,
+            "{mode}"
+        );
+    }
+    for mode in ["0644", "0641", "0650", "0740", "0660"] {
+        assert_eq!(
+            one(open, &format!("$FileCreateMode {mode}\n")),
+            Outcome::Fail,
+            "{mode}"
+        );
+    }
+    assert_eq!(
+        one(
+            open,
+            "action(type=\"omfile\" file=\"/var/log/x\" fileCreateMode=\"0644\")\n"
+        ),
+        Outcome::Fail
+    );
+    let network = "rsyslog/receives-network";
+    assert_eq!(
+        one(network, "module(load=\"imtcp\")\n"),
+        Outcome::Pass,
+        "a loaded module listens on nothing"
+    );
+    assert_eq!(
+        one(network, "input(type=\"imtcp\" port=\"514\")\n"),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one(network, "$ModLoad imudp\n$UDPServerRun 514\n"),
+        Outcome::Fail
+    );
+    let clear = "rsyslog/forwards-in-clear";
+    assert_eq!(one(clear, "*.* @logs.example\n"), Outcome::Fail);
+    assert_eq!(one(clear, "*.* @@logs.example\n"), Outcome::Fail);
+    assert_eq!(
+        one(
+            clear,
+            "$DefaultNetstreamDriver gtls\n$ActionSendStreamDriverMode 1\n*.* @@logs.example\n"
+        ),
+        Outcome::Pass
+    );
+    assert_eq!(
+        one(
+            clear,
+            "*.* action(type=\"omfwd\" target=\"l\" protocol=\"tcp\")\n"
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one(
+            clear,
+            "action(type=\"omfwd\" target=\"l\" StreamDriverMode=\"1\")\n"
+        ),
+        Outcome::Fail,
+        "udp is omfwd’s default"
+    );
+    assert_eq!(
+        one(
+            clear,
+            "*.* action(type=\"omfwd\" target=\"l\" Protocol=\"tcp\" StreamDriver=\"gtls\" StreamDriverMode=\"1\")\n"
+        ),
+        Outcome::Pass
+    );
+    let auth = "rsyslog/stig-auth-unlogged";
+    assert_eq!(one(auth, "*.* -/var/log/syslog\n"), Outcome::Pass);
+    assert_eq!(
+        one(auth, "*.*;auth,authpriv.none -/var/log/syslog\n"),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one(
+            auth,
+            "auth,authpriv.* @@remote\ndaemon.* /var/log/daemon.log\n"
+        ),
+        Outcome::Fail,
+        "a forward is no file"
+    );
+    assert_eq!(
+        one(
+            auth,
+            "auth,authpriv.info /var/log/auth.log\ndaemon.* /var/log/d\n"
+        ),
+        Outcome::Fail
+    );
+    assert_eq!(
+        one(
+            auth,
+            "auth,authpriv.debug action(type=\"omfile\" file=\"/var/log/a\")\ndaemon.* /var/log/d\n"
+        ),
+        Outcome::Pass
+    );
+}
+
 #[test]
 fn grub_passes_only_with_superusers_and_a_pbkdf2_password_and_never_keeps_the_hash() {
     let grub = |text: &str| {

@@ -709,6 +709,19 @@ enabled and active. `rsyslog/no-tls-driver` (CIS 6.1.2.8) fails when the
 `lmnsd_ossl.so`, the GnuTLS and OpenSSL drivers CIS accepts, under
 `/usr/lib/*/rsyslog` or `/usr/lib*/rsyslog`.
 
+The `rsyslog-config` collector reads `/etc/rsyslog.conf` and
+`/etc/rsyslog.d/*.conf` through `formats rainerscript` into
+`rsyslog.config.<path>`; an `$IncludeConfig` or `include()` naming another
+directory is not followed.
+
+| Rule | Level | Fails when |
+| --- | --- | --- |
+| `rsyslog/file-create-mode-unset` | warning | no file sets `$FileCreateMode` or the omfile module’s `fileCreateMode`, so logs are created 0644 (CIS 6.1.2.3) |
+| `rsyslog/file-create-mode-open` | warning | a file sets either, or an omfile action’s `fileCreateMode`, more open than 0640 (CIS 6.1.2.3) |
+| `rsyslog/receives-network` | info | a file starts an `imtcp`, `imptcp`, `imudp`, `imrelp` or `imgssapi` input, as an object or a legacy `$…ServerRun`; a loaded module alone listens on nothing (CIS 6.1.2.6, *standard-only*) |
+| `rsyslog/forwards-in-clear` | info | a file forwards with `@host` (UDP), with `@@host` and no `$ActionSendStreamDriverMode 1`, or with an `omfwd` action lacking `protocol="tcp"` and `StreamDriverMode="1"` (CIS 6.1.2.9, *standard-only*) |
+| `rsyslog/stig-auth-unlogged` | info | no selector writes every priority of `auth`, of `authpriv` and of `daemon` to a file, a `*` counting unless the same selector sets the facility `none` (STIG 200090, *standard-only*) |
+
 `gdm/xdmcp` (CIS 1.7.6) fails a GDM file (`custom.conf` or `daemon.conf` under
 `/etc/gdm3` or `/etc/gdm`, read by the `gdm-config` collector through `ini`)
 whose `[xdmcp]` section sets `Enable` to `true` or `1` in any case; the `gdm`

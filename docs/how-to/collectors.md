@@ -445,6 +445,16 @@ parse: {plugin: formats, op: options, with: {split: [-a, -S]}}
 into: audit.loaded
 ```
 
+`op: rainerscript` reads rsyslog’s configuration, keyed by path, into three
+lists: `legacy`, each `$Directive` lowercased to its values and lines;
+`objects`, each `module(…)`, `input(…)`, `action(…)` and other object with its
+`type` and `params`, keys lowercased as rsyslog compares them, values as
+written; and `selectors`, each action after a `facility.priority` selector
+(`filters`, facilities split on `,`, one per `;` part), a `:property` filter
+or an `if … then` (`expression`), the action a text or the object. A `{…}`
+block’s actions are objects; `stop` and `~` are no action. A statement it
+cannot read is a diagnostic naming its line.
+
 `op: match` is for the one line shape no family covers, such as a module’s
 base name in `modules.order`: `with.pattern` is one short regular expression,
 with no lookaheads, whose named captures become the fields, each line it

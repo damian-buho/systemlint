@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-description: rsyslog, where it is the chosen logger, left off or unable to send logs over TLS
+description: rsyslog, where it is the chosen logger, left off, creating logs every user reads, listening on the network or forwarding without TLS
 tags: [default, rsyslog]
 when: {rsyslog.binary: {minProperties: 1}}
 rules:
@@ -31,3 +31,86 @@ rules:
     fix: install rsyslog-gnutls with “apt install rsyslog-gnutls”, or install rsyslog-openssl
     docs: https://packages.ubuntu.com/resolute/rsyslog-gnutls
     tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.8, '!default']
+  rsyslog/file-create-mode-unset:
+    title: rsyslog creates log files readable by every user
+    fact: rsyslog.config
+    expect:
+      not:
+        additionalProperties:
+          not:
+            anyOf:
+              - {properties: {legacy: {required: [filecreatemode]}}}
+              - {properties: {objects: {contains: {properties: {type: {const: module}, params: {required: [load, filecreatemode], properties: {load: {pattern: "(?i)^(builtin:)?omfile$"}}}}}}}}
+    severity: warning
+    score: 4.0
+    message: "no rsyslog configuration file sets $FileCreateMode or the omfile module’s fileCreateMode, so rsyslog creates each log file 0644, readable by every user"
+    fix: set “$FileCreateMode 0640” in “/etc/rsyslog.conf”, then run “systemctl restart rsyslog.service”
+    docs: https://www.rsyslog.com/doc/configuration/modules/omfile.html
+    tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.3]
+  rsyslog/file-create-mode-open:
+    title: rsyslog creates log files more open than 0640
+    fact: rsyslog.config.*
+    expect:
+      properties:
+        legacy: {properties: {filecreatemode: {items: {properties: {value: &mode {pattern: "^0?[0246][04]0$"}}}}}}
+        objects: {items: {properties: {params: {properties: {filecreatemode: *mode}}}}}
+    severity: warning
+    score: 4.0
+    message: "{subject} sets a $FileCreateMode or fileCreateMode more open than 0640, so rsyslog creates log files other users can read or anyone can change"
+    fix: set the mode to “0640” in {subject}, then run “systemctl restart rsyslog.service”
+    docs: https://www.rsyslog.com/doc/configuration/modules/omfile.html
+    tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.3]
+  rsyslog/receives-network:
+    title: rsyslog accepts logs from the network
+    fact: rsyslog.config.*
+    expect:
+      properties:
+        objects: {not: {contains: {properties: {type: {const: input}, params: {required: [type], properties: {type: {pattern: "(?i)^im(tcp|ptcp|udp|relp|gssapi)$"}}}}}}}
+        legacy: {not: {anyOf: [{required: [inputtcpserverrun]}, {required: [inputptcpserverrun]}, {required: [udpserverrun]}, {required: [inputudpserverrun]}, {required: [inputrelpserverrun]}, {required: [inputgssserverrun]}]}}
+    severity: info
+    score: 2.0
+    message: "{subject} starts an rsyslog network input, so any host that reaches the port can write log lines here, fill the disk or forge entries"
+    fix: remove the “input(type=…)” or “$…ServerRun” line from {subject} unless this host is the site’s log server, then run “systemctl restart rsyslog.service”
+    docs: https://www.rsyslog.com/doc/configuration/modules/imtcp.html
+    tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.6, '!default']
+  rsyslog/forwards-in-clear:
+    title: rsyslog forwards logs without TLS
+    fact: rsyslog.config.*
+    expect:
+      properties:
+        selectors:
+          not:
+            contains:
+              properties: {action: {type: string, pattern: "^@[^@]"}}
+        objects:
+          not:
+            contains:
+              properties:
+                type: {const: action}
+                params:
+                  required: [type]
+                  properties: {type: {pattern: "(?i)^omfwd$"}}
+                  not: {required: [protocol, streamdrivermode], properties: {protocol: {pattern: "(?i)^tcp$"}, streamdrivermode: {const: "1"}}}
+      anyOf:
+        - {properties: {selectors: {not: {contains: {properties: {action: {type: string, pattern: "^@@"}}}}}}}
+        - {properties: {legacy: {required: [actionsendstreamdrivermode], properties: {actionsendstreamdrivermode: {contains: {properties: {value: {const: "1"}}}}}}}}
+    severity: info
+    score: 2.0
+    message: "{subject} forwards logs over UDP, or over TCP without StreamDriverMode 1, so anyone on the path reads them and can forge entries"
+    fix: forward with “action(type="omfwd" protocol="tcp" StreamDriver="gtls" StreamDriverMode="1" StreamDriverAuthMode="x509/name" …)” in {subject}, then run “systemctl restart rsyslog.service”
+    docs: https://www.rsyslog.com/doc/configuration/modules/omfwd.html
+    tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.9, '!default']
+  rsyslog/stig-auth-unlogged:
+    title: rsyslog does not write every auth, authpriv and daemon message to a file
+    fact: rsyslog.config
+    expect:
+      allOf:
+        - {not: {additionalProperties: {not: {properties: {selectors: {contains: {required: [filters, action], properties: {action: &file {anyOf: [{type: string, pattern: "^-?/"}, {type: object, properties: {type: {const: action}, params: {required: [type, file], properties: {type: {pattern: "(?i)^omfile$"}}}}}]}, filters: {allOf: [{contains: {properties: {facilities: {contains: {enum: [auth, "*"]}}, priority: {enum: ["*", debug]}}}}, {not: {contains: {properties: {facilities: {contains: {const: auth}}, priority: {const: none}}}}}]}}}}}}}}}
+        - {not: {additionalProperties: {not: {properties: {selectors: {contains: {required: [filters, action], properties: {action: *file, filters: {allOf: [{contains: {properties: {facilities: {contains: {enum: [authpriv, "*"]}}, priority: {enum: ["*", debug]}}}}, {not: {contains: {properties: {facilities: {contains: {const: authpriv}}, priority: {const: none}}}}}]}}}}}}}}}
+        - {not: {additionalProperties: {not: {properties: {selectors: {contains: {required: [filters, action], properties: {action: *file, filters: {allOf: [{contains: {properties: {facilities: {contains: {enum: [daemon, "*"]}}, priority: {enum: ["*", debug]}}}}, {not: {contains: {properties: {facilities: {contains: {const: daemon}}, priority: {const: none}}}}}]}}}}}}}}}
+    severity: info
+    score: 1.0
+    message: "no rsyslog selector writes every auth, authpriv and daemon message to a file; the STIG asks for all three, so remote access attempts are kept"
+    fix: add “auth,authpriv.* /var/log/auth.log” and “daemon.* -/var/log/daemon.log” to “/etc/rsyslog.d/50-default.conf”, then run “systemctl restart rsyslog.service”
+    docs: https://www.rsyslog.com/doc/configuration/filters.html
+    tags: [rsyslog, logging, stig-ubuntu-26.04:UBTU-24-200090, '!default']
