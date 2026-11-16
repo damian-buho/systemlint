@@ -100,7 +100,7 @@ pub fn address(hex: &str) -> Option<IpAddr> {
         [v4] if hex.len() == 8 => Some(IpAddr::V4(Ipv4Addr::from(v4.to_ne_bytes()))),
         [a, b, c, d] if hex.len() == 32 => {
             let mut bytes = [0u8; 16];
-            for (chunk, word) in bytes.chunks_exact_mut(4).zip([a, b, c, d]) {
+            for (chunk, word) in bytes.as_chunks_mut::<4>().0.iter_mut().zip([a, b, c, d]) {
                 chunk.copy_from_slice(&word.to_ne_bytes());
             }
             let v6 = Ipv6Addr::from(bytes);
@@ -222,8 +222,10 @@ mod tests {
     // An IPv6 address as the kernel prints it, four native-endian words.
     fn v6(a: Ipv6Addr) -> String {
         a.octets()
-            .chunks_exact(4)
-            .map(|c| format!("{:08X}", u32::from_ne_bytes([c[0], c[1], c[2], c[3]])))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| format!("{:08X}", u32::from_ne_bytes(*c)))
             .collect()
     }
 
