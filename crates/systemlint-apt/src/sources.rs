@@ -561,10 +561,32 @@ pub fn sources(inputs: &[Input], facts: &BTreeMap<String, Value>) -> Reply {
     reply
 }
 
-/// Which sources to keep: every enabled one, less each whose targets the kept ones all list, from the last line up, so the first of two equal lines stays.
+/// How many of the faults the `apt` rules judge on a source itself it carries: plain HTTP or FTP, insecure options, no Signed-By, a shared keyring.
+fn faults(source: &Source) -> usize {
+    let plain = |u: &String| {
+        let scheme = u.split_once("://").map_or("", |(s, _)| s);
+        let scheme = scheme.rsplit_once('+').map_or(scheme, |(_, s)| s);
+        scheme == "http" || scheme == "ftp"
+    };
+    let shared =
+        |k: &String| k == "/etc/apt/trusted.gpg" || k.starts_with("/etc/apt/trusted.gpg.d/");
+    [
+        source.uris.iter().any(plain),
+        !source.insecure.is_empty(),
+        source.signed_by.is_empty(),
+        source.signed_by.iter().any(shared),
+    ]
+    .into_iter()
+    .filter(|f| *f)
+    .count()
+}
+
+/// Which sources to keep: every enabled one, less each whose targets the kept ones all list, the most faulty first, then from the last line up, so of two equal lines the cleaner, else the first, stays.
 fn keep(all: &[Source], targets: &[BTreeSet<(String, String, String)>]) -> Vec<bool> {
     let mut kept: Vec<bool> = all.iter().map(|s| s.enabled).collect();
-    for i in (0..all.len()).rev() {
+    let mut order: Vec<usize> = (0..all.len()).collect();
+    order.sort_by_key(|&i| std::cmp::Reverse((faults(&all[i]), i)));
+    for i in order {
         let covered = kept[i]
             && !targets[i].is_empty()
             && targets[i]
@@ -850,6 +872,39 @@ mod tests {
         assert_eq!(
             fact("/e/part.list:2"),
             (json!([]), json!(["/e/part.list:1"]))
+        );
+    }
+
+    #[test]
+    fn of_equal_sources_the_one_with_fewer_faults_stays_even_when_second() {
+        let clean =
+            "deb [signed-by=/etc/apt/keyrings/r.gpg] https://r.example/ubuntu resolute main";
+        for dirty in [
+            "deb [signed-by=/etc/apt/keyrings/r.gpg] http://r.example/ubuntu resolute main",
+            "deb [signed-by=/etc/apt/keyrings/r.gpg] tor+http://r.example/ubuntu resolute main",
+            "deb [signed-by=/etc/apt/keyrings/r.gpg] ftp://r.example/ubuntu resolute main",
+            "deb [signed-by=/etc/apt/keyrings/r.gpg trusted=yes] https://r.example/ubuntu resolute main",
+            "deb https://r.example/ubuntu resolute main",
+            "deb [signed-by=/etc/apt/trusted.gpg] https://r.example/ubuntu resolute main",
+            "deb [signed-by=/etc/apt/trusted.gpg.d/r.gpg] https://r.example/ubuntu resolute main",
+        ] {
+            let reply = sources(
+                &[file("/e/r.list", &format!("{dirty}\n{clean}\n"))],
+                &host("resolute"),
+            );
+            let covered = |key: &str| reply.facts[key]["covered-by"].clone();
+            assert_eq!(covered("/e/r.list:1"), json!(["/e/r.list:2"]), "{dirty}");
+            assert_eq!(covered("/e/r.list:2"), json!([]), "{dirty}");
+        }
+        let near = "deb [signed-by=/etc/apt/trusted.gpg.dx] https://r.example/ubuntu resolute main";
+        let reply = sources(
+            &[file("/e/r.list", &format!("{near}\n{clean}\n"))],
+            &host("resolute"),
+        );
+        assert_eq!(
+            reply.facts["/e/r.list:2"]["covered-by"],
+            json!(["/e/r.list:1"]),
+            "a keyring beside trusted.gpg.d is not shared, so the first stays"
         );
     }
 

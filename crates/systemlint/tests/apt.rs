@@ -251,7 +251,7 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
         ("apt/allow-unauthenticated", String::new()),
         ("apt/allow-weak-repositories", String::new()),
         ("apt/check-date-off", String::new()),
-        ("apt/duplicate", mirror.to_owned()),
+        ("apt/duplicate", format!("{list}:5")),
         ("apt/overlap", format!("{overlap}:5")),
         ("apt/overlap", format!("{overlap}:6")),
         ("apt/https", format!("{list}:5")),
@@ -294,7 +294,7 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
 }
 
 #[test]
-fn the_duplicate_remedy_disables_only_the_line_another_source_covers() {
+fn the_duplicate_remedy_disables_the_faulty_line_another_source_covers() {
     let document = document("apt-misconfigured");
     let rules = rules();
     let checks = lint(&document, &rules, &[], "2026-11-11");
@@ -304,5 +304,9 @@ fn the_duplicate_remedy_disables_only_the_line_another_source_covers() {
         .filter(|c| c.rule == "apt/duplicate")
         .map(|c| c.subject())
         .collect();
-    assert_eq!(duplicate, ["/etc/apt/sources.list.d/mirror.list:5"]);
+    assert_eq!(
+        duplicate,
+        ["/etc/apt/sources.list:5"],
+        "the plain http line goes, its https twin stays"
+    );
 }

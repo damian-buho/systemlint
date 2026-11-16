@@ -54,7 +54,7 @@ the line it starts on, such as `/etc/apt/sources.list.d/docker.sources:5`.
 | `expired-lists` | the cached Release files whose `Valid-Until` passed before the collection time |
 | `release-age-days` | the age of the oldest `Date:` among them |
 | `duplicates` | the other enabled sources listing one of its type, URI, suite and component |
-| `covered-by` | the kept sources listing every type, URI, suite and component it lists, when it is not kept: walking from the last source up, one is dropped when the sources still kept list all of it, so the first of two equal sources stays and a subset goes before its superset |
+| `covered-by` | the kept sources listing every type, URI, suite and component it lists, when it is not kept: walking from the source with the most faults the `apt` rules judge on it alone (plain HTTP or FTP, insecure options, no Signed-By, a shared keyring), then from the last source up, one is dropped when the sources still kept list all of it, so of two equal sources the cleaner, else the first, stays and a subset goes before its superset |
 | `overlaps` | the other kept sources sharing one of its targets, when it is kept |
 | `key-conflicts` | the other enabled sources naming one of its URI and suite with different `Signed-By` |
 
