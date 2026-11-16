@@ -17,6 +17,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 - Las reglas de apt incluidas juzgan Debian, Ubuntu y las distribuciones basadas en ellos, y se hacen a un lado en todos los demás. Ver [fuentes de apt](../how-to/apt.md).
 - Un procedimiento que ningún dato puede probar es una regla manual, listada para que una persona la revise y nunca contada como aprobada.
 
+### Recolección rápida y de solo lectura
+
+- Los recolectores se ejecutan en paralelo, así una revisión completa es lo bastante rápida para cada arranque, despliegue y trabajo de CI. Ver [recolectores](../how-to/collectors.md).
+- La recolección solo lee: cada archivo, comando y respuesta tiene un límite de tamaño y de tiempo, así un montaje colgado o un archivo enorme nunca detiene la ejecución.
+- Con `--root`, los enlaces simbólicos de una imagen se resuelven dentro de la imagen, así analizar una imagen no confiable nunca lee los archivos del host.
+
 ### Arreglos que hace por sí mismo, y solo los que quitan acceso
 
 - `systemlint fix` hace los cambios que un informe imprime como líneas `Run:`, en el host en vivo o en el sistema de archivos raíz de una imagen con `--root`, y pregunta antes. Ver [remedios](../how-to/rules.md#remedies).
