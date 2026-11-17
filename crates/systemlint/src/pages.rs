@@ -43,8 +43,15 @@ pub fn catalog(library: &Library) -> Result<String, String> {
         .collect();
     log::debug!("rule catalog of {} rules", items.len());
     let document = json!({"org": {"projectfile": {"pages": {"rules": {"items": items}}}}});
-    serde_saphyr::to_string(&document)
+    serde_saphyr::to_string_with_options(&document, expanded())
         .map_err(|e| format!("can’t encode the rule catalog as YAML: {e}"))
+}
+
+/// Serializer options that indent a list under its key, as yamllint asks.
+fn expanded() -> serde_saphyr::SerializerOptions {
+    let mut options = serde_saphyr::SerializerOptions::default();
+    options.compact_list_indent = false;
+    options
 }
 
 fn owner<'a>(library: &'a Library, id: &str) -> &'a str {
