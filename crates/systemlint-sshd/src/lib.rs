@@ -83,7 +83,9 @@ pub fn server(inputs: &[Input]) -> std::result::Result<Reply, String> {
                     .lines()
                     .find(|l| !l.trim().is_empty())
                     .unwrap_or("no output");
-                return Err(format!("{command} exited {exit}: {reason}"));
+                let user = connection.as_ref().and_then(|c| c.get("user"));
+                let user = user.map(|u| format!(" for {u}")).unwrap_or_default();
+                return Err(format!("{} exited {exit}{user}: {reason}", exec.argv[0]));
             }
         }
     }
@@ -284,11 +286,11 @@ mod tests {
             server(&[plain(1, "", "\nsshd: no hostkeys available -- exiting.\n")]).unwrap_err();
         assert_eq!(
             error,
-            "/usr/sbin/sshd -T exited 1: sshd: no hostkeys available -- exiting."
+            "/usr/sbin/sshd exited 1: sshd: no hostkeys available -- exiting."
         );
         let error = server(&[account("alice", 255, "")]).unwrap_err();
         assert!(
-            error.starts_with("/usr/sbin/sshd -T -C user=alice"),
+            error.starts_with("/usr/sbin/sshd exited 255 for alice: "),
             "{error}"
         );
         assert!(

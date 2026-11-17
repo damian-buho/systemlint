@@ -147,7 +147,7 @@ fn ran(inputs: &[Input]) -> Result<()> {
     }) {
         Some(run) => Err(format!(
             "{} exited {}: {}",
-            run.argv.join(" "),
+            run.argv[0],
             run.exit,
             run.stderr.lines().next().unwrap_or("")
         )
@@ -1656,7 +1656,7 @@ mod tests {
         assert_eq!(lines(0).unwrap().facts["/bin/cmd"], json!(["x"]));
         assert_eq!(
             lines(1).unwrap_err().to_string(),
-            "/bin/cmd -a exited 1: denied"
+            "/bin/cmd exited 1: denied"
         );
         let absent = lines(127).unwrap();
         assert!(absent.facts.is_empty());

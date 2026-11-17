@@ -394,7 +394,10 @@ pub fn call(
     let output = run(path, args, stdin, timeout, cap, None)?;
     if !output.status.success() {
         let said = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("exited with {}: {}", output.status, said.trim()));
+        return Err(match said.trim() {
+            "" => format!("exited with {}", output.status),
+            said => said.to_owned(),
+        });
     }
     Ok(output)
 }

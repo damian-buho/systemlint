@@ -237,8 +237,7 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     document["collectors"]["env-processes"] = root.clone();
     document["collectors"]["env-defaults"] =
         json!({"status": "skipped", "reason": root["reason"], "into": "env.defaults"});
-    document["collectors"]["env-image"] =
-        json!({"status": "error", "reason": "can’t read it", "into": "env.image"});
+    document["collectors"]["env-image"] = json!({"status": "error", "reason": "can’t read it\nat src/lib.rs:1:1", "into": "env.image"});
     let rules = ["a", "b"].map(|id| {
         compile(
             &format!("env/{id}"),
@@ -252,8 +251,10 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     assert_eq!(text.matches("Not run (").count(), 1, "{text}");
     assert!(
         text.contains("Unknown (env-image): can’t read it.\n  env/a, env/b\n\n"),
-        "a collector error prints once, its rules under it: {text}"
+        "a collector error prints once, its rules under it, its later lines only with -v: {text}"
     );
+    let loud = lint_human(&document, &checks, 0, false, true, false);
+    assert!(loud.contains("can’t read it\nat src/lib.rs:1:1"), "{loud}");
     assert!(
         text.ends_with("Passed            2\nUnknown           2\nNot run           4, they need root, an opt-in flag or fresher facts\n"),
         "{text}"

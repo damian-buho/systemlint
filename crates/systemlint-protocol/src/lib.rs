@@ -251,6 +251,7 @@ pub struct Diagnostic {
 
 /// The whole `main` of a plugin: `--describe`, `--help`, `--version`, or one request on stdin.
 pub fn run(describe: &Describe, handler: impl FnOnce(Request) -> Result<Reply>) -> ExitCode {
+    std::panic::set_hook(Box::new(|info| eprintln!("{}", crashed(info))));
     let args: Vec<String> = std::env::args().collect();
     let code = execute(
         describe,
@@ -261,6 +262,20 @@ pub fn run(describe: &Describe, handler: impl FnOnce(Request) -> Result<Reply>) 
         &mut std::io::stderr().lock(),
     );
     ExitCode::from(code)
+}
+
+/// A panic as the core reports it: `crashed: <message>` on the first line, the source location on the second.
+pub fn crashed(info: &std::panic::PanicHookInfo<'_>) -> String {
+    let payload = info.payload();
+    let message = payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("no message");
+    match info.location() {
+        Some(at) => format!("crashed: {message}\nat {at}"),
+        None => format!("crashed: {message}"),
+    }
 }
 
 /// [`run`] over explicit arguments and streams, returning the exit code.
@@ -362,6 +377,21 @@ pub fn scalar(word: &str) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_panic_reads_crashed_with_its_message_first_and_the_location_after() {
+        static SAID: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+        std::panic::set_hook(Box::new(|info| *SAID.lock().unwrap() = crashed(info)));
+        let _ = std::panic::catch_unwind(|| panic!("no {} here", "facts"));
+        let _ = std::panic::take_hook();
+        let said = SAID.lock().unwrap().clone();
+        let (first, at) = said.split_once('\n').unwrap();
+        assert_eq!(first, "crashed: no facts here");
+        assert!(
+            at.starts_with("at crates/systemlint-protocol/src/lib.rs:"),
+            "{said}"
+        );
+    }
 
     fn sample() -> Describe {
         Describe::new("sample", &[("echo", &[]), ("derive", &["os.release"])])

@@ -690,6 +690,11 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
         "Unknown",
         checks.iter().filter_map(|c| {
             let reason = failed(document, c)?;
+            let reason = if verbose {
+                reason
+            } else {
+                reason.lines().next().unwrap_or_default()
+            };
             Some((sentence(reason), c.collector.as_deref()?, c.rule.as_str()))
         }),
         on,
