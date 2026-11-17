@@ -156,8 +156,10 @@ const CAP_VERSION_3: u32 = 0x2008_0522;
 /// Runs between fork and exec, so it calls only async-signal-safe functions.
 unsafe fn enter(pidfd: i32, inside: Inside) -> std::io::Result<()> {
     let last = std::io::Error::last_os_error;
-    // SAFETY: setns, fork, waitpid, close_range, prctl, capset and _exit are async-signal-safe syscalls on plain values.
+    // SAFETY: signal, setns, fork, waitpid, close_range, prctl, capset and _exit are async-signal-safe syscalls on plain values.
     unsafe {
+        // The inherited wait-timeout SIGCHLD handler writes to a pipe close_range shuts, and panics.
+        libc::signal(libc::SIGCHLD, libc::SIG_DFL);
         if inside.namespaces != 0 && libc::setns(pidfd, inside.namespaces) != 0 {
             return Err(last());
         }

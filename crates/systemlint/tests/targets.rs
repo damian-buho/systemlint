@@ -103,6 +103,9 @@ fn a_command_inside_exits_as_it_did_through_the_middle_process() {
         "this process shares its own namespaces"
     );
     assert_eq!(Some(inside.bounding), bounding(&status));
+    let first = Path::new("/bin/true");
+    // A first wait installs wait-timeout’s SIGCHLD handler, which the middle process inherits.
+    run(first, &[], None, Duration::from_secs(600), OUTPUT_CAP, None).unwrap();
     let output = run(
         Path::new("/bin/sh"),
         &["-c", "echo inside; exit 3"],
