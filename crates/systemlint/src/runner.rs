@@ -76,7 +76,7 @@ impl Output {
 }
 
 /// The namespaces of a running process a command joins, and the capabilities it keeps.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Inside {
     /// The process, by its PID in this core’s namespace.
     pub pid: u32,
@@ -84,6 +84,10 @@ pub struct Inside {
     pub namespaces: i32,
     /// Its capability bounding set, which the command is cut down to.
     pub bounding: u64,
+    /// Its AppArmor label, the command’s on its exec, `None` when unconfined.
+    pub apparmor: Option<String>,
+    /// Whether it runs under a seccomp filter, which the command does not get.
+    pub seccomp: bool,
 }
 
 /// One namespace a container can hold apart: its `/proc/<pid>/ns` name and `CLONE_NEW*` flag, the user namespace first so the rest join under it.
@@ -115,13 +119,46 @@ impl Inside {
         let bounding = bounding(status).ok_or_else(|| {
             std::io::Error::new(std::io::ErrorKind::InvalidData, "no CapBnd line")
         })?;
-        log::debug!("process {pid} holds namespaces {namespaces:#x}, bounding {bounding:#x}");
+        let apparmor = match std::fs::read_to_string(format!("/proc/{pid}/attr/apparmor/current")) {
+            Ok(text) => apparmor_label(&text).map(str::to_owned),
+            Err(e)
+                if e.kind() == std::io::ErrorKind::NotFound
+                    || e.raw_os_error() == Some(libc::EINVAL) =>
+            {
+                None
+            }
+            Err(e) => return Err(e),
+        };
+        let seccomp = filtered(status);
+        log::debug!(
+            "process {pid} holds namespaces {namespaces:#x}, bounding {bounding:#x}, apparmor {apparmor:?}, seccomp filter {seccomp}"
+        );
         Ok(Self {
             pid,
             namespaces,
             bounding,
+            apparmor,
+            seccomp,
         })
     }
+}
+
+/// The confining label of an AppArmor `attr/current` text, its ` (mode)` cut, or `None` for `unconfined`.
+pub fn apparmor_label(text: &str) -> Option<&str> {
+    let text = text.trim_end_matches(['\n', '\0']);
+    let label = text
+        .strip_suffix(')')
+        .and_then(|t| t.rsplit_once(" ("))
+        .map_or(text, |(label, _)| label);
+    Some(label).filter(|l| !l.is_empty() && *l != "unconfined")
+}
+
+/// Whether a `/proc/<pid>/status` text says the process runs under a seccomp filter (`Seccomp: 2`).
+pub fn filtered(status: &str) -> bool {
+    status
+        .lines()
+        .find_map(|l| l.strip_prefix("Seccomp:"))
+        .is_some_and(|mode| mode.trim() == "2")
 }
 
 /// The `CapBnd` mask of a `/proc/<pid>/status` text.
@@ -150,16 +187,30 @@ struct CapData {
 /// `_LINUX_CAPABILITY_VERSION_3`, two [`CapData`] halves.
 const CAP_VERSION_3: u32 = 0x2008_0522;
 
-/// In a forked child: joins `inside`’s namespaces through `pidfd`, forks once more so the command lands in its PID namespace, and keeps only its capabilities; the middle process waits and exits as the command did.
+/// Where a task asks AppArmor for the label its next exec takes.
+const ONEXEC: &std::ffi::CStr = c"/proc/thread-self/attr/apparmor/exec";
+
+/// In a forked child: asks AppArmor for `onexec`’s label on exec, which a fork keeps, joins `inside`’s namespaces through `pidfd`, forks once more so the command lands in its PID namespace, and keeps only its capabilities; the middle process waits and exits as the command did.
 ///
 /// # Safety
 /// Runs between fork and exec, so it calls only async-signal-safe functions.
-unsafe fn enter(pidfd: i32, inside: Inside) -> std::io::Result<()> {
+unsafe fn enter(pidfd: i32, inside: &Inside, onexec: Option<&[u8]>) -> std::io::Result<()> {
     let last = std::io::Error::last_os_error;
-    // SAFETY: signal, setns, fork, waitpid, close_range, prctl, capset and _exit are async-signal-safe syscalls on plain values.
+    // SAFETY: signal, open, write, close, setns, fork, waitpid, close_range, prctl, capset and _exit are async-signal-safe syscalls on plain values.
     unsafe {
         // The inherited wait-timeout SIGCHLD handler writes to a pipe close_range shuts, and panics.
         libc::signal(libc::SIGCHLD, libc::SIG_DFL);
+        if let Some(request) = onexec {
+            let fd = libc::open(ONEXEC.as_ptr(), libc::O_WRONLY | libc::O_CLOEXEC);
+            if fd < 0 {
+                return Err(last());
+            }
+            let written = libc::write(fd, request.as_ptr().cast(), request.len());
+            libc::close(fd);
+            if usize::try_from(written).ok() != Some(request.len()) {
+                return Err(last());
+            }
+        }
         if inside.namespaces != 0 && libc::setns(pidfd, inside.namespaces) != 0 {
             return Err(last());
         }
@@ -219,7 +270,7 @@ pub fn run(
     stdin: Option<Vec<u8>>,
     timeout: Duration,
     cap: u64,
-    inside: Option<Inside>,
+    inside: Option<&Inside>,
 ) -> Result<Output, String> {
     log::debug!(
         "running {} {} with {} bytes on stdin, inside {inside:?}",
@@ -242,8 +293,13 @@ pub fn run(
             // SAFETY: the kernel just returned this descriptor, owned by nobody else.
             let fd = unsafe { OwnedFd::from_raw_fd(i32::try_from(fd).unwrap_or(-1)) };
             let raw = fd.as_raw_fd();
+            let inside = inside.clone();
+            let onexec = inside
+                .apparmor
+                .as_ref()
+                .map(|l| format!("exec {l}").into_bytes());
             // SAFETY: enter calls only async-signal-safe functions, and the pidfd outlives the spawn.
-            unsafe { command.pre_exec(move || enter(raw, inside)) };
+            unsafe { command.pre_exec(move || enter(raw, &inside, onexec.as_deref())) };
             Some(fd)
         }
         None => None,

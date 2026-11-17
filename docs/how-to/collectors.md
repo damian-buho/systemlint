@@ -295,7 +295,11 @@ and judges the host alone.
   binaries (`php -v`, `sshd -T`): systemlint joins every namespace the init
   holds apart from the host, forks into its PID namespace, keeps only the
   capabilities in the init’s bounding set and sets no-new-privileges.
-  The container’s seccomp and AppArmor profiles are not applied to the command.
+  The command takes the init’s AppArmor label (`docker-default`), named in
+  `meta.subject.apparmor`; when AppArmor refuses that label, the command
+  does not run and its collector fails. A seccomp filter can’t be copied
+  from another process, so the command runs without the init’s one, and
+  `meta.subject.seccomp` reads `filter not applied`.
 - Plugins and rules stay on the host: plugins only parse what the core read.
 - A finding on a file the container never changed belongs to its image.
   For a Docker container, systemlint lists its writable layer, the overlay

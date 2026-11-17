@@ -574,6 +574,14 @@ fn containers(
             }
         };
         let mut subject = container.subject();
+        subject["apparmor"] = Value::from(inside.apparmor.as_deref().unwrap_or("unconfined"));
+        if inside.seccomp {
+            log::debug!(
+                "container {}: seccomp filter not applied to its commands",
+                container.key
+            );
+            subject["seccomp"] = Value::from("filter not applied");
+        }
         if let Some(paths) = container.upper.as_deref().and_then(targets::changed) {
             subject["changed"] = Value::from(paths);
         }

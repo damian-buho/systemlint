@@ -1173,7 +1173,7 @@ fn execute(
         None,
         options.timeout,
         OUTPUT_CAP,
-        options.target.as_ref().map(|t| t.inside),
+        options.target.as_ref().map(|t| &t.inside),
     )
     .map_err(|e| format!("{}: {e}", argv[0]))?;
     log::debug!(

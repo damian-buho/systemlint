@@ -8,7 +8,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use systemlint::judge::{Outcome, compile, lint};
 use systemlint::report::{lint_human_targets, lint_textfile_targets};
-use systemlint::runner::{Inside, OUTPUT_CAP, bounding, run};
+use systemlint::runner::{Inside, OUTPUT_CAP, apparmor_label, bounding, filtered, run};
 use systemlint::source::Root;
 use systemlint::targets::{changed, discover};
 
@@ -112,13 +112,52 @@ fn a_command_inside_exits_as_it_did_through_the_middle_process() {
         None,
         Duration::from_secs(600),
         OUTPUT_CAP,
-        Some(inside),
+        Some(&inside),
     )
     .unwrap();
     assert_eq!(
         (output.code(), output.stdout.as_slice()),
         (3, &b"inside\n"[..])
     );
+}
+
+#[test]
+fn an_apparmor_label_drops_its_mode_and_unconfined_is_none() {
+    assert_eq!(
+        apparmor_label("docker-default (enforce)\n"),
+        Some("docker-default")
+    );
+    assert_eq!(apparmor_label("a//&b (mixed)\n"), Some("a//&b"));
+    assert_eq!(
+        apparmor_label("lxc-x_</var/lib/lxc>\n"),
+        Some("lxc-x_</var/lib/lxc>")
+    );
+    assert_eq!(apparmor_label("unconfined\n"), None);
+    assert_eq!(apparmor_label("\n"), None);
+}
+
+#[test]
+fn only_seccomp_mode_2_is_a_filter() {
+    assert!(filtered("Name:\tx\nSeccomp:\t2\nSeccomp_filters:\t1\n"));
+    assert!(!filtered("Seccomp:\t1\n"));
+    assert!(!filtered("Seccomp:\t0\n"));
+    assert!(!filtered("Name:\tx\n"));
+}
+
+#[test]
+fn a_command_whose_apparmor_label_cannot_be_applied_does_not_run() {
+    let status = std::fs::read_to_string("/proc/self/status").unwrap();
+    let mut inside = Inside::of(std::process::id(), &status).unwrap();
+    inside.apparmor = Some("systemlint-no-such-profile".to_owned());
+    let ran = run(
+        Path::new("/bin/true"),
+        &[],
+        None,
+        Duration::from_secs(600),
+        OUTPUT_CAP,
+        Some(&inside),
+    );
+    assert!(ran.is_err(), "{ran:?}");
 }
 
 #[test]
