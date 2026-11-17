@@ -4,7 +4,7 @@
 
 description: An enabled nftables service whose ruleset filters nothing sent to the host, or that failed to load it
 tags: [default]
-when: {/systemd/state/nftables.service/enabled: true}
+when: {systemd.state: {required: [nftables.service], properties: {nftables.service: {required: [enabled], properties: {enabled: {const: true}}}}}}
 rules:
   nftables/ipv4-input-open:
     title: nftables is enabled but IPv4 input is unfiltered
