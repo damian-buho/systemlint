@@ -1243,23 +1243,26 @@ pub fn judge(rule: &Rule, document: &Value) -> Vec<Check> {
     checks.into_iter().map(|c| hosted(document, c)).collect()
 }
 
-/// `check` not-applicable when it waited on a collector a container leaves to the host, else unchanged.
+/// `check` not-applicable when it waited on a collector a container leaves to the host or whose program is not installed, else unchanged.
 fn hosted(document: &Value, check: Check) -> Check {
-    match check.collector.as_deref() {
-        Some(id)
-            if check.outcome == Outcome::Unknown && document["collectors"][id]["host"] == true =>
-        {
-            log::debug!(
-                "rule {} not applicable: collector {id} runs on the host",
-                check.rule
-            );
-            Check {
-                outcome: Outcome::NotApplicable,
-                reason: Some(format!("{id} is judged on the host")),
-                ..check
-            }
-        }
-        _ => check,
+    let Some(id) = check
+        .collector
+        .as_deref()
+        .filter(|_| check.outcome == Outcome::Unknown)
+    else {
+        return check;
+    };
+    let outcome = &document["collectors"][id];
+    let reason = match (outcome["host"] == true, outcome["absent"] == true) {
+        (true, _) => format!("{id} is judged on the host"),
+        (false, true) => outcome["reason"].as_str().unwrap_or_default().to_owned(),
+        (false, false) => return check,
+    };
+    log::debug!("rule {} not applicable: {reason}", check.rule);
+    Check {
+        outcome: Outcome::NotApplicable,
+        reason: Some(reason),
+        ..check
     }
 }
 

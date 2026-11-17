@@ -5,7 +5,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use serde_json::json;
+use serde_json::{Value, json};
 use systemlint::judge::{Outcome, compile, lint};
 use systemlint::report::lint_textfile_targets;
 use systemlint::runner::{Inside, OUTPUT_CAP, bounding, run};
@@ -131,6 +131,28 @@ fn a_rule_over_a_host_collector_is_not_applicable_in_a_container() {
     .unwrap();
     let checks = lint(&document, &[rule], &[], "2026-11-16");
     assert_eq!(checks[0].outcome, Outcome::NotApplicable);
+}
+
+#[test]
+fn a_rule_over_an_absent_program_is_not_applicable_and_over_a_refused_read_not_run() {
+    let rule = compile(
+        "ssh/x",
+        systemlint::yaml::from_str("fact: sshd.global\nexpect: {const: 1}\n").unwrap(),
+    )
+    .unwrap();
+    let outcome = |sshd: Value| {
+        lint(
+            &json!({"collectors": {"sshd": sshd}}),
+            std::slice::from_ref(&rule),
+            &[],
+            "2026-11-16",
+        )[0]
+        .outcome
+    };
+    let absent = json!({"status": "skipped", "absent": true, "into": "sshd", "reason": "needs /usr/sbin/sshd, which is not installed"});
+    assert_eq!(outcome(absent), Outcome::NotApplicable);
+    let refused = json!({"status": "skipped", "into": "sshd", "reason": "can’t run /usr/sbin/sshd without root"});
+    assert_eq!(outcome(refused), Outcome::Unknown);
 }
 
 #[test]

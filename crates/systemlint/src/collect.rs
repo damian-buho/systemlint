@@ -396,7 +396,7 @@ fn record(
         }
         Err(Failure::Absent(program)) => {
             log::debug!("collector {} skipped: {program} is absent", collector.id);
-            json!({"status": "skipped", "reason": format!("needs {program}, which is not installed")})
+            json!({"status": "skipped", "absent": true, "reason": format!("needs {program}, which is not installed")})
         }
         Err(Failure::Other(reason)) => {
             log::debug!("collector {} failed: {reason}", collector.id);
@@ -471,8 +471,8 @@ fn skipped_need(
             .find(|c| c.id != collector.id && overlaps(&c.into, need))?;
         let outcome = outcomes.get(&producer.id).filter(|o| o["status"] == "skipped")?;
         let mut skipped = json!({"status": "skipped", "reason": format!("needs fact {need}, which collector {} skipped: {}", producer.id, outcome["reason"].as_str().unwrap_or_default())});
-        if outcome["opt-in"] == true {
-            skipped["opt-in"] = Value::Bool(true);
+        for flag in ["opt-in", "absent"].into_iter().filter(|f| outcome[*f] == true) {
+            skipped[flag] = Value::Bool(true);
         }
         Some(skipped)
     })

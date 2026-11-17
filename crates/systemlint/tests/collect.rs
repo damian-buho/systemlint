@@ -753,6 +753,10 @@ fn a_collector_needing_a_skipped_collectors_fact_is_skipped_too() {
         "{doc}"
     );
     assert!(outcome.get("opt-in").is_none());
+    assert!(
+        outcome.get("absent").is_none(),
+        "a live-only skip is not an absent program"
+    );
 }
 
 #[test]
@@ -778,6 +782,14 @@ fn an_absent_program_skips_a_command_only_collector() {
         doc["collectors"]["gone"]["reason"],
         "needs /nonexistent/systemlint-test, which is not installed"
     );
+    assert_eq!(doc["collectors"]["gone"]["absent"], true, "{doc}");
+    let derive =
+        collector("id: derive\nparse: {plugin: derive, op: codename}\ninto: apt.codename\n");
+    let base = collector(
+        "id: base\nread:\n  exec: [/nonexistent/systemlint-test]\nparse: {plugin: base, op: release}\ninto: os.release\n",
+    );
+    let doc = collect(&[derive, base], &plugins(), &options(true));
+    assert_eq!(doc["collectors"]["derive"]["absent"], true, "{doc}");
 }
 
 #[test]

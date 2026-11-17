@@ -92,8 +92,10 @@ collector, so a walk that was cut short never passes. A
   environment except `LC_ALL=C`, a timeout and an output cap. Its `stdout`,
   `stderr` and exit code are passed to the plugin, which judges the exit. An
   absent program ends a collector that reads only commands `skipped`
-  (`needs /usr/sbin/auditctl, which is not installed`), so its rules print
-  `Not run`; beside paths it is passed as exit 127, as a shell reports it.
+  (`needs /usr/sbin/auditctl, which is not installed`) with `absent: true`,
+  which a collector needing its facts inherits, so their rules are
+  not-applicable and count under `Nothing to check`; beside paths it is
+  passed as exit 127, as a shell reports it.
 - `image-config`: the OCI image config or `docker inspect` JSON the operator
   names with `--image-config`, read from the host as given, since an image’s
   `ENV` is not in its root filesystem. The path as given is the input’s
