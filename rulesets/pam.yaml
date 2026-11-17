@@ -4,7 +4,7 @@
 
 description: PAM authentication stacks that let a login through without a password or without limit
 tags: [default]
-when: {auth.pam: {minProperties: 1}}
+when: {auth.pam: {minProperties: 1}, os.init: {not: {minProperties: 1, additionalProperties: {not: {contains: {enum: [systemd, init, openrc-init, runit]}}}}}}
 vars:
   faillock-deny: {default: 5}
   faillock-unlock-time: {default: 900}

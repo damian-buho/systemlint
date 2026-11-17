@@ -78,7 +78,38 @@ fn selected(
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
-    lint(document, &rules, &[], "2026-11-12")
+    lint(&hosted(document), &rules, &[], "2026-11-12")
+}
+
+// `document` on a host booted by systemd with cron installed, and journald when it has journald facts, unless it says otherwise.
+fn hosted(document: &Value) -> Value {
+    let mut hosted = json!({
+        "os": {"init": {"/proc/1/comm": ["systemd"]}},
+        "cron": {"binary": {"/usr/sbin/cron": {"exists": true, "kind": "file"}}},
+    });
+    if document.get("journald").is_some() {
+        merge(
+            &mut hosted,
+            &json!({"systemd": {"state": {"systemd-journald.service": {}}}}),
+        );
+    }
+    merge(&mut hosted, document);
+    hosted
+}
+
+// `given` laid over `base`, maps merged key by key.
+fn merge(base: &mut Value, given: &Value) {
+    match (base, given) {
+        (Value::Object(base), Value::Object(given)) => {
+            for (key, value) in given {
+                match base.get_mut(key) {
+                    Some(slot) => merge(slot, value),
+                    None => drop(base.insert(key.clone(), value.clone())),
+                }
+            }
+        }
+        (base, given) => *base = given.clone(),
+    }
 }
 
 // A facts document holding the given sysctl settings, nested by their dots.
@@ -2565,6 +2596,28 @@ fn sha_rounds_fail_below_5000_on_the_lower_key_set_and_skip_other_schemes() {
 }
 
 #[test]
+fn login_rules_apply_under_an_init_or_an_unread_one_and_not_under_an_entrypoint() {
+    let umask = |init: Value| {
+        let document = json!({"auth": {"login-defs": {"UMASK": "022"}}, "os": {"init": init}});
+        outcomes("login-defs", "login-defs/umask", &document)
+    };
+    let comm = |name: &str| json!({"/proc/1/comm": [name]});
+    assert_eq!(umask(comm("systemd")), [Outcome::Fail]);
+    assert_eq!(umask(comm("runit")), [Outcome::Fail]);
+    assert_eq!(
+        umask(json!({})),
+        [Outcome::Fail],
+        "no /proc/1/comm under --root"
+    );
+    assert_eq!(umask(comm("tini")), [Outcome::NotApplicable]);
+    assert_eq!(
+        umask(comm("systemd-journal")),
+        [Outcome::NotApplicable],
+        "a whole word only"
+    );
+}
+
+#[test]
 fn new_account_ageing_fails_past_each_bound_and_unset() {
     let age = |rule: &str, key: &str, value: Option<i64>| {
         let defs = value.map_or(json!({"UMASK": "027"}), |v| json!({key: v}));
@@ -3720,7 +3773,11 @@ fn systemd_journal_remote_fails_once_enabled_or_running_and_never_masked() {
         [Outcome::Pass],
         "masked"
     );
-    assert_eq!(remote(json!({})), Vec::<Outcome>::new(), "not installed");
+    assert_eq!(
+        remote(json!({})),
+        [Outcome::NotApplicable],
+        "journald not installed"
+    );
 }
 
 #[test]

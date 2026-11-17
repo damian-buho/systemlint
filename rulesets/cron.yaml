@@ -4,6 +4,7 @@
 
 description: the system crontab and cron directories, kept from other users
 tags: [default]
+when: {cron.binary: {minProperties: 1}}
 rules:
   cron/world-readable:
     title: System cron jobs are readable by every user

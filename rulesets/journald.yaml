@@ -4,6 +4,7 @@
 
 description: The systemd journal kept running, on disk, compressed and forwarded to rsyslog, and its services that take log entries from the network
 tags: [default]
+when: {systemd.state: {required: [systemd-journald.service]}}
 rules:
   journald/remote-listening:
     title: systemd-journal-remote accepts logs from the network

@@ -295,6 +295,15 @@ and judges the host alone.
   capabilities in the init’s bounding set and sets no-new-privileges.
   The container’s seccomp and AppArmor profiles are not applied to the command.
 - Plugins and rules stay on the host: plugins only parse what the core read.
+- Rules judge what the container runs, not what its image ships. `os-init`
+  reads the name of PID 1, `/proc/1/comm`, into `os.init`. The rules about
+  logins, the `pam`, `login-defs`, `pwquality`, `home` and `ctrl-alt-del`
+  rulesets and `coredump/no-hard-limit`, apply only when that name is `systemd`, `init`,
+  `openrc-init` or `runit`, or when it can’t be read, as under `--root`. An
+  entrypoint such as `tini` or `nginx` lets nobody log in, so the files the
+  base image ships for logins are not judged. `journald` applies once
+  `systemd-journald.service` is on disk, and `cron` once `/usr/sbin/cron` or
+  `/usr/sbin/crond` is.
 
 The facts document keeps each container’s full document under
 `targets.<key>`, its `meta.subject` `{kind: container, engine, name, id,

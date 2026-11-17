@@ -20,7 +20,7 @@ rules:
   coredump/no-hard-limit:
     title: Login sessions may dump core
     fact: auth.limits
-    when: {auth.pam: {minProperties: 1}}
+    when: {auth.pam: {minProperties: 1}, os.init: {not: {minProperties: 1, additionalProperties: {not: {contains: {enum: [systemd, init, openrc-init, runit]}}}}}}
     expect:
       not:
         additionalProperties:

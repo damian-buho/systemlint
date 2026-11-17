@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+
+id: cron-binary
+read:
+  stat: [/usr/sbin/cron, /usr/sbin/crond]
+parse: {plugin: formats, op: stat}
+into: cron.binary

@@ -4,7 +4,7 @@
 
 description: Account defaults in /etc/login.defs that hand new files to other users, hash passwords weakly or set new accounts’ password ageing
 tags: [default]
-when: {auth.login-defs: {minProperties: 1}}
+when: {auth.login-defs: {minProperties: 1}, os.init: {not: {minProperties: 1, additionalProperties: {not: {contains: {enum: [systemd, init, openrc-init, runit]}}}}}}
 vars:
   password-max-days: {default: 365}
   password-min-days: {default: 1}

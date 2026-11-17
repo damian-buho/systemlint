@@ -4,7 +4,7 @@
 
 description: pam_pwquality settings that let a short, guessable or unchecked new password through
 tags: [default]
-when: {"/auth/pam/~1etc~1pam.d~1common-password": {contains: &called {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwquality\\.so$"}}}}}
+when: {"/auth/pam/~1etc~1pam.d~1common-password": {contains: &called {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwquality\\.so$"}}}}, os.init: {not: {minProperties: 1, additionalProperties: {not: {contains: {enum: [systemd, init, openrc-init, runit]}}}}}}
 vars:
   pwquality-minlen: {default: 14}
   pwquality-single-factor-minlen: {default: 15}

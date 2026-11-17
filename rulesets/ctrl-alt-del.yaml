@@ -4,11 +4,13 @@
 
 description: A Ctrl-Alt-Del at the console that reboots the host
 tags: [default]
+when: {os.init: {not: {minProperties: 1, additionalProperties: {not: {contains: {enum: [systemd, init, openrc-init, runit]}}}}}}
 rules:
   ctrl-alt-del/reboots:
     title: Ctrl-Alt-Del at the console reboots the host
-    fact: systemd.state
-    expect: {required: [ctrl-alt-del.target], properties: {ctrl-alt-del.target: {required: [masked], properties: {masked: {const: true}}}}}
+    fact: systemd.state.*
+    keys: {const: ctrl-alt-del.target}
+    expect: {required: [masked], properties: {masked: {const: true}}}
     severity: info
     score: 1.0
     message: "ctrl-alt-del.target is not masked, so anyone at the console, or a stray key press, reboots the host without logging in"
