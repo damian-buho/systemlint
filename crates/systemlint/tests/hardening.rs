@@ -1509,6 +1509,25 @@ fn every_rule_carrying_a_lynis_reference_is_tagged_lynis_and_back() {
     }
 }
 
+#[test]
+fn every_shipped_rule_with_an_expression_words_its_own_message() {
+    for entry in
+        std::fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets")).unwrap()
+    {
+        let path = entry.unwrap().path();
+        let ruleset: Value =
+            systemlint::yaml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for (id, rule) in ruleset["rules"].as_object().unwrap() {
+            let celled = rule.to_string().contains("\"x-cel\"");
+            assert!(
+                !celled || rule["message"].is_string(),
+                "{id} in {}: the default text would quote the expression",
+                path.display()
+            );
+        }
+    }
+}
+
 // A document with the accounts collectors' facts: passwd, group and shadow entries by name.
 fn accounts(passwd: Value, group: Value, shadow: Value) -> Value {
     json!({"accounts": {"passwd": passwd, "group": group, "shadow": shadow}, "collectors": {
