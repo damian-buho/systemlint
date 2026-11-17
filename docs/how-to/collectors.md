@@ -309,8 +309,10 @@ and judges the host alone.
 
 The facts document keeps each container’s full document under
 `targets.<key>`, its `meta.subject` `{kind: container, engine, name, id,
-parent}`. `check --format human` prints the host’s report, then a
-`Container <key> (<engine> <ID>)` heading and a report per container; `json`
+parent}`. `check --format human` prints one block per rule across the host
+and every container, each part followed by where it holds (`In the host and
+every container but web:`, so containers built on one base image share it),
+then one summary row per target; `json`
 adds `targets.<key>`, `sarif` one run per container with `automationDetails.id`
 naming it, `textfile` a `target` label on each container’s samples, and
 `--plain` a `target<TAB><key>` line before each container’s lines. The exit

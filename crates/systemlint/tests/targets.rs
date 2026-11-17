@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 use systemlint::judge::{Outcome, compile, lint};
-use systemlint::report::lint_textfile_targets;
+use systemlint::report::{lint_human_targets, lint_textfile_targets};
 use systemlint::runner::{Inside, OUTPUT_CAP, bounding, run};
 use systemlint::source::Root;
 use systemlint::targets::discover;
@@ -153,6 +153,61 @@ fn a_rule_over_an_absent_program_is_not_applicable_and_over_a_refused_read_not_r
     assert_eq!(outcome(absent), Outcome::NotApplicable);
     let refused = json!({"status": "skipped", "into": "sshd", "reason": "can’t run /usr/sbin/sshd without root"});
     assert_eq!(outcome(refused), Outcome::Unknown);
+}
+
+#[test]
+fn human_prints_one_block_per_rule_across_targets_and_names_where_it_holds() {
+    let rule = compile(
+        "x/mode",
+        systemlint::yaml::from_str("title: Open file\nfact: files.*\nexpect: {const: 0}\n")
+            .unwrap(),
+    )
+    .unwrap();
+    let doc = |files: Value| json!({"files": files});
+    let (open, other, shut) = (
+        doc(json!({"/a": 1})),
+        doc(json!({"/b": 1})),
+        doc(json!({"/a": 0})),
+    );
+    let judged = |d: &Value| lint(d, std::slice::from_ref(&rule), &[], "2026-11-16");
+    let (host, a, b, c, d) = (
+        judged(&open),
+        judged(&open),
+        judged(&open),
+        judged(&other),
+        judged(&shut),
+    );
+    let targets = [
+        ("a", &open, a.as_slice()),
+        ("b", &open, b.as_slice()),
+        ("c", &other, c.as_slice()),
+        ("d", &shut, d.as_slice()),
+    ];
+    let text = lint_human_targets(&open, &host, 0, &targets, (false, false, false));
+    assert_eq!(text.matches("[x/mode] Open file").count(), 1, "{text}");
+    assert!(text.contains("In the host, a, b:\n- /a"), "{text}");
+    assert!(text.contains("In c:\n- /b"), "{text}");
+    assert!(
+        text.contains("\nhost  "),
+        "one summary row per target: {text}"
+    );
+    assert!(text.contains("\nd     "), "{text}");
+    let most = [
+        ("a", &open, a.as_slice()),
+        ("b", &open, b.as_slice()),
+        ("d", &shut, d.as_slice()),
+    ];
+    let text = lint_human_targets(&open, &host, 0, &most, (true, false, false));
+    assert!(
+        text.contains("In the host and every container but d:\n"),
+        "{text}"
+    );
+    let all = [("a", &open, a.as_slice())];
+    let text = lint_human_targets(&open, &host, 0, &all, (true, false, false));
+    assert!(
+        text.contains("In the host and every container:\n"),
+        "{text}"
+    );
 }
 
 #[test]

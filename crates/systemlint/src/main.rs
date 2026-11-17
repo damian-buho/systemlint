@@ -890,15 +890,13 @@ fn lint(
                     )
                 },
             ),
-            Format::Human => others.iter().fold(
-                human(&document, &checks, left_out),
-                |out, (key, doc, checks)| {
-                    format!(
-                        "{out}\n{}\n\n{}",
-                        report::target_heading(key, doc, on),
-                        human(doc, checks, 0)
-                    )
-                },
+            Format::Human if others.is_empty() => human(&document, &checks, left_out),
+            Format::Human => report::lint_human_targets(
+                &document,
+                &checks,
+                left_out,
+                &others,
+                (quiet, look.verbose, on),
             ),
             Format::Json => report::lint_json_targets(&document, &checks, &others),
             Format::Sarif => report::lint_sarif_targets(&document, &checks, &others),

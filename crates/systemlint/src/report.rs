@@ -4,6 +4,7 @@
 
 //! Check output in every format and the `--fail-on` threshold.
 
+use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::str::FromStr;
@@ -589,15 +590,9 @@ fn collector_blocks<'a>(
     }
 }
 
-/// One block per rule: not run reasons, unreadable paths, unknowns, manual rules, waivers, failures worst first (with references when `verbose`), then unless `quiet` the summary rows, `left_out` among them, and the rulesets not applicable.
-pub fn lint_human(
-    document: &Value,
-    checks: &[Check],
-    left_out: usize,
-    quiet: bool,
-    verbose: bool,
-    on: bool,
-) -> String {
+/// One block per rule: not run reasons, unreadable paths, unknowns, manual rules, waivers, failures worst first (with references when `verbose`), each with where it sorts.
+fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Block> {
+    let mut blocks = Vec::new();
     let mut out = String::new();
     collector_blocks(
         &mut out,
@@ -611,6 +606,7 @@ pub fn lint_human(
         }),
         on,
     );
+    split(&mut blocks, &mut out, (0, Reverse(None), 0));
     collector_blocks(
         &mut out,
         "Not read",
@@ -620,6 +616,7 @@ pub fn lint_human(
         }),
         on,
     );
+    split(&mut blocks, &mut out, (1, Reverse(None), 0));
     collector_blocks(
         &mut out,
         "Unknown",
@@ -629,6 +626,7 @@ pub fn lint_human(
         }),
         on,
     );
+    split(&mut blocks, &mut out, (2, Reverse(None), 0));
     for group in by_rule(checks.iter().filter(|c| {
         c.outcome == Outcome::Unknown
             && skip_reason(document, c).is_none()
@@ -647,11 +645,13 @@ pub fn lint_human(
         });
         out.push('\n');
     }
+    split(&mut blocks, &mut out, (3, Reverse(None), 0));
     for (reason, rules) in by_reason(checks.iter().filter(|c| c.outcome == Outcome::Conflict)) {
         log::debug!("{} rules in conflict: {reason}", rules.len());
         let _ = writeln!(out, "Conflict: {}", sentence(reason));
         out.push('\n');
     }
+    split(&mut blocks, &mut out, (4, Reverse(None), 0));
     for check in checks.iter().filter(|c| c.outcome == Outcome::Manual) {
         let _ = writeln!(out, "{}", header("Manual", check, on));
         if let Some(why) = &check.rationale {
@@ -659,6 +659,7 @@ pub fn lint_human(
         }
         out.push('\n');
     }
+    split(&mut blocks, &mut out, (5, Reverse(None), 0));
     for group in by_rule(
         checks
             .iter()
@@ -679,12 +680,192 @@ pub fn lint_human(
         }
         out.push('\n');
     }
+    split(&mut blocks, &mut out, (6, Reverse(None), 0));
     for group in ranked(checks) {
         failure_block(&mut out, &group, verbose, on);
+        let level = group.iter().filter_map(|c| c.severity).max();
+        let score = group
+            .iter()
+            .map(|c| c.score.unwrap_or_default())
+            .fold(0.0, f64::max);
+        split(
+            &mut blocks,
+            &mut out,
+            (7, Reverse(level), -(score * 1000.0) as i64),
+        );
     }
+    blocks
+}
+
+/// Where a human block sorts: its section, then a failure’s level and score, worst first.
+type Order = (u8, Reverse<Option<Severity>>, i64);
+
+/// One human block: its first line, the lines below it ending in an empty line, and where it sorts.
+struct Block {
+    order: Order,
+    head: String,
+    rest: String,
+}
+
+/// Moves each empty-line-ended block of `out` into `blocks` at `order`.
+fn split(blocks: &mut Vec<Block>, out: &mut String, order: Order) {
+    for text in out.split_terminator("\n\n") {
+        let (head, rest) = text.split_once('\n').unwrap_or((text, ""));
+        blocks.push(Block {
+            order,
+            head: head.to_owned(),
+            rest: rest.to_owned(),
+        });
+    }
+    out.clear();
+}
+
+/// Every block, then unless `quiet` the summary rows, `left_out` among them, and the rulesets not applicable.
+pub fn lint_human(
+    document: &Value,
+    checks: &[Check],
+    left_out: usize,
+    quiet: bool,
+    verbose: bool,
+    on: bool,
+) -> String {
+    let mut out: String = blocks(document, checks, verbose, on)
+        .into_iter()
+        .map(|b| match b.rest.is_empty() {
+            true => format!("{}\n\n", b.head),
+            false => format!("{}\n{}\n\n", b.head, b.rest),
+        })
+        .collect();
     if !quiet {
         out.push_str(&summary_rows(document, checks, left_out, on));
         out.extend(not_applicable(checks));
+    }
+    out
+}
+
+/// Each block by where it sorts and its first line, then each distinct rest with the targets holding it.
+type Merged<'a> = BTreeMap<(Order, String), Vec<(String, Vec<&'a str>)>>;
+
+/// The key standing for the host among the targets.
+const HOST: &str = "";
+
+/// One block per rule across the host and `targets`, each followed by the targets it holds for unless only the host has blocks, then unless `quiet` one summary row per target.
+pub fn lint_human_targets(
+    document: &Value,
+    checks: &[Check],
+    left_out: usize,
+    targets: &[Target],
+    flags: (bool, bool, bool),
+) -> String {
+    let (quiet, verbose, on) = flags;
+    let every: Vec<Target> = std::iter::once((HOST, document, checks))
+        .chain(targets.iter().copied())
+        .collect();
+    let mut merged: Merged = BTreeMap::new();
+    for (key, doc, judged) in &every {
+        for block in blocks(doc, judged, verbose, on) {
+            let groups = merged.entry((block.order, block.head)).or_default();
+            match groups.iter_mut().find(|(rest, _)| *rest == block.rest) {
+                Some((_, keys)) => keys.push(key),
+                None => groups.push((block.rest, vec![key])),
+            }
+        }
+    }
+    let containers: Vec<&str> = targets.iter().map(|(key, _, _)| *key).collect();
+    let mut out = String::new();
+    for ((_, head), groups) in &merged {
+        log::debug!("{head}: {} groups of targets", groups.len());
+        let _ = writeln!(out, "{head}");
+        for (rest, keys) in groups {
+            if !containers.is_empty() {
+                let _ = writeln!(out, "In {}:", place(keys, &containers));
+            }
+            if !rest.is_empty() {
+                let _ = writeln!(out, "{rest}");
+            }
+        }
+        out.push('\n');
+    }
+    if !quiet {
+        out.push_str(&target_rows(&every, on));
+        if left_out > 0 {
+            out += &row(
+                "Not selected",
+                &format!("{left_out}, run them by naming their ruleset in --tags"),
+            );
+        }
+    }
+    out
+}
+
+/// Where a block holds: the host and the containers among `keys`, naming the containers left out instead when fewer.
+fn place(keys: &[&str], containers: &[&str]) -> String {
+    let host = keys.contains(&HOST);
+    let inside: Vec<&str> = keys.iter().copied().filter(|k| *k != HOST).collect();
+    let missing: Vec<&str> = containers
+        .iter()
+        .copied()
+        .filter(|c| !keys.contains(c))
+        .collect();
+    let lead = if host { "the host" } else { "" };
+    let rest = match (inside.len(), missing.len()) {
+        (0, _) => String::new(),
+        (_, 0) => "every container".to_owned(),
+        (n, m) if m < n && m <= 3 => format!("every container but {}", missing.join(", ")),
+        _ => inside.join(", "),
+    };
+    match (lead, rest.as_str()) {
+        (lead, "") => lead.to_owned(),
+        ("", rest) => rest.to_owned(),
+        (lead, rest) if rest.starts_with("every") => format!("{lead} and {rest}"),
+        (lead, rest) => format!("{lead}, {rest}"),
+    }
+}
+
+/// One summary row per target: its rating and the counts of each level, unknowns and checks not run.
+fn target_rows(every: &[Target], on: bool) -> String {
+    let labels = ["Errors", "Warnings", "Info", "Unknown", "Not run"];
+    let name = |key: &str| {
+        if key == HOST {
+            "host".to_owned()
+        } else {
+            key.to_owned()
+        }
+    };
+    let width = every
+        .iter()
+        .map(|(k, _, _)| name(k).chars().count())
+        .max()
+        .unwrap_or(0)
+        .max(6);
+    let mut out = format!("{:<width$}  Rating  {}\n", "Target", labels.join("  "));
+    for (key, doc, judged) in every {
+        let grade = rate(judged).map_or('-', |r| r.grade);
+        let _ = write!(
+            out,
+            "{:<width$}  {}",
+            name(key),
+            paint(on, "1", &format!("{grade:<6}"))
+        );
+        let counts = counts(doc, judged, 0);
+        for label in labels {
+            let count = counts.iter().find(|c| c.0 == label).map_or(0, |c| c.1);
+            let shown = format!("{count:<w$}", w = label.chars().count());
+            let level = counts
+                .iter()
+                .find(|c| c.0 == label)
+                .and_then(|c| c.3)
+                .filter(|_| count > 0);
+            let _ = write!(
+                out,
+                "  {}",
+                level.map_or_else(
+                    || shown.clone(),
+                    |l| paint(on, level_word(Some(l)).1, &shown)
+                )
+            );
+        }
+        out = out.trim_end().to_owned() + "\n";
     }
     out
 }
@@ -1173,15 +1354,4 @@ fn targeted(line: &str, key: &str) -> String {
         Some((name, rest)) => format!("{name}{{{target},{rest}"),
         None => line.replacen(' ', &format!("{{{target}}} "), 1),
     }
-}
-
-/// The line above a container’s human report: its key, then its engine and short ID.
-pub fn target_heading(key: &str, document: &Value, on: bool) -> String {
-    let subject = &document["meta"]["subject"];
-    let engine = subject["engine"].as_str().unwrap_or("container");
-    let id = subject["id"].as_str().unwrap_or_default();
-    format!(
-        "{} ({engine} {id})",
-        paint(on, "1", &format!("Container {key}"))
-    )
 }
