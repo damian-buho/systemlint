@@ -585,7 +585,9 @@ fn containers(
             }
         }
     }
-    let mut documents = serde_json::Map::new();
+    let workers = host.jobs.clamp(1, found.len().max(1));
+    let jobs = (host.jobs / workers).max(1);
+    let mut prepared = Vec::new();
     for container in found {
         let opened = Root::process(container.pid, container.inner).and_then(|root| {
             let status = std::fs::read_to_string(format!("/proc/{}/status", container.pid))?;
@@ -618,18 +620,51 @@ fn containers(
             timeout: host.timeout,
             hash_key: host.hash_key.clone(),
             image_config: None,
-            jobs: host.jobs,
+            jobs,
             network: None,
             containers: true,
             target: Some(collect::Target { inside, subject }),
         };
-        let what = format!("container {}", container.key);
-        documents.insert(
-            container.key.clone(),
-            collected(collectors, plugins, &options, status, &what),
-        );
+        prepared.push((container.key, options));
     }
-    document["targets"] = Value::Object(documents);
+    let total = prepared.len();
+    log::debug!("{total} containers, {workers} at once, {jobs} collectors each");
+    let queue = std::sync::Mutex::new(prepared);
+    let done = std::sync::Mutex::new(Vec::with_capacity(total));
+    let progress = |finished: usize| {
+        if status {
+            eprint!("\r\x1b[KCollecting from containers {finished}/{total}…");
+        }
+    };
+    progress(0);
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| {
+                loop {
+                    let Some((key, options)) = queue.lock().ok().and_then(|mut q| q.pop()) else {
+                        break;
+                    };
+                    log::debug!("container {key}: collecting");
+                    let collected = collect::collect_reporting(
+                        collectors,
+                        plugins,
+                        &options,
+                        &mut |_, _, _| {},
+                    );
+                    let Ok(mut documents) = done.lock() else {
+                        break;
+                    };
+                    documents.push((key, collected));
+                    progress(documents.len());
+                }
+            });
+        }
+    });
+    if status {
+        eprint!("\r\x1b[K");
+    }
+    let documents = done.into_inner().unwrap_or_default();
+    document["targets"] = Value::Object(documents.into_iter().collect());
 }
 
 fn facts(
