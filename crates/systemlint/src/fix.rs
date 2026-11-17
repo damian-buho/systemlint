@@ -117,7 +117,7 @@ pub fn cleared(spec: &str) -> Result<u32, String> {
 }
 
 /// `path` as one shell word, single-quoted unless it holds only safe characters.
-fn quote(path: &str) -> String {
+pub(crate) fn quote(path: &str) -> String {
     if !path.is_empty()
         && path
             .chars()

@@ -312,8 +312,10 @@ no running container prints a `No running container matches` line.
   `upperdir` in the init’s `mountinfo`, up to 100 000 paths, into
   `meta.subject.changed`, and names the image from `config.v2.json` in
   `meta.subject.image`. A failing path absent from that layer reads
-  `…, as kiota.ch/b19/ubuntu ships it`, so it is fixed in the image; one in
-  the layer is the container’s own change. A `path:line` subject is looked up
+  `…, as kiota.ch/b19/ubuntu ships it`, so it is fixed in the image: its
+  remedies gather into one `RUN` line for the image’s build, never a `Run:`
+  line or `systemlint fix`, which would change only the running container.
+  One in the layer is the container’s own change. A `path:line` subject is looked up
   by its path, and a subject from a `live` collector (a mount, a process, a
   socket) is running state the image never ships, so it names no image.
 - Rules judge what the container runs, not what its image ships. `os-init`

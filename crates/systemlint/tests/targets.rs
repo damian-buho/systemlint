@@ -324,6 +324,31 @@ fn human_says_which_image_ships_a_path_the_container_never_changed() {
 }
 
 #[test]
+fn human_fixes_a_shipped_path_in_the_image_build_and_never_offers_fix_in_a_container() {
+    let yaml = "fact: files.*\nexpect: {const: 0}\nremedy: {chown: 0}\n";
+    let rules = [compile("x/owner", systemlint::yaml::from_str(yaml).unwrap()).unwrap()];
+    let document = json!({
+        "meta": {"subject": {"kind": "container", "image": "kiota.ch/b19/ubuntu", "changed": ["/etc/d"]}},
+        "files": {"/etc/a": 1, "/etc/b c": 1, "/etc/d": 1, "/etc/e": 0},
+    });
+    let checks = lint(&document, &rules, &[], "2026-11-17");
+    let text = systemlint::report::lint_human(&document, &checks, 0, true, false, false);
+    assert!(
+        text.contains("Fix in the image’s build, then rebuild it: RUN chown 0 /etc/a '/etc/b c'\n"),
+        "one step gathers every shipped path: {text}"
+    );
+    assert!(
+        text.contains("- files./etc/d: 0 was expected.\n  Run: chown 0 /etc/d\n"),
+        "the container’s own change keeps its command: {text}"
+    );
+    assert!(
+        !text.contains("systemlint fix"),
+        "fix reaches no container: {text}"
+    );
+    assert!(!text.contains("Run: chown 0 /etc/a"), "{text}");
+}
+
+#[test]
 fn textfile_keeps_one_help_per_family_and_labels_each_container() {
     let empty = json!({});
     let text = lint_textfile_targets(&empty, &[], &[("web", &empty, &[])]);

@@ -317,6 +317,20 @@ fn shipped<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
     kept.then(|| subject["image"].as_str().unwrap_or("the image"))
 }
 
+/// Adds a shipped check’s remedy to `built`, one Dockerfile step per command, its quoted paths gathered in order.
+fn build_step(built: &mut Vec<(String, Vec<String>)>, command: &str, check: &Check) {
+    let path = crate::fix::quote(check.subject.last().map_or("", String::as_str));
+    let Some(head) = command.strip_suffix(&path).map(str::trim_end) else {
+        log::debug!("rule {}: {command} names no path, kept whole", check.rule);
+        built.push((command.to_owned(), Vec::new()));
+        return;
+    };
+    match built.iter_mut().find(|(c, _)| c == head) {
+        Some((_, paths)) => paths.push(path),
+        None => built.push((head.to_owned(), vec![path])),
+    }
+}
+
 /// The failing checks of one rule as a block: level and highest score, why, a line per location and its remedy command, the fix once when every location shares it, then the references when `verbose`.
 /// Failing subjects with a remedy from which, unless verbose, one `systemlint fix` line stands for their `Run:` lines.
 const FOLD_REMEDIES: usize = 3;
@@ -342,11 +356,20 @@ fn failure_block(out: &mut String, document: &Value, group: &[&Check], verbose: 
         let _ = writeln!(out, "Why: {}", sentence(why));
     }
     let problems = clusters(group);
+    let contained = document["meta"]["subject"]["kind"] == "container";
+    let images: Vec<Option<&str>> = group.iter().map(|c| shipped(document, c)).collect();
+    let image_of = |check: &Check| {
+        group
+            .iter()
+            .position(|c| std::ptr::eq(*c, check))
+            .and_then(|i| images[i])
+    };
     let remedied = group
         .iter()
-        .filter(|c| c.remedy.is_some() && c.is_failing())
+        .filter(|c| c.remedy.is_some() && c.is_failing() && image_of(c).is_none())
         .count();
-    let folded = !verbose && remedied >= FOLD_REMEDIES;
+    let folded = !verbose && !contained && remedied >= FOLD_REMEDIES;
+    let mut built: Vec<(String, Vec<String>)> = Vec::new();
     let shared = problems.iter().all(|p| p[0].fix == problems[0][0].fix);
     let commanded = |checks: &[&Check]| checks.iter().all(|c| c.remedy.is_some());
     for problem in &problems {
@@ -367,19 +390,23 @@ fn failure_block(out: &mut String, document: &Value, group: &[&Check], verbose: 
             let named =
                 check.title.is_none() && said.as_deref().is_some_and(|m| m.contains(&subject));
             let mut line = location(if named { "" } else { &subject }, said.as_deref());
-            if let Some(image) = shipped(document, check) {
+            let image = image_of(check);
+            if let Some(image) = image {
                 let _ = write!(line, ", as {image} ships it");
             }
             if let Some(w) = &check.waiver {
                 let _ = write!(line, " (waiver expired on {}: {})", w.until, w.reason);
             }
             let _ = writeln!(out, "{}", sentence(&line));
-            if let Some(command) = check
-                .remedy
-                .as_deref()
-                .filter(|_| check.is_failing() && !folded)
-            {
-                let _ = writeln!(out, "  Run: {command}");
+            match (
+                check.remedy.as_deref().filter(|_| check.is_failing()),
+                image,
+            ) {
+                (Some(command), Some(_)) => build_step(&mut built, command, check),
+                (Some(command), None) if !folded => {
+                    let _ = writeln!(out, "  Run: {command}");
+                }
+                _ => {}
             }
         }
         if let Some(fix) = problem[0]
@@ -397,7 +424,19 @@ fn failure_block(out: &mut String, document: &Value, group: &[&Check], verbose: 
     {
         let _ = writeln!(out, "Fix: {}", sentence(fix));
     }
-    if remedied > 0 {
+    for (command, paths) in &built {
+        log::debug!(
+            "rule {}: {} paths for the image’s build",
+            worst.rule,
+            paths.len()
+        );
+        let _ = writeln!(
+            out,
+            "Fix in the image’s build, then rebuild it: RUN {command} {}",
+            paths.join(" ")
+        );
+    }
+    if remedied > 0 && !contained {
         let lead = if folded { "Run" } else { "Or run" };
         log::debug!("rule {}: {remedied} remedies, folded {folded}", worst.rule);
         let _ = writeln!(
