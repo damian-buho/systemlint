@@ -1,0 +1,4503 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+org:
+  projectfile:
+    pages:
+      rules:
+        items:
+          - id: accounts/gid-unique
+            ruleset: accounts
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+              - lynis
+            title: Groups share a gid
+          - id: accounts/gid-zero
+            ruleset: accounts
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+              - cis-ubuntu-26.04:5.4.2.2
+            title: An account other than root has group root as its primary group
+          - id: accounts/group-repeated
+            ruleset: accounts
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+              - lynis
+            title: A group name appears twice in /etc/group
+          - id: accounts/grpck
+            ruleset: accounts
+            score: 3.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+              - lynis
+            title: grpck finds the group files inconsistent
+          - id: accounts/no-shell-unlocked
+            ruleset: accounts
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - accounts
+              - cis-ubuntu-26.04:5.4.2.8
+            title: An account without a login shell has a usable password
+          - id: accounts/nologin-shell
+            ruleset: accounts
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - accounts
+              - cis-ubuntu-26.04:5.4.3.1
+            title: /etc/shells lists nologin as a valid shell
+          - id: accounts/passwd-empty-password
+            ruleset: accounts
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - accounts
+              - lynis
+            title: An account has an empty password field in /etc/passwd
+          - id: accounts/passwd-hash
+            ruleset: accounts
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - accounts
+              - cis-ubuntu-26.04:7.2.1
+              - stig-ubuntu-26.04:UBTU-24-400220
+              - dev-sec-linux-baseline:os-03b
+            title: An account keeps its password hash in /etc/passwd
+          - id: accounts/password-inactive-days
+            ruleset: accounts
+            score: 2.0
+            severity: info
+            tags:
+              - accounts
+              - cis-ubuntu-26.04:5.4.1.5
+            title: An expired password stays usable longer than asked
+          - id: accounts/password-max-days
+            ruleset: accounts
+            score: 2.0
+            severity: info
+            tags:
+              - accounts
+              - cis-ubuntu-26.04:5.4.1.1
+              - lynis
+            title: A password outlives the maximum age, or expires at once
+          - id: accounts/password-min-days
+            ruleset: accounts
+            score: 2.0
+            severity: info
+            tags:
+              - accounts
+              - cis-ubuntu-26.04:5.4.1.2
+            title: A password can be changed again before the minimum age
+          - id: accounts/password-rotation
+            ruleset: accounts
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - accounts
+              - nist-sp-800-63b-4:3.1.1.2
+            title: A password must change on a schedule
+          - id: accounts/password-warn-days
+            ruleset: accounts
+            score: 2.0
+            severity: info
+            tags:
+              - accounts
+              - cis-ubuntu-26.04:5.4.1.3
+            title: A password expires with less warning than asked
+          - id: accounts/shadow-empty-password
+            ruleset: accounts
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - accounts
+              - lynis
+              - cis-ubuntu-26.04:5.4.2.4
+            title: An account has an empty password in /etc/shadow
+          - id: accounts/shadow-group-members
+            ruleset: accounts
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+              - cis-ubuntu-26.04:7.2.4
+            title: The shadow group has members
+          - id: accounts/shadow-group-primary
+            ruleset: accounts
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+              - cis-ubuntu-26.04:7.2.4
+            title: An account has the shadow group as its primary group
+          - id: accounts/shadow-missing
+            ruleset: accounts
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - accounts
+              - lynis
+            title: An account defers to /etc/shadow, which has no line for it
+          - id: accounts/stig-root-unlocked
+            ruleset: accounts
+            score: 1.0
+            severity: info
+            tags:
+              - accounts
+              - stig-ubuntu-26.04:UBTU-24-400110
+            title: root’s password is not locked
+          - id: accounts/stig-useradd-inactive
+            ruleset: accounts
+            score: 1.0
+            severity: info
+            tags:
+              - accounts
+              - stig-ubuntu-26.04:UBTU-24-200260
+            title: New accounts are not disabled after 35 days of inactivity
+          - id: accounts/system-login-shell
+            ruleset: accounts
+            score: 2.0
+            severity: info
+            tags:
+              - accounts
+              - cis-ubuntu-26.04:5.4.2.7
+            title: A system account has a login shell
+          - id: accounts/uid-unique
+            ruleset: accounts
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+              - lynis
+            title: Accounts share a uid
+          - id: accounts/uid-zero
+            ruleset: accounts
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - accounts
+              - lynis
+            title: An account other than root has uid 0
+          - id: accounts/user-repeated
+            ruleset: accounts
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+            title: A user name appears twice in /etc/passwd
+          - id: accounts/useradd-inactive
+            ruleset: accounts
+            score: 1.0
+            severity: info
+            tags:
+              - accounts
+              - cis-ubuntu-26.04:5.4.1.5
+            title: New accounts keep an expired password usable longer than asked
+          - id: aide/no-config
+            ruleset: aide
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - integrity
+              - lynis
+            title: AIDE is installed without a configuration file
+          - id: aide/no-database
+            ruleset: aide
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - integrity
+              - lynis
+              - stig-ubuntu-26.04:UBTU-24-100110
+            title: AIDE is installed without a database
+          - id: aide/not-installed
+            ruleset: aide
+            score: 2.0
+            severity: info
+            tags:
+              - integrity
+              - cis-ubuntu-26.04:6.3.1
+              - lynis
+              - stig-ubuntu-26.04:UBTU-24-100100
+            title: AIDE is not installed
+          - id: aide/silent-reports
+            ruleset: aide
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - integrity
+              - stig-ubuntu-26.04:UBTU-24-100130
+            title: AIDE’s daily check mails no report
+          - id: aide/unscheduled
+            ruleset: aide
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - integrity
+              - cis-ubuntu-26.04:6.3.2
+              - stig-ubuntu-26.04:UBTU-24-100120
+            title: AIDE is installed but never runs on a schedule
+          - id: apparmor/no-profiles
+            ruleset: apparmor
+            score: 4.0
+            severity: info
+            tags:
+              - default
+              - mac
+              - lynis
+              - cis-ubuntu-26.04:1.3.1.2
+              - stig-ubuntu-26.04:UBTU-24-100510
+            title: AppArmor is installed but confines nothing
+          - id: apparmor/not-enforcing
+            ruleset: apparmor
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - mac
+              - lynis
+              - cis-ubuntu-26.04:1.3.1.3
+            title: An AppArmor profile is not enforced
+          - id: apparmor/not-installed
+            ruleset: apparmor
+            score: 3.0
+            severity: info
+            tags:
+              - default
+              - mac
+              - cis-ubuntu-26.04:1.3.1.1
+              - stig-ubuntu-26.04:UBTU-24-100500
+            title: AppArmor is not installed
+          - id: apparmor/service-off
+            ruleset: apparmor
+            score: 3.0
+            severity: info
+            tags:
+              - default
+              - mac
+              - cis-ubuntu-26.04:1.3.1.2
+              - stig-ubuntu-26.04:UBTU-24-100510
+            title: AppArmor profiles are not loaded at boot
+          - id: apt/allow-downgrade-to-insecure
+            ruleset: apt
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - apt
+              - cis-ubuntu-26.04:1.2.1.14
+            title: apt drops a repository’s signature when it vanishes
+          - id: apt/allow-insecure-repositories
+            ruleset: apt
+            score: 9.5
+            severity: error
+            tags:
+              - default
+              - apt
+              - cis-ubuntu-26.04:1.2.1.12
+            title: apt reads unsigned repositories
+          - id: apt/allow-unauthenticated
+            ruleset: apt
+            score: 9.5
+            severity: error
+            tags:
+              - default
+              - apt
+              - stig-ubuntu-26.04:UBTU-24-300001
+            title: apt installs unsigned packages
+          - id: apt/allow-weak-repositories
+            ruleset: apt
+            score: 7.5
+            severity: error
+            tags:
+              - default
+              - apt
+              - cis-ubuntu-26.04:1.2.1.13
+            title: apt trusts weakly signed repositories
+          - id: apt/check-date-off
+            ruleset: apt
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - apt
+              - cis-ubuntu-26.04:1.2.1.15
+            title: apt accepts Release files dated in the future
+          - id: apt/duplicate
+            ruleset: apt
+            score: 4.5
+            severity: warning
+            tags:
+              - default
+              - apt
+            title: A repository is listed in two places
+          - id: apt/https
+            ruleset: apt
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - apt
+            title: A source fetches over plain HTTP
+          - id: apt/insecure-options
+            ruleset: apt
+            score: 9.5
+            severity: error
+            tags:
+              - default
+              - apt
+            title: A source switches off signature checks
+          - id: apt/key-conflict
+            ruleset: apt
+            score: 8.5
+            severity: error
+            tags:
+              - default
+              - apt
+            title: A repository is listed with different keys
+          - id: apt/overlap
+            ruleset: apt
+            score: 4.5
+            severity: warning
+            tags:
+              - default
+              - apt
+            title: A repository is partly listed in two places
+          - id: apt/security-suite
+            ruleset: apt
+            score: 6.5
+            severity: warning
+            tags:
+              - default
+              - apt
+              - lynis
+            title: No source fetches security updates
+          - id: apt/shared-keyring
+            ruleset: apt
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - apt
+            title: A source trusts a shared keyring
+          - id: apt/signed-by
+            ruleset: apt
+            score: 5.5
+            severity: warning
+            tags:
+              - default
+              - apt
+            title: Source has no Signed-By key
+          - id: apt/stale-release
+            ruleset: apt
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - apt
+            title: Source has an expired Release file
+          - id: apt/stale-suite
+            ruleset: apt
+            score: 7.5
+            severity: error
+            tags:
+              - default
+              - apt
+            title: A source fetches an older release’s suite
+          - id: apt/stale-uri
+            ruleset: apt
+            score: 7.5
+            severity: error
+            tags:
+              - default
+              - apt
+            title: A source URI names an older release
+          - id: apt/versioned-uri
+            ruleset: apt
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - apt
+            title: A source URI pins a version
+          - id: apt/weak-dependencies
+            ruleset: apt
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - apt
+              - cis-ubuntu-26.04:1.2.1.2
+            title: apt installs recommended and suggested packages
+          - id: at/access-group
+            ruleset: at
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - at
+              - cis-ubuntu-26.04:2.4.2.1
+            title: at.allow or at.deny is in a group other than root or daemon
+          - id: at/access-mode
+            ruleset: at
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - at
+              - cis-ubuntu-26.04:2.4.2.1
+            title: at.allow or at.deny is more open than 0640
+          - id: at/access-owner
+            ruleset: at
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - at
+              - cis-ubuntu-26.04:2.4.2.1
+            title: at.allow or at.deny is not owned by root
+          - id: at/no-allow
+            ruleset: at
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - at
+              - cis-ubuntu-26.04:2.4.2.1
+            title: at is open to users not named in at.allow
+          - id: audit/access-denied
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.11
+              - stig-ubuntu-26.04:UBTU-24-900160
+            title: Denied file access goes unaudited
+          - id: audit/apparmor
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.26
+            title: AppArmor policy changes go unaudited
+          - id: audit/chacl
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.29
+              - stig-ubuntu-26.04:UBTU-24-900240
+            title: chacl runs go unaudited
+          - id: audit/chcon
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.27
+              - stig-ubuntu-26.04:UBTU-24-900210
+            title: chcon runs go unaudited
+          - id: audit/chmod
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.18
+              - stig-ubuntu-26.04:UBTU-24-900130
+              - stig-ubuntu-26.04:UBTU-24-900140
+            title: Permission changes go unaudited
+          - id: audit/chown
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.19
+              - stig-ubuntu-26.04:UBTU-24-900130
+              - stig-ubuntu-26.04:UBTU-24-900140
+            title: Ownership changes go unaudited
+          - id: audit/continue-on-error
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.34
+            title: audit rules stop loading at the first error
+          - id: audit/group
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.12
+              - stig-ubuntu-26.04:UBTU-24-200290
+            title: Group changes go unaudited
+          - id: audit/host-name
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.5
+            title: Host name changes go unaudited
+          - id: audit/hosts
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.7
+            title: Changes to the hosts and hostname files go unaudited
+          - id: audit/immutable
+            ruleset: audit
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.35
+              - stig-ubuntu-26.04:UBTU-24-909000
+            title: Audit rules are left mutable
+          - id: audit/issue
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.6
+            title: Login banner changes go unaudited
+          - id: audit/kmod
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.31
+            title: kmod runs go unaudited
+          - id: audit/logins
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.23
+              - stig-ubuntu-26.04:UBTU-24-900260
+            title: Login records go unaudited
+          - id: audit/module-delete
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.33
+              - stig-ubuntu-26.04:UBTU-24-900350
+            title: Kernel module removal goes unaudited
+          - id: audit/module-load
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.32
+              - stig-ubuntu-26.04:UBTU-24-900340
+            title: Kernel module loads go unaudited
+          - id: audit/mount
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.21
+            title: Mounts go unaudited
+          - id: audit/network
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.8
+            title: Network configuration changes go unaudited
+          - id: audit/network-manager
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.9
+            title: NetworkManager configuration changes go unaudited
+          - id: audit/nsswitch
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.16
+            title: Name service switch changes go unaudited
+          - id: audit/opasswd
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.15
+              - stig-ubuntu-26.04:UBTU-24-200320
+            title: Password history changes go unaudited
+          - id: audit/pam
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.17
+            title: PAM configuration changes go unaudited
+          - id: audit/passwd
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.13
+              - stig-ubuntu-26.04:UBTU-24-200280
+            title: Account changes go unaudited
+          - id: audit/rename
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.25
+              - stig-ubuntu-26.04:UBTU-24-900540
+            title: File renames go unaudited
+          - id: audit/session
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.22
+              - stig-ubuntu-26.04:UBTU-24-900590
+              - stig-ubuntu-26.04:UBTU-24-900600
+              - stig-ubuntu-26.04:UBTU-24-900610
+            title: Session records go unaudited
+          - id: audit/setfacl
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.28
+              - stig-ubuntu-26.04:UBTU-24-900230
+            title: setfacl runs go unaudited
+          - id: audit/shadow
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.14
+              - stig-ubuntu-26.04:UBTU-24-200300
+              - stig-ubuntu-26.04:UBTU-24-200310
+            title: Password hash changes go unaudited
+          - id: audit/sudoers
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.1
+              - stig-ubuntu-26.04:UBTU-24-900510
+              - stig-ubuntu-26.04:UBTU-24-900520
+            title: sudoers changes go unaudited
+          - id: audit/time
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.4
+            title: Clock changes go unaudited
+          - id: audit/unlink
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.24
+              - stig-ubuntu-26.04:UBTU-24-900540
+            title: File deletions go unaudited
+          - id: audit/user-emulation
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.2
+              - stig-ubuntu-26.04:UBTU-24-200580
+            title: Commands run as another user go unaudited
+          - id: audit/usermod
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.30
+              - stig-ubuntu-26.04:UBTU-24-900310
+            title: usermod runs go unaudited
+          - id: audit/xattr
+            ruleset: audit
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.3.20
+              - stig-ubuntu-26.04:UBTU-24-900130
+              - stig-ubuntu-26.04:UBTU-24-900140
+            title: Extended attribute changes go unaudited
+          - id: auditd/boot-backlog
+            ruleset: auditd
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.1.4
+            title: The audit backlog is too small while the system boots
+          - id: auditd/boot-unaudited
+            ruleset: auditd
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.1.3
+              - stig-ubuntu-26.04:UBTU-24-102010
+            title: Processes started before auditd go unaudited
+          - id: auditd/deletes-logs
+            ruleset: auditd
+            score: 2.0
+            severity: info
+            tags:
+              - audit
+              - cis-ubuntu-26.04:6.2.2.2
+            title: auditd deletes old audit logs
+          - id: auditd/disabled
+            ruleset: auditd
+            score: 3.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.1.2
+              - stig-ubuntu-26.04:UBTU-24-100410
+            title: auditd is installed but not enabled
+          - id: auditd/full-disk
+            ruleset: auditd
+            score: 2.0
+            severity: info
+            tags:
+              - audit
+              - cis-ubuntu-26.04:6.2.2.3
+            title: auditd carries on when its disk is full or fails
+          - id: auditd/inactive
+            ruleset: auditd
+            score: 3.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - lynis
+              - cis-ubuntu-26.04:6.2.1.2
+            title: auditd is installed but not running
+          - id: auditd/log-directory-mode
+            ruleset: auditd
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.4.4
+              - stig-ubuntu-26.04:UBTU-24-901380
+            title: The audit log directory is open too widely
+          - id: auditd/log-file-group
+            ruleset: auditd
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.4.3
+            title: An audit log is in a group other than root or adm
+          - id: auditd/log-group
+            ruleset: auditd
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.4.3
+            title: auditd writes its logs for a group other than root or adm
+          - id: auditd/log-mode
+            ruleset: auditd
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.4.1
+            title: An audit log is readable too widely
+          - id: auditd/log-owner
+            ruleset: auditd
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.4.2
+              - stig-ubuntu-26.04:UBTU-24-901310
+            title: An audit log is not owned by root
+          - id: auditd/low-space
+            ruleset: auditd
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.2.4
+            title: auditd gives no warning when its disk runs low
+          - id: auditd/max-log-file
+            ruleset: auditd
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - cis-ubuntu-26.04:6.2.2.1
+            title: Audit logs rotate below the site’s size
+          - id: auditd/no-rules
+            ruleset: auditd
+            score: 3.0
+            severity: info
+            tags:
+              - default
+              - audit
+              - lynis
+            title: auditd runs with no audit rule loaded
+          - id: auditd/not-installed
+            ruleset: auditd
+            score: 3.0
+            severity: info
+            tags:
+              - audit
+              - cis-ubuntu-26.04:6.2.1.1
+              - stig-ubuntu-26.04:UBTU-24-100400
+            title: The audit daemon is not installed
+          - id: auditd/stig-log-group
+            ruleset: auditd
+            score: 1.0
+            severity: info
+            tags:
+              - audit
+              - stig-ubuntu-26.04:UBTU-24-901350
+            title: An audit log is not in group root
+          - id: auditd/stig-log-mode
+            ruleset: auditd
+            score: 1.0
+            severity: info
+            tags:
+              - audit
+              - stig-ubuntu-26.04:UBTU-24-901300
+            title: An audit log is readable by its group
+          - id: auditd/stig-mail-account
+            ruleset: auditd
+            score: 1.0
+            severity: info
+            tags:
+              - audit
+              - stig-ubuntu-26.04:UBTU-24-900980
+            title: auditd mails its warnings to someone other than root
+          - id: auditd/stig-no-remote
+            ruleset: auditd
+            score: 1.0
+            severity: info
+            tags:
+              - audit
+              - stig-ubuntu-26.04:UBTU-24-100450
+            title: Audit records are kept on this host alone
+          - id: auditd/stig-space-left
+            ruleset: auditd
+            score: 1.0
+            severity: info
+            tags:
+              - audit
+              - stig-ubuntu-26.04:UBTU-24-900960
+            title: auditd mails no warning at a quarter of its disk left
+          - id: authorized-keys/dsa
+            ruleset: authorized-keys
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+            title: A DSA key is authorized
+          - id: authorized-keys/rsa-size
+            ruleset: authorized-keys
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+            title: A short RSA key is authorized
+          - id: banner/discloses-system
+            ruleset: banner
+            score: 1.0
+            severity: info
+            tags:
+              - banner
+              - lynis
+              - cis-ubuntu-26.04:1.6.1
+              - cis-ubuntu-26.04:1.6.2
+              - cis-ubuntu-26.04:1.6.3
+              - cis-ubuntu-26.04:1.6.4
+              - cis-ubuntu-26.04:1.6.5
+            title: The login banner names the system
+          - id: banner/owner
+            ruleset: banner
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - banner
+              - cis-ubuntu-26.04:1.6.6
+              - cis-ubuntu-26.04:1.6.7
+              - cis-ubuntu-26.04:1.6.8
+              - cis-ubuntu-26.04:1.6.9
+              - cis-ubuntu-26.04:1.6.10
+            title: The login banner is not owned by root
+          - id: banner/stig-issue-empty
+            ruleset: banner
+            score: 1.0
+            severity: info
+            tags:
+              - banner
+              - stig-ubuntu-26.04:UBTU-24-200660
+            title: The local login banner is empty
+          - id: banner/update-notifier-service
+            ruleset: banner
+            score: 1.0
+            severity: info
+            tags:
+              - banner
+              - cis-ubuntu-26.04:1.6.11
+            title: The update-notifier motd service is enabled or running
+          - id: banner/update-notifier-timer
+            ruleset: banner
+            score: 1.0
+            severity: info
+            tags:
+              - banner
+              - cis-ubuntu-26.04:1.6.12
+            title: The update-notifier motd timer is enabled or running
+          - id: banner/writable
+            ruleset: banner
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - banner
+              - cis-ubuntu-26.04:1.6.6
+              - cis-ubuntu-26.04:1.6.7
+              - cis-ubuntu-26.04:1.6.8
+              - cis-ubuntu-26.04:1.6.9
+              - cis-ubuntu-26.04:1.6.10
+            title: The login banner is writable by other users
+          - id: clients/ftp
+            ruleset: clients
+            score: 1.0
+            severity: info
+            tags:
+              - clients
+              - lynis
+              - cis-ubuntu-26.04:2.2.6
+            title: An FTP or TFTP client is on disk
+          - id: clients/ldap
+            ruleset: clients
+            score: 1.0
+            severity: info
+            tags:
+              - clients
+              - cis-ubuntu-26.04:2.2.5
+            title: The OpenLDAP command-line clients are on disk
+          - id: clients/nis
+            ruleset: clients
+            score: 1.0
+            severity: info
+            tags:
+              - clients
+              - lynis
+              - cis-ubuntu-26.04:2.2.1
+            title: An NIS client is on disk
+          - id: clients/rsh
+            ruleset: clients
+            score: 1.0
+            severity: info
+            tags:
+              - clients
+              - lynis
+              - cis-ubuntu-26.04:2.2.2
+            title: An rsh client is on disk
+          - id: clients/talk
+            ruleset: clients
+            score: 1.0
+            severity: info
+            tags:
+              - clients
+              - cis-ubuntu-26.04:2.2.3
+            title: A talk client is on disk
+          - id: clients/telnet
+            ruleset: clients
+            score: 1.0
+            severity: info
+            tags:
+              - clients
+              - lynis
+              - cis-ubuntu-26.04:2.2.4
+            title: A telnet client is on disk
+          - id: coredump/core-pattern-absolute
+            ruleset: coredump
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - coredump
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-31b
+            title: Setuid core dumps go to a relative path
+          - id: coredump/no-hard-limit
+            ruleset: coredump
+            score: 3.0
+            severity: warning
+            tags:
+              - default
+              - coredump
+              - auth
+              - lynis
+            title: Login sessions may dump core
+          - id: coredump/process-size-max
+            ruleset: coredump
+            score: 1.0
+            severity: info
+            tags:
+              - coredump
+              - cis-ubuntu-26.04:1.5.11
+            title: systemd-coredump processes dumps
+          - id: coredump/storage
+            ruleset: coredump
+            score: 1.0
+            severity: info
+            tags:
+              - coredump
+              - cis-ubuntu-26.04:1.5.12
+            title: systemd-coredump keeps the dumps it receives
+          - id: coredump/suid-dumpable
+            ruleset: coredump
+            score: 6.8
+            severity: error
+            tags:
+              - default
+              - coredump
+              - sysctl
+              - lynis
+            title: Setuid programs dump core readable by the user
+          - id: cpu/vulnerable
+            ruleset: cpu
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - cpu
+              - dev-sec-linux-baseline:os-12
+            title: The kernel reports a CPU flaw as unmitigated
+          - id: cron/access-group
+            ruleset: cron
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - cron
+              - cis-ubuntu-26.04:2.4.1.9
+            title: cron.allow or cron.deny is in a group other than root or crontab
+          - id: cron/access-mode
+            ruleset: cron
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - cron
+              - cis-ubuntu-26.04:2.4.1.9
+            title: cron.allow or cron.deny is more open than 0640
+          - id: cron/access-owner
+            ruleset: cron
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - cron
+              - cis-ubuntu-26.04:2.4.1.9
+            title: cron.allow or cron.deny is not owned by root
+          - id: cron/no-allow
+            ruleset: cron
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - cron
+              - cis-ubuntu-26.04:2.4.1.9
+            title: crontab is open to users not named in cron.allow
+          - id: cron/off
+            ruleset: cron
+            score: 1.0
+            severity: info
+            tags:
+              - cron
+              - cis-ubuntu-26.04:2.4.1.1
+            title: cron is installed but not enabled and running
+          - id: cron/world-readable
+            ruleset: cron
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - cron
+              - files
+              - lynis
+            title: System cron jobs are readable by every user
+          - id: ctrl-alt-del/reboots
+            ruleset: ctrl-alt-del
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - boot
+              - stig-ubuntu-26.04:UBTU-24-300026
+            title: Ctrl-Alt-Del at the console reboots the host
+          - id: cups/config-mode
+            ruleset: cups
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - printing
+              - lynis
+            title: cupsd.conf is more open than 0640
+          - id: cups/listens-network
+            ruleset: cups
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - printing
+              - network
+              - lynis
+            title: CUPS listens beyond the loopback
+          - id: disk/full
+            ruleset: disk
+            score:
+              - - 90.0
+                - 3.3
+              - - 98.0
+                - 6.6
+            tags:
+              - default
+              - disk
+            title: A filesystem is almost out of space
+          - id: disk/inodes
+            ruleset: disk
+            score:
+              - - 90.0
+                - 3.3
+              - - 98.0
+                - 6.6
+            tags:
+              - default
+              - disk
+            title: A filesystem is almost out of inodes
+          - id: docker/world-writable
+            ruleset: docker
+            score: 9.5
+            severity: error
+            tags:
+              - default
+              - docker
+              - lynis
+            title: A Docker file is writable by every user
+          - id: env/ca-override
+            ruleset: env
+            score: 2.5
+            severity: info
+            tags:
+              - default
+              - env
+            title: The TLS trust store is overridden
+          - id: env/interpreter-injection
+            ruleset: env
+            score: 5.5
+            severity: warning
+            tags:
+              - default
+              - env
+            title: An interpreter loads code from an extra place
+          - id: env/ld-library-path
+            ruleset: env
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - env
+            title: A library search path reaches the current directory
+          - id: env/ld-preload
+            ruleset: env
+            score: 9.0
+            severity: error
+            tags:
+              - default
+              - env
+            title: A library is preloaded into every program
+          - id: env/path-entry
+            ruleset: env
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - env
+            title: A PATH entry is relative or empty
+          - id: env/proxy-http
+            ruleset: env
+            score: 3.0
+            severity: info
+            tags:
+              - default
+              - env
+            title: A proxy is reached over plain HTTP
+          - id: env/python-path
+            ruleset: env
+            score: 5.5
+            severity: warning
+            tags:
+              - default
+              - env
+            title: A Python module path reaches the current directory
+          - id: env/secret-name
+            ruleset: env
+            score: 6.5
+            severity: warning
+            tags:
+              - default
+              - env
+            title: A credential is set in configuration
+          - id: env/tls-verify
+            ruleset: env
+            score: 8.5
+            severity: error
+            tags:
+              - default
+              - env
+            title: TLS certificate checks are turned off
+          - id: files/accounts-group
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - cis-ubuntu-26.04:7.1.1
+              - cis-ubuntu-26.04:7.1.2
+              - cis-ubuntu-26.04:7.1.3
+              - cis-ubuntu-26.04:7.1.4
+              - cis-ubuntu-26.04:7.1.9
+              - dev-sec-linux-baseline:os-03
+            title: An account database is not in group root
+          - id: files/accounts-mode
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - cis-ubuntu-26.04:7.1.1
+              - cis-ubuntu-26.04:7.1.2
+              - cis-ubuntu-26.04:7.1.3
+              - cis-ubuntu-26.04:7.1.4
+              - cis-ubuntu-26.04:7.1.9
+            title: An account database is more open than 0644
+          - id: files/apt-auth-readable
+            ruleset: files
+            score: 7.5
+            severity: error
+            tags:
+              - default
+              - files
+              - apt
+              - cis-ubuntu-26.04:1.2.1.6
+            title: APT repository credentials are readable by every user
+          - id: files/audit-config-group
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - audit
+              - cis-ubuntu-26.04:6.2.4.7
+              - stig-ubuntu-26.04:UBTU-24-900060
+            title: The audit configuration is not in group root
+          - id: files/audit-config-mode
+            ruleset: files
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - files
+              - audit
+              - cis-ubuntu-26.04:6.2.4.5
+              - stig-ubuntu-26.04:UBTU-24-900040
+            title: The audit configuration is readable by other users
+          - id: files/audit-tools-group
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - audit
+              - cis-ubuntu-26.04:6.2.4.10
+              - stig-ubuntu-26.04:UBTU-24-901250
+            title: An audit tool is not in group root
+          - id: files/audit-tools-mode
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - audit
+              - cis-ubuntu-26.04:6.2.4.8
+              - stig-ubuntu-26.04:UBTU-24-901230
+            title: An audit tool is more open than 0755
+          - id: files/bootloader-readable
+            ruleset: files
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - files
+              - boot
+              - cis-ubuntu-26.04:1.4.2
+            title: The bootloader configuration is readable by other users
+          - id: files/command-group
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - stig-ubuntu-26.04:UBTU-24-300013
+            title: A system command belongs to a group of user accounts
+          - id: files/group-writable
+            ruleset: files
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - files
+              - lynis
+            title: A file is writable by its group
+          - id: files/library-directory-group
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - stig-ubuntu-26.04:UBTU-24-300010
+            title: A shared library directory is not in group root
+          - id: files/library-group
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - stig-ubuntu-26.04:UBTU-24-300009
+            title: A shared library belongs to a group of user accounts
+          - id: files/owner
+            ruleset: files
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - files
+              - lynis
+            title: A file is not owned by root
+          - id: files/shadow-group
+            ruleset: files
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - files
+              - cis-ubuntu-26.04:7.1.5
+              - cis-ubuntu-26.04:7.1.6
+              - cis-ubuntu-26.04:7.1.7
+              - cis-ubuntu-26.04:7.1.8
+              - dev-sec-linux-baseline:os-02
+            title: Password hashes are in a group other than root or shadow
+          - id: files/shadow-mode
+            ruleset: files
+            score: 8.5
+            severity: error
+            tags:
+              - default
+              - files
+            title: Password hashes are readable too widely
+          - id: files/ssh-host-key-mode
+            ruleset: files
+            score: 8.5
+            severity: error
+            tags:
+              - default
+              - files
+              - ssh
+            title: An SSH host key is readable too widely
+          - id: files/world-writable
+            ruleset: files
+            score: 9.5
+            severity: error
+            tags:
+              - default
+              - files
+              - lynis
+            title: A file is writable by every user
+          - id: fs-limits/aio-near-max
+            ruleset: fs-limits
+            severity: warning
+            tags:
+              - fs-limits
+              - sysctl
+              - stability
+            title: Async IO contexts are close to their system-wide limit
+          - id: fs-limits/files-near-max
+            ruleset: fs-limits
+            severity: warning
+            tags:
+              - fs-limits
+              - sysctl
+              - stability
+            title: Open file handles are close to their system-wide limit
+          - id: fs-protected/fifos
+            ruleset: fs-protected
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - fs-protected
+              - sysctl
+              - lynis
+            title: FIFOs in /tmp are opened across owners
+          - id: fs-protected/hardlinks
+            ruleset: fs-protected
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - fs-protected
+              - sysctl
+              - lynis
+            title: Hard links are allowed to files the user cannot write
+          - id: fs-protected/regular
+            ruleset: fs-protected
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - fs-protected
+              - sysctl
+              - lynis
+            title: Files in /tmp are opened across owners
+          - id: fs-protected/symlinks
+            ruleset: fs-protected
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - fs-protected
+              - sysctl
+              - lynis
+            title: Symlinks in /tmp are followed across owners
+          - id: gdm/wayland-enabled
+            ruleset: gdm
+            score: 1.0
+            severity: info
+            tags:
+              - gdm
+              - cis-ubuntu-26.04:1.7.7
+            title: GDM offers Wayland sessions, which run X11 programs through Xwayland
+          - id: gdm/xdmcp
+            ruleset: gdm
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - gdm
+              - cis-ubuntu-26.04:1.7.6
+            title: GDM offers its login screen over XDMCP
+          - id: grub/no-password
+            ruleset: grub
+            score: 2.0
+            severity: info
+            tags:
+              - boot
+              - cis-ubuntu-26.04:1.4.1
+              - lynis
+              - stig-ubuntu-26.04:UBTU-24-102000
+            title: GRUB asks no password to edit a boot entry
+          - id: home/dot-directory-mode
+            ruleset: home
+            score: 1.0
+            severity: info
+            tags:
+              - files
+              - cis-ubuntu-26.04:7.2.11
+            title: A dot directory in a home is more open than 0750
+          - id: home/dot-file-mode
+            ruleset: home
+            score: 1.0
+            severity: info
+            tags:
+              - files
+              - cis-ubuntu-26.04:7.2.10
+            title: A dot file in a home is more open than 0644
+          - id: home/forward
+            ruleset: home
+            score: 1.0
+            severity: info
+            tags:
+              - files
+              - cis-ubuntu-26.04:7.2.10
+            title: A user forwards their mail with ~/.forward
+          - id: home/history-mode
+            ruleset: home
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - cis-ubuntu-26.04:7.2.10
+            title: A shell history is readable by other users
+          - id: home/not-owned
+            ruleset: home
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - files
+              - lynis
+            title: A home directory is not owned by its account
+          - id: home/open-to-others
+            ruleset: home
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - files
+              - lynis
+            title: A home directory is open to other users
+          - id: home/ssh-directory-mode
+            ruleset: home
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - files
+              - ssh
+              - cis-ubuntu-26.04:7.2.11
+            title: ~/.ssh is more open than 0700
+          - id: interfaces/promiscuous
+            ruleset: interfaces
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - network
+              - lynis
+            title: A network interface is in promiscuous mode
+          - id: ip-flood/bogus-icmp-errors
+            ruleset: ip-flood
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - ip-flood
+              - sysctl
+              - cis-ubuntu-26.04:3.3.1.6
+              - dev-sec-linux-baseline:sysctl-03
+            title: Bogus ICMP error replies are logged
+          - id: ip-flood/broadcast-echo
+            ruleset: ip-flood
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - ip-flood
+              - sysctl
+              - lynis
+            title: Broadcast pings are answered
+          - id: ip-flood/icmp-ratemask
+            ruleset: ip-flood
+            score: 1.0
+            severity: info
+            tags:
+              - ip-flood
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-06
+            title: The ICMP rate limit mask is not dev-sec’s
+          - id: ip-flood/syncookies
+            ruleset: ip-flood
+            score: 4.5
+            severity: warning
+            tags:
+              - default
+              - ip-flood
+              - sysctl
+              - lynis
+            title: SYN cookies are off
+          - id: ip-flood/tcp-rfc1337
+            ruleset: ip-flood
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - ip-flood
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-10
+            title: TIME-WAIT assassination is not refused
+          - id: ip-routing/arp-announce
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-09
+            title: ARP requests carry any local address
+          - id: ip-routing/arp-ignore
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-08
+            title: ARP is answered for addresses of other interfaces
+          - id: ip-routing/ipv4-forwarding
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.1.2
+              - cis-ubuntu-26.04:3.3.1.3
+              - dev-sec-linux-baseline:sysctl-01
+            title: IPv4 forwarding is on
+          - id: ip-routing/ipv4-ip-forward
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.1.1
+              - dev-sec-linux-baseline:sysctl-01
+            title: IPv4 forwarding is on
+          - id: ip-routing/ipv4-log-martians
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.1.16
+              - cis-ubuntu-26.04:3.3.1.17
+              - dev-sec-linux-baseline:sysctl-17
+            title: Martian IPv4 packets are not logged
+          - id: ip-routing/ipv4-redirects
+            ruleset: ip-routing
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - ip-routing
+              - sysctl
+              - lynis
+            title: IPv4 ICMP redirects are accepted
+          - id: ip-routing/ipv4-rp-filter-strict
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.1.12
+              - cis-ubuntu-26.04:3.3.1.13
+              - dev-sec-linux-baseline:sysctl-02
+            title: The IPv4 reverse path filter is not strict
+          - id: ip-routing/ipv4-secure-redirects
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.1.10
+              - cis-ubuntu-26.04:3.3.1.11
+              - dev-sec-linux-baseline:sysctl-15
+            title: IPv4 redirects from listed gateways are accepted
+          - id: ip-routing/ipv4-send-redirects
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.1.4
+              - cis-ubuntu-26.04:3.3.1.5
+              - dev-sec-linux-baseline:sysctl-16
+            title: IPv4 redirects are sent
+          - id: ip-routing/ipv4-source-route
+            ruleset: ip-routing
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - ip-routing
+              - sysctl
+              - lynis
+            title: IPv4 source-routed packets are accepted
+          - id: ip-routing/ipv6-accept-ra
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.2.7
+              - cis-ubuntu-26.04:3.3.2.8
+              - dev-sec-linux-baseline:sysctl-25
+            title: IPv6 router advertisements are accepted
+          - id: ip-routing/ipv6-autoconf
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-26
+            title: IPv6 addresses are configured from advertisements
+          - id: ip-routing/ipv6-forwarding
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.2.1
+              - cis-ubuntu-26.04:3.3.2.2
+              - dev-sec-linux-baseline:sysctl-19
+            title: IPv6 forwarding is on
+          - id: ip-routing/ipv6-max-addresses
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-28
+            title: An interface takes more than one IPv6 address
+          - id: ip-routing/ipv6-ra-default-router
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-24
+            title: The IPv6 default router is taken from advertisements
+          - id: ip-routing/ipv6-ra-prefix-info
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-23
+            title: IPv6 prefixes are taken from advertisements
+          - id: ip-routing/ipv6-ra-router-preference
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-22
+            title: IPv6 router preference is taken from advertisements
+          - id: ip-routing/ipv6-redirects
+            ruleset: ip-routing
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - ip-routing
+              - sysctl
+              - lynis
+            title: IPv6 ICMP redirects are accepted
+          - id: ip-routing/ipv6-router-solicitations
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-21
+            title: IPv6 router solicitations are sent
+          - id: ip-routing/ipv6-source-route
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.2.5
+              - cis-ubuntu-26.04:3.3.2.6
+              - dev-sec-linux-baseline:sysctl-13
+            title: IPv6 source routing is accepted
+          - id: ip-routing/route-localnet
+            ruleset: ip-routing
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - ip-routing
+              - sysctl
+              - cis-ubuntu-26.04:3.3.1.19
+            title: Loopback addresses are routed from the network
+          - id: ip-routing/shared-media
+            ruleset: ip-routing
+            score: 1.0
+            severity: info
+            tags:
+              - ip-routing
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-12
+            title: Redirects for gateways on other subnets are refused
+          - id: journald/compress-off
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - journald
+              - logging
+              - cis-ubuntu-26.04:6.1.1.1.7
+            title: journald is set not to compress the journal
+          - id: journald/inactive
+            ruleset: journald
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - journald
+              - logging
+              - cis-ubuntu-26.04:6.1.1.1.1
+            title: systemd-journald is not running
+          - id: journald/no-syslog-forward
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - journald
+              - logging
+              - cis-ubuntu-26.04:6.1.1.1.3
+            title: journald does not forward to rsyslog
+          - id: journald/remote-listening
+            ruleset: journald
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - journald
+              - logging
+              - cis-ubuntu-26.04:6.1.1.1.2
+            title: systemd-journal-remote accepts logs from the network
+          - id: journald/stig-directory-mode
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - journald
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700020
+            title: A journal directory is more open than 2750
+          - id: journald/stig-file-mode
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - journald
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700020
+            title: A journal file is more open than 0640
+          - id: journald/stig-group
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - journald
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700060
+              - stig-ubuntu-26.04:UBTU-24-700070
+            title: A journal file or directory is not in group systemd-journal
+          - id: journald/stig-journalctl-group
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - journald
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700050
+            title: journalctl is not in group root
+          - id: journald/stig-journalctl-mode
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - journald
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700030
+            title: journalctl runs for every user
+          - id: journald/stig-journalctl-owner
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - journald
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700040
+            title: journalctl is not owned by root
+          - id: journald/stig-owner
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - journald
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700080
+              - stig-ubuntu-26.04:UBTU-24-700090
+            title: A journal file or directory is not owned by root
+          - id: journald/storage-not-persistent
+            ruleset: journald
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - journald
+              - logging
+              - cis-ubuntu-26.04:6.1.1.1.6
+            title: journald is not set to keep the journal on disk
+          - id: kernel-modules/atm
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.1
+            title: atm module loads on demand
+          - id: kernel-modules/atm-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:3.2.1
+            title: atm module is not blacklisted
+          - id: kernel-modules/atm-loaded
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.1
+            title: atm module is loaded
+          - id: kernel-modules/builtin
+            ruleset: kernel-modules
+            score: 3.5
+            severity: warning
+            tags:
+              - default
+              - kernel
+            title: A module is built into the kernel
+          - id: kernel-modules/can
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.2
+            title: can module loads on demand
+          - id: kernel-modules/can-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:3.2.2
+            title: can module is not blacklisted
+          - id: kernel-modules/can-loaded
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.2
+            title: can module is loaded
+          - id: kernel-modules/cramfs
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.1
+              - dev-sec-linux-baseline:os-10
+              - lynis
+            title: cramfs module loads on demand
+          - id: kernel-modules/cramfs-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.1
+            title: cramfs module is not blacklisted
+          - id: kernel-modules/cramfs-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.1
+              - lynis
+            title: cramfs module is loaded
+          - id: kernel-modules/dccp
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.3
+              - lynis
+            title: dccp module loads on demand
+          - id: kernel-modules/dccp-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:3.2.3
+            title: dccp module is not blacklisted
+          - id: kernel-modules/dccp-loaded
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.3
+              - lynis
+            title: dccp module is loaded
+          - id: kernel-modules/firewire-core
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.9
+              - lynis
+            title: firewire-core module loads on demand
+          - id: kernel-modules/firewire-core-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.9
+              - lynis
+            title: firewire-core module is not blacklisted
+          - id: kernel-modules/firewire-core-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.9
+            title: firewire-core module is loaded
+          - id: kernel-modules/freevxfs
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.2
+              - dev-sec-linux-baseline:os-10
+              - lynis
+            title: freevxfs module loads on demand
+          - id: kernel-modules/freevxfs-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.2
+            title: freevxfs module is not blacklisted
+          - id: kernel-modules/freevxfs-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.2
+              - lynis
+            title: freevxfs module is loaded
+          - id: kernel-modules/hfs
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.3
+              - dev-sec-linux-baseline:os-10
+              - lynis
+            title: hfs module loads on demand
+          - id: kernel-modules/hfs-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.3
+            title: hfs module is not blacklisted
+          - id: kernel-modules/hfs-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.3
+              - lynis
+            title: hfs module is loaded
+          - id: kernel-modules/hfsplus
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.4
+              - dev-sec-linux-baseline:os-10
+              - lynis
+            title: hfsplus module loads on demand
+          - id: kernel-modules/hfsplus-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.4
+            title: hfsplus module is not blacklisted
+          - id: kernel-modules/hfsplus-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.4
+              - lynis
+            title: hfsplus module is loaded
+          - id: kernel-modules/jffs2
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.5
+              - dev-sec-linux-baseline:os-10
+              - lynis
+            title: jffs2 module loads on demand
+          - id: kernel-modules/jffs2-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.5
+            title: jffs2 module is not blacklisted
+          - id: kernel-modules/jffs2-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.5
+              - lynis
+            title: jffs2 module is loaded
+          - id: kernel-modules/overlay
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.6
+            title: overlay module loads on demand
+          - id: kernel-modules/overlay-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.6
+            title: overlay module is not blacklisted
+          - id: kernel-modules/overlay-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.6
+            title: overlay module is loaded
+          - id: kernel-modules/rds
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.4
+              - lynis
+            title: rds module loads on demand
+          - id: kernel-modules/rds-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:3.2.4
+            title: rds module is not blacklisted
+          - id: kernel-modules/rds-loaded
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.4
+              - lynis
+            title: rds module is loaded
+          - id: kernel-modules/sctp
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.5
+              - lynis
+            title: sctp module loads on demand
+          - id: kernel-modules/sctp-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:3.2.5
+            title: sctp module is not blacklisted
+          - id: kernel-modules/sctp-loaded
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.5
+              - lynis
+            title: sctp module is loaded
+          - id: kernel-modules/squashfs
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.7
+              - dev-sec-linux-baseline:os-10
+              - lynis
+            title: squashfs module loads on demand
+          - id: kernel-modules/squashfs-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.7
+            title: squashfs module is not blacklisted
+          - id: kernel-modules/squashfs-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.7
+              - lynis
+            title: squashfs module is loaded
+          - id: kernel-modules/tipc
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.6
+              - lynis
+            title: tipc module loads on demand
+          - id: kernel-modules/tipc-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:3.2.6
+            title: tipc module is not blacklisted
+          - id: kernel-modules/tipc-loaded
+            ruleset: kernel-modules
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:3.2.6
+              - lynis
+            title: tipc module is loaded
+          - id: kernel-modules/udf
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.8
+              - dev-sec-linux-baseline:os-10
+              - lynis
+            title: udf module loads on demand
+          - id: kernel-modules/udf-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.8
+            title: udf module is not blacklisted
+          - id: kernel-modules/udf-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.8
+              - lynis
+            title: udf module is loaded
+          - id: kernel-modules/usb-storage
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.10
+              - stig-ubuntu-26.04:UBTU-24-300039
+              - lynis
+            title: usb-storage module loads on demand
+          - id: kernel-modules/usb-storage-blacklist
+            ruleset: kernel-modules
+            score: 2.0
+            severity: info
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.10
+              - stig-ubuntu-26.04:UBTU-24-300039
+              - lynis
+            title: usb-storage module is not blacklisted
+          - id: kernel-modules/usb-storage-loaded
+            ruleset: kernel-modules
+            score: 4.0
+            severity: warning
+            tags:
+              - kernel
+              - cis-ubuntu-26.04:1.1.1.10
+            title: usb-storage module is loaded
+          - id: kernel/apparmor-unconfined
+            ruleset: kernel
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - sysctl
+              - cis-ubuntu-26.04:1.3.1.4
+            title: Unconfined users may switch AppArmor profile to get user namespaces
+          - id: kernel/aslr
+            ruleset: kernel
+            score: 7.5
+            severity: error
+            tags:
+              - default
+              - kernel
+              - sysctl
+              - lynis
+            title: Address space randomization is weakened
+          - id: kernel/dmesg-restrict
+            ruleset: kernel
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - sysctl
+              - lynis
+            title: The kernel log is readable by every user
+          - id: kernel/kptr-restrict
+            ruleset: kernel
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - sysctl
+              - lynis
+            title: Kernel addresses are shown to every user
+          - id: kernel/perf-events
+            ruleset: kernel
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - sysctl
+              - lynis
+            title: Unprivileged users may profile the kernel
+          - id: kernel/ptrace-scope
+            ruleset: kernel
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - sysctl
+              - lynis
+            title: Any process may trace another of the same user
+          - id: kernel/stig-fips
+            ruleset: kernel
+            score: 1.0
+            severity: info
+            tags:
+              - kernel
+              - sysctl
+              - stig-ubuntu-26.04:UBTU-24-600030
+            title: The kernel runs outside FIPS mode
+          - id: kernel/sysrq
+            ruleset: kernel
+            score: 1.0
+            severity: info
+            tags:
+              - kernel
+              - sysctl
+              - dev-sec-linux-baseline:sysctl-30
+            title: Magic SysRq keys are enabled
+          - id: kernel/tty-ldisc-autoload
+            ruleset: kernel
+            score: 2.5
+            severity: info
+            tags:
+              - default
+              - kernel
+              - sysctl
+              - lynis
+            title: Any user may load TTY line discipline modules
+          - id: kernel/unprivileged-bpf
+            ruleset: kernel
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - sysctl
+              - lynis
+            title: Unprivileged users may load BPF programs
+          - id: login-defs/encrypt-method
+            ruleset: login-defs
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - auth
+              - cis-ubuntu-26.04:5.4.1.4
+              - lynis
+            title: New passwords are hashed with a weak or unknown scheme
+          - id: login-defs/encrypt-method-sha512
+            ruleset: login-defs
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - stig-ubuntu-26.04:UBTU-24-400400
+            title: New passwords are hashed with a scheme other than SHA512
+          - id: login-defs/pass-max-days
+            ruleset: login-defs
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - cis-ubuntu-26.04:5.4.1.1
+              - lynis
+            title: New accounts get no maximum password age, or one above the maximum
+          - id: login-defs/pass-min-days
+            ruleset: login-defs
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - cis-ubuntu-26.04:5.4.1.2
+              - lynis
+              - stig-ubuntu-26.04:UBTU-24-400300
+            title: New accounts can change their password again before the minimum age
+          - id: login-defs/pass-rotation
+            ruleset: login-defs
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - auth
+              - nist-sp-800-63b-4:3.1.1.2
+            title: New accounts must change their password on a schedule
+          - id: login-defs/pass-warn-age
+            ruleset: login-defs
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - cis-ubuntu-26.04:5.4.1.3
+            title: New accounts get less password expiry warning than asked
+          - id: login-defs/sha-rounds
+            ruleset: login-defs
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - auth
+              - lynis
+            title: SHA password hashes take fewer rounds than the default
+          - id: login-defs/umask
+            ruleset: login-defs
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - auth
+              - cis-ubuntu-26.04:5.4.3.3
+              - lynis
+            title: The login umask leaves new files open to other users
+          - id: login-defs/umask-077
+            ruleset: login-defs
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - stig-ubuntu-26.04:UBTU-24-300030
+            title: The login umask lets the group read new files
+          - id: logs/cis-group-mode
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - logging
+              - cis-ubuntu-26.04:6.1.3.1
+            title: An SSSD or GDM log is more open than 0660
+          - id: logs/cis-login-records-mode
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - logging
+              - cis-ubuntu-26.04:6.1.3.1
+            title: A login record is more open than 0664
+          - id: logs/cis-mode
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - logging
+              - cis-ubuntu-26.04:6.1.3.1
+            title: A log file is more open than 0640
+          - id: logs/cis-readable-mode
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - logging
+              - cis-ubuntu-26.04:6.1.3.1
+            title: An apt, cloud-init or agent log is more open than 0644
+          - id: logs/directory-group
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700100
+            title: /var/log is not in group syslog
+          - id: logs/directory-mode
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700120
+            title: /var/log is more open than 0755
+          - id: logs/directory-owner
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700110
+            title: /var/log is not owned by root
+          - id: logs/file-mode
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700010
+              - stig-ubuntu-26.04:UBTU-24-700150
+            title: A log file is more open than 0640
+          - id: logs/syslog-group
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700130
+            title: /var/log/syslog is not in group adm
+          - id: logs/syslog-owner
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-700140
+            title: /var/log/syslog is not owned by syslog
+          - id: mongodb/no-authorization
+            ruleset: mongodb
+            score: 9.0
+            severity: error
+            tags:
+              - default
+              - database
+              - network
+              - lynis
+            title: MongoDB answers the network without access control
+          - id: mounts/fstab-nodev
+            ruleset: mounts
+            score: 4.5
+            severity: warning
+            tags:
+              - default
+              - mounts
+              - lynis
+            title: A world-writable mount is declared without nodev
+          - id: mounts/fstab-noexec
+            ruleset: mounts
+            score: 3.5
+            severity: warning
+            tags:
+              - default
+              - mounts
+              - lynis
+            title: A world-writable mount is declared without noexec
+          - id: mounts/fstab-nosuid
+            ruleset: mounts
+            score: 4.5
+            severity: warning
+            tags:
+              - default
+              - mounts
+              - lynis
+            title: A world-writable mount is declared without nosuid
+          - id: mounts/nodev
+            ruleset: mounts
+            score: 4.5
+            severity: warning
+            tags:
+              - default
+              - mounts
+              - lynis
+            title: A world-writable mount honours device files
+          - id: mounts/noexec
+            ruleset: mounts
+            score: 3.5
+            severity: warning
+            tags:
+              - default
+              - mounts
+              - lynis
+            title: A world-writable mount runs programs
+          - id: mounts/nosuid
+            ruleset: mounts
+            score: 4.5
+            severity: warning
+            tags:
+              - default
+              - mounts
+              - lynis
+            title: A world-writable mount honours set-user-ID bits
+          - id: mounts/partition-nodev
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.3.2
+              - cis-ubuntu-26.04:1.1.2.4.2
+              - cis-ubuntu-26.04:1.1.2.6.2
+              - cis-ubuntu-26.04:1.1.2.7.2
+            title: A data mount opens device files
+          - id: mounts/partition-noexec
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.6.4
+              - cis-ubuntu-26.04:1.1.2.7.4
+            title: A data mount runs programs
+          - id: mounts/partition-nosuid
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.3.3
+              - cis-ubuntu-26.04:1.1.2.4.3
+              - cis-ubuntu-26.04:1.1.2.6.3
+              - cis-ubuntu-26.04:1.1.2.7.3
+            title: A data mount honours set-user-ID bits
+          - id: mounts/proc-hidepid
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - mounts
+              - lynis
+            title: Every user sees every process
+          - id: mounts/separate-dev-shm
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.2.1
+            title: /dev/shm is not a separate mount
+          - id: mounts/separate-home
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.3.1
+            title: /home is not a separate mount
+          - id: mounts/separate-tmp
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.1.1
+            title: /tmp is not a separate mount
+          - id: mounts/separate-var
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.4.1
+            title: /var is not a separate mount
+          - id: mounts/separate-var-log
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.6.1
+            title: /var/log is not a separate mount
+          - id: mounts/separate-var-log-audit
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.7.1
+            title: /var/log/audit is not a separate mount
+          - id: mounts/separate-var-tmp
+            ruleset: mounts
+            score: 1.0
+            severity: info
+            tags:
+              - mounts
+              - cis-ubuntu-26.04:1.1.2.5.1
+            title: /var/tmp is not a separate mount
+          - id: mysql/datadir-open
+            ruleset: mysql
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - database
+            title: The MySQL data directory reaches other users
+          - id: netrc/readable
+            ruleset: netrc
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - files
+              - dev-sec-linux-baseline:os-09
+            title: A ~/.netrc is readable by every user
+          - id: nftables/ipv4-input-open
+            ruleset: nftables
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - nftables
+              - firewall
+              - lynis
+            title: nftables is enabled but IPv4 input is unfiltered
+          - id: nftables/ipv6-input-open
+            ruleset: nftables
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - nftables
+              - firewall
+              - lynis
+            title: nftables is enabled but IPv6 input is unfiltered
+          - id: nftables/service-failed
+            ruleset: nftables
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - nftables
+              - firewall
+              - systemd
+            title: nftables is enabled but its service failed
+          - id: pam/faillock-deny
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.3.1.1
+            title: pam_faillock allows too many failed logins before locking
+          - id: pam/faillock-root
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.3.1.3
+            title: Failed logins never lock root
+          - id: pam/faillock-unlock-time
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.3.1.2
+            title: A locked account unlocks too soon
+          - id: pam/no-lockout
+            ruleset: pam
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - auth
+              - lynis
+              - pam
+            title: Password logins are never locked out
+          - id: pam/nullok
+            ruleset: pam
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - auth
+              - pam
+            title: pam_unix accepts an empty password
+          - id: pam/permit-sufficient
+            ruleset: pam
+            score: 9.0
+            severity: error
+            tags:
+              - default
+              - auth
+              - pam
+            title: pam_permit alone authenticates
+          - id: pam/pwhistory-enabled
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.2.4
+            title: Password changes skip pam_pwhistory
+          - id: pam/pwhistory-remember
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.3.3.1
+            title: pam_pwhistory remembers too few passwords
+          - id: pam/pwhistory-root
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.3.3.2
+            title: pam_pwhistory lets root reuse a password
+          - id: pam/pwhistory-use-authtok
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.3.3.3
+            title: pam_pwhistory asks for the new password itself
+          - id: pam/pwquality-enabled
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.2.3
+              - lynis
+              - stig-ubuntu-26.04:UBTU-24-300016
+            title: Password changes skip pam_pwquality
+          - id: pam/pwquality-missing
+            ruleset: pam
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - stig-ubuntu-26.04:UBTU-24-100600
+            title: The pam_pwquality module is not installed
+          - id: pam/stig-faildelay
+            ruleset: pam
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - stig-ubuntu-26.04:UBTU-24-300017
+            title: A failed login is answered at once
+          - id: pam/stig-faillock
+            ruleset: pam
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - stig-ubuntu-26.04:UBTU-24-200610
+            title: A locked account unlocks without an administrator
+          - id: pam/stig-maxlogins
+            ruleset: pam
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - stig-ubuntu-26.04:UBTU-24-200000
+            title: Accounts may open any number of sessions
+          - id: pam/su-unrestricted
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.2.7
+            title: su is open to every user
+          - id: pam/unix-enabled
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.2.1
+            title: A common PAM stack does not call pam_unix
+          - id: pam/unix-hash
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.3.4.3
+            title: pam_unix names no strong hashing scheme for new passwords
+          - id: pam/unix-remember
+            ruleset: pam
+            score: 3.0
+            severity: warning
+            tags:
+              - default
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.3.4.2
+            title: pam_unix keeps old passwords
+          - id: pam/unix-use-authtok
+            ruleset: pam
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - pam
+              - cis-ubuntu-26.04:5.3.3.4.4
+            title: pam_unix asks for the new password itself
+          - id: php/php2shell
+            ruleset: php
+            score: 9.2
+            severity: error
+            tags:
+              - cve:CVE-2026-109618
+              - cve:CVE-2026-109619
+            title: PHP runs a build open to PHP2Shell with session upload progress on
+          - id: plaintext-servers/inetd
+            ruleset: plaintext-servers
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - services
+              - cis-ubuntu-26.04:2.1.16
+              - cis-ubuntu-26.04:2.1.17
+              - stig-ubuntu-26.04:UBTU-24-100030
+              - stig-ubuntu-26.04:UBTU-24-100040
+              - dev-sec-linux-baseline:package-01
+              - dev-sec-linux-baseline:package-02
+              - dev-sec-linux-baseline:package-03
+              - dev-sec-linux-baseline:package-06
+              - lynis
+            title: inetd serves a plain-text or debugging service
+          - id: plaintext-servers/login-unit
+            ruleset: plaintext-servers
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - services
+              - cis-ubuntu-26.04:2.1.16
+              - stig-ubuntu-26.04:UBTU-24-100030
+              - stig-ubuntu-26.04:UBTU-24-100040
+              - dev-sec-linux-baseline:package-02
+              - dev-sec-linux-baseline:package-03
+              - lynis
+            title: A telnet, rsh, rlogin or rexec server is enabled or running
+          - id: plaintext-servers/nis-unit
+            ruleset: plaintext-servers
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - services
+              - cis-ubuntu-26.04:2.1.10
+              - dev-sec-linux-baseline:package-05
+              - lynis
+            title: A NIS server is enabled or running
+          - id: plaintext-servers/tftp-unit
+            ruleset: plaintext-servers
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - services
+              - cis-ubuntu-26.04:2.1.17
+              - dev-sec-linux-baseline:package-06
+              - lynis
+            title: A TFTP server is enabled or running
+          - id: plaintext-servers/xinetd
+            ruleset: plaintext-servers
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - services
+              - cis-ubuntu-26.04:2.1.16
+              - cis-ubuntu-26.04:2.1.17
+              - dev-sec-linux-baseline:package-01
+              - lynis
+            title: xinetd serves a plain-text or debugging service
+          - id: ports/cups-browsed
+            ruleset: ports
+            score: 9.0
+            severity: error
+            tags:
+              - default
+              - printing
+              - network
+              - lynis
+            title: cups-browsed takes printer announcements from the network
+          - id: ports/docker-api-plain
+            ruleset: ports
+            score: 9.8
+            severity: error
+            tags:
+              - default
+              - docker
+              - network
+              - lynis
+            title: The Docker API listens beyond the loopback without TLS
+          - id: ports/memcached-udp
+            ruleset: ports
+            score: 7.5
+            severity: error
+            tags:
+              - default
+              - network
+              - lynis
+            title: memcached answers UDP beyond the loopback
+          - id: ports/mta-public
+            ruleset: ports
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - mail
+              - network
+              - cis-ubuntu-26.04:2.1.22
+            title: A mail server listens beyond the loopback
+          - id: postfix/vrfy
+            ruleset: postfix
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - mail
+              - lynis
+            title: Postfix answers VRFY
+          - id: postgresql/config-readable
+            ruleset: postgresql
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - database
+              - lynis
+            title: A PostgreSQL configuration file reaches other users
+          - id: pwquality/composition
+            ruleset: pwquality
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - auth
+              - pwquality
+              - nist-sp-800-63b-4:3.1.1.2
+            title: New passwords must mix character classes
+          - id: pwquality/credit
+            ruleset: pwquality
+            score: 3.0
+            severity: warning
+            tags:
+              - default
+              - auth
+              - pwquality
+              - cis-ubuntu-26.04:5.3.3.2.3
+            title: Character classes count toward the minimum length
+          - id: pwquality/dictcheck
+            ruleset: pwquality
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - auth
+              - pwquality
+              - cis-ubuntu-26.04:5.3.3.2.6
+              - nist-sp-800-63b-4:3.1.1.2
+              - stig-ubuntu-26.04:UBTU-24-300014
+            title: New passwords are not checked against a dictionary
+          - id: pwquality/difok
+            ruleset: pwquality
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - cis-ubuntu-26.04:5.3.3.2.1
+            title: A new password may repeat most of the old one
+          - id: pwquality/enforcing
+            ruleset: pwquality
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - auth
+              - pwquality
+              - cis-ubuntu-26.04:5.3.3.2.7
+            title: pam_pwquality only warns about a weak password
+          - id: pwquality/maxrepeat
+            ruleset: pwquality
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - cis-ubuntu-26.04:5.3.3.2.4
+            title: New passwords may repeat one character without limit
+          - id: pwquality/maxsequence
+            ruleset: pwquality
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - cis-ubuntu-26.04:5.3.3.2.5
+            title: New passwords may hold a long run of sequential characters
+          - id: pwquality/minlen
+            ruleset: pwquality
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - cis-ubuntu-26.04:5.3.3.2.2
+              - lynis
+            title: New passwords may be shorter than the benchmark’s minimum
+          - id: pwquality/minlen-single-factor
+            ruleset: pwquality
+            score: 3.0
+            severity: warning
+            tags:
+              - default
+              - auth
+              - pwquality
+              - nist-sp-800-63b-4:3.1.1.2
+              - stig-ubuntu-26.04:UBTU-24-400320
+            title: New passwords may be shorter than 15 characters
+          - id: pwquality/root
+            ruleset: pwquality
+            score: 2.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - cis-ubuntu-26.04:5.3.3.2.8
+            title: root may set a password pam_pwquality rejects
+          - id: pwquality/stig-dcredit
+            ruleset: pwquality
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - stig-ubuntu-26.04:UBTU-24-400280
+            title: New passwords need no digit
+          - id: pwquality/stig-difok
+            ruleset: pwquality
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - stig-ubuntu-26.04:UBTU-24-400290
+            title: A new password may repeat most of the old one
+          - id: pwquality/stig-lcredit
+            ruleset: pwquality
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - stig-ubuntu-26.04:UBTU-24-400270
+            title: New passwords need no lowercase letter
+          - id: pwquality/stig-ocredit
+            ruleset: pwquality
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - stig-ubuntu-26.04:UBTU-24-400330
+            title: New passwords need no special character
+          - id: pwquality/stig-ucredit
+            ruleset: pwquality
+            score: 1.0
+            severity: info
+            tags:
+              - auth
+              - pwquality
+              - stig-ubuntu-26.04:UBTU-24-400260
+            title: New passwords need no uppercase letter
+          - id: reboot/required
+            ruleset: reboot
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - kernel
+              - lynis
+            title: An update waits for a reboot
+          - id: redis/open-without-password
+            ruleset: redis
+            score: 9.0
+            severity: error
+            tags:
+              - default
+              - database
+              - network
+              - lynis
+            title: Redis answers the network without a password
+          - id: rescue/no-sulogin
+            ruleset: rescue
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - systemd
+              - boot
+              - lynis
+            title: The rescue shell opens without sulogin
+          - id: resolv/nameserver-refuses
+            ruleset: resolv
+            score: 4.0
+            tags:
+              - default
+              - dns
+              - lynis
+            title: A nameserver refuses to resolve for this host
+          - id: resolv/nameserver-silent
+            ruleset: resolv
+            score: 4.0
+            tags:
+              - default
+              - dns
+              - lynis
+            title: A nameserver answers no query
+          - id: restart/replaced-code
+            ruleset: restart
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - services
+              - lynis
+            title: A service still runs a library or program replaced on disk
+          - id: rhosts/hosts-equiv
+            ruleset: rhosts
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - accounts
+              - dev-sec-linux-baseline:os-01
+            title: /etc/hosts.equiv trusts other hosts
+          - id: rhosts/user-file
+            ruleset: rhosts
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - accounts
+              - dev-sec-linux-baseline:os-09
+            title: A ~/.rhosts trusts other hosts
+          - id: rsyslog/file-create-mode-open
+            ruleset: rsyslog
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - rsyslog
+              - logging
+              - cis-ubuntu-26.04:6.1.2.3
+            title: rsyslog creates log files more open than 0640
+          - id: rsyslog/file-create-mode-unset
+            ruleset: rsyslog
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - rsyslog
+              - logging
+              - cis-ubuntu-26.04:6.1.2.3
+            title: rsyslog creates log files readable by every user
+          - id: rsyslog/forwards-in-clear
+            ruleset: rsyslog
+            score: 2.0
+            severity: info
+            tags:
+              - rsyslog
+              - logging
+              - cis-ubuntu-26.04:6.1.2.9
+            title: rsyslog forwards logs without TLS
+          - id: rsyslog/no-tls-driver
+            ruleset: rsyslog
+            score: 1.0
+            severity: info
+            tags:
+              - rsyslog
+              - logging
+              - cis-ubuntu-26.04:6.1.2.8
+            title: rsyslog has no TLS network stream driver
+          - id: rsyslog/off
+            ruleset: rsyslog
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - rsyslog
+              - logging
+              - cis-ubuntu-26.04:6.1.2.2
+              - stig-ubuntu-26.04:UBTU-24-100200
+            title: rsyslog is installed but not enabled and running
+          - id: rsyslog/receives-network
+            ruleset: rsyslog
+            score: 2.0
+            severity: info
+            tags:
+              - rsyslog
+              - logging
+              - cis-ubuntu-26.04:6.1.2.6
+            title: rsyslog accepts logs from the network
+          - id: rsyslog/stig-auth-unlogged
+            ruleset: rsyslog
+            score: 1.0
+            severity: info
+            tags:
+              - rsyslog
+              - logging
+              - stig-ubuntu-26.04:UBTU-24-200090
+            title: rsyslog does not write every auth, authpriv and daemon message to a file
+          - id: services/unconfined-root
+            ruleset: services
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - services
+              - systemd
+              - systemd-analyze
+            title: A local service runs as root with no sandbox
+          - id: session-lock/no-vlock
+            ruleset: session-lock
+            score: 1.0
+            severity: info
+            tags:
+              - session-lock
+              - stig-ubuntu-26.04:UBTU-24-101000
+            title: vlock is not installed
+          - id: setuid/group-writable
+            ruleset: setuid
+            score: 6.5
+            severity: warning
+            tags:
+              - default
+              - setuid
+            title: A set-user-ID file or its directory is writable by its group
+          - id: setuid/world-writable
+            ruleset: setuid
+            score: 9.0
+            severity: error
+            tags:
+              - default
+              - setuid
+            title: A set-user-ID file or its directory is writable by every user
+          - id: snmp/default-community
+            ruleset: snmp
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - network
+              - lynis
+            title: snmpd answers the network with community public or private
+          - id: squid/config-readable
+            ruleset: squid
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - proxy
+              - lynis
+            title: squid.conf reaches other users
+          - id: ssh-user/directory-mode
+            ruleset: ssh-user
+            score: 3.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+            title: ~/.ssh is open to other users
+          - id: ssh-user/world-writable
+            ruleset: ssh-user
+            score: 9.0
+            severity: error
+            tags:
+              - default
+              - ssh
+            title: An SSH user file is writable by every user
+          - id: ssh/access-unlisted
+            ruleset: ssh
+            score: 2.0
+            severity: info
+            tags:
+              - ssh
+              - cis-ubuntu-26.04:5.1.5
+            title: sshd admits every account
+          - id: ssh/banner-none
+            ruleset: ssh
+            score: 1.0
+            severity: info
+            tags:
+              - ssh
+              - cis-ubuntu-26.04:5.1.6
+              - stig-ubuntu-26.04:UBTU-24-200640
+            title: sshd shows no banner before login
+          - id: ssh/ciphers
+            ruleset: ssh
+            score: 7.5
+            severity: error
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-01
+            title: A weak cipher is offered
+          - id: ssh/client-alive-count-max
+            ruleset: ssh
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - ssh
+              - cis-ubuntu-26.04:5.1.8
+            title: sshd never drops an unresponsive client
+          - id: ssh/client-alive-interval
+            ruleset: ssh
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - ssh
+              - cis-ubuntu-26.04:5.1.8
+            title: sshd never checks that an idle client is still there
+          - id: ssh/empty-passwords
+            ruleset: ssh
+            score: 9.5
+            severity: error
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-28
+            title: Empty passwords are accepted
+          - id: ssh/gateway-ports
+            ruleset: ssh
+            score: 4.5
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-41
+              - lynis
+            title: Forwarded ports listen on every address
+          - id: ssh/gssapi-authentication
+            ruleset: ssh
+            score: 3.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - cis-ubuntu-26.04:5.1.10
+            title: GSSAPI authentication is accepted
+          - id: ssh/hostbased
+            ruleset: ssh
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-25
+            title: Host-based authentication is on
+          - id: ssh/ignore-rhosts
+            ruleset: ssh
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-23
+              - lynis
+            title: Users’ .rhosts files are read
+          - id: ssh/kex
+            ruleset: ssh
+            score: 7.5
+            severity: error
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-02
+            title: A weak key exchange is offered
+          - id: ssh/kex-post-quantum
+            ruleset: ssh
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - cis-ubuntu-26.04:5.1.14
+            title: No post-quantum key exchange is offered
+          - id: ssh/keyboard-interactive
+            ruleset: ssh
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-29
+            title: Keyboard-interactive logins are accepted
+          - id: ssh/log-level
+            ruleset: ssh
+            score: 2.5
+            severity: info
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-13
+              - lynis
+            title: Login keys are not logged
+          - id: ssh/login-grace-time
+            ruleset: ssh
+            score: 1.5
+            severity: info
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-18
+              - lynis
+            title: Unauthenticated connections are kept open long
+          - id: ssh/macs
+            ruleset: ssh
+            score: 5.5
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-03
+            title: A weak MAC is offered
+          - id: ssh/max-auth-tries
+            ruleset: ssh
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-19
+              - lynis
+            title: Many authentication attempts are allowed
+          - id: ssh/max-sessions
+            ruleset: ssh
+            score: 1.0
+            severity: info
+            tags:
+              - ssh
+              - cis-ubuntu-26.04:5.1.19
+            title: Many sessions are allowed per connection
+          - id: ssh/max-startups
+            ruleset: ssh
+            score: 1.0
+            severity: info
+            tags:
+              - ssh
+              - cis-ubuntu-26.04:5.1.20
+            title: Many unauthenticated connections are allowed
+          - id: ssh/password-authentication
+            ruleset: ssh
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-27
+            title: Passwords are accepted over the network
+          - id: ssh/root-login
+            ruleset: ssh
+            score: 8.5
+            severity: error
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-06
+              - lynis
+            title: Root may log in with a password
+          - id: ssh/stig-client-alive-count-max
+            ruleset: ssh
+            score: 1.0
+            severity: info
+            tags:
+              - ssh
+              - stig-ubuntu-26.04:UBTU-24-600000
+            title: sshd waits more than one missed check before dropping a client
+          - id: ssh/stig-client-alive-interval
+            ruleset: ssh
+            score: 1.0
+            severity: info
+            tags:
+              - ssh
+              - stig-ubuntu-26.04:UBTU-24-600010
+            title: sshd keeps an idle session past ten minutes
+          - id: ssh/stig-not-installed
+            ruleset: ssh
+            score: 1.0
+            severity: info
+            tags:
+              - ssh
+              - stig-ubuntu-26.04:UBTU-24-100800
+            title: sshd is not installed
+          - id: ssh/stig-not-running
+            ruleset: ssh
+            score: 1.0
+            severity: info
+            tags:
+              - ssh
+              - stig-ubuntu-26.04:UBTU-24-100810
+            title: sshd is installed but neither its service nor its socket is enabled and running
+          - id: ssh/strict-modes
+            ruleset: ssh
+            score: 5.5
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-11
+              - lynis
+            title: Writable key files are accepted
+          - id: ssh/tunnel
+            ruleset: ssh
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-38
+              - lynis
+            title: Tunnel device forwarding is on
+          - id: ssh/use-pam
+            ruleset: ssh
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - cis-ubuntu-26.04:5.1.24
+              - stig-ubuntu-26.04:UBTU-24-500050
+            title: sshd skips PAM
+          - id: ssh/user-environment
+            ruleset: ssh
+            score: 6.5
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-17
+              - lynis
+            title: Users may set their session environment
+          - id: ssh/x11-forwarding
+            ruleset: ssh
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - dev-sec-ssh-baseline:sshd-42
+            title: X11 forwarding is on
+          - id: ssh/x11-use-localhost
+            ruleset: ssh
+            score: 3.0
+            severity: warning
+            tags:
+              - default
+              - ssh
+              - stig-ubuntu-26.04:UBTU-24-300023
+            title: Forwarded X11 displays listen on every address
+          - id: sudo-defaults/logfile
+            ruleset: sudo-defaults
+            score: 2.0
+            severity: info
+            tags:
+              - sudo
+              - cis-ubuntu-26.04:5.2.3
+            title: sudo keeps no log file of its own
+          - id: sudo-defaults/no-authenticate
+            ruleset: sudo-defaults
+            score: 7.5
+            severity: error
+            tags:
+              - default
+              - sudo
+              - cis-ubuntu-26.04:5.2.5
+              - stig-ubuntu-26.04:UBTU-24-300021
+            title: sudo runs commands without asking for a password
+          - id: sudo-defaults/no-pty
+            ruleset: sudo-defaults
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - sudo
+            title: sudo runs commands on the caller’s terminal
+          - id: sudo-defaults/timestamp-timeout
+            ruleset: sudo-defaults
+            score: 2.0
+            severity: info
+            tags:
+              - sudo
+              - cis-ubuntu-26.04:5.2.6
+            title: sudo remembers a password for too long
+          - id: sudo-defaults/use-pty
+            ruleset: sudo-defaults
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - sudo
+              - cis-ubuntu-26.04:5.2.2
+            title: sudo Defaults do not set use_pty
+          - id: sudo/invalid-sudoers
+            ruleset: sudo
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - sudo
+            title: A sudoers file is one sudo cannot parse
+          - id: sudo/nopasswd
+            ruleset: sudo
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - sudo
+              - cis-ubuntu-26.04:5.2.4
+              - stig-ubuntu-26.04:UBTU-24-300020
+            title: An account runs sudo commands without a password
+          - id: sudo/not-installed
+            ruleset: sudo
+            score: 1.0
+            severity: info
+            tags:
+              - sudo
+              - cis-ubuntu-26.04:5.2.1
+            title: sudo is not installed
+          - id: timesync/chrony-no-server
+            ruleset: timesync
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - timesync
+              - cis-ubuntu-26.04:2.3.3.1
+            title: chrony names no time server
+          - id: timesync/chrony-off
+            ruleset: timesync
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - timesync
+              - cis-ubuntu-26.04:2.3.3.3
+            title: chrony is installed but not enabled and running
+          - id: timesync/none-running
+            ruleset: timesync
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - timesync
+              - lynis
+            title: No time daemon is running
+          - id: timesync/rtc-local
+            ruleset: timesync
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - timesync
+              - stig-ubuntu-26.04:UBTU-24-901220
+            title: The hardware clock keeps local time
+          - id: timesync/stig-chrony-makestep
+            ruleset: timesync
+            score: 1.0
+            severity: info
+            tags:
+              - timesync
+              - stig-ubuntu-26.04:UBTU-24-600180
+            title: chrony slews a large clock error instead of stepping it
+          - id: timesync/stig-chrony-maxpoll
+            ruleset: timesync
+            score: 1.0
+            severity: info
+            tags:
+              - timesync
+              - stig-ubuntu-26.04:UBTU-24-600160
+            title: chrony polls a time server less than once a day
+          - id: timesync/stig-chrony-missing
+            ruleset: timesync
+            score: 1.0
+            severity: info
+            tags:
+              - timesync
+              - stig-ubuntu-26.04:UBTU-24-100700
+            title: chrony is not the time daemon
+          - id: timesync/stig-ntp-present
+            ruleset: timesync
+            score: 1.0
+            severity: info
+            tags:
+              - timesync
+              - stig-ubuntu-26.04:UBTU-24-100020
+            title: An ntp daemon is installed
+          - id: timesync/stig-timesyncd-present
+            ruleset: timesync
+            score: 1.0
+            severity: info
+            tags:
+              - timesync
+              - stig-ubuntu-26.04:UBTU-24-100010
+            title: systemd-timesyncd is installed
+          - id: timesync/timesyncd-no-server
+            ruleset: timesync
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - timesync
+              - cis-ubuntu-26.04:2.3.2.1
+            title: systemd-timesyncd names no time server
+          - id: timesync/timesyncd-off
+            ruleset: timesync
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - timesync
+              - cis-ubuntu-26.04:2.3.2.2
+            title: systemd-timesyncd is the time daemon but is not enabled and running
+          - id: timesync/unsynchronized
+            ruleset: timesync
+            score: 2.0
+            severity: info
+            tags:
+              - default
+              - timesync
+              - lynis
+            title: The clock is not synchronized though time sync is on
+          - id: tls/expired
+            ruleset: tls
+            score: 8.5
+            tags:
+              - default
+              - tls
+              - lynis
+            title: A certificate has expired
+          - id: tls/expiring
+            ruleset: tls
+            score:
+              - - 0.0
+                - 6.6
+              - - 9.0
+                - 3.3
+            tags:
+              - default
+              - tls
+            title: A certificate is close to its end, its renewal overdue
+          - id: tls/untrusted
+            ruleset: tls
+            score: 7.0
+            tags:
+              - default
+              - tls
+            title: A certificate is not trusted by this host
+          - id: tmp/sticky
+            ruleset: tmp
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - tmp
+              - lynis
+            title: A shared temporary directory lacks the sticky bit
+          - id: ufw/disabled
+            ruleset: ufw
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - ufw
+              - firewall
+              - lynis
+            title: ufw is installed but switched off
+          - id: ufw/input-accepted
+            ruleset: ufw
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - ufw
+              - firewall
+              - cis-ubuntu-26.04:4.1.3
+            title: ufw is switched on but accepts incoming traffic by default
+          - id: ufw/logging-off
+            ruleset: ufw
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - ufw
+              - firewall
+              - lynis
+            title: ufw logs no blocked packet
+          - id: ufw/not-installed
+            ruleset: ufw
+            score: 1.0
+            severity: info
+            tags:
+              - ufw
+              - firewall
+              - cis-ubuntu-26.04:4.1.1
+              - stig-ubuntu-26.04:UBTU-24-100300
+            title: ufw is not installed
+          - id: ufw/output-accepted
+            ruleset: ufw
+            score: 1.0
+            severity: info
+            tags:
+              - ufw
+              - firewall
+              - cis-ubuntu-26.04:4.1.4
+            title: ufw accepts outgoing traffic by default
+          - id: ufw/routed-accepted
+            ruleset: ufw
+            score: 1.0
+            severity: info
+            tags:
+              - ufw
+              - firewall
+              - cis-ubuntu-26.04:4.1.5
+            title: ufw does not deny routed traffic by default
+          - id: ufw/service-disabled
+            ruleset: ufw
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - ufw
+              - firewall
+              - systemd
+              - lynis
+            title: ufw is switched on but its service is disabled
+          - id: ufw/service-failed
+            ruleset: ufw
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - ufw
+              - firewall
+              - systemd
+              - lynis
+            title: ufw is switched on but its service failed
+          - id: ufw/service-masked
+            ruleset: ufw
+            score: 7.0
+            severity: error
+            tags:
+              - default
+              - ufw
+              - firewall
+              - systemd
+              - lynis
+            title: ufw is switched on but its service is masked
+          - id: unattended-upgrades/keeps-replaced
+            ruleset: unattended-upgrades
+            score: 2.0
+            severity: info
+            tags:
+              - apt
+              - stig-ubuntu-26.04:UBTU-24-700320
+            title: unattended-upgrades keeps the packages it replaced
+          - id: unattended-upgrades/off
+            ruleset: unattended-upgrades
+            score: 5.5
+            severity: warning
+            tags:
+              - default
+              - apt
+              - lynis
+            title: unattended-upgrades is installed but never runs
+          - id: unattended-upgrades/stale-lists
+            ruleset: unattended-upgrades
+            score: 5.5
+            severity: warning
+            tags:
+              - default
+              - apt
+              - lynis
+            title: unattended-upgrades runs on package lists never refreshed
+          - id: unused-services/apport
+            ruleset: unused-services
+            score: 1.0
+            severity: info
+            tags:
+              - services
+              - coredump
+              - cis-ubuntu-26.04:1.5.7
+            title: Apport reports crashes
+          - id: unused-services/autofs
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.1
+            title: The automounter is enabled or running
+          - id: unused-services/avahi
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.2
+            title: The Avahi mDNS daemon is enabled or running
+          - id: unused-services/bluetooth
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:3.1.3
+            title: Bluetooth is enabled or running
+          - id: unused-services/dhcp-server
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.3
+            title: A Kea DHCP server is enabled or running
+          - id: unused-services/dns-server
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.4
+            title: The BIND DNS server is enabled or running
+          - id: unused-services/dnsmasq
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.5
+            title: Dnsmasq is enabled or running
+          - id: unused-services/ftp-server
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.6
+            title: The vsftpd FTP server is enabled or running
+          - id: unused-services/ldap-server
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.7
+            title: The slapd LDAP server is enabled or running
+          - id: unused-services/mail-access-server
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.8
+            title: The Dovecot IMAP and POP3 server is enabled or running
+          - id: unused-services/nfs-server
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.9
+              - stig-ubuntu-26.04:UBTU-24-100050
+            title: The NFS server is enabled or running
+          - id: unused-services/print-server
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.11
+            title: The CUPS print server is enabled or running
+          - id: unused-services/rpcbind
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.12
+            title: Rpcbind is enabled or running
+          - id: unused-services/rsync
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.13
+            title: The rsync daemon is enabled or running
+          - id: unused-services/samba
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.14
+            title: The Samba file server is enabled or running
+          - id: unused-services/snmp
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.15
+            title: The SNMP daemon is enabled or running
+          - id: unused-services/telnet-server
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.16
+            title: Inetutils-inetd is enabled or running
+          - id: unused-services/web-proxy
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.18
+            title: The Squid proxy is enabled or running
+          - id: unused-services/web-server
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.19
+            title: A web server is enabled or running
+          - id: unused-services/x-server
+            ruleset: unused-services
+            score: 1.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.21
+            title: The X server is installed
+          - id: unused-services/xinetd
+            ruleset: unused-services
+            score: 2.0
+            severity: info
+            tags:
+              - services
+              - cis-ubuntu-26.04:2.1.20
+            title: Xinetd is enabled or running
+          - id: usb/authorized-default
+            ruleset: usb
+            score: 1.0
+            severity: info
+            tags:
+              - usb
+              - lynis
+            title: Every new USB device is authorized on plugging
+          - id: vm/dirty-background-bytes-above-limit
+            ruleset: vm
+            severity: advice
+            tags:
+              - vm
+              - sysctl
+              - performance
+            title: Background writeback starts at or above the writer limit
+          - id: vm/dirty-background-ratio-above-limit
+            ruleset: vm
+            severity: advice
+            tags:
+              - vm
+              - sysctl
+              - performance
+            title: Background writeback starts at or above the writer limit
+          - id: vm/dirty-ratio-large-memory
+            ruleset: vm
+            severity: advice
+            tags:
+              - vm
+              - sysctl
+              - performance
+            title: The dirty-page limit is a share of a large memory
+          - id: vm/min-free-too-high
+            ruleset: vm
+            severity: warning
+            tags:
+              - vm
+              - sysctl
+              - stability
+            title: The kernel keeps too much memory free
+          - id: vm/strict-overcommit-half-memory
+            ruleset: vm
+            severity: warning
+            tags:
+              - vm
+              - sysctl
+              - stability
+            title: Strict overcommit caps allocations well below memory

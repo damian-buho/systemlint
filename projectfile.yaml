@@ -185,6 +185,7 @@ includes:
   - .makefile/library/traits/binary.yaml
   - .makefile/core/traits/release.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/has-rules.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/personal-image.yaml
 technologies:
   - rust
