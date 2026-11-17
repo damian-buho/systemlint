@@ -30,6 +30,13 @@ impl Found {
     pub fn subject(&self) -> Value {
         json!({"kind": "container", "engine": self.engine, "name": self.name, "id": self.id, "parent": self.parent, "image": self.image})
     }
+
+    /// Whether the glob `pattern` matches its key (`ci/runner`), its name or its short ID.
+    pub fn named(&self, pattern: &str) -> bool {
+        [&self.key, &self.name, &self.id]
+            .iter()
+            .any(|text| crate::rules::glob(pattern, text))
+    }
 }
 
 /// The engine of each cgroup scope prefix in [`proc::CONTAINER_SCOPES`].

@@ -96,6 +96,9 @@ struct Cli {
     /// Also check every running container, nested ones included, as root: files through its root, commands in its namespaces [default: collect.containers, else off]
     #[arg(long, global = true)]
     containers: bool,
+    /// Check only the containers this glob names, by key (ci/runner), name or short ID, repeatable or comma-separated; implies --containers [default: collect.container]
+    #[arg(long, global = true, value_name = "NAME", value_delimiter = ',')]
+    container: Vec<String>,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -286,7 +289,12 @@ fn main() -> ExitCode {
     };
     config.collect.jobs = cli.jobs.or(config.collect.jobs);
     config.collect.network = cli.network.then_some(true).or(config.collect.network);
-    config.collect.containers = cli.containers.then_some(true).or(config.collect.containers);
+    if !cli.container.is_empty() {
+        config.collect.container = cli.container;
+    }
+    config.collect.containers = (cli.containers || !config.collect.container.is_empty())
+        .then_some(true)
+        .or(config.collect.containers);
     match command {
         Command::Facts {
             root,
@@ -446,6 +454,7 @@ fn gather(
             &collectors,
             &plugins,
             &options,
+            &config.collect.container,
             &mut document,
             status,
             quiet,
@@ -532,6 +541,7 @@ fn containers(
     collectors: &[collector::Collector],
     plugins: &[discovery::Plugin],
     host: &Options,
+    wanted: &[String],
     document: &mut Value,
     status: bool,
     quiet: bool,
@@ -558,8 +568,23 @@ fn containers(
             .ok()
             .map(|m| (m.dev(), m.ino()))
     };
-    let found = targets::discover(&host.root, &namespace);
-    log::debug!("{} containers found", found.len());
+    let mut found = targets::discover(&host.root, &namespace);
+    log::debug!("{} containers found, wanted {wanted:?}", found.len());
+    if !wanted.is_empty() {
+        found.retain(|c| {
+            let kept = wanted.iter().any(|w| c.named(w));
+            log::debug!("container {} kept {kept}", c.key);
+            kept
+        });
+        for pattern in wanted.iter().filter(|w| !found.iter().any(|c| c.named(w))) {
+            log::debug!("--container {pattern} named no running container");
+            if !quiet {
+                note(format!(
+                    "No running container matches --container {pattern}."
+                ));
+            }
+        }
+    }
     let mut documents = serde_json::Map::new();
     for container in found {
         let opened = Root::process(container.pid, container.inner).and_then(|root| {

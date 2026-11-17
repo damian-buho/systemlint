@@ -887,3 +887,18 @@ fn a_run_without_tags_counts_the_rules_the_default_left_out_in_the_summary() {
     let (_, quiet) = report(&["--quiet", "check", &facts]);
     assert!(!quiet.contains("Not selected"), "{quiet}");
 }
+
+#[test]
+fn a_container_pattern_from_the_flag_or_the_config_turns_containers_on() {
+    let dir = base("container-pattern");
+    let root = dir.join("root");
+    std::fs::create_dir_all(&root).unwrap();
+    let root = root.display().to_string();
+    let args = ["facts", "--root", &root, "--output", "-"];
+    let (_, flag) = run(&dir, "", &[&args[..], &["--container", "web"]].concat());
+    let (_, config) = run(&dir, "collect: {container: [web]}\n", &args);
+    let (_, none) = run(&dir, "", &args);
+    assert!(flag.contains("Containers not checked"), "{flag}");
+    assert!(config.contains("Containers not checked"), "{config}");
+    assert!(!none.contains("Containers not checked"), "{none}");
+}

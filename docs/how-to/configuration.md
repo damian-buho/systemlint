@@ -60,6 +60,7 @@ collect:
   jobs: 4              # the default --jobs: collectors run at once, 1 to 64
   network: false       # true runs the network: true collectors, as --network does
   containers: false    # true checks every running container too, as --containers does
+  container: [web, "ci/*"]  # the default --container: only these containers, by key, name or short ID
   hash-key: ...        # 16 characters or more
   collectors: []       # inline collectors, never exec nor network; see collectors.md
   format: json         # the default facts --format, over the --output extension: yaml or json

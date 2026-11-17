@@ -128,6 +128,9 @@ pub struct Collect {
     /// Run the `containers: true` collectors [default: false]
     #[serde(default)]
     pub containers: Option<bool>,
+    /// Check only the containers these globs name, by key, name or short ID; any turns `containers` on
+    #[serde(default)]
+    pub container: Vec<String>,
     #[serde(default)]
     pub format: Option<FactsFormat>,
     #[serde(default)]

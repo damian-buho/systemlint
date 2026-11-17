@@ -122,6 +122,35 @@ fn a_command_inside_exits_as_it_did_through_the_middle_process() {
 }
 
 #[test]
+fn a_container_is_named_by_its_key_name_or_short_id() {
+    let found = systemlint::targets::Found {
+        key: "ci/runner".to_owned(),
+        name: "runner".to_owned(),
+        engine: "docker",
+        id: "0123456789ab".to_owned(),
+        pid: 1,
+        inner: 1,
+        parent: Some("ci".to_owned()),
+        image: None,
+        upper: None,
+    };
+    for pattern in [
+        "ci/runner",
+        "runner",
+        "0123456789ab",
+        "ci/*",
+        "run*",
+        "*",
+        "0123*",
+    ] {
+        assert!(found.named(pattern), "{pattern}");
+    }
+    for pattern in ["ci", "runner2", "0123456789a", "web", ""] {
+        assert!(!found.named(pattern), "{pattern}");
+    }
+}
+
+#[test]
 fn an_apparmor_label_drops_its_mode_and_unconfined_is_none() {
     assert_eq!(
         apparmor_label("docker-default (enforce)\n"),

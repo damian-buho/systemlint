@@ -278,6 +278,12 @@ nodes), with the same rules, one report per container. It needs root;
 unprivileged, or under `--root`, it prints one `Containers not checked` line
 and judges the host alone.
 
+`--container NAME` (or `collect.container: [NAME]`) checks only the
+containers a glob names, by key, name or short ID: `--container web` also
+takes a nested `ci/web`, `--container 'ci/*'` every container in `ci`. It is
+repeatable or comma-separated and implies `--containers`; a pattern matching
+no running container prints a `No running container matches` line.
+
 - Discovery reads the host’s `/proc`, never an engine CLI or socket. A
   process belongs to the container its cgroup names: a `docker-`, `libpod-`
   (Podman), `cri-containerd-` or `crio-` scope, or a `docker/<ID>` group, the
