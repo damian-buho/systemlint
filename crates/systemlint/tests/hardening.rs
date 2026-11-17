@@ -6344,6 +6344,18 @@ fn a_service_left_open_fails_only_once_it_listens_beyond_the_loopback_unguarded(
         Outcome::Fail
     );
     assert_eq!(mongo(&json!({}), json!({})), Outcome::Pass);
+    assert_eq!(
+        the(
+            "mongodb/no-authorization",
+            &facts(&[
+                ("mongodb.binary", on.clone()),
+                ("ports", public.clone()),
+                ("mongodb.conf", json!({})),
+            ])
+        ),
+        Outcome::Skip,
+        "mongod started with another --config"
+    );
     let snmp = |ports: &Value, communities: Value| {
         the(
             "snmp/default-community",

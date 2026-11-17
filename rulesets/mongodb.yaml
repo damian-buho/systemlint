@@ -8,6 +8,7 @@ when: {mongodb.binary: {minProperties: 1}}
 rules:
   mongodb/no-authorization:
     title: MongoDB answers the network without access control
+    when: {mongodb.conf: {required: [/etc/mongod.conf]}}
     facts:
       any:
         - {fact: ports, expect: {properties: {"tcp:27017": {properties: {addresses: {items: {pattern: "^(127\\.|::1$)"}}}}}}}

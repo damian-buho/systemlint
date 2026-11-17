@@ -436,7 +436,7 @@ passes:
 | Rule | Severity | Fails when |
 | --- | --- | --- |
 | `redis/open-without-password` | error | TCP 6379 listens beyond the loopback, `redis.conf` sets `protected-mode no` and no `requirepass` (Lynis DBS-1884, DBS-1888); `redis-password` matches the keyword alone, never the password |
-| `mongodb/no-authorization` | error | TCP 27017 listens beyond the loopback and `/etc/mongod.conf` (`yaml`) leaves `security.authorization` other than `enabled` (Lynis DBS-1820) |
+| `mongodb/no-authorization` | error | TCP 27017 listens beyond the loopback and `/etc/mongod.conf` (`yaml`) leaves `security.authorization` other than `enabled`, skipped without that file, since mongod then read another `--config` (Lynis DBS-1820) |
 | `snmp/default-community` | warning | UDP 161 listens beyond the loopback and a `com2sec`, `rocommunity` or `rwcommunity` line names `public` or `private`, the only words `snmp-communities` captures (Lynis SNMP-3306) |
 | `cups/listens-network` | warning | TCP 631 listens beyond the loopback (Lynis PRNT-2308) |
 | `docker/world-writable` | error | `/run/docker.sock`, `/etc/docker`, a file in it or `/etc/default/docker` is writable by others (Lynis CONT-8108) |
