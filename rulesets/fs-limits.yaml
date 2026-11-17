@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: System-wide kernel tables close to their limit, where the next open or async IO context fails
+vars:
+  usage-percent: {default: 90}
+rules:
+  fs-limits/aio-near-max:
+    title: Async IO contexts are close to their system-wide limit
+    fact: sysctl.settings.fs.aio-nr
+    when: {sysctl.settings.fs: {required: [aio-nr]}}
+    expect: {x-cel: "self * 100 < vars['usage-percent'] * facts.sysctl.settings.fs['aio-max-nr']"}
+    severity: warning
+    message: "fs.aio-nr is {got}, past ${usage-percent}% of fs.aio-max-nr, so the next io_setup() fails and a database or virtual machine refuses to start or falls back to synchronous IO"
+    fix: raise “fs.aio-max-nr”, for example “fs.aio-max-nr = 1048576”
+    docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#aio-nr-aio-max-nr
+    tags: [fs-limits, sysctl, stability]
+  fs-limits/files-near-max:
+    title: Open file handles are close to their system-wide limit
+    fact: sysctl.settings.fs.file-nr.allocated
+    when: {sysctl.settings.fs: {required: [file-nr]}}
+    expect: {x-cel: "self * 100 < vars['usage-percent'] * facts.sysctl.settings.fs['file-nr'].max"}
+    severity: warning
+    message: "fs.file-nr counts {got} open file handles, past ${usage-percent}% of fs.file-max, so the next open() anywhere on the host fails with “Too many open files in system”"
+    fix: raise “fs.file-max”, or find the process leaking file handles
+    docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#file-max-file-nr
+    tags: [fs-limits, sysctl, stability]

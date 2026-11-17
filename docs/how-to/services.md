@@ -6,11 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Kernel parameters, modules and audit rules, AIDE, AppArmor, Docker, systemd units, plain-text servers, running services, listening sockets, ufw and nftables
 
-Twenty-two collectors record service configuration as facts, `systemd-units` on
+Twenty-three collectors record service configuration as facts, `systemd-units` on
 `systemlint-systemd`, `nftables` on `systemlint-firewall`, `processes-services`
 and `ports-listening` on `systemlint-proc` and the rest on `systemlint-formats`. The `kernel`,
 `coredump`, `fs-protected`, `ip-routing` and `ip-flood` rulesets judge
-`sysctl`, `ufw` judges the two `ufw` collectors and the state of
+`sysctl`, the `vm` and `fs-limits` practice rulesets judge it beside `memory-info`, `ufw` judges the two `ufw` collectors and the state of
 `ufw.service`, `nftables` judges the loaded nftables ruleset and the state of
 `nftables.service`, `restart` judges the code each running service holds, `services` judges the sandbox of each unit, and
 `kernel-modules` judges the module facts, `audit` the audit rules, `aide` whether AIDE checks the disk on a schedule, and `apparmor` whether AppArmor confines anything; no shipped rule reads the Docker
@@ -19,6 +19,7 @@ facts yet.
 | Collector | Reads | Op | Facts at |
 | --- | --- | --- | --- |
 | `sysctl` | `/usr/sbin/sysctl -a` on a live host, else the `sysctl.d` directories and `/etc/sysctl.conf` | `kv` | `sysctl.settings` |
+| `memory-info` | `/proc/meminfo` on a live host | `kv`, then a `unit` step into bytes | `memory.info` |
 | `sysctl-apparmor` | `/usr/sbin/sysctl --all --pattern '^kernel\.apparmor_restrict_unprivileged_'` on a live host, as root | `kv` | `sysctl.apparmor` |
 | `kernel-modules-shipped` | `modules.order` of every kernel in `/lib/modules` | `match` | `kernel.shipped.<module>` |
 | `kernel-modules-builtin` | `modules.builtin` of every kernel in `/lib/modules` | `match` | `kernel.builtin.<module>` |
@@ -48,7 +49,9 @@ facts yet.
 `net.ipv4.ip_forward` is the fact `sysctl.settings.net.ipv4.ip_forward`, and a
 rule can bind every interface with `sysctl.settings.net.ipv4.conf.*.rp_filter`.
 An interface name holding a dot shows it as `/` (`eth0/100`), as `sysctl`
-prints it. A whole number becomes a number, anything else stays a string.
+prints it. A whole number becomes a number, anything else stays a string,
+but for `fs.file-nr`, which a `split` step turns into `allocated`, `free` and
+`max`.
 
 `sysctl -a` reads the running kernel rather than `/proc/sys` file by file:
 an unprivileged run cannot read some keys (`kernel.cad_pid`, the
@@ -92,6 +95,21 @@ judged: the `coredump-main` and `coredump-drop-ins` collectors read it and its
 drop-ins through `kv`, and a drop-in’s value wins. They fail unless the
 effective `Storage` is `none` and `ProcessSizeMax` is 0; unset fails, since
 the defaults are `external` and 32G.
+
+Two practice rulesets leave out the `default` tag and run with `--tags
+performance` or `--tags stability`, each threshold a ruleset var. `vm` fails a
+background writeback limit at or above the writer limit, which the kernel
+silently halves (`dirty-background-ratio-above-limit`,
+`dirty-background-bytes-above-limit`), a `vm.dirty_ratio` that lets more than
+`dirty-limit-gib` (4) GiB of memory fill with unwritten data while no
+`vm.dirty_bytes` is set (`dirty-ratio-large-memory`), a `vm.min_free_kbytes`
+over `min-free-percent` (5) percent of memory (`min-free-too-high`), and
+strict overcommit whose `CommitLimit` is under `commit-limit-percent` (80)
+percent of memory (`strict-overcommit-half-memory`). `fs-limits` fails
+`fs.aio-nr` or the allocated `fs.file-nr` past `usage-percent` (90) percent of
+its maximum; a usage figure is a snapshot, so a spike fails that run only.
+`memory-info` reads the live host, so under `--root` the rules that need it
+are `Not run`.
 
 ## Kernel modules
 

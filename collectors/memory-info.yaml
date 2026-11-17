@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: memory-info
+host: true
+live: true
+read: {files: [/proc/meminfo]}
+parse:
+  - {plugin: formats, op: kv, with: {separator: ":"}}
+  - {unit: bytes}
+into: memory.info

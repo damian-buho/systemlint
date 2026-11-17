@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Virtual memory settings that stall writers or run out of memory early
+vars:
+  dirty-limit-gib: {default: 4}
+  min-free-percent: {default: 5}
+  commit-limit-percent: {default: 80}
+rules:
+  vm/dirty-background-ratio-above-limit:
+    title: Background writeback starts at or above the writer limit
+    fact: sysctl.settings.vm.dirty_background_ratio
+    expect: {x-cel: "self < facts.sysctl.settings.vm.dirty_ratio || facts.sysctl.settings.vm.dirty_bytes > 0 || facts.sysctl.settings.vm.dirty_background_bytes > 0"}
+    severity: advice
+    message: "vm.dirty_background_ratio is {got}, not below vm.dirty_ratio, so the kernel ignores it and starts background writeback at half of vm.dirty_ratio"
+    fix: set “vm.dirty_background_ratio” below “vm.dirty_ratio”, about a quarter of it
+    docs: https://docs.kernel.org/admin-guide/sysctl/vm.html#dirty-background-ratio
+    tags: [vm, sysctl, performance]
+  vm/dirty-background-bytes-above-limit:
+    title: Background writeback starts at or above the writer limit
+    fact: sysctl.settings.vm.dirty_background_bytes
+    expect: {x-cel: "self == 0 || facts.sysctl.settings.vm.dirty_bytes == 0 || self < facts.sysctl.settings.vm.dirty_bytes"}
+    severity: advice
+    message: "vm.dirty_background_bytes is {got}, not below vm.dirty_bytes, so the kernel ignores it and starts background writeback at half of vm.dirty_bytes"
+    fix: set “vm.dirty_background_bytes” below “vm.dirty_bytes”, about a quarter of it
+    docs: https://docs.kernel.org/admin-guide/sysctl/vm.html#dirty-background-bytes
+    tags: [vm, sysctl, performance]
+  vm/dirty-ratio-large-memory:
+    title: The dirty-page limit is a share of a large memory
+    when: {memory.info.MemTotal: {type: integer}}
+    facts:
+      any:
+        - {fact: sysctl.settings.vm.dirty_ratio, expect: {x-cel: "self * facts.memory.info.MemTotal <= vars['dirty-limit-gib'] * 107374182400"}}
+        - {fact: sysctl.settings.vm.dirty_bytes, expect: {exclusiveMinimum: 0}}
+    severity: advice
+    message: "vm.dirty_ratio is {got}, so over ${dirty-limit-gib} GiB of this host’s memory may fill with unwritten data, and every writer then stalls while the kernel flushes it"
+    fix: set “vm.dirty_bytes” to a few seconds of the disk’s write speed and “vm.dirty_background_bytes” to a quarter of it
+    docs: https://docs.kernel.org/admin-guide/sysctl/vm.html#dirty-ratio
+    tags: [vm, sysctl, performance]
+  vm/min-free-too-high:
+    title: The kernel keeps too much memory free
+    fact: sysctl.settings.vm.min_free_kbytes
+    when: {memory.info.MemTotal: {type: integer}}
+    expect: {x-cel: "double(self) * 102400.0 <= double(vars['min-free-percent']) * double(facts.memory.info.MemTotal)"}
+    severity: warning
+    message: "vm.min_free_kbytes is {got}, over ${min-free-percent}% of this host’s memory, so the kernel reclaims and kills processes for memory while that much stays idle"
+    fix: remove the “vm.min_free_kbytes” setting so the kernel sizes it from memory, or lower it
+    docs: https://docs.kernel.org/admin-guide/sysctl/vm.html#min-free-kbytes
+    tags: [vm, sysctl, stability]
+  vm/strict-overcommit-half-memory:
+    title: Strict overcommit caps allocations well below memory
+    facts:
+      any:
+        - {fact: sysctl.settings.vm.overcommit_memory, expect: {not: {const: 2}}}
+        - {fact: memory.info.CommitLimit, expect: {x-cel: "self * 100 >= vars['commit-limit-percent'] * facts.memory.info.MemTotal"}}
+    severity: warning
+    message: "vm.overcommit_memory is {got} and the commit limit, vm.overcommit_ratio of memory plus swap, is under ${commit-limit-percent}% of memory, so allocations fail with out-of-memory errors while the rest stays unused"
+    fix: raise “vm.overcommit_ratio” or add swap until “CommitLimit” in “/proc/meminfo” covers what the services commit
+    docs: https://docs.kernel.org/mm/overcommit-accounting.html
+    references:
+      - {title: PostgreSQL Linux memory overcommit, url: "https://www.postgresql.org/docs/current/kernel-resources.html#LINUX-MEMORY-OVERCOMMIT"}
+    tags: [vm, sysctl, stability]

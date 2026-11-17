@@ -12,4 +12,5 @@ read:
 parse:
   - {plugin: formats, op: kv, with: {comments: ["#", ";"], repeat: last, swap: /., strip: "-"}}
   - {nest: "."}
+  - {split: whitespace, fields: [allocated, free, max], at: fs.file-nr}
 into: sysctl.settings
