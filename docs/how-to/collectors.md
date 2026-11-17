@@ -297,6 +297,13 @@ and judges the host alone.
   capabilities in the init’s bounding set and sets no-new-privileges.
   The container’s seccomp and AppArmor profiles are not applied to the command.
 - Plugins and rules stay on the host: plugins only parse what the core read.
+- A finding on a file the container never changed belongs to its image.
+  For a Docker container, systemlint lists its writable layer, the overlay
+  `upperdir` in the init’s `mountinfo`, up to 100 000 paths, into
+  `meta.subject.changed`, and names the image from `config.v2.json` in
+  `meta.subject.image`. A failing path absent from that layer reads
+  `…, as kiota.ch/b19/ubuntu ships it`, so it is fixed in the image; one in
+  the layer is the container’s own change.
 - Rules judge what the container runs, not what its image ships. `os-init`
   reads the name of PID 1, `/proc/1/comm`, into `os.init`. The rules about
   logins, the `pam`, `login-defs`, `pwquality`, `home` and `ctrl-alt-del`

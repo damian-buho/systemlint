@@ -10,7 +10,7 @@ use systemlint::judge::{Outcome, compile, lint};
 use systemlint::report::{lint_human_targets, lint_textfile_targets};
 use systemlint::runner::{Inside, OUTPUT_CAP, bounding, run};
 use systemlint::source::Root;
-use systemlint::targets::discover;
+use systemlint::targets::{changed, discover};
 
 const A: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const B: &str = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
@@ -207,6 +207,40 @@ fn human_prints_one_block_per_rule_across_targets_and_names_where_it_holds() {
     assert!(
         text.contains("In the host and every container:\n"),
         "{text}"
+    );
+}
+
+#[test]
+fn changed_lists_a_writable_layer_as_the_container_sees_it() {
+    let upper = Path::new(env!("CARGO_TARGET_TMPDIR")).join("targets-upper");
+    let _ = std::fs::remove_dir_all(&upper);
+    std::fs::create_dir_all(upper.join("etc/pam.d")).unwrap();
+    std::fs::write(upper.join("etc/pam.d/su"), "").unwrap();
+    let paths = changed(upper.to_str().unwrap()).unwrap();
+    assert_eq!(paths, ["/etc", "/etc/pam.d", "/etc/pam.d/su"]);
+    assert_eq!(changed("/nonexistent/systemlint-upper"), None);
+}
+
+#[test]
+fn human_says_which_image_ships_a_path_the_container_never_changed() {
+    let rule = compile(
+        "x/mode",
+        systemlint::yaml::from_str("fact: files.*\nexpect: {const: 0}\n").unwrap(),
+    )
+    .unwrap();
+    let document = json!({
+        "meta": {"subject": {"kind": "container", "image": "kiota.ch/b19/ubuntu", "changed": ["/etc", "/etc/b"]}},
+        "files": {"/etc/a": 1, "/etc/b": 1},
+    });
+    let checks = lint(&document, &[rule], &[], "2026-11-16");
+    let text = systemlint::report::lint_human(&document, &checks, 0, true, false, false);
+    assert!(
+        text.contains("- files./etc/a: 0 was expected, as kiota.ch/b19/ubuntu ships it.\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("- files./etc/b: 0 was expected.\n"),
+        "changed in the container: {text}"
     );
 }
 

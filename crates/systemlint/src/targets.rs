@@ -21,12 +21,14 @@ pub struct Found {
     pub pid: u32,
     pub inner: u32,
     pub parent: Option<String>,
+    pub image: Option<String>,
+    pub upper: Option<String>,
 }
 
 impl Found {
     /// The `meta.subject` of the container’s facts document.
     pub fn subject(&self) -> Value {
-        json!({"kind": "container", "engine": self.engine, "name": self.name, "id": self.id, "parent": self.parent})
+        json!({"kind": "container", "engine": self.engine, "name": self.name, "id": self.id, "parent": self.parent, "image": self.image})
     }
 }
 
@@ -70,6 +72,44 @@ pub fn inner_pid(status: &str) -> Option<u32> {
         .last()?
         .parse()
         .ok()
+}
+
+/// The image a Docker `config.v2.json` text says the container runs, as it was named.
+pub fn docker_image(config: &str) -> Option<String> {
+    let config: Value = serde_json::from_str(config).ok()?;
+    Some(config["Config"]["Image"].as_str()?.to_owned())
+}
+
+/// The host directory of an overlay root’s writable layer, from the `upperdir` of the `/` line of a `mountinfo` text.
+pub fn upper_dir(mountinfo: &str) -> Option<String> {
+    mountinfo.lines().find_map(|line| {
+        let (mount, fs) = line.split_once(" - ")?;
+        let mut fields = fs.split(' ');
+        let (kind, options) = (fields.next()?, fields.nth(1)?);
+        (mount.split(' ').nth(4)? == "/" && kind == "overlay")
+            .then(|| options.split(',').find_map(|o| o.strip_prefix("upperdir=")))
+            .flatten()
+            .map(str::to_owned)
+    })
+}
+
+/// Paths a container’s writable layer may hold before [`changed`] gives up naming them.
+pub const CHANGED_CAP: usize = 100_000;
+
+/// Every path below the writable layer at `upper`, as the container sees it, or none when it holds more than [`CHANGED_CAP`] or can’t be read.
+pub fn changed(upper: &str) -> Option<Vec<String>> {
+    let root = Root::open(std::path::Path::new(upper))
+        .inspect_err(|e| log::debug!("writable layer {upper} not opened: {e}"))
+        .ok()?;
+    let mut paths = Vec::new();
+    if let Err(e) = root.walk("", CHANGED_CAP, &mut paths) {
+        log::debug!("writable layer {upper} not listed: {}", String::from(e));
+        return None;
+    }
+    paths.retain(|p| p != "/");
+    paths.sort();
+    log::debug!("writable layer {upper}: {} paths", paths.len());
+    Some(paths)
 }
 
 /// The container name in a Docker `config.v2.json` text, without its leading `/`.
@@ -151,7 +191,7 @@ pub fn discover(host: &Root, namespace: &dyn Fn(u32) -> Option<(u64, u64)>) -> V
         };
         let parent = group.outer.as_ref().and_then(|o| found.get(o));
         let short = id[..12].to_owned();
-        let name = match (group.engine, parent) {
+        let config = match (group.engine, parent) {
             ("docker", None) => read(format!("{DOCKER_CONTAINERS}{id}/config.v2.json")),
             ("docker", Some(p)) => Root::process(p.pid, p.inner).ok().and_then(|r| {
                 r.read(
@@ -162,10 +202,16 @@ pub fn discover(host: &Root, namespace: &dyn Fn(u32) -> Option<(u64, u64)>) -> V
                 .map(|b| String::from_utf8_lossy(&b).into_owned())
             }),
             _ => None,
-        }
-        .as_deref()
-        .and_then(docker_name)
-        .unwrap_or_else(|| short.clone());
+        };
+        let name = config
+            .as_deref()
+            .and_then(docker_name)
+            .unwrap_or_else(|| short.clone());
+        let image = config.as_deref().and_then(docker_image);
+        let upper = read(format!("/proc/{pid}/mountinfo"))
+            .as_deref()
+            .and_then(upper_dir)
+            .filter(|_| parent.is_none());
         let key = parent.map_or_else(|| name.clone(), |p| format!("{}/{name}", p.key));
         log::debug!(
             "container {key}: {} {short}, init {pid} ({inner} inside)",
@@ -181,6 +227,8 @@ pub fn discover(host: &Root, namespace: &dyn Fn(u32) -> Option<(u64, u64)>) -> V
                 id: short,
                 pid,
                 inner,
+                image,
+                upper,
             },
         );
     }
@@ -241,6 +289,36 @@ mod tests {
         assert_eq!(inner_pid("Name:\tsh\nNSpid:\t4242\t17\t1\n"), Some(1));
         assert_eq!(inner_pid("NSpid:\t4242\n"), Some(4242));
         assert_eq!(inner_pid("Name:\tsh\n"), None);
+    }
+
+    #[test]
+    fn upper_dir_reads_the_overlay_root_and_nothing_else() {
+        let line = |point: &str, kind: &str| {
+            format!(
+                "1 0 0:1 / {point} rw - {kind} overlay rw,lowerdir=/l,upperdir=/var/lib/docker/overlay2/x/diff,workdir=/w\n"
+            )
+        };
+        let info = line("/proc", "proc") + &line("/", "overlay");
+        assert_eq!(
+            upper_dir(&info).as_deref(),
+            Some("/var/lib/docker/overlay2/x/diff")
+        );
+        assert_eq!(
+            upper_dir(&line("/", "ext4")),
+            None,
+            "a root on a disk has no layer"
+        );
+        assert_eq!(upper_dir(&line("/data", "overlay")), None);
+    }
+
+    #[test]
+    fn docker_image_names_the_image_as_run() {
+        let config = r#"{"Name": "/web", "Config": {"Image": "kiota.ch/b19/ubuntu:latest"}}"#;
+        assert_eq!(
+            docker_image(config).as_deref(),
+            Some("kiota.ch/b19/ubuntu:latest")
+        );
+        assert_eq!(docker_image(r#"{"Name": "/web"}"#), None);
     }
 
     #[test]

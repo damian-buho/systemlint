@@ -293,10 +293,22 @@ fn header(label: &str, check: &Check, on: bool) -> String {
 }
 
 /// The failing checks of one rule as a block: level and highest score, why, a line per location and its remedy command, the fix once when every location shares it, then the references when `verbose`.
+/// The image a container’s failing path subject comes from unchanged: absent from the writable layer `meta.subject.changed` lists.
+fn shipped<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
+    let subject = &document["meta"]["subject"];
+    let changed = subject["changed"].as_array()?;
+    let path = check.subject.last().filter(|p| p.starts_with('/'))?;
+    let kept = changed
+        .binary_search_by(|p| p.as_str().unwrap_or_default().cmp(path))
+        .is_err();
+    log::debug!("{} {path}: in the writable layer {}", check.rule, !kept);
+    kept.then(|| subject["image"].as_str().unwrap_or("the image"))
+}
+
 /// Failing subjects with a remedy from which, unless verbose, one `systemlint fix` line stands for their `Run:` lines.
 const FOLD_REMEDIES: usize = 3;
 
-fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
+fn failure_block(out: &mut String, document: &Value, group: &[&Check], verbose: bool, on: bool) {
     let worst = group
         .iter()
         .copied()
@@ -342,6 +354,9 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
             let named =
                 check.title.is_none() && said.as_deref().is_some_and(|m| m.contains(&subject));
             let mut line = location(if named { "" } else { &subject }, said.as_deref());
+            if let Some(image) = shipped(document, check) {
+                let _ = write!(line, ", as {image} ships it");
+            }
             if let Some(w) = &check.waiver {
                 let _ = write!(line, " (waiver expired on {}: {})", w.until, w.reason);
             }
@@ -682,7 +697,7 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
     }
     split(&mut blocks, &mut out, (6, Reverse(None), 0));
     for group in ranked(checks) {
-        failure_block(&mut out, &group, verbose, on);
+        failure_block(&mut out, document, &group, verbose, on);
         let level = group.iter().filter_map(|c| c.severity).max();
         let score = group
             .iter()

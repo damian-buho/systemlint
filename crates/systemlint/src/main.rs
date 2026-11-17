@@ -573,6 +573,10 @@ fn containers(
                 continue;
             }
         };
+        let mut subject = container.subject();
+        if let Some(paths) = container.upper.as_deref().and_then(targets::changed) {
+            subject["changed"] = Value::from(paths);
+        }
         let options = Options {
             root,
             live: true,
@@ -584,10 +588,7 @@ fn containers(
             jobs: host.jobs,
             network: None,
             containers: true,
-            target: Some(collect::Target {
-                inside,
-                subject: container.subject(),
-            }),
+            target: Some(collect::Target { inside, subject }),
         };
         let what = format!("container {}", container.key);
         documents.insert(
