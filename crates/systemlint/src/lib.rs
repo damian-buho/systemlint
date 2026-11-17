@@ -15,6 +15,7 @@ pub mod expression;
 pub mod fix;
 pub mod judge;
 pub mod net;
+pub mod pages;
 pub mod progress;
 pub mod report;
 pub mod rules;

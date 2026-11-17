@@ -170,12 +170,35 @@ enum Command {
         #[arg(long)]
         no_input: bool,
     },
+    /// Print the shipped rule catalog, or write one Markdown page per rule
+    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint rules\n  systemlint rules --format markdown --output book/rules")]
+    #[command(
+        after_help = "Reads only the rulesets shipped in ../share/systemlint/rulesets beside the binary, never a configured one.\nExit codes: 0 printed or written, 2 bad arguments, 5 a shipped ruleset can’t be loaded, 7 a page or stdout can’t be written."
+    )]
+    Rules {
+        /// yaml: the catalog at org.projectfile.pages.rules.items; markdown: a page per rule, ruleset and standard under --output
+        #[arg(long, value_enum, default_value = "yaml")]
+        format: PagesFormat,
+        /// Language of the pages, a BCP 47 tag; rule texts have no translations yet, so every language reads English
+        #[arg(long, value_name = "TAG", default_value = "en")]
+        lang: String,
+        /// With --format markdown, the directory to write the pages in
+        #[arg(short, long, value_name = "DIR", required_if_eq("format", "markdown"))]
+        output: Option<PathBuf>,
+    },
     /// Inspect the installed plugins
     #[command(subcommand, help_template = TEMPLATE, before_help = "Examples:\n  systemlint plugin list")]
     #[command(
         after_help = "Docs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/protocol.md#discovery-and-trust"
     )]
     Plugin(PluginCommand),
+}
+
+/// What `rules` prints: the catalog, or the pages.
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum PagesFormat {
+    Yaml,
+    Markdown,
 }
 
 #[derive(Subcommand)]
@@ -346,6 +369,11 @@ fn main() -> ExitCode {
             },
             cli.quiet,
         )),
+        Command::Rules {
+            format,
+            lang,
+            output,
+        } => ExitCode::from(rule_pages(format, &lang, output.as_deref())),
         Command::Plugin(PluginCommand::List { format }) => ExitCode::from(plugin_list(
             &config,
             format.or(config.plugins.format) == Some(ListFormat::Json),
@@ -1144,6 +1172,56 @@ fn load_config(explicit: Option<&Path>, project: bool) -> Result<Config, String>
         |n| std::env::var(n).ok(),
         &cwd,
     ))
+}
+
+/// The shipped rule catalog as YAML on stdout, or every rule page under `output`.
+fn rule_pages(format: PagesFormat, lang: &str, output: Option<&Path>) -> u8 {
+    let dirs = rules::directories(&exe(), &[]);
+    let (library, refusals) = trail::scoped(trail::CONFIG, || {
+        Library::load(
+            &dirs,
+            &Trust::invoking_user(),
+            &std::collections::BTreeMap::new(),
+            &systemlint::vars::Supplied::default(),
+        )
+    });
+    print_refusals(trail::CONFIG, &refusals);
+    let library = match library.map_err(fail(trail::CONFIG, EXIT_CONFIG)) {
+        Ok(library) if refusals.is_empty() => library,
+        Ok(_) => return EXIT_CONFIG,
+        Err(code) => return code,
+    };
+    log::debug!(
+        "rule pages lang {lang}, {} rules from {}",
+        library.definitions.len(),
+        dirs.iter()
+            .map(|d| d.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    match (format, output) {
+        (PagesFormat::Markdown, Some(dir)) => match systemlint::pages::write_all(dir, &library) {
+            Ok(count) => {
+                println!("{count} pages written to {}", dir.display());
+                0
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                EXIT_OUTPUT
+            }
+        },
+        (PagesFormat::Markdown, None) => 2,
+        (PagesFormat::Yaml, _) => match systemlint::pages::catalog(&library) {
+            Ok(text) => {
+                print!("{text}");
+                0
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                EXIT_INTERNAL
+            }
+        },
+    }
 }
 
 fn plugin_list(config: &Config, json: bool, quiet: bool) -> u8 {
