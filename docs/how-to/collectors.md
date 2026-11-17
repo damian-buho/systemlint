@@ -70,7 +70,9 @@ a symlink is listed where it resolves inside the root and named by that path:
 to `/data/audit`, and `/bin/*` names `/usr/bin/…` where `/bin` links to
 `/usr/bin`. A symlink earlier in the path, `/lib` in `/lib/modules/*`, is
 followed. A path with
-no wildcard is passed when it exists, and an absent one is not an error. A
+no wildcard is passed when it exists, and an absent one is not an error; when
+it is a symlinked directory, the directory it resolves to is passed too, so a
+`stat` of `/var/log/audit` judges `/data/audit` beside the link. A
 `**` as the whole last component (`/usr/**`) matches the directory and every
 path below it, dotted names included, starting where a symlinked literal
 directory resolves, but never enters a symlinked directory below it or another

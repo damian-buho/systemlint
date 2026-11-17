@@ -116,6 +116,13 @@ fn a_star_lists_a_literal_symlinked_directory_where_it_resolves_never_a_wildcard
     assert_eq!(root.glob("/etc/top/l*").unwrap(), ["/lib"]);
     assert_eq!(root.glob("/l*/*").unwrap(), Vec::<String>::new());
     assert_eq!(root.glob("/etc/missing/*").unwrap(), Vec::<String>::new());
+    assert_eq!(
+        root.glob("/etc/audit").unwrap(),
+        ["/data/audit", "/etc/audit"],
+        "a literal symlinked directory names the link and the directory it resolves to"
+    );
+    assert_eq!(root.glob("/etc/top").unwrap(), ["/", "/etc/top"]);
+    assert_eq!(root.glob("/usr/lib").unwrap(), ["/usr/lib"]);
 }
 
 #[test]

@@ -172,7 +172,7 @@ impl Root {
         }
     }
 
-    /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component, never a leading dot nor below a directory a wildcard matched through a symlink, `**` as the whole last component every path below, see [`Root::walk`]; a literal directory that is a symlink is listed under the path it resolves to in the root.
+    /// Every path matching the absolute `pattern`, sorted; `*` and `?` match within one component, never a leading dot nor below a directory a wildcard matched through a symlink, `**` as the whole last component every path below, see [`Root::walk`]; a literal directory that is a symlink is listed under the path it resolves to in the root, and named there too when the pattern ends in it.
     pub fn glob(&self, pattern: &str) -> Result<Vec<String>, Failure> {
         self.glob_under("", pattern)
     }
@@ -231,7 +231,12 @@ impl Root {
             }
             found = next;
         }
-        let mut found: Vec<String> = found.into_iter().map(|(p, _)| p).collect();
+        let resolved: Vec<String> = found
+            .iter()
+            .filter(|_| !pattern.contains(['*', '?']))
+            .filter_map(|(p, _)| self.followed(p))
+            .collect();
+        let mut found: Vec<String> = found.into_iter().map(|(p, _)| p).chain(resolved).collect();
         found
             .iter_mut()
             .filter(|p| p.is_empty())
