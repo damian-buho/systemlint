@@ -294,10 +294,19 @@ pub fn run(
             let fd = unsafe { OwnedFd::from_raw_fd(i32::try_from(fd).unwrap_or(-1)) };
             let raw = fd.as_raw_fd();
             let inside = inside.clone();
+            let own =
+                std::fs::read_to_string("/proc/self/attr/apparmor/current").unwrap_or_default();
             let onexec = inside
                 .apparmor
                 .as_ref()
+                .filter(|l| apparmor_label(&own) != Some(l.as_str()))
                 .map(|l| format!("exec {l}").into_bytes());
+            log::debug!(
+                "apparmor label {:?}, own {:?}, onexec requested {}",
+                inside.apparmor,
+                apparmor_label(&own),
+                onexec.is_some()
+            );
             // SAFETY: enter calls only async-signal-safe functions, and the pidfd outlives the spawn.
             unsafe { command.pre_exec(move || enter(raw, &inside, onexec.as_deref())) };
             Some(fd)
