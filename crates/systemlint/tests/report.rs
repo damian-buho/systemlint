@@ -250,8 +250,8 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     assert!(text.contains("Not run (env-defaults, env-processes): needs root, and this run is unprivileged\n  env/a, env/b\n\n"), "{text}");
     assert_eq!(text.matches("Not run (").count(), 1, "{text}");
     assert!(
-        text.contains("Unknown: [env/a]\n- image: ") && !text.contains("- processes"),
-        "an error stays its own line: {text}"
+        text.contains("Unknown (env-image): can’t read it.\n  env/a, env/b\n\n"),
+        "a collector error prints once, its rules under it: {text}"
     );
     assert!(
         text.ends_with("Passed            2\nUnknown           2\nNot run           4, they need root, an opt-in flag or fresher facts\n"),
@@ -557,6 +557,31 @@ fn human_puts_each_remedy_command_under_its_location_unstopped_so_it_pastes_and_
     assert_eq!(
         text,
         "Warning (5.0): [x/mode]\n- files./etc/a: 0 was expected.\n  Run: chmod o-w /etc/a\n- files./etc/b b: 0 was expected.\n  Run: chmod o-w '/etc/b b'\nOr run systemlint fix --tags x/mode to make every change.\n\n"
+    );
+}
+
+#[test]
+fn human_folds_three_remedy_commands_into_one_fix_line_unless_verbose() {
+    let rule = compile(
+        "x/mode",
+        systemlint::yaml::from_str("fact: files.*\nexpect: {const: 0}\nremedy: {chmod: o-w}\n")
+            .unwrap(),
+    )
+    .unwrap();
+    let document = json!({"files": {"/etc/a": 1, "/etc/b": 1, "/etc/c": 1}});
+    let checks = lint(&document, &[rule], &[], "2026-11-11");
+    let text = |verbose| lint_human(&document, &checks, 0, true, verbose, false);
+    assert!(!text(false).contains("Run: "), "{}", text(false));
+    assert!(
+        text(false).ends_with("\nRun systemlint fix --tags x/mode to make every change.\n\n"),
+        "{}",
+        text(false)
+    );
+    assert_eq!(
+        text(true).matches("  Run: chmod o-w ").count(),
+        3,
+        "{}",
+        text(true)
     );
 }
 

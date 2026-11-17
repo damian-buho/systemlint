@@ -398,10 +398,14 @@ expiry is the only judgement that reads the clock at lint time.
 live-only under `--root`) with its rules wrapped under it, none for an opt-in the
 run did not ask for (`--image-config`, `--network`, `--containers`), which only the counts show, a
 `Not read` block per path a collector could not read (still `unknown` in the
-counts and every machine format),
+counts and every machine format), an `Unknown` block per collector error with
+the rules it left undecided wrapped under it,
 one `Conflict` block per set of selected rules declaring `conflicts` on each other, naming each with its control tags and the `--tags '!ID'` that keeps the other (their checks answer `conflict` in every format, `kind: review` in SARIF, and never fail the run),
 `Unknown`, `Manual` (with the `Why:` procedure) and `Waived` blocks, then the failures, worst first: errors,
-then warnings, info and advice, each level highest score first. The summary
+then warnings, info and advice, each level highest score first. A failure
+lists a `Run:` command under each subject with a remedy, up to two; from three
+on, one `Run systemlint fix --tags <rule>` line stands for them, and `-v` keeps
+every command. The summary
 follows, one count per row: the rating, each level, the passes, then what did
 not run in two kinds. `Not selected` and `Not run` are yours to turn on (name
 the ruleset in `--tags`; run as root, add the opt-in flag, or collect fresh

@@ -177,6 +177,14 @@ fn skip_reason<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
         .filter(|_| check.outcome == Outcome::Unknown && outcome["status"] == "skipped")
 }
 
+/// Why the collector an `unknown` check waited on failed, when it did.
+fn failed<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
+    let outcome = &document["collectors"][check.collector.as_deref()?];
+    outcome["reason"]
+        .as_str()
+        .filter(|_| check.outcome == Outcome::Unknown && outcome["status"] == "error")
+}
+
 /// Like [`skip_reason`], unless the collector is an opt-in the user left off, which only the counts show.
 fn shown_skip<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
     let opt_in = document["collectors"][check.collector.as_deref()?]["opt-in"] == true;
@@ -284,6 +292,9 @@ fn header(label: &str, check: &Check, on: bool) -> String {
 }
 
 /// The failing checks of one rule as a block: level and highest score, why, a line per location and its remedy command, the fix once when every location shares it, then the references when `verbose`.
+/// Failing subjects with a remedy from which, unless verbose, one `systemlint fix` line stands for their `Run:` lines.
+const FOLD_REMEDIES: usize = 3;
+
 fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     let worst = group
         .iter()
@@ -305,6 +316,11 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
         let _ = writeln!(out, "Why: {}", sentence(why));
     }
     let problems = clusters(group);
+    let remedied = group
+        .iter()
+        .filter(|c| c.remedy.is_some() && c.is_failing())
+        .count();
+    let folded = !verbose && remedied >= FOLD_REMEDIES;
     let shared = problems.iter().all(|p| p[0].fix == problems[0][0].fix);
     let commanded = |checks: &[&Check]| checks.iter().all(|c| c.remedy.is_some());
     for problem in &problems {
@@ -329,7 +345,11 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
                 let _ = write!(line, " (waiver expired on {}: {})", w.until, w.reason);
             }
             let _ = writeln!(out, "{}", sentence(&line));
-            if let Some(command) = check.remedy.as_deref().filter(|_| check.is_failing()) {
+            if let Some(command) = check
+                .remedy
+                .as_deref()
+                .filter(|_| check.is_failing() && !folded)
+            {
                 let _ = writeln!(out, "  Run: {command}");
             }
         }
@@ -348,12 +368,14 @@ fn failure_block(out: &mut String, group: &[&Check], verbose: bool, on: bool) {
     {
         let _ = writeln!(out, "Fix: {}", sentence(fix));
     }
-    if group.iter().any(|c| c.remedy.is_some() && c.is_failing()) {
+    if remedied > 0 {
+        let lead = if folded { "Run" } else { "Or run" };
+        log::debug!("rule {}: {remedied} remedies, folded {folded}", worst.rule);
         let _ = writeln!(
             out,
             "{}",
             sentence(&format!(
-                "Or run systemlint fix --tags {} to make every change",
+                "{lead} systemlint fix --tags {} to make every change",
                 worst.rule
             ))
         );
@@ -598,10 +620,20 @@ pub fn lint_human(
         }),
         on,
     );
+    collector_blocks(
+        &mut out,
+        "Unknown",
+        checks.iter().filter_map(|c| {
+            let reason = failed(document, c)?;
+            Some((sentence(reason), c.collector.as_deref()?, c.rule.as_str()))
+        }),
+        on,
+    );
     for group in by_rule(checks.iter().filter(|c| {
         c.outcome == Outcome::Unknown
             && skip_reason(document, c).is_none()
             && unread(document, c).is_none()
+            && failed(document, c).is_none()
     }))
     .values()
     {
