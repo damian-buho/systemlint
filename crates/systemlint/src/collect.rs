@@ -326,6 +326,9 @@ pub fn collect_reporting(
     for collector in collectors {
         if let Some(outcome) = outcomes.get_mut(&collector.id) {
             outcome["into"] = Value::from(collector.into.clone());
+            if collector.live {
+                outcome["live"] = Value::Bool(true);
+            }
             if let Some(ttl) = collector.ttl {
                 outcome["ttl"] = Value::from(ttl);
             }

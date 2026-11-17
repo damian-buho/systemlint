@@ -292,12 +292,24 @@ fn header(label: &str, check: &Check, on: bool) -> String {
     )
 }
 
-/// The failing checks of one rule as a block: level and highest score, why, a line per location and its remedy command, the fix once when every location shares it, then the references when `verbose`.
-/// The image a container’s failing path subject comes from unchanged: absent from the writable layer `meta.subject.changed` lists.
+/// The image a container’s failing file subject (a `path` or `path:line`) comes from unchanged: absent from the writable layer `meta.subject.changed` lists, and not read from running state.
 fn shipped<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
     let subject = &document["meta"]["subject"];
     let changed = subject["changed"].as_array()?;
-    let path = check.subject.last().filter(|p| p.starts_with('/'))?;
+    let keys: Vec<String> = check.fact.split('.').map(str::to_owned).collect();
+    if crate::judge::producer(document, &keys).is_some_and(|(_, o)| o["live"] == true) {
+        log::debug!(
+            "{} {}: running state, not the image’s",
+            check.rule,
+            check.fact
+        );
+        return None;
+    }
+    let subject_path = check.subject.last().filter(|p| p.starts_with('/'))?;
+    let path = subject_path
+        .rsplit_once(':')
+        .filter(|(_, line)| line.parse::<u64>().is_ok())
+        .map_or(subject_path.as_str(), |(path, _)| path);
     let kept = changed
         .binary_search_by(|p| p.as_str().unwrap_or_default().cmp(path))
         .is_err();
@@ -305,6 +317,7 @@ fn shipped<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
     kept.then(|| subject["image"].as_str().unwrap_or("the image"))
 }
 
+/// The failing checks of one rule as a block: level and highest score, why, a line per location and its remedy command, the fix once when every location shares it, then the references when `verbose`.
 /// Failing subjects with a remedy from which, unless verbose, one `systemlint fix` line stands for their `Run:` lines.
 const FOLD_REMEDIES: usize = 3;
 

@@ -303,7 +303,9 @@ and judges the host alone.
   `meta.subject.changed`, and names the image from `config.v2.json` in
   `meta.subject.image`. A failing path absent from that layer reads
   `…, as kiota.ch/b19/ubuntu ships it`, so it is fixed in the image; one in
-  the layer is the container’s own change.
+  the layer is the container’s own change. A `path:line` subject is looked up
+  by its path, and a subject from a `live` collector (a mount, a process, a
+  socket) is running state the image never ships, so it names no image.
 - Rules judge what the container runs, not what its image ships. `os-init`
   reads the name of PID 1, `/proc/1/comm`, into `os.init`. The rules about
   logins, the `pam`, `login-defs`, `pwquality`, `home` and `ctrl-alt-del`

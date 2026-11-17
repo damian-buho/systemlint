@@ -346,7 +346,10 @@ fn owed_by(document: &Value, at: &[String], key: &str) -> String {
 }
 
 /// The collector whose `into` covers `keys`, with its outcome.
-fn producer<'a>(document: &'a Value, keys: &[String]) -> Option<(&'a String, &'a Value)> {
+pub(crate) fn producer<'a>(
+    document: &'a Value,
+    keys: &[String],
+) -> Option<(&'a String, &'a Value)> {
     document["collectors"]
         .as_object()?
         .iter()

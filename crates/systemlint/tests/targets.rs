@@ -223,17 +223,28 @@ fn changed_lists_a_writable_layer_as_the_container_sees_it() {
 
 #[test]
 fn human_says_which_image_ships_a_path_the_container_never_changed() {
-    let rule = compile(
-        "x/mode",
-        systemlint::yaml::from_str("fact: files.*\nexpect: {const: 0}\n").unwrap(),
-    )
-    .unwrap();
+    let rule = |id: &str, fact: &str| {
+        let yaml = format!("fact: {fact}.*\nexpect: {{const: 0}}\n");
+        compile(id, systemlint::yaml::from_str(&yaml).unwrap()).unwrap()
+    };
     let document = json!({
         "meta": {"subject": {"kind": "container", "image": "kiota.ch/b19/ubuntu", "changed": ["/etc", "/etc/b"]}},
-        "files": {"/etc/a": 1, "/etc/b": 1},
+        "collectors": {"mounts-active": {"status": "ok", "into": "mounts", "live": true}},
+        "files": {"/etc/a": 1, "/etc/b": 1, "/etc/a:7": 1, "/etc/b:7": 1},
+        "mounts": {"/tmp": 1},
     });
-    let checks = lint(&document, &[rule], &[], "2026-11-16");
+    let rules = [rule("x/mode", "files"), rule("x/mount", "mounts")];
+    let checks = lint(&document, &rules, &[], "2026-11-16");
     let text = systemlint::report::lint_human(&document, &checks, 0, true, false, false);
+    assert!(
+        text.contains("- files./etc/a:7: 0 was expected, as kiota.ch/b19/ubuntu ships it.\n")
+            && text.contains("- files./etc/b:7: 0 was expected.\n"),
+        "a path:line subject is judged by its path: {text}"
+    );
+    assert!(
+        text.contains("- mounts./tmp: 0 was expected.\n"),
+        "a live collector reads running state, never the image: {text}"
+    );
     assert!(
         text.contains("- files./etc/a: 0 was expected, as kiota.ch/b19/ubuntu ships it.\n"),
         "{text}"
