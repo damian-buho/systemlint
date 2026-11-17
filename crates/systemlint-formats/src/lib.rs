@@ -522,7 +522,7 @@ struct ShadowOptions {
     passwd: Option<String>,
 }
 
-/// [`shadow`] over every input but `with.passwd`, plus `{password: missing}` for each account there that defers with `x` and has no shadow line, as pwck(8) reports it.
+/// [`shadow`] over every input but `with.passwd`, each line’s `in-passwd` telling whether an account there holds it, plus `{password: missing}` for each account there that defers with `x` and has no shadow line, as pwck(8) reports it.
 pub fn shadow_with(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     let ShadowOptions { passwd: named } = options("shadow", with)?;
     let Some(named) = named else {
@@ -531,13 +531,22 @@ pub fn shadow_with(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply>
     let (listed, files): (Vec<Input>, Vec<Input>) =
         inputs.iter().cloned().partition(|i| i.name() == named);
     let mut reply = shadow(&files);
-    if files.is_empty() {
+    if files.is_empty() || listed.is_empty() {
         return Ok(reply);
     }
     let accounts = passwd(&listed);
+    for (name, entry) in &mut reply.facts {
+        if let Some(entry) = entry.as_object_mut() {
+            let known = accounts.facts.contains_key(name);
+            entry.insert("in-passwd".to_owned(), Value::Bool(known));
+        }
+    }
     for (name, entry) in accounts.facts {
         if entry["password"] == "shadow" && !reply.facts.contains_key(&name) {
-            let missing = Map::from_iter([("password".to_owned(), Value::from("missing"))]);
+            let missing = Map::from_iter([
+                ("password".to_owned(), Value::from("missing")),
+                ("in-passwd".to_owned(), Value::Bool(true)),
+            ]);
             reply.facts.insert(name, Value::Object(missing));
         }
     }
@@ -1843,11 +1852,27 @@ mod tests {
             "/etc/passwd",
             "root:x:0:0::/root:/bin/sh\nghost:x:9:9::/:/bin/sh\nold:*:8:8::/:/bin/sh\n",
         );
-        let lines = file("/etc/shadow", "root:*:20000:0:99999:7:::\n");
+        let lines = file(
+            "/etc/shadow",
+            "root:*:20000:0:99999:7:::\nstale:$6$x:20000:0:99999:7:::\n",
+        );
         let with = Map::from_iter([("passwd".to_owned(), json!("/etc/passwd"))]);
-        let reply = shadow_with(&[users.clone(), lines], &with).unwrap();
-        assert_eq!(json!(reply.facts["ghost"]), json!({"password": "missing"}));
+        let reply = shadow_with(&[users.clone(), lines.clone()], &with).unwrap();
+        assert_eq!(
+            json!(reply.facts["ghost"]),
+            json!({"password": "missing", "in-passwd": true})
+        );
         assert_eq!(reply.facts["root"]["password"], "locked");
+        assert_eq!(reply.facts["root"]["in-passwd"], true);
+        assert_eq!(
+            reply.facts["stale"]["in-passwd"], false,
+            "a line no account holds"
+        );
+        let alone = shadow_with(&[lines], &with).unwrap();
+        assert!(
+            alone.facts["root"].get("in-passwd").is_none(),
+            "no passwd read, so no line is known to lack an account"
+        );
         assert!(
             !reply.facts.contains_key("old"),
             "a hash in passwd defers to nothing"

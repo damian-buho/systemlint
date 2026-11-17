@@ -1603,7 +1603,9 @@ fn an_empty_password_fails_where_the_system_reads_it() {
     let document = accounts(
         json!({"open": user(1000, "empty"), "viashadow": user(1001, "shadow"), "locked": user(1002, "shadow"), "inline": user(1003, "hash")}),
         json!({}),
-        json!({"open": {"password": "hash"}, "viashadow": {"password": "empty"}, "locked": {"password": "locked"}, "inline": {"password": "empty"}}),
+        json!({"open": {"password": "hash", "in-passwd": true}, "viashadow": {"password": "empty", "in-passwd": true},
+               "locked": {"password": "locked", "in-passwd": true}, "inline": {"password": "empty", "in-passwd": true},
+               "stale": {"password": "empty", "in-passwd": false}}),
     );
     assert_eq!(
         account_rule("accounts/passwd-empty-password", &document),
@@ -1630,9 +1632,10 @@ fn an_empty_password_fails_where_the_system_reads_it() {
             ("inline".into(), Outcome::Skip),
             ("locked".into(), Outcome::Pass),
             ("open".into(), Outcome::Skip),
+            ("stale".into(), Outcome::Skip),
             ("viashadow".into(), Outcome::Fail),
         ],
-        "shadow counts only where /etc/passwd defers to it"
+        "shadow counts only where /etc/passwd defers to it, and a line no account holds is skipped"
     );
     let mut unprivileged = document.clone();
     unprivileged["accounts"]
@@ -1759,8 +1762,10 @@ fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
         json!({"root": entry(false, "shadow"), "mail": entry(false, "shadow"), "nobody": entry(false, "shadow"),
                "alice": entry(true, "shadow"), "inline": entry(false, "hash"), "ghost": entry(false, "shadow")}),
         json!({}),
-        json!({"root": {"password": "hash"}, "mail": {"password": "hash"}, "nobody": {"password": "locked"},
-               "alice": {"password": "hash"}, "inline": {"password": "hash"}, "ghost": {"password": "missing"}}),
+        json!({"root": {"password": "hash", "in-passwd": true}, "mail": {"password": "hash", "in-passwd": true},
+               "nobody": {"password": "locked", "in-passwd": true}, "alice": {"password": "hash", "in-passwd": true},
+               "inline": {"password": "hash", "in-passwd": true}, "ghost": {"password": "missing", "in-passwd": true},
+               "stale": {"password": "hash", "in-passwd": false}}),
     );
     assert_eq!(
         account_rule("accounts/shadow-missing", &document),
@@ -1771,6 +1776,7 @@ fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
             ("mail".into(), Outcome::Pass),
             ("nobody".into(), Outcome::Pass),
             ("root".into(), Outcome::Pass),
+            ("stale".into(), Outcome::Pass),
         ]
     );
     assert_eq!(
@@ -1781,8 +1787,9 @@ fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
             ("inline".into(), Outcome::Skip),
             ("mail".into(), Outcome::Fail),
             ("nobody".into(), Outcome::Pass),
+            ("stale".into(), Outcome::Skip),
         ],
-        "root is CIS’s exception, and an inline passwd hash never reads shadow"
+        "root is CIS’s exception, an inline passwd hash never reads shadow, and a line no account holds is skipped"
     );
 }
 

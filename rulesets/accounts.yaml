@@ -97,7 +97,7 @@ rules:
   accounts/shadow-empty-password:
     title: An account has an empty password in /etc/shadow
     fact: accounts.shadow.*.password
-    when: {accounts.passwd.*.password: shadow}
+    when: {accounts.shadow.*.in-passwd: true, accounts.passwd.*.password: shadow}
     expect: {not: {const: empty}}
     severity: error
     score: 8.0
@@ -184,7 +184,7 @@ rules:
     title: An account without a login shell has a usable password
     fact: accounts.shadow.*.password
     keys: {not: {const: root}}
-    when: {accounts.passwd.*.login-shell: false, accounts.passwd.*.password: shadow}
+    when: {accounts.shadow.*.in-passwd: true, accounts.passwd.*.login-shell: false, accounts.passwd.*.password: shadow}
     expect: {not: {enum: [hash, empty]}}
     severity: info
     score: 2.0

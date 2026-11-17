@@ -32,8 +32,8 @@ accounts:
   group:
     sudo: {gid: 27, members: [alice], path: /etc/group, line: 28, shadowed: []}
   shadow:
-    root: {password: locked, last-change: 20000, min-days: 0, max-days: 99999, warn-days: 7, inactive-days: null, expire-day: null, line: 1, shadowed: []}
-    ghost: {password: missing}
+    root: {password: locked, last-change: 20000, min-days: 0, max-days: 99999, warn-days: 7, inactive-days: null, expire-day: null, line: 1, shadowed: [], in-passwd: true}
+    ghost: {password: missing, in-passwd: true}
 ```
 
 - Each entry is keyed by its name, from the first line holding it, as glibc
@@ -50,6 +50,9 @@ accounts:
 - With `passwd`, an account that `/etc/passwd` defers to shadow with `x` but
   that has no `/etc/shadow` line gets `{password: missing}`, the entry pwck(8)
   reports as broken. No account is missing when no shadow file was read.
+- With `passwd`, every shadow entry carries `in-passwd`, false for a line no
+  account holds (an installer’s leftover), which no login can use, so the rules
+  joining it to `/etc/passwd` skip it. It is absent when no passwd file was read.
 - `login-shell` is true when the shell is empty or listed in `/etc/shells`,
   as getusershell(3) reads it, and without that file only for `/bin/sh` and
   `/bin/csh`; the `sshd` collector runs for these accounts and root.
