@@ -383,10 +383,14 @@ none needed, 1 a change failed or was declined, 2 a change needs `--force`.
 check:
   waivers:
     - {rule: apt/*, subject: /etc/apt/sources.list.d/*, reason: the mirror moves in December, until: 2026-12-31}
+    - {rule: files/owner, target: ci/*, reason: the runner image is rebuilt in January, until: 2027-01-31}
 ```
 
 A waiver covers the failures of the rules its `rule` glob matches, on every
-subject or those its `subject` glob matches, through the `until` day. Both
+subject or those its `subject` glob matches, through the `until` day. Under
+`--containers`, a `target` glob limits it to the containers whose key it
+matches (`web`, `ci/runner`); `host` names the host, and a waiver with no
+`target` holds everywhere. Both
 `reason` and `until` are required. A waived failure is listed but counts toward
 no exit code; after `until` it is a finding again, marked as expired. Waiver
 expiry is the only judgement that reads the clock at lint time.

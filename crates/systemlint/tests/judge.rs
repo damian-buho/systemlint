@@ -776,6 +776,7 @@ fn a_waiver_holds_through_its_day_then_expires_into_a_finding() {
     let waiver = Waiver {
         rule: "os/*".into(),
         subject: None,
+        target: None,
         reason: "upgrade booked".into(),
         until: "2026-11-30".into(),
     };
@@ -1338,4 +1339,32 @@ fn x_cel_stops_at_its_iteration_budget() {
         (outcome(budget), outcome(budget + 1)),
         (Outcome::Pass, Outcome::Unknown)
     );
+}
+
+#[test]
+fn a_waiver_target_globs_container_keys_and_names_the_host_host() {
+    let waiver = |target: Option<&str>| Waiver {
+        rule: "files/*".into(),
+        subject: None,
+        target: target.map(Into::into),
+        reason: "r".into(),
+        until: "2026-12-31".into(),
+    };
+    let waivers = [
+        waiver(None),
+        waiver(Some("host")),
+        waiver(Some("ci/*")),
+        waiver(Some("web")),
+    ];
+    let holding = |key| {
+        systemlint::judge::waivers_for(&waivers, key)
+            .into_iter()
+            .map(|w| w.target)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(holding(None), [None, Some("host".into())]);
+    assert_eq!(holding(Some("ci/runner")), [None, Some("ci/*".into())]);
+    assert_eq!(holding(Some("web")), [None, Some("web".into())]);
+    assert_eq!(holding(Some("ci")), [None]);
+    assert_eq!(holding(Some("web2")), [None]);
 }

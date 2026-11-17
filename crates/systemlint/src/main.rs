@@ -883,11 +883,13 @@ fn lint(
                     .join(", ")
             ));
         }
-        let checks = judge::lint(&document, &rules, &config.check.waivers, &today(now));
+        let host_waivers = judge::waivers_for(&config.check.waivers, None);
+        let checks = judge::lint(&document, &rules, &host_waivers, &today(now));
         let judged: Vec<(String, Value, Vec<judge::Check>)> = targets
             .into_iter()
             .map(|(key, doc)| {
-                let checks = judge::lint(&doc, &rules, &config.check.waivers, &today(now));
+                let waivers = judge::waivers_for(&config.check.waivers, Some(&key));
+                let checks = judge::lint(&doc, &rules, &waivers, &today(now));
                 log::debug!("container {key}: {} checks", checks.len());
                 (key, doc, checks)
             })
@@ -1008,7 +1010,7 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
             &judge::lint(
                 &document,
                 &rules,
-                &config.check.waivers,
+                &judge::waivers_for(&config.check.waivers, None),
                 &today(SystemTime::now()),
             ),
             &rules,

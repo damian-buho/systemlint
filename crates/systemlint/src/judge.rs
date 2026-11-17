@@ -35,8 +35,24 @@ pub struct Waiver {
     pub rule: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
     pub reason: String,
     pub until: String,
+}
+
+/// How a waiver’s `target` names the host among the containers.
+pub const HOST_TARGET: &str = "host";
+
+/// The waivers holding on the target `key` (`None` the host): those with no `target`, or whose glob matches it.
+pub fn waivers_for(waivers: &[Waiver], key: Option<&str>) -> Vec<Waiver> {
+    let name = key.unwrap_or(HOST_TARGET);
+    waivers
+        .iter()
+        .filter(|w| w.target.as_deref().is_none_or(|t| glob(t, name)))
+        .inspect(|w| log::debug!("waiver of {} holds on target {name}", w.rule))
+        .cloned()
+        .collect()
 }
 
 /// A waiver that matched a failed check, and whether it still holds on the lint day.

@@ -128,6 +128,7 @@ fn sarif_keeps_unknowns_open_waivers_suppressed_and_collector_errors_as_notifica
     let waiver = Waiver {
         rule: "apt/*".into(),
         subject: None,
+        target: None,
         reason: "mirror retired in December".into(),
         until: "2026-11-30".into(),
     };
@@ -789,6 +790,7 @@ fn a_subject_of_several_keys_shows_its_last_and_keeps_all_of_them_for_waivers() 
         let waiver = Waiver {
             rule: "files/owner".into(),
             subject: Some(glob.into()),
+            target: None,
             reason: "r".into(),
             until: "2026-12-31".into(),
         };
