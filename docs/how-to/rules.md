@@ -411,7 +411,7 @@ not run in two kinds. `Not selected` and `Not run` are yours to turn on (name
 the ruleset in `--tags`; run as root, add the opt-in flag, or collect fresh
 facts), while `Nothing to check` is a rule this host has nothing for (no
 such program, a ruleset whose `when` the host does not meet). One last line
-names the rulesets not applicable to the host:
+names the rulesets with no rule that applies to the host:
 
 ```text
 Rating            B

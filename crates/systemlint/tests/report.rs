@@ -348,6 +348,25 @@ fn judged(outcome: Outcome, score: f64) -> Check {
     }
 }
 
+#[test]
+fn not_applicable_names_only_a_ruleset_with_no_check_that_applies() {
+    let check = |rule: &str, outcome| Check {
+        rule: rule.into(),
+        ..judged(outcome, 0.0)
+    };
+    let checks = [
+        check("kernel/a", Outcome::NotApplicable),
+        check("kernel/b", Outcome::NotApplicable),
+        check("files/a", Outcome::NotApplicable),
+        check("files/b", Outcome::Fail),
+    ];
+    let text = lint_human(&json!({"collectors": {}}), &checks, 0, false, false, false);
+    assert!(
+        text.ends_with("\nNot applicable to this host: kernel.\n"),
+        "{text}"
+    );
+}
+
 fn grade(failures: &[f64], passes: usize) -> Option<char> {
     let checks: Vec<Check> = failures
         .iter()

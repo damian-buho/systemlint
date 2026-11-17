@@ -541,22 +541,23 @@ fn summary_rows(document: &Value, checks: &[Check], left_out: usize, on: bool) -
     out
 }
 
-/// One line naming every ruleset whose `when` this host does not meet, after the summary.
+/// One line naming every ruleset none of whose checks applies to this host, after the summary.
 fn not_applicable(checks: &[Check]) -> Option<String> {
-    let rulesets: BTreeSet<&str> = checks
-        .iter()
-        .filter(|c| c.outcome == Outcome::NotApplicable)
-        .map(|c| {
-            c.rule
-                .split_once('/')
-                .map_or(c.rule.as_str(), |(owner, _)| owner)
-        })
+    let mut rulesets: BTreeMap<&str, bool> = BTreeMap::new();
+    for check in checks {
+        let owner = check
+            .rule
+            .split_once('/')
+            .map_or(check.rule.as_str(), |(owner, _)| owner);
+        *rulesets.entry(owner).or_insert(true) &= check.outcome == Outcome::NotApplicable;
+    }
+    let names: Vec<&str> = rulesets
+        .into_iter()
+        .filter(|(_, all)| *all)
+        .map(|(name, _)| name)
         .collect();
-    log::debug!("{} rulesets not applicable", rulesets.len());
-    (!rulesets.is_empty()).then(|| {
-        let names: Vec<&str> = rulesets.into_iter().collect();
-        format!("\nNot applicable to this host: {}.\n", names.join(", "))
-    })
+    log::debug!("{} rulesets not applicable: {names:?}", names.len());
+    (!names.is_empty()).then(|| format!("\nNot applicable to this host: {}.\n", names.join(", ")))
 }
 
 /// The rules of `checks` grouped by their reason, each reason once.
