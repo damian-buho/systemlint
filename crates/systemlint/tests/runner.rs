@@ -82,10 +82,7 @@ fn refuses_garbage_and_failure() {
             .contains("not valid protocol JSON")
     );
     let error = describe("kv", &script("fails"), DESCRIBE_TIMEOUT).unwrap_err();
-    assert!(
-        error.contains("exit status: 4") && error.contains("broken"),
-        "{error}"
-    );
+    assert_eq!(error, "broken", "a failed plugin says its own message");
 }
 
 #[test]
