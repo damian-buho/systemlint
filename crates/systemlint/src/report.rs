@@ -317,25 +317,79 @@ fn shipped<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
     kept.then(|| subject["image"].as_str().unwrap_or("the image"))
 }
 
-/// Adds a shipped check’s remedy to `built`, one Dockerfile step per command, its quoted paths gathered in order.
-fn build_step(built: &mut Vec<(String, Vec<String>)>, command: &str, check: &Check) {
+/// A shipped check’s remedy as a Dockerfile step: the command before its quoted path and that path, or the whole command and no path.
+fn build_step(command: &str, check: &Check) -> (String, String) {
     let path = crate::fix::quote(check.subject.last().map_or("", String::as_str));
     let Some(head) = command.strip_suffix(&path).map(str::trim_end) else {
         log::debug!("rule {}: {command} names no path, kept whole", check.rule);
-        built.push((command.to_owned(), Vec::new()));
-        return;
+        return (command.to_owned(), String::new());
     };
-    match built.iter_mut().find(|(c, _)| c == head) {
-        Some((_, paths)) => paths.push(path),
-        None => built.push((head.to_owned(), vec![path])),
+    (head.to_owned(), path)
+}
+
+/// One failing subject of a block: its line around the image phrase, the lines under it, whether its image ships it, and its build step.
+#[derive(PartialEq)]
+struct Item {
+    line: String,
+    waiver: String,
+    under: String,
+    shipped: bool,
+    step: Option<(String, String)>,
+}
+
+/// The lines of `items`, each shipped one naming its image or else each image, and apart one build step per command over the paths in order, worded for `many` images.
+fn item_text(items: &[(&Item, Option<&str>)], many: bool) -> (String, String) {
+    let mut out = String::new();
+    let mut built: Vec<(&str, Vec<&str>)> = Vec::new();
+    for (item, image) in items {
+        let phrase = match (item.shipped, image) {
+            (false, _) => String::new(),
+            (true, Some(image)) => format!(", as {image} ships it"),
+            (true, None) => ", as each image ships it".to_owned(),
+        };
+        let _ = writeln!(
+            out,
+            "{}",
+            sentence(&format!("{}{phrase}{}", item.line, item.waiver))
+        );
+        out.push_str(&item.under);
+        let Some((head, path)) = &item.step else {
+            continue;
+        };
+        match (path.is_empty(), built.iter_mut().find(|(c, _)| c == head)) {
+            (false, Some((_, paths))) => paths.push(path),
+            (false, None) => built.push((head, vec![path])),
+            (true, _) => built.push((head, Vec::new())),
+        }
     }
+    let whose = if many {
+        "each image’s"
+    } else {
+        "the image’s"
+    };
+    let mut steps = String::new();
+    for (command, paths) in &built {
+        log::debug!("{command}: {} paths for {whose} build", paths.len());
+        let _ = writeln!(
+            steps,
+            "Fix in {whose} build, then rebuild it: RUN {command} {}",
+            paths.join(" ")
+        );
+    }
+    (out, steps)
 }
 
 /// The failing checks of one rule as a block: level and highest score, why, a line per location and its remedy command, the fix once when every location shares it, then the references when `verbose`.
 /// Failing subjects with a remedy from which, unless verbose, one `systemlint fix` line stands for their `Run:` lines.
 const FOLD_REMEDIES: usize = 3;
 
-fn failure_block(out: &mut String, document: &Value, group: &[&Check], verbose: bool, on: bool) {
+fn failure_block(
+    out: &mut String,
+    document: &Value,
+    group: &[&Check],
+    verbose: bool,
+    on: bool,
+) -> (Vec<Item>, String, String) {
     let worst = group
         .iter()
         .copied()
@@ -369,7 +423,7 @@ fn failure_block(out: &mut String, document: &Value, group: &[&Check], verbose: 
         .filter(|c| c.remedy.is_some() && c.is_failing() && image_of(c).is_none())
         .count();
     let folded = !verbose && !contained && remedied >= FOLD_REMEDIES;
-    let mut built: Vec<(String, Vec<String>)> = Vec::new();
+    let mut items: Vec<Item> = Vec::new();
     let shared = problems.iter().all(|p| p[0].fix == problems[0][0].fix);
     let commanded = |checks: &[&Check]| checks.iter().all(|c| c.remedy.is_some());
     for problem in &problems {
@@ -389,58 +443,50 @@ fn failure_block(out: &mut String, document: &Value, group: &[&Check], verbose: 
             };
             let named =
                 check.title.is_none() && said.as_deref().is_some_and(|m| m.contains(&subject));
-            let mut line = location(if named { "" } else { &subject }, said.as_deref());
-            let image = image_of(check);
-            if let Some(image) = image {
-                let _ = write!(line, ", as {image} ships it");
-            }
-            if let Some(w) = &check.waiver {
-                let _ = write!(line, " (waiver expired on {}: {})", w.until, w.reason);
-            }
-            let _ = writeln!(out, "{}", sentence(&line));
+            let shipped = image_of(check).is_some();
+            let waiver = check.waiver.as_ref().map_or_else(String::new, |w| {
+                format!(" (waiver expired on {}: {})", w.until, w.reason)
+            });
+            let mut item = Item {
+                line: location(if named { "" } else { &subject }, said.as_deref()),
+                waiver,
+                under: String::new(),
+                shipped,
+                step: None,
+            };
             match (
                 check.remedy.as_deref().filter(|_| check.is_failing()),
-                image,
+                shipped,
             ) {
-                (Some(command), Some(_)) => build_step(&mut built, command, check),
-                (Some(command), None) if !folded => {
-                    let _ = writeln!(out, "  Run: {command}");
-                }
+                (Some(command), true) => item.step = Some(build_step(command, check)),
+                (Some(command), false) if !folded => item.under = format!("  Run: {command}\n"),
                 _ => {}
             }
+            items.push(item);
         }
-        if let Some(fix) = problem[0]
+        if let Some((fix, last)) = problem[0]
             .fix
             .as_deref()
             .filter(|_| !shared && !commanded(problem))
+            .zip(items.last_mut())
         {
-            let _ = writeln!(out, "  Fix: {}", sentence(fix));
+            let _ = writeln!(last.under, "  Fix: {}", sentence(fix));
         }
     }
+    let mut mid = String::new();
     if let Some(fix) = problems[0][0]
         .fix
         .as_deref()
         .filter(|_| shared && !commanded(group))
     {
-        let _ = writeln!(out, "Fix: {}", sentence(fix));
+        let _ = writeln!(mid, "Fix: {}", sentence(fix));
     }
-    for (command, paths) in &built {
-        log::debug!(
-            "rule {}: {} paths for the image’s build",
-            worst.rule,
-            paths.len()
-        );
-        let _ = writeln!(
-            out,
-            "Fix in the image’s build, then rebuild it: RUN {command} {}",
-            paths.join(" ")
-        );
-    }
+    let mut tail = String::new();
     if remedied > 0 && !contained {
         let lead = if folded { "Run" } else { "Or run" };
         log::debug!("rule {}: {remedied} remedies, folded {folded}", worst.rule);
         let _ = writeln!(
-            out,
+            tail,
             "{}",
             sentence(&format!(
                 "{lead} systemlint fix --tags {} to make every change",
@@ -449,9 +495,10 @@ fn failure_block(out: &mut String, document: &Value, group: &[&Check], verbose: 
         );
     }
     for reference in worst.references.iter().filter(|_| verbose) {
-        let _ = writeln!(out, "See: {} <{}>", reference.title, reference.url);
+        let _ = writeln!(tail, "See: {} <{}>", reference.title, reference.url);
     }
     out.push('\n');
+    (items, mid, tail)
 }
 
 /// `items` joined by commas into lines of at most `WIDTH` columns, each indented by two spaces.
@@ -755,7 +802,7 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
     }
     split(&mut blocks, &mut out, (6, Reverse(None), 0));
     for group in ranked(checks) {
-        failure_block(&mut out, document, &group, verbose, on);
+        let (items, mid, tail) = failure_block(&mut out, document, &group, verbose, on);
         let level = group.iter().filter_map(|c| c.severity).max();
         let score = group
             .iter()
@@ -766,6 +813,9 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
             &mut out,
             (7, Reverse(level), -(score * 1000.0) as i64),
         );
+        if let Some(block) = blocks.last_mut() {
+            (block.items, block.mid, block.tail) = (items, mid, tail);
+        }
     }
     blocks
 }
@@ -773,11 +823,14 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
 /// Where a human block sorts: its section, then a failure’s level and score, worst first.
 type Order = (u8, Reverse<Option<Severity>>, i64);
 
-/// One human block: its first line, the lines below it ending in an empty line, and where it sorts.
+/// One human block: its first line, the lines below it, a failure’s subjects and closing lines (`mid` before the build steps), and where it sorts.
 struct Block {
     order: Order,
     head: String,
     rest: String,
+    items: Vec<Item>,
+    mid: String,
+    tail: String,
 }
 
 /// Moves each empty-line-ended block of `out` into `blocks` at `order`.
@@ -788,9 +841,20 @@ fn split(blocks: &mut Vec<Block>, out: &mut String, order: Order) {
             order,
             head: head.to_owned(),
             rest: rest.to_owned(),
+            items: Vec::new(),
+            mid: String::new(),
+            tail: String::new(),
         });
     }
     out.clear();
+}
+
+/// `text` as lines ending in a newline, or nothing when empty.
+fn lines(text: &str) -> String {
+    match text.is_empty() || text.ends_with('\n') {
+        true => text.to_owned(),
+        false => format!("{text}\n"),
+    }
 }
 
 /// Every block, then unless `quiet` the summary rows, `left_out` among them, and the rulesets not applicable.
@@ -802,11 +866,22 @@ pub fn lint_human(
     verbose: bool,
     on: bool,
 ) -> String {
+    let image = document["meta"]["subject"]["image"]
+        .as_str()
+        .unwrap_or("the image");
     let mut out: String = blocks(document, checks, verbose, on)
         .into_iter()
-        .map(|b| match b.rest.is_empty() {
-            true => format!("{}\n\n", b.head),
-            false => format!("{}\n{}\n\n", b.head, b.rest),
+        .map(|b| {
+            let items: Vec<(&Item, Option<&str>)> =
+                b.items.iter().map(|i| (i, Some(image))).collect();
+            let (subjects, steps) = item_text(&items, false);
+            format!(
+                "{}\n{}{subjects}{}{steps}{}\n",
+                b.head,
+                lines(&b.rest),
+                b.mid,
+                b.tail
+            )
         })
         .collect();
     if !quiet {
@@ -816,8 +891,24 @@ pub fn lint_human(
     out
 }
 
-/// Each block by where it sorts and its first line, then each distinct rest with the targets holding it.
-type Merged<'a> = BTreeMap<(Order, String), Vec<(String, Vec<&'a str>)>>;
+/// One block across targets: each distinct rest, failing subject (with each target’s image) and closing text, with the targets holding it.
+#[derive(Default)]
+struct Joined<'a> {
+    rests: Vec<(String, Vec<&'a str>)>,
+    items: Vec<(Item, Vec<(&'a str, &'a str)>)>,
+    ends: Vec<(String, Vec<&'a str>)>,
+}
+
+/// Each block by where it sorts and its first line, joined across targets.
+type Merged<'a> = BTreeMap<(Order, String), Joined<'a>>;
+
+/// Adds `key` to the group equal to `value`, or a new group for it.
+fn join<T: PartialEq, K>(groups: &mut Vec<(T, Vec<K>)>, value: T, key: K) {
+    match groups.iter_mut().find(|(v, _)| *v == value) {
+        Some((_, keys)) => keys.push(key),
+        None => groups.push((value, vec![key])),
+    }
+}
 
 /// The key standing for the host among the targets.
 const HOST: &str = "";
@@ -836,26 +927,64 @@ pub fn lint_human_targets(
         .collect();
     let mut merged: Merged = BTreeMap::new();
     for (key, doc, judged) in &every {
+        let image = doc["meta"]["subject"]["image"]
+            .as_str()
+            .unwrap_or("the image");
         for block in blocks(doc, judged, verbose, on) {
-            let groups = merged.entry((block.order, block.head)).or_default();
-            match groups.iter_mut().find(|(rest, _)| *rest == block.rest) {
-                Some((_, keys)) => keys.push(key),
-                None => groups.push((block.rest, vec![key])),
+            let joined = merged.entry((block.order, block.head)).or_default();
+            join(&mut joined.rests, block.rest, *key);
+            if block.items.is_empty() {
+                continue;
             }
+            block
+                .items
+                .into_iter()
+                .for_each(|item| join(&mut joined.items, item, (*key, image)));
+            join(&mut joined.ends, block.mid + &block.tail, *key);
         }
     }
     let containers: Vec<&str> = targets.iter().map(|(key, _, _)| *key).collect();
     let mut out = String::new();
-    for ((_, head), groups) in &merged {
-        log::debug!("{head}: {} groups of targets", groups.len());
+    for ((_, head), joined) in &merged {
         let _ = writeln!(out, "{head}");
-        for (rest, keys) in groups {
+        if joined.items.is_empty() {
+            log::debug!("{head}: {} groups of targets", joined.rests.len());
+            for (rest, keys) in &joined.rests {
+                if !containers.is_empty() {
+                    let _ = writeln!(out, "In {}:", place(keys, &containers));
+                }
+                out.push_str(&lines(rest));
+            }
+            out.push('\n');
+            continue;
+        }
+        out.push_str(&lines(&joined.rests[0].0));
+        let mut sets = Vec::new();
+        for (item, held) in &joined.items {
+            let keys: Vec<&str> = held.iter().map(|(k, _)| *k).collect();
+            let images: BTreeSet<&str> = held.iter().map(|(_, i)| *i).collect();
+            let image = images.first().copied().filter(|_| images.len() == 1);
+            join(&mut sets, keys, (item, image));
+        }
+        log::debug!(
+            "{head}: {} subjects in {} groups of targets",
+            joined.items.len(),
+            sets.len()
+        );
+        for (keys, items) in &sets {
             if !containers.is_empty() {
                 let _ = writeln!(out, "In {}:", place(keys, &containers));
             }
-            if !rest.is_empty() {
-                let _ = writeln!(out, "{rest}");
+            let (subjects, steps) = item_text(items, items.iter().any(|(_, i)| i.is_none()));
+            out.push_str(&subjects);
+            out.push_str(&steps);
+        }
+        let holding = joined.rests.iter().map(|(_, k)| k.len()).sum::<usize>();
+        for (end, keys) in joined.ends.iter().filter(|(e, _)| !e.is_empty()) {
+            if !containers.is_empty() && keys.len() < holding {
+                let _ = writeln!(out, "In {}:", place(keys, &containers));
             }
+            out.push_str(end);
         }
         out.push('\n');
     }

@@ -324,6 +324,37 @@ fn human_says_which_image_ships_a_path_the_container_never_changed() {
 }
 
 #[test]
+fn human_prints_a_subject_shared_by_containers_once_beside_the_ones_they_differ_in() {
+    let yaml = "fact: files.*\nexpect: {const: 0}\nremedy: {chown: 0}\n";
+    let rules = [compile("x/owner", systemlint::yaml::from_str(yaml).unwrap()).unwrap()];
+    let doc = |image: &str, files: Value| json!({"meta": {"subject": {"kind": "container", "image": image, "changed": []}}, "files": files});
+    let (a, b) = (
+        doc("kiota.ch/o9s/a", json!({"/a": 1, "/c": 1})),
+        doc("kiota.ch/o9s/b", json!({"/a": 1})),
+    );
+    let (ja, jb) = (
+        lint(&a, &rules, &[], "2026-11-17"),
+        lint(&b, &rules, &[], "2026-11-17"),
+    );
+    let host = json!({"files": {}});
+    let targets = [("a", &a, ja.as_slice()), ("b", &b, jb.as_slice())];
+    let text = lint_human_targets(&host, &[], 0, &targets, (true, false, false));
+    assert_eq!(text.matches("- files./a:").count(), 1, "{text}");
+    assert!(
+        text.contains(
+            "In every container:\n- files./a: 0 was expected, as each image ships it.\nFix in each image’s build, then rebuild it: RUN chown 0 /a\n"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "In a:\n- files./c: 0 was expected, as kiota.ch/o9s/a ships it.\nFix in the image’s build, then rebuild it: RUN chown 0 /c\n"
+        ),
+        "{text}"
+    );
+}
+
+#[test]
 fn human_fixes_a_shipped_path_in_the_image_build_and_never_offers_fix_in_a_container() {
     let yaml = "fact: files.*\nexpect: {const: 0}\nremedy: {chown: 0}\n";
     let rules = [compile("x/owner", systemlint::yaml::from_str(yaml).unwrap()).unwrap()];
