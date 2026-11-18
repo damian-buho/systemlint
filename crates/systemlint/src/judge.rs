@@ -563,6 +563,7 @@ pub struct Rule {
     members: Vec<(Vec<Segment>, Validator)>,
     combine: Combine,
     cel: bool,
+    fixes: Vec<(Option<Validator>, Vec<Vec<Guard>>, crate::rules::Fix)>,
 }
 
 impl Rule {
@@ -649,6 +650,7 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
             members: vec![],
             combine: Combine::All,
             cel: false,
+            fixes: vec![],
         });
     }
     if spec.unique && spec.facts.is_some() {
@@ -765,6 +767,28 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         Some(keys) => Some(schema(keys).map_err(|e| fail(format!("keys {e}")))?),
         None => None,
     };
+    let fixes = spec
+        .fixes
+        .iter()
+        .enumerate()
+        .map(|(i, choice)| {
+            let keys = choice.keys.as_ref().map(schema).transpose();
+            let when = guards(
+                choice.when.as_ref(),
+                stars(&fact),
+                &format!("fact {fact_text}"),
+            );
+            match (keys, when) {
+                (Ok(None), Ok(when)) if when.is_empty() => Err(format!(
+                    "fixes {i} has neither keys nor when, so it is the fix"
+                )),
+                (Ok(keys), Ok(when)) => Ok((keys, when, choice.fix.clone())),
+                (Err(e), _) => Err(format!("fixes {i} keys {e}")),
+                (_, Err(e)) => Err(format!("fixes {i}: {e}")),
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(fail)?;
     log::debug!("rule {id} judges {} facts as {combine:?}", members.len());
     let cel = serde_json::to_value(&spec).is_ok_and(|v| mentions_cel(&v));
     Ok(Rule {
@@ -779,6 +803,7 @@ pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
         members,
         combine,
         cel,
+        fixes,
     })
 }
 
@@ -1227,11 +1252,7 @@ fn failure(
         severity: Some(level_of(score)),
         score: Some(score),
         message: Some(message),
-        fix: rule
-            .spec
-            .fix
-            .as_ref()
-            .map(|f| f.map(|t| fill(t, &variables))),
+        fix: chosen(rule, document, bound).map(|f| f.map(|t| fill(t, &variables))),
         remedy: rule
             .spec
             .remedy
@@ -1415,6 +1436,19 @@ fn collide(rule: &Rule, document: &Value, bindings: &[Vec<String>], checks: &mut
             );
         }
     }
+}
+
+/// The fix for `bound`: the first of `fixes` whose keys admit its last key and whose `when` holds, else `fix`.
+fn chosen<'a>(rule: &'a Rule, document: &Value, bound: &[String]) -> Option<&'a crate::rules::Fix> {
+    let key = Value::from(bound.last().map_or("", String::as_str));
+    for (i, (keys, when, fix)) in rule.fixes.iter().enumerate() {
+        let admitted = keys.as_ref().is_none_or(|k| k.is_valid(&key));
+        if admitted && matches!(guard(when, document, bound, false), Tri::True) {
+            log::debug!("rule {} takes fix {i} for {bound:?}", rule.id);
+            return Some(fix);
+        }
+    }
+    rule.spec.fix.as_ref()
 }
 
 /// Whether `keys` admits the key of the fact’s last `*`; a binding cut short by an absent fact is kept.

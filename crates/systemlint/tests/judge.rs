@@ -1371,3 +1371,30 @@ fn a_waiver_target_globs_container_keys_and_names_the_host_host() {
     assert_eq!(holding(Some("ci")), [None]);
     assert_eq!(holding(Some("web2")), [None]);
 }
+
+#[test]
+fn fixes_gives_each_subject_the_first_choice_its_key_and_when_admit() {
+    let rule = "fact: m.*.on\nexpect: {const: true}\nfix: the default\nfixes:\n  - {keys: {const: a}, when: {m.*.from: unit}, fix: 'edit the unit of {subject}'}\n  - {when: {m.*.from: [file]}, fix: never chosen}\n  - {when: {m.*.from: {enum: [unit, file]}}, fix: [edit the file, {run: reload}]}\n";
+    let document = json!({"m": {"a": {"on": false, "from": "unit"}, "b": {"on": false, "from": "unit"}, "c": {"on": false, "from": "file"}, "d": {"on": false}}});
+    let fixes: Vec<_> = run(rule, &document)
+        .into_iter()
+        .map(|c| (c.subject_text(), c.fix.unwrap().text()))
+        .collect();
+    assert_eq!(
+        fixes,
+        [
+            ("a".to_owned(), "edit the unit of a".to_owned()),
+            ("b".to_owned(), "1. edit the file: “reload”.".to_owned()),
+            ("c".to_owned(), "1. edit the file: “reload”.".to_owned()),
+            ("d".to_owned(), "the default".to_owned()),
+        ],
+        "keys narrows a choice, an equal value is no list, an absent fact takes the default"
+    );
+    let bare = "fact: m.*.on\nexpect: {const: true}\nfixes: [{fix: x}]\n";
+    let spec = systemlint::yaml::from_str(bare).unwrap();
+    let refused = compile("x/bare", spec).err().unwrap_or_default();
+    assert!(
+        refused.contains("fixes 0 has neither keys nor when"),
+        "{refused}"
+    );
+}

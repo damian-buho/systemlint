@@ -44,6 +44,7 @@ apt/https:
 | `message` | the finding’s sentence, with `{got}`, `{field}`, `{fact}` and `{subject}` filled in |
 | `fix` | how to fix it, with the same placeholders: a sentence, or a list of steps, each a sentence, a `{run: command}` or `{lines: [line, …]}`, which the human report numbers and prints each command and file line of alone below its step; JSON and SARIF keep the list; the human report lists the subjects above it, so a fix that leaves `{subject}` out reads once for all of them |
 | `remedy` | a change `systemlint fix` makes to the subject path, see [Remedies](#remedies) |
+| `fixes` | a list of `{keys, when, fix}` choices tried in order: the first whose `keys` admits the subject’s key and whose `when`, bound like the rule’s, holds gives that subject its `fix`, else the rule’s `fix` applies; a fact a `when` finds absent passes to the next choice, and a choice with neither `keys` nor `when` is refused |
 | `suggest` | `{fact, otherwise}`: the fact, bound like `when`, whose value fills `{suggested}` in `message` and `fix`, and the words used when it is absent or empty |
 | `docs` | a link |
 | `rationale` | why the rule matters, a `Why:` line under the title of its human block, and in JSON and SARIF `help` |

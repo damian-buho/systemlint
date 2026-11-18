@@ -154,6 +154,17 @@ impl Fix {
     }
 }
 
+/// A fix for the subjects whose key `keys` admits and on which `when` holds.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Choice {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub keys: Option<Map<String, Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<When>,
+    pub fix: Fix,
+}
+
 /// One fact of a several-fact rule and the schema it must satisfy.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -195,6 +206,8 @@ pub struct Spec {
     pub message: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fix: Option<Fix>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fixes: Vec<Choice>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remedy: Option<crate::fix::Remedy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -385,6 +398,11 @@ fn merge(base: Spec, over: Spec) -> Spec {
             .message
             .or(if expect_changed { None } else { base.message }),
         fix: over.fix.or(base.fix),
+        fixes: if over.fixes.is_empty() {
+            base.fixes
+        } else {
+            over.fixes
+        },
         remedy: if subject_changed {
             over.remedy
         } else {
