@@ -54,6 +54,43 @@ rules:
       - 'Apply it now, without a reboot:'
       - run: 'mount -o remount,noexec {subject}'
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
+    fixes:
+      - when: {meta.subject.kind: container}
+        fix:
+          - 'The container’s runtime mounts {subject}: add “noexec” to it in the run options, such as “tmpfs: [{subject}:noexec]” in its compose service, or “--tmpfs {subject}:noexec” for “docker run”.'
+          - Recreate the container.
+      - when: {mounts.fstab.*: {type: object}}
+        fix:
+          - 'Add “noexec” to the options of the {subject} line in “/etc/fstab”.'
+          - 'Apply it now, without a reboot:'
+          - run: 'mount -o remount,noexec {subject}'
+      - keys: {const: /tmp}
+        when: {systemd.state: {required: [tmp.mount], properties: {tmp.mount: {required: [masked], properties: {masked: {const: false}}}}}}
+        fix:
+          - 'systemd mounts {subject} from “tmp.mount”; read the options it sets:'
+          - run: 'systemctl cat tmp.mount'
+          - 'Write these lines to “/etc/systemd/system/tmp.mount.d/noexec.conf”, the “Options=” line holding those options with “noexec” added:'
+          - lines: ['[Mount]', 'Options=<its options>,noexec']
+          - 'Load the change and apply it now:'
+          - run: 'systemctl daemon-reload'
+          - run: 'mount -o remount,noexec {subject}'
+      - keys: {const: /var/tmp}
+        when: {systemd.state: {required: [var-tmp.mount], properties: {var-tmp.mount: {required: [masked], properties: {masked: {const: false}}}}}}
+        fix:
+          - 'systemd mounts {subject} from “var-tmp.mount”; read the options it sets:'
+          - run: 'systemctl cat var-tmp.mount'
+          - 'Write these lines to “/etc/systemd/system/var-tmp.mount.d/noexec.conf”, the “Options=” line holding those options with “noexec” added:'
+          - lines: ['[Mount]', 'Options=<its options>,noexec']
+          - 'Load the change and apply it now:'
+          - run: 'systemctl daemon-reload'
+          - run: 'mount -o remount,noexec {subject}'
+      - when: {mounts.active.*.filesystem: tmpfs}
+        fix:
+          - 'systemd mounts {subject} itself, from no file; add this line to “/etc/fstab”, which it then reads instead:'
+          - lines: ['tmpfs {subject} tmpfs defaults,nosuid,nodev,noexec 0 0']
+          - 'Load the change and apply it now:'
+          - run: 'systemctl daemon-reload'
+          - run: 'mount -o remount,noexec {subject}'
     references:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
     tags: [mounts, lynis]
