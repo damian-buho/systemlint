@@ -65,6 +65,30 @@ fn standard(tag: &str) -> Option<(&str, &str)> {
 }
 
 /// Markdown text with every `<` and `>` outside code spans escaped, so a `<user>` placeholder is no HTML tag.
+/// A fix as markdown: its sentence, or a numbered list whose commands and file lines sit in a code block under their step.
+fn fix_markdown(fix: &crate::rules::Fix) -> String {
+    use crate::rules::{Fix, Step};
+    let steps = match fix {
+        Fix::Text(text) => return escaped(text),
+        Fix::Steps(steps) => steps,
+    };
+    let mut out = String::new();
+    let mut number = 0;
+    for step in steps {
+        match step {
+            Step::Say(text) => {
+                number += 1;
+                out.push_str(&format!("{number}. {}\n", escaped(text)));
+            }
+            Step::Show(shown) => {
+                let lines: Vec<String> = shown.lines().iter().map(|l| format!("   {l}")).collect();
+                out.push_str(&format!("\n   ```text\n{}\n   ```\n\n", lines.join("\n")));
+            }
+        }
+    }
+    out.trim_end().to_owned()
+}
+
 fn escaped(text: &str) -> String {
     text.split('`')
         .enumerate()
@@ -174,14 +198,13 @@ pub fn section(library: &Library, id: &str, spec: &Spec) -> String {
             .collect::<Vec<_>>()
             .join("\n"),
     ];
-    for (label, text) in [
-        ("Message", &spec.message),
-        ("Fix", &spec.fix),
-        ("Rationale", &spec.rationale),
-    ] {
+    for (label, text) in [("Message", &spec.message), ("Rationale", &spec.rationale)] {
         if let Some(text) = text {
             blocks.push(format!("#### {label}\n\n{}", escaped(text)));
         }
+    }
+    if let Some(fix) = &spec.fix {
+        blocks.push(format!("#### Fix\n\n{}", fix_markdown(fix)));
     }
     if let Some(expect) = &spec.expect {
         blocks.push(schema("Expects", expect));

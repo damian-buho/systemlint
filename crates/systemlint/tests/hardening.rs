@@ -1834,7 +1834,11 @@ fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
         "only an interactive shell is asked to be listed"
     );
     assert_eq!(
-        unlisted[1].fix.as_deref(),
+        unlisted[1]
+            .fix
+            .as_ref()
+            .map(systemlint::rules::Fix::text)
+            .as_deref(),
         Some("add “/usr/bin/zsh” to /etc/shells with “add-shell”")
     );
 }

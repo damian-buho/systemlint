@@ -42,7 +42,7 @@ apt/https:
 | `severity` | `error`, `warning`, `info`, `advice` (a tuning hint, below `info`) or `off`; `warning` when absent |
 | `score` | a number from 0.0 to 9.9, or a curve of `[value, score]` points read against the fact’s number |
 | `message` | the finding’s sentence, with `{got}`, `{field}`, `{fact}` and `{subject}` filled in |
-| `fix` | how to fix it, with the same placeholders; the human report lists the subjects above it, so a fix that leaves `{subject}` out reads once for all of them |
+| `fix` | how to fix it, with the same placeholders: a sentence, or a list of steps, each a sentence, a `{run: command}` or `{lines: [line, …]}`, which the human report numbers and prints each command and file line of alone below its step; JSON and SARIF keep the list; the human report lists the subjects above it, so a fix that leaves `{subject}` out reads once for all of them |
 | `remedy` | a change `systemlint fix` makes to the subject path, see [Remedies](#remedies) |
 | `suggest` | `{fact, otherwise}`: the fact, bound like `when`, whose value fills `{suggested}` in `message` and `fix`, and the words used when it is absent or empty |
 | `docs` | a link |
@@ -410,9 +410,12 @@ the rules it left undecided wrapped under it,
 one `Conflict` block per set of selected rules declaring `conflicts` on each other, naming each with its control tags and the `--tags '!ID'` that keeps the other (their checks answer `conflict` in every format, `kind: review` in SARIF, and never fail the run),
 `Unknown`, `Manual` (with the `Why:` procedure) and `Waived` blocks, then the failures, worst first: errors,
 then warnings, info and advice, each level highest score first. A failure
-lists a `Run:` command under each subject with a remedy, up to two; from three
-on, one `Run systemlint fix --tags <rule>` line stands for them, and `-v` keeps
-every command. The summary
+lists a `Run:` command under each subject with a remedy, up to two, then from
+two on the `systemlint fix --tags <rule>` command that makes every change, on
+its own line; from three on that command stands for them, and `-v` keeps every
+command. Each quoted value and path is coloured when colour is on, and a fix
+of several steps is numbered, each command and file line alone below its
+step. The summary
 follows, one count per row: the rating, each level, the passes, then what did
 not run in two kinds. `Not selected` and `Not run` are yours to turn on (name
 the ruleset in `--tags`; run as root, add the opt-in flag, or collect fresh

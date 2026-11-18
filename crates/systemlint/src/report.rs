@@ -12,7 +12,7 @@ use std::str::FromStr;
 use serde_json::{Value, json};
 
 use crate::judge::{Check, Outcome, band};
-use crate::rules::Severity;
+use crate::rules::{Fix, Severity, Step};
 
 /// The failures that make `check` exit 1: at or above a level, at or above a score, or never.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -160,6 +160,76 @@ fn paint(on: bool, code: &str, text: &str) -> String {
     }
 }
 
+/// The colour of a value the report names: a path, a quoted word, a container or image.
+const VALUE: &str = "36";
+
+/// The style of a line the reader types or writes, shown alone.
+const SHOWN: &str = "1";
+
+/// `text` with each “quoted” span and absolute path painted as a value, or as it is.
+fn values(on: bool, text: &str) -> String {
+    if !on {
+        return text.to_owned();
+    }
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(open) = rest.find('“') {
+        out.push_str(&paths(&rest[..open]));
+        let after = &rest[open..];
+        let close = after.find('”').map_or(after.len(), |c| c + '”'.len_utf8());
+        out.push_str(&paint(true, VALUE, &after[..close]));
+        rest = &after[close..];
+    }
+    out + &paths(rest)
+}
+
+/// `text` with each word starting with `/` painted as a value, its trailing punctuation left out.
+fn paths(text: &str) -> String {
+    let mut out = String::new();
+    for (i, word) in text.split(' ').enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        let start = word.trim_start_matches('(');
+        let lead = &word[..word.len() - start.len()];
+        let core = start.trim_end_matches(['.', ',', ';', ':', ')']);
+        match core.starts_with('/') && core.len() > 1 {
+            true => out.push_str(&format!(
+                "{lead}{}{}",
+                paint(true, VALUE, core),
+                &start[core.len()..]
+            )),
+            false => out.push_str(word),
+        }
+    }
+    out
+}
+
+/// A fix’s lines under `indent`: one `Fix:` sentence, or `Fix:` over its numbered steps, each command or file line alone below its step.
+fn fix_text(fix: &Fix, indent: &str, on: bool) -> String {
+    let steps = match fix {
+        Fix::Text(text) => return format!("{indent}Fix: {}\n", values(on, &sentence(text))),
+        Fix::Steps(steps) => steps,
+    };
+    let mut out = format!("{indent}Fix:\n");
+    let mut number = 0;
+    for step in steps {
+        match step {
+            Step::Say(text) => {
+                number += 1;
+                let _ = writeln!(out, "{indent}  {number}. {}", values(on, &sentence(text)));
+            }
+            Step::Show(shown) => {
+                for line in shown.lines() {
+                    let _ = writeln!(out, "{indent}       {}", paint(on, SHOWN, line));
+                }
+            }
+        }
+    }
+    log::debug!("fix of {number} steps");
+    out
+}
+
 /// The capitalised level word and its colour code: red error, yellow warning, dim info and advice.
 fn level_word(severity: Option<Severity>) -> (&'static str, &'static str) {
     match severity {
@@ -255,7 +325,7 @@ fn detail(check: &Check) -> Option<String> {
 /// `text` ended as a sentence: the full stop of its last letter’s script added unless it is empty or already ends with sentence punctuation.
 fn sentence(text: &str) -> String {
     match text.chars().last() {
-        None | Some('.' | '!' | '?' | '…' | '。' | '！' | '？' | '؟' | '।' | '॥') => {
+        None | Some('.' | ':' | '!' | '?' | '…' | '。' | '！' | '？' | '؟' | '।' | '॥') => {
             text.to_owned()
         }
         Some(c) => format!("{text}{}", full_stop(c)),
@@ -274,12 +344,13 @@ fn full_stop(c: char) -> char {
     }
 }
 
-/// One `- ` line: the subject, then what it adds, either alone when the other is missing.
-fn location(subject: &str, detail: Option<&str>) -> String {
-    match (subject.is_empty(), detail) {
-        (false, Some(d)) => format!("- {subject}: {d}"),
+/// One `- ` line: the subject painted as a value, then what it adds, either alone when the other is missing.
+fn location(subject: &str, detail: Option<&str>, on: bool) -> String {
+    let named = paint(on, VALUE, subject);
+    match (subject.is_empty(), detail.map(|d| values(on, d))) {
+        (false, Some(d)) => format!("- {named}: {d}"),
         (true, Some(d)) => format!("- {d}"),
-        (_, None) => format!("- {subject}"),
+        (_, None) => format!("- {named}"),
     }
 }
 
@@ -288,7 +359,7 @@ fn header(label: &str, check: &Check, on: bool) -> String {
     let id = paint(on, "1", &format!("[{}]", check.rule));
     check.title.as_deref().map_or_else(
         || format!("{label}: {id}"),
-        |title| format!("{label}: {id} {title}"),
+        |title| format!("{label}: {id} {}", values(on, title)),
     )
 }
 
@@ -317,14 +388,34 @@ fn shipped<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
     kept.then(|| subject["image"].as_str().unwrap_or("the image"))
 }
 
-/// A shipped check’s remedy as a Dockerfile step: the command before its quoted path and that path, or the whole command and no path.
+/// Where a shipped file’s remedy belongs in its image’s build, worded over `{them}`, and the file’s path: set where the file enters the image, never a layer over it.
 fn build_step(command: &str, check: &Check) -> (String, String) {
-    let path = crate::fix::quote(check.subject.last().map_or("", String::as_str));
-    let Some(head) = command.strip_suffix(&path).map(str::trim_end) else {
-        log::debug!("rule {}: {command} names no path, kept whole", check.rule);
-        return (command.to_owned(), String::new());
+    let subject = check.subject.last().map_or("", String::as_str);
+    let path = crate::fix::line_of(subject).map_or(subject, |(path, _)| path);
+    let mut words = command.split(' ');
+    let advice = match (words.next(), words.next()) {
+        (Some("chown" | "chgrp"), _) => "add {them} owned by root, with “COPY --chown=0:0” or “install --owner=root --group=root”".to_owned(),
+        (Some("chmod"), Some(spec)) => match target_mode(check, spec) {
+            Some(mode) => format!("add {{them}} with mode {mode}, with “COPY --chmod={mode}” or “install --mode={mode}”"),
+            None => format!("add {{them}} without the bits “chmod {spec}” clears, with “COPY --chmod=” or “install --mode=”"),
+        },
+        _ => "leave the line out where it writes {them}".to_owned(),
     };
-    (head.to_owned(), path)
+    log::debug!(
+        "rule {} {path}: shipped, {command} becomes a build step",
+        check.rule
+    );
+    (advice, path.to_owned())
+}
+
+/// The mode a shipped file should enter its image with: its own, less the bits `spec` clears.
+fn target_mode(check: &Check, spec: &str) -> Option<String> {
+    let mode = match check.value.as_ref()? {
+        Value::String(text) => u32::from_str_radix(text.trim(), 8).ok()?,
+        _ => return None,
+    };
+    let cleared = crate::fix::cleared(spec).ok()?;
+    (mode <= 0o7777).then(|| format!("{:04o}", mode & !cleared))
 }
 
 /// One failing subject of a block: its line around the image phrase, the lines under it, whether its image ships it, and its build step.
@@ -337,15 +428,25 @@ struct Item {
     step: Option<(String, String)>,
 }
 
-/// The lines of `items`, each shipped one naming its image or else each image, and apart one build step per command over the paths in order, worded for `many` images.
-fn item_text(items: &[(&Item, Option<&str>)], many: bool) -> (String, String) {
+/// What a group of `items` shares, as words for its heading (“as … ships them”, empty when they differ), then its lines and one build step per advice, worded for `many` images.
+fn item_text(items: &[(&Item, Option<&str>)], many: bool, on: bool) -> (String, String, String) {
+    let images: BTreeSet<Option<&str>> = items.iter().map(|(_, image)| *image).collect();
+    let together = items.iter().all(|(item, _)| item.shipped) && images.len() == 1;
+    let them = if items.len() == 1 { "it" } else { "them" };
+    let ships = |image: Option<&str>, them: &str| match image {
+        Some(image) => format!("as {} ships {them}", paint(on, VALUE, image)),
+        None => format!("as each image ships {them}"),
+    };
+    let heading = match together {
+        true => ships(items[0].1, them),
+        false => String::new(),
+    };
     let mut out = String::new();
     let mut built: Vec<(&str, Vec<&str>)> = Vec::new();
     for (item, image) in items {
-        let phrase = match (item.shipped, image) {
-            (false, _) => String::new(),
-            (true, Some(image)) => format!(", as {image} ships it"),
-            (true, None) => ", as each image ships it".to_owned(),
+        let phrase = match item.shipped && !together {
+            true => format!(", {}", ships(*image, "it")),
+            false => String::new(),
         };
         let _ = writeln!(
             out,
@@ -353,13 +454,11 @@ fn item_text(items: &[(&Item, Option<&str>)], many: bool) -> (String, String) {
             sentence(&format!("{}{phrase}{}", item.line, item.waiver))
         );
         out.push_str(&item.under);
-        let Some((head, path)) = &item.step else {
-            continue;
-        };
-        match (path.is_empty(), built.iter_mut().find(|(c, _)| c == head)) {
-            (false, Some((_, paths))) => paths.push(path),
-            (false, None) => built.push((head, vec![path])),
-            (true, _) => built.push((head, Vec::new())),
+        if let Some((advice, path)) = &item.step {
+            match built.iter_mut().find(|(a, _)| a == advice) {
+                Some((_, paths)) => paths.push(path),
+                None => built.push((advice, vec![path])),
+            }
         }
     }
     let whose = if many {
@@ -368,15 +467,24 @@ fn item_text(items: &[(&Item, Option<&str>)], many: bool) -> (String, String) {
         "the image’s"
     };
     let mut steps = String::new();
-    for (command, paths) in &built {
-        log::debug!("{command}: {} paths for {whose} build", paths.len());
+    for (advice, paths) in &built {
+        let pronoun = if paths.len() == 1 { "it" } else { "them" };
+        let named = match (built.len(), together) {
+            (1, true) => them.to_owned(),
+            _ => paths
+                .iter()
+                .map(|p| paint(on, VALUE, &format!("“{p}”")))
+                .collect::<Vec<_>>()
+                .join(", "),
+        };
+        log::debug!("{advice}: {} paths for {whose} build", paths.len());
+        let advice = values(on, &advice.replace("{them}", pronoun));
         let _ = writeln!(
             steps,
-            "Fix in {whose} build, then rebuild it: RUN {command} {}",
-            paths.join(" ")
+            "Fix where {whose} build adds {named}: {advice}, then rebuild it."
         );
     }
-    (out, steps)
+    (heading, out, steps)
 }
 
 /// The failing checks of one rule as a block: level and highest score, why, a line per location and its remedy command, the fix once when every location shares it, then the references when `verbose`.
@@ -448,7 +556,7 @@ fn failure_block(
                 format!(" (waiver expired on {}: {})", w.until, w.reason)
             });
             let mut item = Item {
-                line: location(if named { "" } else { &subject }, said.as_deref()),
+                line: location(if named { "" } else { &subject }, said.as_deref(), on),
                 waiver,
                 under: String::new(),
                 shipped,
@@ -459,40 +567,40 @@ fn failure_block(
                 shipped,
             ) {
                 (Some(command), true) => item.step = Some(build_step(command, check)),
-                (Some(command), false) if !folded => item.under = format!("  Run: {command}\n"),
+                (Some(command), false) if !folded => {
+                    item.under = format!("  Run: {}\n", paint(on, SHOWN, command));
+                }
                 _ => {}
             }
             items.push(item);
         }
         if let Some((fix, last)) = problem[0]
             .fix
-            .as_deref()
+            .as_ref()
             .filter(|_| !shared && !commanded(problem))
             .zip(items.last_mut())
         {
-            let _ = writeln!(last.under, "  Fix: {}", sentence(fix));
+            last.under.push_str(&fix_text(fix, "  ", on));
         }
     }
     let mut mid = String::new();
     if let Some(fix) = problems[0][0]
         .fix
-        .as_deref()
+        .as_ref()
         .filter(|_| shared && !commanded(group))
     {
-        let _ = writeln!(mid, "Fix: {}", sentence(fix));
+        mid.push_str(&fix_text(fix, "", on));
     }
     let mut tail = String::new();
-    if remedied > 0 && !contained {
-        let lead = if folded { "Run" } else { "Or run" };
+    if (folded || remedied > 1) && !contained {
+        let lead = if folded {
+            "To make every change, run:"
+        } else {
+            "Or make every change at once:"
+        };
         log::debug!("rule {}: {remedied} remedies, folded {folded}", worst.rule);
-        let _ = writeln!(
-            tail,
-            "{}",
-            sentence(&format!(
-                "{lead} systemlint fix --tags {} to make every change",
-                worst.rule
-            ))
-        );
+        let command = format!("systemlint fix --tags {}", worst.rule);
+        let _ = writeln!(tail, "{lead}\n  {}", paint(on, SHOWN, &command));
     }
     for reference in worst.references.iter().filter(|_| verbose) {
         let _ = writeln!(tail, "See: {} <{}>", reference.title, reference.url);
@@ -760,7 +868,7 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
             let _ = writeln!(
                 out,
                 "{}",
-                sentence(&location(&c.subject_label(), c.reason.as_deref()))
+                sentence(&location(&c.subject_label(), c.reason.as_deref(), on))
             );
         });
         out.push('\n');
@@ -794,7 +902,8 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
                 "{}",
                 sentence(&location(
                     &check.subject_label(),
-                    Some(&format!("{} (until {})", w.reason, w.until))
+                    Some(&format!("{} (until {})", w.reason, w.until)),
+                    on
                 ))
             );
         }
@@ -874,9 +983,13 @@ pub fn lint_human(
         .map(|b| {
             let items: Vec<(&Item, Option<&str>)> =
                 b.items.iter().map(|i| (i, Some(image))).collect();
-            let (subjects, steps) = item_text(&items, false);
+            let (heading, subjects, steps) = item_text(&items, false, on);
+            let heading = match heading.is_empty() {
+                true => heading,
+                false => format!("{}:\n", capitalised(&heading)),
+            };
             format!(
-                "{}\n{}{subjects}{}{steps}{}\n",
+                "{}\n{}{heading}{subjects}{}{steps}{}\n",
                 b.head,
                 lines(&b.rest),
                 b.mid,
@@ -949,9 +1062,12 @@ pub fn lint_human_targets(
         let _ = writeln!(out, "{head}");
         if joined.items.is_empty() {
             log::debug!("{head}: {} groups of targets", joined.rests.len());
-            for (rest, keys) in &joined.rests {
+            for (n, (rest, keys)) in joined.rests.iter().enumerate() {
+                if n > 0 {
+                    out.push('\n');
+                }
                 if !containers.is_empty() {
-                    let _ = writeln!(out, "In {}:", place(keys, &containers));
+                    let _ = writeln!(out, "In {}:", place(keys, &containers, on));
                 }
                 out.push_str(&lines(rest));
             }
@@ -971,18 +1087,45 @@ pub fn lint_human_targets(
             joined.items.len(),
             sets.len()
         );
-        for (keys, items) in &sets {
-            if !containers.is_empty() {
-                let _ = writeln!(out, "In {}:", place(keys, &containers));
+        let holding = joined.rests.iter().map(|(_, k)| k.len()).sum::<usize>();
+        let mut told = vec![false; joined.ends.len()];
+        for (n, (keys, items)) in sets.iter().enumerate() {
+            if n > 0 {
+                out.push('\n');
             }
-            let (subjects, steps) = item_text(items, items.iter().any(|(_, i)| i.is_none()));
+            let many = items.iter().any(|(_, i)| i.is_none());
+            let (heading, subjects, steps) = item_text(items, many, on);
+            match (containers.is_empty(), heading.is_empty()) {
+                (false, true) => {
+                    let _ = writeln!(out, "In {}:", place(keys, &containers, on));
+                }
+                (false, false) => {
+                    let _ = writeln!(out, "In {}, {heading}:", place(keys, &containers, on));
+                }
+                (true, false) => {
+                    let _ = writeln!(out, "{}:", capitalised(&heading));
+                }
+                (true, true) => {}
+            }
             out.push_str(&subjects);
             out.push_str(&steps);
+            for (i, (end, held)) in joined.ends.iter().enumerate() {
+                if !end.is_empty() && held.len() < holding && held == keys {
+                    log::debug!("{head}: closing text kept with its {} targets", held.len());
+                    out.push_str(end);
+                    told[i] = true;
+                }
+            }
         }
-        let holding = joined.rests.iter().map(|(_, k)| k.len()).sum::<usize>();
-        for (end, keys) in joined.ends.iter().filter(|(e, _)| !e.is_empty()) {
+        for (i, (end, keys)) in joined.ends.iter().enumerate() {
+            if end.is_empty() || told[i] {
+                continue;
+            }
+            if sets.len() > 1 {
+                out.push('\n');
+            }
             if !containers.is_empty() && keys.len() < holding {
-                let _ = writeln!(out, "In {}:", place(keys, &containers));
+                let _ = writeln!(out, "In {}:", place(keys, &containers, on));
             }
             out.push_str(end);
         }
@@ -1000,20 +1143,29 @@ pub fn lint_human_targets(
     out
 }
 
-/// Where a block holds: the host and the containers among `keys`, naming the containers left out instead when fewer.
-fn place(keys: &[&str], containers: &[&str]) -> String {
+/// `text` with its first letter capitalised.
+fn capitalised(text: &str) -> String {
+    let mut chars = text.chars();
+    chars
+        .next()
+        .map_or_else(String::new, |c| c.to_uppercase().chain(chars).collect())
+}
+
+/// Where a block holds: the host and the containers among `keys`, each painted as a value, naming the containers left out instead when fewer.
+fn place(keys: &[&str], containers: &[&str], on: bool) -> String {
     let host = keys.contains(&HOST);
-    let inside: Vec<&str> = keys.iter().copied().filter(|k| *k != HOST).collect();
-    let missing: Vec<&str> = containers
+    let named = |k: &&str| paint(on, VALUE, k);
+    let inside: Vec<String> = keys.iter().filter(|k| **k != HOST).map(named).collect();
+    let missing: Vec<String> = containers
         .iter()
-        .copied()
         .filter(|c| !keys.contains(c))
+        .map(named)
         .collect();
     let lead = if host { "the host" } else { "" };
     let rest = match (inside.len(), missing.len()) {
         (0, _) => String::new(),
         (_, 0) => "every container".to_owned(),
-        (n, m) if m < n && m <= 3 => format!("every container but {}", missing.join(", ")),
+        (n, m) if m < n && m <= 3 => format!("every container except {}", missing.join(", ")),
         _ => inside.join(", "),
     };
     match (lead, rest.as_str()) {
@@ -1185,7 +1337,7 @@ pub fn lint_plain(document: &Value, checks: &[Check], quiet: bool) -> String {
             &check.rule,
             &check.subject_label(),
             unsubjected(check),
-            check.fix.as_deref().unwrap_or_default(),
+            &check.fix.as_ref().map(Fix::text).unwrap_or_default(),
         ]);
     }
     if !quiet {

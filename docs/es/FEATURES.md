@@ -32,10 +32,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Hallazgos que leen una persona, un pipeline y un lector de pantalla
 
-- Cada regla que falla es un bloque con su nivel, una puntuación de 0.0 a 9.9, su título y por qué importa, cada sujeto afectado y un arreglo, el peor primero. Ver [reglas](../how-to/rules.md).
+- Cada regla que falla es un bloque con su nivel, una puntuación de 0.0 a 9.9, su título y por qué importa, cada sujeto afectado y un arreglo, en pasos numerados con cada comando en su propia línea, el peor primero. Ver [reglas](../how-to/rules.md).
 - Una calificación de S a F y un recuento por fila cierran la ejecución, y separan las reglas que aún puedes activar de las que no tienen nada que juzgar en el host.
 - `--plain` imprime una línea separada por tabuladores por hallazgo, para `grep`, `awk` y lectores de pantalla.
-- El color solo marca palabras que ya llevan el significado, y se apaga con `NO_COLOR`, `TERM=dumb` o una tubería.
+- El color marca el nivel y cada valor que nombra el informe (rutas, ajustes citados, contenedores, imágenes), nunca el significado por sí solo, y se apaga con `NO_COLOR`, `TERM=dumb` o una tubería.
 - JSON, SARIF 2.1.0 y el textfile de node-exporter llevan los mismos hallazgos a CI y a monitoreo. Ver [salidas](../how-to/outputs.md).
 
 ### Reglas que citan los estándares que cumplen
@@ -94,7 +94,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 - Los certificados listados por huella SHA-256 se eliminan del almacén de confianza del sistema durante la construcción, antes de que la distribución publique su propia corrección.
 - Una sola lista sirve a todo el linaje de imágenes, y `b19-ca-distrust bundle` recorta con ella cualquier paquete PEM incluido.
 - Incluye la desconfianza de los intermedios de eMudhra cuyas claves privadas pueden recuperarse (octubre de 2026), junto con sus firmas cruzadas y raíces.
-- Las imágenes derivadas añaden huellas con una variable o un archivo, y `B19_CA_DISTRUST_ENABLED=false` desactiva el recorte. [Guía](../how-to/use-ca-distrust.md)
+- Las imágenes derivadas añaden huellas con una variable o un archivo, y `B19_CA_DISTRUST_ENABLED=false` desactiva el recorte. [Guía](https://codeberg.org/b19/ubuntu/src/branch/main/docs/how-to/use-ca-distrust.md)
 
 ### Detección automática del número de CPUs (NUMPROCS)
 
@@ -130,7 +130,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 - Añadir una comprobación es dejar caer un script en un directorio, no escribir configuración de Docker.
 - Las comprobaciones pesadas o con límite de peticiones se ejecutan cada hora en segundo plano, de modo que un escaneo lento nunca agota el tiempo del healthcheck ni consume un límite de peticiones.
 
-Consulte [use-healthcheck.d](../how-to/use-healthcheck.d.md) para la lista de comprobaciones, la numeración de slots y la configuración.
+Consulte [use-healthcheck.d](https://codeberg.org/b19/ubuntu/src/branch/main/docs/how-to/use-healthcheck.d.md) para la lista de comprobaciones, la numeración de slots y la configuración.
 
 ### Salida de shell multilingüe (b19-i18n)
 
@@ -234,7 +234,7 @@ Consulte [use-healthcheck.d](../how-to/use-healthcheck.d.md) para la lista de co
 - Una llamada inestable puede reintentarse con espera progresiva con una sola opción, sin escribir un bucle a mano.
 - Un reinicio opcional convierte un servicio atascado en estado no saludable en un contenedor que la política de reinicio recupera.
 
-Consulta [use-timeouts](../how-to/use-timeouts.md) para las opciones, los valores por defecto y cómo cambiarlos.
+Consulta [use-timeouts](https://codeberg.org/b19/ubuntu/src/branch/main/docs/how-to/use-timeouts.md) para las opciones, los valores por defecto y cómo cambiarlos.
 
 ### Herramientas de utilidad preinstaladas
 

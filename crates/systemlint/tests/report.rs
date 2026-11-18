@@ -577,7 +577,7 @@ fn human_puts_each_remedy_command_under_its_location_unstopped_so_it_pastes_and_
     );
     assert_eq!(
         text,
-        "Warning (5.0): [x/mode]\n- files./etc/a: 0 was expected.\n  Run: chmod o-w /etc/a\n- files./etc/b b: 0 was expected.\n  Run: chmod o-w '/etc/b b'\nOr run systemlint fix --tags x/mode to make every change.\n\n"
+        "Warning (5.0): [x/mode]\n- files./etc/a: 0 was expected.\n  Run: chmod o-w /etc/a\n- files./etc/b b: 0 was expected.\n  Run: chmod o-w '/etc/b b'\nOr make every change at once:\n  systemlint fix --tags x/mode\n\n"
     );
 }
 
@@ -594,7 +594,7 @@ fn human_folds_three_remedy_commands_into_one_fix_line_unless_verbose() {
     let text = |verbose| lint_human(&document, &checks, 0, true, verbose, false);
     assert!(!text(false).contains("Run: "), "{}", text(false));
     assert!(
-        text(false).ends_with("\nRun systemlint fix --tags x/mode to make every change.\n\n"),
+        text(false).ends_with("\nTo make every change, run:\n  systemlint fix --tags x/mode\n\n"),
         "{}",
         text(false)
     );
@@ -1004,5 +1004,58 @@ fn leaving_one_side_out_judges_the_other_as_usual() {
             .find(|c| c.rule == "pw/keep")
             .map(|c| c.outcome),
         Some(Outcome::Pass)
+    );
+}
+
+#[test]
+fn human_numbers_fix_steps_and_shows_each_command_and_file_line_alone_below_its_step() {
+    let yaml = "fact: files.*\nexpect: {const: 0}\nfix:\n  - 'Add these lines to “{subject}”:'\n  - lines: ['one {subject}', two]\n  - Then run\n  - run: reload {subject}\n";
+    let rule = compile("x/steps", systemlint::yaml::from_str(yaml).unwrap()).unwrap();
+    let document = json!({"files": {"/etc/a": 1}});
+    let checks = lint(&document, &[rule], &[], "2026-11-18");
+    let text = lint_human(&document, &checks, 0, true, false, false);
+    assert!(
+        text.contains("Fix:\n  1. Add these lines to “/etc/a”:\n       one /etc/a\n       two\n  2. Then run.\n       reload /etc/a\n"),
+        "{text}"
+    );
+    let json: Value = serde_json::from_str(&lint_json(&document, &checks)).unwrap();
+    assert_eq!(
+        json["checks"][0]["fix"],
+        json!(["Add these lines to “/etc/a”:", {"lines": ["one /etc/a", "two"]}, "Then run", {"run": "reload /etc/a"}]),
+        "JSON keeps the steps as written"
+    );
+    assert_eq!(
+        checks[0]
+            .fix
+            .as_ref()
+            .map(systemlint::rules::Fix::text)
+            .as_deref(),
+        Some("1. Add these lines to “/etc/a”: “one /etc/a”, “two”. 2. Then run: “reload /etc/a”."),
+        "one-line formats quote what a step shows"
+    );
+    let bad = "fact: v\nexpect: {const: 0}\nfix: [{exec: x}]\n";
+    assert!(
+        systemlint::yaml::from_str::<systemlint::rules::Spec>(bad).is_err(),
+        "a step is words, run or lines"
+    );
+}
+
+#[test]
+fn human_colours_quoted_values_and_paths_only_when_colour_is_on() {
+    let yaml = "title: Open “thing”\nfact: files.*\nexpect: {const: 0}\nfix: 'see /etc/b.'\n";
+    let rule = compile("x/paint", systemlint::yaml::from_str(yaml).unwrap()).unwrap();
+    let document = json!({"files": {"/etc/a": 1}});
+    let checks = lint(&document, &[rule], &[], "2026-11-18");
+    let plain = lint_human(&document, &checks, 0, true, false, false);
+    assert!(!plain.contains('\x1b'), "{plain}");
+    assert!(
+        plain.contains("Open “thing”"),
+        "plain keeps the quotes: {plain}"
+    );
+    let painted = lint_human(&document, &checks, 0, true, false, true);
+    assert!(painted.contains("Open \x1b[36m“thing”\x1b[0m"), "{painted}");
+    assert!(
+        painted.contains("\x1b[36m/etc/b\x1b[0m."),
+        "a path, its full stop left plain: {painted}"
     );
 }

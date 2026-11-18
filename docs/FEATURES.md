@@ -30,10 +30,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Findings a person, a pipeline and a screen reader can read
 
-- Each failing rule is one block with its level, a 0.0–9.9 score, its title and why it matters, every subject it hit and one fix, the worst first. See [rules](how-to/rules.md).
+- Each failing rule is one block with its level, a 0.0–9.9 score, its title and why it matters, every subject it hit and one fix, in numbered steps with each command on its own line, the worst first. See [rules](how-to/rules.md).
 - An S to F rating and one count per row close the run, and tell the rules you can still turn on apart from those the host has nothing for.
 - `--plain` prints one tab-separated line per finding, for `grep`, `awk` and screen readers.
-- Colour only marks words that already carry the meaning, and turns off under `NO_COLOR`, `TERM=dumb` or a pipe.
+- Colour marks the level and every value the report names (paths, quoted settings, containers, images), never meaning alone, and turns off under `NO_COLOR`, `TERM=dumb` or a pipe.
 - JSON, SARIF 2.1.0 and node-exporter textfile carry the same findings for CI and monitoring. See [outputs](how-to/outputs.md).
 
 ### Rules that cite the standards they satisfy
@@ -91,7 +91,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 - Certificates listed by SHA-256 fingerprint are removed from the system trust store at build time, before the distribution ships its own fix.
 - One list serves the whole image lineage, and `b19-ca-distrust bundle` cuts any vendored PEM bundle from it too.
 - Ships distrusting the eMudhra intermediates whose private keys can be recovered (October 2026), together with their cross-signs and roots.
-- Downstream images add fingerprints with one variable or one file, and `B19_CA_DISTRUST_ENABLED=false` turns the cut off. [How-to](how-to/use-ca-distrust.md)
+- Downstream images add fingerprints with one variable or one file, and `B19_CA_DISTRUST_ENABLED=false` turns the cut off. [How-to](https://codeberg.org/b19/ubuntu/src/branch/main/docs/how-to/use-ca-distrust.md)
 
 ### Automatic CPU count detection
 
@@ -127,7 +127,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 - Adding a check is dropping a script in a directory, not writing Docker plumbing.
 - Heavy or rate-limited checks run hourly in the background, so a slow scan never times out the probe or burns a rate limit.
 
-See [use-healthcheck.d](../how-to/use-healthcheck.d.md) for the check list, slot numbering, and configuration.
+See [use-healthcheck.d](https://codeberg.org/b19/ubuntu/src/branch/main/docs/how-to/use-healthcheck.d.md) for the check list, slot numbering, and configuration.
 
 ### Multilingual shell output (b19-i18n)
 
@@ -231,7 +231,7 @@ See [use-healthcheck.d](../how-to/use-healthcheck.d.md) for the check list, slot
 - A flaky call can be retried with backoff in one flag, without a hand-written loop.
 - An opt-in restart turns a service stuck unhealthy into a container the restart policy recovers.
 
-See [use-timeouts](../how-to/use-timeouts.md) for the options, defaults and overrides.
+See [use-timeouts](https://codeberg.org/b19/ubuntu/src/branch/main/docs/how-to/use-timeouts.md) for the options, defaults and overrides.
 
 ### Pre-installed utility tools
 

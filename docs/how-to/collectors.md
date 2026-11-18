@@ -334,11 +334,15 @@ no running container prints a `No running container matches` line.
 The facts document keeps each container’s full document under
 `targets.<key>`, its `meta.subject` `{kind: container, engine, name, id,
 parent}`. `check --format human` prints one block per rule across the host
-and every container, each part followed by where it holds (`In the host and
-every container but web:`, so containers built on one base image share it).
-A failing subject several targets share prints once, under the targets that
-hold it, and reads `…, as each image ships it` when their images differ, its
-`RUN` line `Fix in each image’s build`. Then comes one summary row per target; `json`
+and every container, each part after where it holds (`In the host and
+every container except web:`, so containers built on one base image share it),
+an empty line between two such parts. A failing subject several targets share
+prints once, under the targets that hold it; when every subject of a part comes
+unchanged from its image, the part says so once (`In web, as … ships them:`, or
+`as each image ships them` when their images differ), and its fix names where
+the image’s build adds the files, with the step options that set the remedy as
+they enter it (`COPY --chown=0:0`, `COPY --chmod=0750`, `install --mode=0750`),
+never a `RUN` layer over them. Then comes one summary row per target; `json`
 adds `targets.<key>`, `sarif` one run per container with `automationDetails.id`
 naming it, `textfile` a `target` label on each container’s samples, and
 `--plain` a `target<TAB><key>` line before each container’s lines. The exit

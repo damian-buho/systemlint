@@ -232,7 +232,11 @@ fn kiota_docker_on_questing_under_resolute_fails_stale_suite_and_weak_dependenci
         failures[0].message
     );
     assert_eq!(
-        failures[0].fix.as_deref(),
+        failures[0]
+            .fix
+            .as_ref()
+            .map(systemlint::rules::Fix::text)
+            .as_deref(),
         Some("set the suite to “resolute”, or waive it when the vendor publishes no newer suite")
     );
 }
@@ -285,7 +289,7 @@ fn every_apt_rule_fails_once_on_the_misconfigured_root_and_a_disabled_source_is_
         failures
             .iter()
             .find(|c| c.rule == rule)
-            .and_then(|c| c.fix.clone())
+            .and_then(|c| c.fix.as_ref().map(systemlint::rules::Fix::text))
             .unwrap()
     };
     assert_eq!(

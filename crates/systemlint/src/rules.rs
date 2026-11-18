@@ -64,6 +64,96 @@ pub struct Suggest {
     pub otherwise: String,
 }
 
+/// A rule’s fix: one sentence, or numbered steps.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Fix {
+    Text(String),
+    Steps(Vec<Step>),
+}
+
+/// One step of a fix: words, or what the reader types or writes, shown alone under the words before it.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Step {
+    Say(String),
+    Show(Shown),
+}
+
+/// A step shown alone: a command to run, or the lines to write in a file.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase", deny_unknown_fields)]
+pub enum Shown {
+    Run(String),
+    Lines(Vec<String>),
+}
+
+impl Shown {
+    /// The lines shown: the command, or each file line.
+    pub fn lines(&self) -> Vec<&str> {
+        match self {
+            Self::Run(command) => vec![command.as_str()],
+            Self::Lines(lines) => lines.iter().map(String::as_str).collect(),
+        }
+    }
+}
+
+impl Fix {
+    /// Every text of the fix passed through `f`, as the judge fills placeholders.
+    pub fn map(&self, f: impl Fn(&str) -> String) -> Self {
+        match self {
+            Self::Text(text) => Self::Text(f(text)),
+            Self::Steps(steps) => Self::Steps(
+                steps
+                    .iter()
+                    .map(|step| match step {
+                        Step::Say(text) => Step::Say(f(text)),
+                        Step::Show(Shown::Run(command)) => Step::Show(Shown::Run(f(command))),
+                        Step::Show(Shown::Lines(lines)) => {
+                            Step::Show(Shown::Lines(lines.iter().map(|l| f(l)).collect()))
+                        }
+                    })
+                    .collect(),
+            ),
+        }
+    }
+
+    /// The fix on one line, for formats with one cell for it: each step numbered, what it shows quoted after it.
+    pub fn text(&self) -> String {
+        let steps = match self {
+            Self::Text(text) => return text.clone(),
+            Self::Steps(steps) => steps,
+        };
+        let mut parts: Vec<String> = Vec::new();
+        for step in steps {
+            match (step, parts.last_mut()) {
+                (Step::Say(text), _) => parts.push(text.clone()),
+                (Step::Show(shown), last) => {
+                    let quoted: Vec<String> =
+                        shown.lines().iter().map(|l| format!("“{l}”")).collect();
+                    match last {
+                        Some(last) if last.ends_with(':') => last.push(' '),
+                        Some(last) => last.push_str(": "),
+                        None => parts.push(String::new()),
+                    }
+                    if let Some(last) = parts.last_mut() {
+                        last.push_str(&quoted.join(", "));
+                    }
+                }
+            }
+        }
+        parts
+            .iter()
+            .enumerate()
+            .map(|(i, part)| match part.ends_with(['.', '!', '?', '…']) {
+                true => format!("{}. {part}", i + 1),
+                false => format!("{}. {part}.", i + 1),
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
 /// One fact of a several-fact rule and the schema it must satisfy.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -104,7 +194,7 @@ pub struct Spec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fix: Option<String>,
+    pub fix: Option<Fix>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remedy: Option<crate::fix::Remedy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

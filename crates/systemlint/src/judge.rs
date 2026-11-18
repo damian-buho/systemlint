@@ -94,7 +94,7 @@ pub struct Check {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub fix: Option<String>,
+    pub fix: Option<crate::rules::Fix>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remedy: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1227,7 +1227,11 @@ fn failure(
         severity: Some(level_of(score)),
         score: Some(score),
         message: Some(message),
-        fix: rule.spec.fix.as_ref().map(|f| fill(f, &variables)),
+        fix: rule
+            .spec
+            .fix
+            .as_ref()
+            .map(|f| f.map(|t| fill(t, &variables))),
         remedy: rule
             .spec
             .remedy

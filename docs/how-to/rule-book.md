@@ -91,10 +91,12 @@ Every text is written for a person reading a terminal, never for a parser.
 - The rule ID is the thing, a slash and its state: `ufw/disabled`,
   `kernel-modules/cramfs`.
 - `title` is the description: what is wrong, as “thing A is B” or “thing A
-  does C”, never the fix: “ufw is installed but switched off”.
-- `message` is the reasoning: why it is bad, for a person. It opens with
-  `{subject}` when the fact has a `*`, else with the setting; then what it
-  is, `so`, and what an attacker or an accident gets.
+  does C”, never the fix: “ufw is installed but switched off”. It names the
+  thing first and quotes a name: “Kernel module “can” loads automatically”.
+- `message` is what was found: it opens with `{subject}` when the fact has a
+  `*`, else with the setting, then says what it is and where.
+- `rationale` is the reasoning: why it is bad, in one sentence for a reader
+  who is not a specialist, naming what an attacker or an accident gets.
 - `fix` is the fix: how to repair it, in a whole sentence with proper
   punctuation. Every literal a person types (a config line, a key, a value,
   a path, a command) sits in typographic quotes, so it never reads as part
@@ -102,6 +104,14 @@ Every text is written for a person reading a terminal, never for a parser.
   “.conf” under “/etc/modprobe.d/”`, `run “chmod o-w” on the file`. The
   report adds the full stop. `{got}` and `{suggested}` arrive quoted, so
   they never take quotes of their own; `{field}` does not.
+- A fix of more than one move is a list of steps, never one sentence
+  joining them with “and” or “then”. Each step is a sentence a reader who
+  is not a specialist can follow; what they type goes in a `run:` step and
+  what they write in a file in a `lines:` step, each printed alone below the
+  step before it, which ends in a colon and names the exact place: “Add these
+  lines to “/etc/pam.d/common-auth”, the first before the “pam_unix” line:”,
+  never “add X before Y and Z after it”. Quote a step ending in a colon, as
+  YAML reads an unquoted one as a key.
 - `docs` links the upstream manual of the setting.
 
 ## Upstream checks

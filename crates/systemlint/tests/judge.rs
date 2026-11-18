@@ -81,7 +81,10 @@ fn a_fail_names_its_subject_in_message_and_fix() {
         Some("/etc/apt/sources.list.d/old.sources fetches over “http://old.example/debian”")
     );
     assert_eq!(
-        fail.fix.as_deref(),
+        fail.fix
+            .as_ref()
+            .map(systemlint::rules::Fix::text)
+            .as_deref(),
         Some("switch /etc/apt/sources.list.d/old.sources to https://")
     );
     assert_eq!(
@@ -812,7 +815,7 @@ fn suggest_fills_the_fact_bound_to_the_same_subject_or_its_fallback() {
     let document = json!({"s": {"a": {"old": ["x"], "new": ["y"]}, "b": {"old": ["x"], "new": []}, "c": {"old": ["x"]}}});
     let fixes: Vec<_> = run(rule, &document)
         .into_iter()
-        .map(|c| (c.subject_text(), c.fix.unwrap()))
+        .map(|c| (c.subject_text(), c.fix.unwrap().text()))
         .collect();
     assert_eq!(
         fixes,

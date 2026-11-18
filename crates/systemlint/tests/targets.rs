@@ -267,7 +267,7 @@ fn human_prints_one_block_per_rule_across_targets_and_names_where_it_holds() {
     ];
     let text = lint_human_targets(&open, &host, 0, &most, (true, false, false));
     assert!(
-        text.contains("In the host and every container but d:\n"),
+        text.contains("In the host and every container except d:\n"),
         "{text}"
     );
     let all = [("a", &open, a.as_slice())];
@@ -342,13 +342,13 @@ fn human_prints_a_subject_shared_by_containers_once_beside_the_ones_they_differ_
     assert_eq!(text.matches("- files./a:").count(), 1, "{text}");
     assert!(
         text.contains(
-            "In every container:\n- files./a: 0 was expected, as each image ships it.\nFix in each image’s build, then rebuild it: RUN chown 0 /a\n"
+            "In every container, as each image ships it:\n- files./a: 0 was expected.\nFix where each image’s build adds it: add it owned by root, with “COPY --chown=0:0” or “install --owner=root --group=root”, then rebuild it.\n"
         ),
         "{text}"
     );
     assert!(
         text.contains(
-            "In a:\n- files./c: 0 was expected, as kiota.ch/o9s/a ships it.\nFix in the image’s build, then rebuild it: RUN chown 0 /c\n"
+            "In a, as kiota.ch/o9s/a ships it:\n- files./c: 0 was expected.\nFix where the image’s build adds it: add it owned by root, with “COPY --chown=0:0” or “install --owner=root --group=root”, then rebuild it.\n"
         ),
         "{text}"
     );
@@ -365,7 +365,7 @@ fn human_fixes_a_shipped_path_in_the_image_build_and_never_offers_fix_in_a_conta
     let checks = lint(&document, &rules, &[], "2026-11-17");
     let text = systemlint::report::lint_human(&document, &checks, 0, true, false, false);
     assert!(
-        text.contains("Fix in the image’s build, then rebuild it: RUN chown 0 /etc/a '/etc/b c'\n"),
+        text.contains("Fix where the image’s build adds “/etc/a”, “/etc/b c”: add them owned by root, with “COPY --chown=0:0” or “install --owner=root --group=root”, then rebuild it.\n"),
         "one step gathers every shipped path: {text}"
     );
     assert!(
