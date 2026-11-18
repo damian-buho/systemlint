@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: A CUPS configuration others may read, or that listens beyond the loopback
+topic: Services
 tags: [default]
 rules:
   cups/config-mode:

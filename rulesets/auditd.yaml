@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: An audit daemon that is missing, not running, records nothing or nothing before it starts, drops records when its disk fills, or lets other users read its logs
+topic: Logging and auditing
 tags: [default]
 vars:
   audit-backlog-limit: {default: 8192}

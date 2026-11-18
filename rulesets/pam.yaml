@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: PAM authentication stacks that let a login through without a password or without limit
+topic: Accounts and authentication
 tags: [default]
 when: {auth.pam: {minProperties: 1}, os.init: {not: {minProperties: 1, additionalProperties: {not: {contains: {enum: [systemd, init, openrc-init, runit]}}}}}}
 vars:

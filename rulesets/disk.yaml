@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Filesystems close to full
+topic: Files and permissions
 tags: [default]
 rules:
   disk/full:

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Kernel settings that hand unprivileged users memory layouts, kernel addresses or attack surface
+topic: Boot and kernel
 tags: [default]
 rules:
   kernel/aslr:

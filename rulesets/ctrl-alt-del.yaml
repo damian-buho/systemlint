@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: A Ctrl-Alt-Del at the console that reboots the host
+topic: Boot and kernel
 tags: [default]
 when: {os.init: {not: {minProperties: 1, additionalProperties: {not: {contains: {enum: [systemd, init, openrc-init, runit]}}}}}}
 rules:

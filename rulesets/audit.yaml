@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Kernel audit rules that leave security-relevant changes unrecorded, on disk and loaded
+topic: Logging and auditing
 tags: [default]
 when: {auditd.binary: {minProperties: 1}}
 rules:

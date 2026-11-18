@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: set-user-ID and set-group-ID files, and every directory above them, kept from other users
+topic: Files and permissions
 tags: [default]
 rules:
   setuid/world-writable:

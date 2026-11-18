@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: An SNMP agent that answers the network with a community anyone guesses
+topic: Services
 tags: [default]
 when: {snmp.binary: {minProperties: 1}}
 rules:

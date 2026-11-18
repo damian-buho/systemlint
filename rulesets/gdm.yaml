@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: GNOME display manager settings that open the graphical login to the network
+topic: Services
 tags: [default]
 when: {gdm.config: {minProperties: 1}}
 rules:

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: rsyslog, where it is the chosen logger, left off, creating logs every user reads, listening on the network or forwarding without TLS
+topic: Logging and auditing
 tags: [default, rsyslog]
 when: {rsyslog.binary: {minProperties: 1}}
 rules:

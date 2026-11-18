@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: No way for a user to lock a text session they step away from
+topic: Accounts and authentication
 tags: [default]
 rules:
   session-lock/no-vlock:

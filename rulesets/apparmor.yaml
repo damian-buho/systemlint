@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: AppArmor missing from disk, not loaded or not started at boot, or a profile that only logs what it should deny
+topic: Boot and kernel
 tags: [default]
 rules:
   apparmor/not-installed:

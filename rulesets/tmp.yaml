@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Shared temporary directories where one user can delete or swap another user’s files
+topic: Files and permissions
 tags: [default]
 rules:
   tmp/sticky:

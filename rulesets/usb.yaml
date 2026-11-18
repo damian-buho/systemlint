@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: USB host controllers that let every newly plugged device talk to the host
+topic: Boot and kernel
 tags: [default]
 rules:
   usb/authorized-default:

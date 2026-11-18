@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: A Redis server that any host reaching it may use without a password
+topic: Services
 tags: [default]
 when: {redis.binary: {minProperties: 1}}
 rules:

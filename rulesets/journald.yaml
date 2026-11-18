@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: The systemd journal kept running, on disk, compressed and forwarded to rsyslog, and its services that take log entries from the network
+topic: Logging and auditing
 tags: [default]
 when: {systemd.state: {required: [systemd-journald.service]}}
 rules:

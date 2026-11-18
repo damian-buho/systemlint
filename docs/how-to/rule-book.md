@@ -58,6 +58,9 @@ It stays in its subject’s ruleset and runs when that standard is named.
 One ruleset per subject a person thinks of (`ufw.yaml`, `kernel.yaml`,
 `fs-protected.yaml`), never one per upstream benchmark. A rule ID is the
 ruleset name, a slash and the problem in a few words: `ufw/disabled`.
+Each names one of the book’s existing topics (`topic: Network`), so the rule
+reference stays a handful of pages; a new topic is for a subject none of them
+covers.
 
 ## Agnostic by default
 

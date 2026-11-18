@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: A PHP build open to a known remote code execution, judged from what PHP itself reports
+topic: Services
 when: {php.binary: {minProperties: 1}}
 rules:
   php/php2shell:

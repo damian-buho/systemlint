@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The `rules` page collection: the catalog at `org.projectfile.pages.rules.items` and one Markdown page per rule.
+//! The `rules` page collection: the catalog at `org.projectfile.pages.rules.items` and one Markdown page per topic.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -85,6 +85,34 @@ fn relative(from: &str, to: &str) -> String {
     format!("{}{to}", "../".repeat(depth))
 }
 
+/// The topic page that never named one gets.
+const OTHER: &str = "Other";
+
+/// The topic whose page lists `ruleset`: its own `topic`, else `Other`.
+fn topic<'a>(library: &'a Library, ruleset: &str) -> &'a str {
+    library
+        .rulesets
+        .get(ruleset)
+        .and_then(|r| r.topic.as_deref())
+        .unwrap_or(OTHER)
+}
+
+/// A topic’s page in the collection, `logging-and-auditing.md` for `Logging and auditing`.
+fn topic_file(topic: &str) -> String {
+    let slug: Vec<String> = topic
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_owned)
+        .collect();
+    format!("{}.md", slug.join("-"))
+}
+
+/// A rule’s place in the collection: its topic page, anchored by its ID.
+fn href(library: &Library, id: &str) -> String {
+    format!("{}#{id}", topic_file(topic(library, owner(library, id))))
+}
+
 fn score_text(score: &Score) -> String {
     match score {
         Score::Fixed(points) => format!("{points:.1}"),
@@ -98,32 +126,26 @@ fn score_text(score: &Score) -> String {
 
 fn schema(label: &str, value: &Map<String, Value>) -> String {
     format!(
-        "## {label}\n\n```json\n{}\n```",
+        "#### {label}\n\n```json\n{}\n```",
         serde_json::to_string_pretty(value).unwrap_or_default()
     )
 }
 
-/// One rule’s page: its title, a table of what it is, then its message, fix, rationale, schema and references.
-pub fn page(library: &Library, id: &str, spec: &Spec) -> String {
+/// One rule’s section on its topic page: its title anchored by its ID, a table of what it is, then its message, fix, rationale, schema and references.
+pub fn section(library: &Library, id: &str, spec: &Spec) -> String {
     let ruleset = owner(library, id);
     let tags = spec
         .tags
         .iter()
         .map(|tag| match standard(tag) {
-            Some((s, _)) => format!("[`{tag}`]({})", relative(id, &format!("standards/{s}.md"))),
+            Some((s, _)) => format!("[`{tag}`](standards/{s}.md)"),
             None => format!("`{tag}`"),
         })
         .collect::<Vec<_>>()
         .join(", ");
     let mut rows = vec![
         ("ID", format!("`{id}`")),
-        (
-            "Ruleset",
-            format!(
-                "[{ruleset}]({})",
-                relative(id, &format!("rulesets/{ruleset}.md"))
-            ),
-        ),
+        ("Ruleset", format!("[{ruleset}](#{ruleset})")),
     ];
     rows.extend(
         spec.severity
@@ -138,7 +160,10 @@ pub fn page(library: &Library, id: &str, spec: &Spec) -> String {
         rows.push(("Tags", tags));
     }
     let mut blocks = vec![
-        format!("# {}", escaped(spec.title.as_deref().unwrap_or(id))),
+        format!(
+            "### {} {{#{id}}}",
+            escaped(spec.title.as_deref().unwrap_or(id))
+        ),
         ["| | |", "|---|---|"]
             .into_iter()
             .map(str::to_owned)
@@ -155,7 +180,7 @@ pub fn page(library: &Library, id: &str, spec: &Spec) -> String {
         ("Rationale", &spec.rationale),
     ] {
         if let Some(text) = text {
-            blocks.push(format!("## {label}\n\n{}", escaped(text)));
+            blocks.push(format!("#### {label}\n\n{}", escaped(text)));
         }
     }
     if let Some(expect) = &spec.expect {
@@ -165,9 +190,9 @@ pub fn page(library: &Library, id: &str, spec: &Spec) -> String {
         let links = spec
             .conflicts
             .iter()
-            .map(|c| format!("- [{c}]({})", relative(id, &format!("{c}.md"))));
+            .map(|c| format!("- [{c}]({})", href(library, c)));
         blocks.push(format!(
-            "## Conflicts\n\n{}",
+            "#### Conflicts\n\n{}",
             links.collect::<Vec<_>>().join("\n")
         ));
     }
@@ -182,9 +207,9 @@ pub fn page(library: &Library, id: &str, spec: &Spec) -> String {
         )
         .collect();
     if !references.is_empty() {
-        blocks.push(format!("## References\n\n{}", references.join("\n")));
+        blocks.push(format!("#### References\n\n{}", references.join("\n")));
     }
-    blocks.join("\n\n") + "\n"
+    blocks.join("\n\n")
 }
 
 /// The rules of each standard by control: `cis-ubuntu-26.04` → `5.1.20` → rule IDs.
@@ -212,46 +237,46 @@ fn write(dir: &Path, rel: &str, body: &str) -> Result<(), String> {
     std::fs::write(&path, body).map_err(|e| format!("can’t write {}: {e}", path.display()))
 }
 
-/// Every page under `dir`: one per rule, per ruleset and per standard, and `index.md`; returns how many.
+/// Every page under `dir`: one per topic, holding its rulesets’ rules one after another, one per standard, and `index.md`; returns how many.
 pub fn write_all(dir: &Path, library: &Library) -> Result<usize, String> {
     let mut count = 0;
-    for (id, spec) in &library.definitions {
-        write(dir, &format!("{id}.md"), &page(library, id, spec))?;
-        count += 1;
-    }
-    let mut index = format!(
-        "# Rules\n\nRules: {}\n\n## Rulesets\n\n",
-        library.definitions.len()
-    );
-    for (name, ruleset) in &library.rulesets {
-        let own: Vec<&String> = library
-            .owners
-            .iter()
-            .filter(|(_, o)| *o == name)
-            .map(|(id, _)| id)
-            .collect();
-        if own.is_empty() {
-            log::debug!("ruleset {name} defines no rule, so it gets no page");
+    let mut topics: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for name in library.rulesets.keys() {
+        if !library.owners.values().any(|o| o == name) {
+            log::debug!("ruleset {name} defines no rule, so no page lists it");
             continue;
         }
-        let description = ruleset
-            .description
-            .as_deref()
-            .map(escaped)
-            .unwrap_or_default();
-        let list = own.iter().map(|id| {
-            format!(
-                "- [{}]({})",
-                title(library, id),
-                relative("rulesets/", &format!("{id}.md"))
-            )
-        });
-        let body = format!(
-            "# {name}\n\n{description}\n\n{}\n",
-            list.collect::<Vec<_>>().join("\n")
-        );
-        write(dir, &format!("rulesets/{name}.md"), &body)?;
-        index += &format!("- [{name}](rulesets/{name}.md): {description}\n");
+        topics.entry(topic(library, name)).or_default().push(name);
+    }
+    let mut index = format!(
+        "# Rules\n\nRules: {}\n\n## Topics\n\n",
+        library.definitions.len()
+    );
+    for (topic, rulesets) in &topics {
+        let file = topic_file(topic);
+        let mut blocks = vec![format!("# {}", escaped(topic))];
+        for name in rulesets {
+            let description = library.rulesets[*name]
+                .description
+                .as_deref()
+                .map(escaped)
+                .unwrap_or_default();
+            blocks.push(format!("## {name} {{#{name}}}\n\n{description}"));
+            blocks.extend(
+                library
+                    .owners
+                    .iter()
+                    .filter(|(_, o)| o == name)
+                    .map(|(id, _)| section(library, id, &library.definitions[id])),
+            );
+        }
+        log::debug!("topic {topic} lists {} rulesets in {file}", rulesets.len());
+        write(dir, &file, &(blocks.join("\n\n") + "\n"))?;
+        let links: Vec<String> = rulesets
+            .iter()
+            .map(|name| format!("[{name}]({file}#{name})"))
+            .collect();
+        index += &format!("- [{}]({file}): {}\n", escaped(topic), links.join(", "));
         count += 1;
     }
     let standards = standards(library);
@@ -266,7 +291,7 @@ pub fn write_all(dir: &Path, library: &Library) -> Result<usize, String> {
                 format!(
                     "| {control} | [{}]({}) |",
                     title(library, id),
-                    relative("standards/", &format!("{id}.md"))
+                    relative("standards/", &href(library, id))
                 )
             })
         });

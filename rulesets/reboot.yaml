@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: updates that take effect only after a reboot
+topic: Packages and updates
 tags: [default]
 rules:
   reboot/required:

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Log files under /var/log, and the directory itself, more open or differently owned than the STIG asks
+topic: Logging and auditing
 tags: [default]
 rules:
   logs/file-mode:

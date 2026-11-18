@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Core dumps that hand the memory of a privileged program to the user who crashed it
+topic: Boot and kernel
 tags: [default]
 rules:
   coredump/suid-dumpable:

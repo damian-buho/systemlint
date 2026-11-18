@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Local accounts and groups that share an identity, hide behind a repeated name or open without a password
+topic: Accounts and authentication
 tags: [default]
 vars:
   password-max-days: {default: 365}

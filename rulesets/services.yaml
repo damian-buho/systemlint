@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Services written on this host that run as root with nothing confining them
+topic: Services
 tags: [default]
 when: {systemd.units: {minProperties: 1}}
 rules:

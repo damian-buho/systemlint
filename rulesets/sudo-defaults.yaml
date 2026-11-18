@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: sudo Defaults that let a grant run without a password or a terminal of its own, as classic sudo applies them to each account
+topic: Accounts and authentication
 tags: [default]
 when: {sudo.binary: {minProperties: 1}, sudo.version: {minProperties: 1}}
 vars:

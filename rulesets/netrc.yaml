@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: each user’s ~/.netrc, whose passwords are plain text, kept from other users
+topic: Files and permissions
 tags: [default]
 rules:
   netrc/readable:

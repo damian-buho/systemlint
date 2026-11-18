@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: An installed ufw firewall left switched off, or never started at boot
+topic: Network
 tags: [default]
 rules:
   ufw/not-installed:

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Rescue and emergency shells that open without asking for the root password
+topic: Boot and kernel
 tags: [default]
 when: {systemd.units: {minProperties: 1}}
 rules:

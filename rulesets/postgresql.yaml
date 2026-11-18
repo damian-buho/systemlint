@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: PostgreSQL configuration files other users may read
+topic: Services
 tags: [default]
 rules:
   postgresql/config-readable:

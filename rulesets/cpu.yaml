@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: CPU flaws the running kernel reports as unmitigated
+topic: Boot and kernel
 tags: [default]
 rules:
   cpu/vulnerable:

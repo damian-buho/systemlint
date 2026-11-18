@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Login banners and messages of the day that a user other than root can rewrite
+topic: Files and permissions
 tags: [default]
 rules:
   banner/discloses-system:

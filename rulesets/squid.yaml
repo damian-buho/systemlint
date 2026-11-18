@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: A Squid configuration other users may read
+topic: Services
 tags: [default]
 rules:
   squid/config-readable:

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: the system crontab and cron directories, kept from other users
+topic: Services
 tags: [default]
 when: {cron.binary: {minProperties: 1}}
 rules:

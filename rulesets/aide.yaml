@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: No file integrity checker on disk, or one that never runs
+topic: Logging and auditing
 tags: [default]
 rules:
   aide/not-installed:

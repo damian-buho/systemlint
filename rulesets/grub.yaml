@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: A GRUB menu anyone at the console may edit to boot a root shell
+topic: Boot and kernel
 tags: [default]
 when: {files.boot: {required: [/boot/grub/grub.cfg]}}
 rules:

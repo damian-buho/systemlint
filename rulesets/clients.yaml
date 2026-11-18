@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Clients of plain-text or legacy network services a CIS benchmark asks to remove
+topic: Services
 tags: [clients]
 rules:
   clients/nis:

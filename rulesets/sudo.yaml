@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: sudo grants that skip the password, and sudoers lines sudo skips as broken
+topic: Accounts and authentication
 tags: [default]
 rules:
   sudo/not-installed:

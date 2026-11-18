@@ -152,6 +152,9 @@ impl Spec {
 pub struct Ruleset {
     #[serde(default)]
     pub description: Option<String>,
+    /// The book page that lists this ruleset’s rules, `Logging and auditing`; none puts them under `Other`.
+    #[serde(default)]
+    pub topic: Option<String>,
     #[serde(default)]
     pub extends: Vec<String>,
     #[serde(default)]

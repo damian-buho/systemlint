@@ -277,6 +277,9 @@ shipped rulesets carry `tags: [default]` once rather than on each rule. A
 rule’s own `!tag` drops an inherited one, so `tags: ['!default']` keeps a
 rule a standard asks for out of the default run, and an override’s `!tag`
 does the same to the rule it overrides.
+`topic` names the page of `systemlint rules --format markdown` that lists the
+ruleset’s rules (`topic: Logging and auditing`); a ruleset without one is listed
+under `Other`.
 
 `when` takes the form a rule’s does, without `*`, since a ruleset has no
 subject. It guards every rule the ruleset defines, however it is selected, and

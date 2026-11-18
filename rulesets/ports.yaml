@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Sockets listening beyond the loopback for a service that answers anyone who reaches it
+topic: Services
 tags: [default]
 rules:
   ports/docker-api-plain:

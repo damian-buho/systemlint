@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Interfaces that let a remote sender choose how this host routes its traffic
+topic: Network
 tags: [default]
 rules:
   ip-routing/ipv4-redirects:

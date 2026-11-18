@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Kernel modules for rare filesystems, protocols and devices that load on demand
+topic: Boot and kernel
 tags: [default]
 rules:
   kernel-modules/cramfs:

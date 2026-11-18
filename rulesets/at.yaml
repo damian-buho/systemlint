@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Users the at command lets schedule one-off jobs
+topic: Services
 tags: [default, at]
 rules:
   at/no-allow:

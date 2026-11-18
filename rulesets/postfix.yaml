@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: A Postfix server that tells strangers which addresses exist
+topic: Services
 tags: [default]
 when: {postfix.binary: {minProperties: 1}}
 rules:

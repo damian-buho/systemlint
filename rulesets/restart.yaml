@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Running services that still execute code an upgrade replaced on disk
+topic: Packages and updates
 tags: [default]
 rules:
   restart/replaced-code:

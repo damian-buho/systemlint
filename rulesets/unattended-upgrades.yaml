@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: An installed unattended-upgrades that apt’s daily run never starts, or that keeps what it replaced
+topic: Packages and updates
 tags: [default]
 when: {unattended-upgrades.binary: {minProperties: 1}}
 rules:

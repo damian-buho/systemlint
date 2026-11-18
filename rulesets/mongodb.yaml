@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: A MongoDB server that any host reaching it may use without logging in
+topic: Services
 tags: [default]
 when: {mongodb.binary: {minProperties: 1}}
 rules:

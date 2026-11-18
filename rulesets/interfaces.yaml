@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Network interfaces put in promiscuous mode, which reads traffic meant for other hosts
+topic: Network
 tags: [default]
 rules:
   interfaces/promiscuous:

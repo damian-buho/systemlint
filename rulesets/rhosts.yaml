@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: host trust files an installed rsh or rlogin server honours
+topic: Accounts and authentication
 tags: [default]
 when: {rhosts.readers: {minProperties: 1}}
 rules:

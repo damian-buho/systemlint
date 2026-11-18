@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: NIS, TFTP, telnet, rsh and inetd services that serve the network in plain text with little or no authentication
+topic: Services
 tags: [default]
 rules:
   plaintext-servers/nis-unit:

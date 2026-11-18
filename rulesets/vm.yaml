@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Virtual memory settings that stall writers or run out of memory early
+topic: Boot and kernel
 vars:
   dirty-limit-gib: {default: 4}
   min-free-percent: {default: 5}

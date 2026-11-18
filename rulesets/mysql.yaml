@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: A MySQL or MariaDB data directory other users may enter
+topic: Services
 tags: [default]
 rules:
   mysql/datadir-open:

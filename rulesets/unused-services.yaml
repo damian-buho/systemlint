@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 description: Network services a CIS benchmark asks to leave off unless the host serves them on purpose
+topic: Services
 tags: [services]
 rules:
   unused-services/autofs:
