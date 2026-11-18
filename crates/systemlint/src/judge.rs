@@ -131,12 +131,13 @@ impl Check {
     }
 }
 
-/// One segment of a fact path: a key, `*` binding a subject, or `{path}`, the key another fact’s value names.
+/// One segment of a fact path: a key, `*` binding a subject, `{path}`, the key another fact’s value names, or `{~path}`, the key at its `*` whose globs match the subject.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Segment {
     Key(String),
     Star,
     From(Vec<Segment>),
+    Matching(Vec<Segment>),
 }
 
 /// `text` split on `separator` outside braces.
@@ -178,7 +179,10 @@ pub fn parse_path(text: &str) -> Result<Vec<Segment>, String> {
     raw.into_iter()
         .map(
             |s| match s.strip_prefix('{').and_then(|r| r.strip_suffix('}')) {
-                Some(inner) => parse_path(inner).map(Segment::From),
+                Some(inner) => match inner.strip_prefix('~') {
+                    Some(globs) => matching(globs),
+                    None => parse_path(inner).map(Segment::From),
+                },
                 None if s == "*" => Ok(Segment::Star),
                 None if s.contains(['{', '}']) => Err(format!(
                     "fact path {text:?} has an unbalanced brace in {s:?}"
@@ -187,6 +191,18 @@ pub fn parse_path(text: &str) -> Result<Vec<Segment>, String> {
             },
         )
         .collect()
+}
+
+/// A `{~path}` segment: `path` holds one `*`, the key it finds, and no join of its own.
+fn matching(text: &str) -> Result<Segment, String> {
+    let inner = parse_path(text)?;
+    let own = inner.iter().filter(|s| **s == Segment::Star).count();
+    match own == 1 && !joins(&inner) {
+        true => Ok(Segment::Matching(inner)),
+        false => Err(format!(
+            "fact path {{~{text}}} needs exactly one * and no {{path}} segment, it has {own} *"
+        )),
+    }
 }
 
 /// The `*`s a path binds: its own, or a `{path}` segment’s when that holds more.
@@ -201,7 +217,46 @@ fn stars(path: &[Segment]) -> usize {
 }
 
 fn joins(path: &[Segment]) -> bool {
-    path.iter().any(|s| matches!(s, Segment::From(_)))
+    path.iter()
+        .any(|s| matches!(s, Segment::From(_) | Segment::Matching(_)))
+}
+
+/// Whether the absolute glob `pattern` matches `path` component by component, as glob(3) without `**`.
+fn glob_matches(pattern: &str, path: &str) -> bool {
+    let (globs, names): (Vec<&str>, Vec<&str>) =
+        (pattern.split('/').collect(), path.split('/').collect());
+    globs.len() == names.len()
+        && globs
+            .iter()
+            .zip(&names)
+            .all(|(g, n)| crate::source::wildcard(g, n))
+}
+
+/// The first key at the `*` of `inner` whose string, or list of strings, holds a glob matching the subject, the last of `bound`.
+fn matched(document: &Value, inner: &[Segment], bound: &[String]) -> Result<String, Vec<String>> {
+    let star = inner
+        .iter()
+        .position(|s| *s == Segment::Star)
+        .unwrap_or(inner.len());
+    let at = concrete(&inner[..star], &[]);
+    let subject = bound.last().map_or("", String::as_str);
+    let keys = get(document, &at).and_then(children).unwrap_or_default();
+    let found = keys.into_iter().find(|key| {
+        let globs = get(document, &concrete(inner, std::slice::from_ref(key)));
+        let mut texts: Vec<&str> = globs.and_then(Value::as_str).into_iter().collect();
+        texts.extend(
+            globs
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str),
+        );
+        texts
+            .iter()
+            .any(|g| g.starts_with('/') && glob_matches(g, subject))
+    });
+    log::trace!("{} matches {subject} at {found:?}", at.join("."));
+    found.ok_or(at)
 }
 
 /// The keys of `path` on `bound`, each `{path}` replaced by the string or number at it; `Err` holds the keys of the first such fact that names no key.
@@ -227,6 +282,7 @@ fn resolve(
                     }
                 }
             }
+            Segment::Matching(inner) => matched(document, inner, bound)?,
         });
     }
     Ok(keys)
@@ -239,7 +295,9 @@ fn concrete(path: &[Segment], bound: &[String]) -> Vec<String> {
         .map(|s| match s {
             Segment::Key(k) => k.clone(),
             Segment::Star => keys.next().cloned().unwrap_or_else(|| "*".to_owned()),
-            Segment::From(_) => unreachable!("a binding path holds no {{path}} segment"),
+            Segment::From(_) | Segment::Matching(_) => {
+                unreachable!("a binding path holds no {{path}} segment")
+            }
         })
         .collect()
 }
@@ -287,7 +345,9 @@ fn walk(
     };
     let keys = match segment {
         Segment::Key(key) => child(value, key).map(|_| vec![key.clone()]),
-        Segment::From(_) => unreachable!("a binding path holds no {{path}} segment"),
+        Segment::From(_) | Segment::Matching(_) => {
+            unreachable!("a binding path holds no {{path}} segment")
+        }
         Segment::Star => children(value).map(|mut keys| {
             for owed in owed(document, at) {
                 if !keys.contains(&owed) {

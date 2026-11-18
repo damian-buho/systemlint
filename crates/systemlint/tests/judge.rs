@@ -837,6 +837,38 @@ fn suggest_fills_the_fact_bound_to_the_same_subject_or_its_fallback() {
     );
 }
 
+#[test]
+fn a_matching_segment_finds_the_first_key_whose_glob_names_the_subject() {
+    let rule = "fact: f.*\nexpect: {const: 0}\nsuggest: {fact: 'r.{~r.*.names}.by', otherwise: none}\nfix: use {suggested}\n";
+    let document = json!({
+        "f": {"/l/a.log": 1, "/l/.b.log": 1, "/l/d/c.log": 1, "/l/e": 1, "/l/x": 1},
+        "r": {
+            "1": {"names": ["x", "/l/*.log"], "by": "one"},
+            "2": {"names": ["/l/a.log", "/l/d/*.log"], "by": "two"},
+            "3": {"names": "/l/?", "by": "three"},
+        },
+    });
+    let fixes: std::collections::BTreeMap<String, String> = run(rule, &document)
+        .into_iter()
+        .map(|c| (c.subject_text(), c.fix.unwrap().text()))
+        .collect();
+    assert_eq!(fixes["/l/a.log"], "use “one”", "the first key wins");
+    assert_eq!(fixes["/l/.b.log"], "use none", "* skips a leading dot");
+    assert_eq!(fixes["/l/d/c.log"], "use “two”", "* stays in one component");
+    assert_eq!(fixes["/l/e"], "use “three”", "a string holds one glob");
+    assert_eq!(
+        fixes["/l/x"], "use “three”",
+        "a relative glob names nothing"
+    );
+    for (path, stars) in [("r.names", 0), ("r.*.*.names", 2)] {
+        let yaml = format!(
+            "fact: f.*\nexpect: {{const: 0}}\nsuggest: {{fact: 'r.{{~{path}}}.by', otherwise: x}}\n"
+        );
+        let error = compile("test/rule", spec(&yaml)).err().unwrap();
+        assert!(error.contains(&format!("it has {stars} *")), "{error}");
+    }
+}
+
 fn in_ruleset(yaml: &str, document: &Value) -> Result<Vec<Check>, String> {
     let library = systemlint::rules::Library::new(std::collections::BTreeMap::from([(
         "deb".to_owned(),

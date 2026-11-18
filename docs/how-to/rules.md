@@ -150,6 +150,21 @@ that differs from the joined one and is `unknown` while that one is absent;
 it takes no `facts`. The rule’s own `fact` binds the subjects, so it takes no
 `{path}`. In a YAML flow map, quote such a path, since braces end the map there.
 
+A `{~path}` segment joins the other way, by glob: `path` holds one `*`, and
+the segment reads the first key there whose string, or list of strings, holds
+an absolute glob matching the subject (the rule’s last `*`), as glob(3)
+matches, `*` and `?` within one component and never a leading dot:
+
+```yaml
+logs/file-mode:
+  fact: logs.files.*.mode
+  suggest: {fact: 'logrotate.{~logrotate.*.names}.path', otherwise: its logrotate stanza}
+  fix: set 0640 on the “create” line in {suggested}
+```
+
+A log file finds the logrotate stanza whose names match it, and no match is
+an absent fact, as for `{path}`.
+
 ### Outcomes
 
 Each rule answers one outcome per subject:
