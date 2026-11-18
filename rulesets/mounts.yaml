@@ -15,7 +15,10 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} is mounted without nosuid, so a set-user-ID file left in this directory every user writes runs with its owner’s rights"
-    fix: add “nosuid” to the mount’s options in “/etc/fstab” or its “.mount” unit, then run “mount -o remount,nosuid {subject}”
+    fix:
+      - 'Add “nosuid” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
+      - 'Apply it now, without a reboot:'
+      - run: 'mount -o remount,nosuid {subject}'
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
     references:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
@@ -29,7 +32,10 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} is mounted without nodev, so a device file unpacked into this directory every user writes opens the device it names"
-    fix: add “nodev” to the mount’s options in “/etc/fstab” or its “.mount” unit, then run “mount -o remount,nodev {subject}”
+    fix:
+      - 'Add “nodev” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
+      - 'Apply it now, without a reboot:'
+      - run: 'mount -o remount,nodev {subject}'
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
     references:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
@@ -43,7 +49,10 @@ rules:
     severity: warning
     score: 3.5
     message: "{subject} is mounted without noexec, so a program anyone drops into this directory every user writes runs straight from it"
-    fix: add “noexec” to the mount’s options in “/etc/fstab” or its “.mount” unit, then run “mount -o remount,noexec {subject}”
+    fix:
+      - 'Add “noexec” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
+      - 'Apply it now, without a reboot:'
+      - run: 'mount -o remount,noexec {subject}'
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
     references:
       - {title: Lynis FILE-6374, url: "https://cisofy.com/lynis/controls/FILE-6374/"}
@@ -98,7 +107,9 @@ rules:
     severity: info
     score: 1.0
     message: "/tmp is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
-    fix: give “/tmp” its own partition, logical volume or tmpfs, and mount it from “/etc/fstab” or a “.mount” unit
+    fix:
+      - 'Give “/tmp” its own partition, logical volume or tmpfs.'
+      - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/tmp”.'
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.1.1, '!default']
   mounts/separate-dev-shm:
@@ -109,7 +120,9 @@ rules:
     severity: info
     score: 1.0
     message: "/dev/shm is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
-    fix: give “/dev/shm” its own partition, logical volume or tmpfs, and mount it from “/etc/fstab” or a “.mount” unit
+    fix:
+      - 'Give “/dev/shm” its own partition, logical volume or tmpfs.'
+      - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/dev/shm”.'
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.2.1, '!default']
   mounts/separate-home:
@@ -120,7 +133,9 @@ rules:
     severity: info
     score: 1.0
     message: "/home is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
-    fix: give “/home” its own partition, logical volume or tmpfs, and mount it from “/etc/fstab” or a “.mount” unit
+    fix:
+      - 'Give “/home” its own partition, logical volume or tmpfs.'
+      - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/home”.'
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.3.1, '!default']
   mounts/separate-var:
@@ -131,7 +146,9 @@ rules:
     severity: info
     score: 1.0
     message: "/var is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
-    fix: give “/var” its own partition, logical volume or tmpfs, and mount it from “/etc/fstab” or a “.mount” unit
+    fix:
+      - 'Give “/var” its own partition, logical volume or tmpfs.'
+      - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/var”.'
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.4.1, '!default']
   mounts/separate-var-tmp:
@@ -142,7 +159,9 @@ rules:
     severity: info
     score: 1.0
     message: "/var/tmp is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
-    fix: give “/var/tmp” its own partition, logical volume or tmpfs, and mount it from “/etc/fstab” or a “.mount” unit
+    fix:
+      - 'Give “/var/tmp” its own partition, logical volume or tmpfs.'
+      - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/var/tmp”.'
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.5.1, '!default']
   mounts/separate-var-log:
@@ -153,7 +172,9 @@ rules:
     severity: info
     score: 1.0
     message: "/var/log is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
-    fix: give “/var/log” its own partition, logical volume or tmpfs, and mount it from “/etc/fstab” or a “.mount” unit
+    fix:
+      - 'Give “/var/log” its own partition, logical volume or tmpfs.'
+      - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/var/log”.'
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.6.1, '!default']
   mounts/separate-var-log-audit:
@@ -164,7 +185,9 @@ rules:
     severity: info
     score: 1.0
     message: "/var/log/audit is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
-    fix: give “/var/log/audit” its own partition, logical volume or tmpfs, and mount it from “/etc/fstab” or a “.mount” unit
+    fix:
+      - 'Give “/var/log/audit” its own partition, logical volume or tmpfs.'
+      - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/var/log/audit”.'
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.7.1, '!default']
   mounts/partition-nodev:
@@ -176,7 +199,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is mounted without nodev, so a device file on this data mount, unpacked from an archive or an image, gives raw access to the disk or memory it names"
-    fix: add “nodev” to the mount’s options in “/etc/fstab” or its “.mount” unit, then run “mount -o remount,nodev {subject}”
+    fix:
+      - 'Add “nodev” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
+      - 'Apply it now, without a reboot:'
+      - run: 'mount -o remount,nodev {subject}'
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.3.2, cis-ubuntu-26.04:1.1.2.4.2, cis-ubuntu-26.04:1.1.2.6.2, cis-ubuntu-26.04:1.1.2.7.2]
   mounts/partition-nosuid:
@@ -188,7 +214,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is mounted without nosuid, so a set-user-ID program on this data mount runs as its owner, root included, though no package installed it"
-    fix: add “nosuid” to the mount’s options in “/etc/fstab” or its “.mount” unit, then run “mount -o remount,nosuid {subject}”
+    fix:
+      - 'Add “nosuid” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
+      - 'Apply it now, without a reboot:'
+      - run: 'mount -o remount,nosuid {subject}'
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.3.3, cis-ubuntu-26.04:1.1.2.4.3, cis-ubuntu-26.04:1.1.2.6.3, cis-ubuntu-26.04:1.1.2.7.3]
   mounts/partition-noexec:
@@ -200,7 +229,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is mounted without noexec; the benchmark asks it on this data mount"
-    fix: add “noexec” to the mount’s options in “/etc/fstab” or its “.mount” unit, then run “mount -o remount,noexec {subject}”
+    fix:
+      - 'Add “noexec” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
+      - 'Apply it now, without a reboot:'
+      - run: 'mount -o remount,noexec {subject}'
     docs: https://man7.org/linux/man-pages/man8/mount.8.html
     tags: [mounts, cis-ubuntu-26.04:1.1.2.6.4, cis-ubuntu-26.04:1.1.2.7.4, '!default']
   mounts/proc-hidepid:
@@ -211,7 +243,10 @@ rules:
     severity: info
     score: 1.0
     message: "/proc is mounted without hidepid, so every user reads every other user’s processes and their command lines, a password passed as an argument included"
-    fix: add “hidepid=invisible,gid=<a group polkit and your monitoring run in>” to the options of “/proc” in “/etc/fstab”, then run “mount -o remount /proc”
+    fix:
+      - 'Add “hidepid=invisible,gid=<group>” to the options of “/proc” in “/etc/fstab”, where “<group>” is a group polkit and your monitoring run in.'
+      - 'Apply it now, without a reboot:'
+      - run: 'mount -o remount /proc'
     docs: https://docs.kernel.org/filesystems/proc.html#mount-options
     references:
       - {title: Lynis FILE-6344, url: "https://cisofy.com/lynis/controls/FILE-6344/"}

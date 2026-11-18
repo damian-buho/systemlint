@@ -70,7 +70,9 @@ rules:
     severity: info
     score: 2.0
     message: "pwquality.conf sets {field} to {got}, a composition rule, which steers people to predictable patterns such as a capital first and a digit and a symbol last"
-    fix: remove “{field}” from “/etc/security/pwquality.conf” and its “conf.d” files, and rely on “minlen” and “dictcheck”
+    fix:
+      - 'Remove “{field}” from “/etc/security/pwquality.conf” and from every file in “/etc/security/pwquality.conf.d/”.'
+      - 'Leave password strength to “minlen” and “dictcheck”.'
     docs: https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver
     references:
       - {title: NIST SP 800-63B-4 3.1.1.2, url: "https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver"}
@@ -180,7 +182,9 @@ rules:
     severity: warning
     score: 4.0
     message: "pwquality.conf or the pam_pwquality line of /etc/pam.d/common-password sets dictcheck to 0, so a new password that is a dictionary word is accepted"
-    fix: remove “dictcheck = 0” from “/etc/security/pwquality.conf” and its “conf.d” files, and “dictcheck=0” from the “pam_pwquality” line
+    fix:
+      - 'Remove “dictcheck = 0” from “/etc/security/pwquality.conf” and from every file in “/etc/security/pwquality.conf.d/”.'
+      - 'Remove “dictcheck=0” from the “pam_pwquality” line under “/etc/pam.d/”.'
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     references:
       - {title: NIST SP 800-63B-4 3.1.1.2, url: "https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver"}
@@ -197,7 +201,9 @@ rules:
     severity: warning
     score: 4.0
     message: "pwquality.conf or the pam_pwquality line of /etc/pam.d/common-password sets enforcing to 0, so pam_pwquality prints its objection and accepts the weak password anyway"
-    fix: remove “enforcing = 0” from “/etc/security/pwquality.conf” and its “conf.d” files, and “enforcing=0” from the “pam_pwquality” line
+    fix:
+      - 'Remove “enforcing = 0” from “/etc/security/pwquality.conf” and from every file in “/etc/security/pwquality.conf.d/”.'
+      - 'Remove “enforcing=0” from the “pam_pwquality” line under “/etc/pam.d/”.'
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.7]
   pwquality/root:

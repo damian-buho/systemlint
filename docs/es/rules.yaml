@@ -2099,7 +2099,7 @@ org:
               - default
               - kernel
               - cis-ubuntu-26.04:3.2.1
-            title: atm module loads on demand
+            title: Kernel module “atm” loads automatically
           - id: kernel-modules/atm-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2107,7 +2107,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:3.2.1
-            title: atm module is not blacklisted
+            title: Kernel module “atm” is not blacklisted
           - id: kernel-modules/atm-loaded
             ruleset: kernel-modules
             score: 5.0
@@ -2116,7 +2116,7 @@ org:
               - default
               - kernel
               - cis-ubuntu-26.04:3.2.1
-            title: atm module is loaded
+            title: Kernel module “atm” is loaded
           - id: kernel-modules/builtin
             ruleset: kernel-modules
             score: 3.5
@@ -2124,7 +2124,7 @@ org:
             tags:
               - default
               - kernel
-            title: A module is built into the kernel
+            title: A kernel builds a module in, beyond modprobe.d’s reach
           - id: kernel-modules/can
             ruleset: kernel-modules
             score: 5.0
@@ -2133,7 +2133,7 @@ org:
               - default
               - kernel
               - cis-ubuntu-26.04:3.2.2
-            title: can module loads on demand
+            title: Kernel module “can” loads automatically
           - id: kernel-modules/can-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2141,7 +2141,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:3.2.2
-            title: can module is not blacklisted
+            title: Kernel module “can” is not blacklisted
           - id: kernel-modules/can-loaded
             ruleset: kernel-modules
             score: 5.0
@@ -2150,7 +2150,7 @@ org:
               - default
               - kernel
               - cis-ubuntu-26.04:3.2.2
-            title: can module is loaded
+            title: Kernel module “can” is loaded
           - id: kernel-modules/cramfs
             ruleset: kernel-modules
             score: 4.0
@@ -2161,7 +2161,7 @@ org:
               - cis-ubuntu-26.04:1.1.1.1
               - dev-sec-linux-baseline:os-10
               - lynis
-            title: cramfs module loads on demand
+            title: Kernel module “cramfs” loads automatically
           - id: kernel-modules/cramfs-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2169,7 +2169,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.1
-            title: cramfs module is not blacklisted
+            title: Kernel module “cramfs” is not blacklisted
           - id: kernel-modules/cramfs-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2179,7 +2179,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.1
               - lynis
-            title: cramfs module is loaded
+            title: Kernel module “cramfs” is loaded
           - id: kernel-modules/dccp
             ruleset: kernel-modules
             score: 5.0
@@ -2189,7 +2189,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:3.2.3
               - lynis
-            title: dccp module loads on demand
+            title: Kernel module “dccp” loads automatically
           - id: kernel-modules/dccp-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2197,7 +2197,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:3.2.3
-            title: dccp module is not blacklisted
+            title: Kernel module “dccp” is not blacklisted
           - id: kernel-modules/dccp-loaded
             ruleset: kernel-modules
             score: 5.0
@@ -2207,7 +2207,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:3.2.3
               - lynis
-            title: dccp module is loaded
+            title: Kernel module “dccp” is loaded
           - id: kernel-modules/firewire-core
             ruleset: kernel-modules
             score: 4.0
@@ -2217,7 +2217,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.9
               - lynis
-            title: firewire-core module loads on demand
+            title: Kernel module “firewire-core” loads automatically
           - id: kernel-modules/firewire-core-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2226,7 +2226,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.9
               - lynis
-            title: firewire-core module is not blacklisted
+            title: Kernel module “firewire-core” is not blacklisted
           - id: kernel-modules/firewire-core-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2235,7 +2235,7 @@ org:
               - default
               - kernel
               - cis-ubuntu-26.04:1.1.1.9
-            title: firewire-core module is loaded
+            title: Kernel module “firewire-core” is loaded
           - id: kernel-modules/freevxfs
             ruleset: kernel-modules
             score: 4.0
@@ -2246,7 +2246,7 @@ org:
               - cis-ubuntu-26.04:1.1.1.2
               - dev-sec-linux-baseline:os-10
               - lynis
-            title: freevxfs module loads on demand
+            title: Kernel module “freevxfs” loads automatically
           - id: kernel-modules/freevxfs-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2254,7 +2254,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.2
-            title: freevxfs module is not blacklisted
+            title: Kernel module “freevxfs” is not blacklisted
           - id: kernel-modules/freevxfs-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2264,7 +2264,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.2
               - lynis
-            title: freevxfs module is loaded
+            title: Kernel module “freevxfs” is loaded
           - id: kernel-modules/hfs
             ruleset: kernel-modules
             score: 4.0
@@ -2275,7 +2275,7 @@ org:
               - cis-ubuntu-26.04:1.1.1.3
               - dev-sec-linux-baseline:os-10
               - lynis
-            title: hfs module loads on demand
+            title: Kernel module “hfs” loads automatically
           - id: kernel-modules/hfs-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2283,7 +2283,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.3
-            title: hfs module is not blacklisted
+            title: Kernel module “hfs” is not blacklisted
           - id: kernel-modules/hfs-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2293,7 +2293,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.3
               - lynis
-            title: hfs module is loaded
+            title: Kernel module “hfs” is loaded
           - id: kernel-modules/hfsplus
             ruleset: kernel-modules
             score: 4.0
@@ -2304,7 +2304,7 @@ org:
               - cis-ubuntu-26.04:1.1.1.4
               - dev-sec-linux-baseline:os-10
               - lynis
-            title: hfsplus module loads on demand
+            title: Kernel module “hfsplus” loads automatically
           - id: kernel-modules/hfsplus-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2312,7 +2312,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.4
-            title: hfsplus module is not blacklisted
+            title: Kernel module “hfsplus” is not blacklisted
           - id: kernel-modules/hfsplus-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2322,7 +2322,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.4
               - lynis
-            title: hfsplus module is loaded
+            title: Kernel module “hfsplus” is loaded
           - id: kernel-modules/jffs2
             ruleset: kernel-modules
             score: 4.0
@@ -2333,7 +2333,7 @@ org:
               - cis-ubuntu-26.04:1.1.1.5
               - dev-sec-linux-baseline:os-10
               - lynis
-            title: jffs2 module loads on demand
+            title: Kernel module “jffs2” loads automatically
           - id: kernel-modules/jffs2-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2341,7 +2341,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.5
-            title: jffs2 module is not blacklisted
+            title: Kernel module “jffs2” is not blacklisted
           - id: kernel-modules/jffs2-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2351,7 +2351,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.5
               - lynis
-            title: jffs2 module is loaded
+            title: Kernel module “jffs2” is loaded
           - id: kernel-modules/overlay
             ruleset: kernel-modules
             score: 4.0
@@ -2359,7 +2359,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.6
-            title: overlay module loads on demand
+            title: Kernel module “overlay” loads automatically
           - id: kernel-modules/overlay-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2367,7 +2367,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.6
-            title: overlay module is not blacklisted
+            title: Kernel module “overlay” is not blacklisted
           - id: kernel-modules/overlay-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2375,7 +2375,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.6
-            title: overlay module is loaded
+            title: Kernel module “overlay” is loaded
           - id: kernel-modules/rds
             ruleset: kernel-modules
             score: 5.0
@@ -2385,7 +2385,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:3.2.4
               - lynis
-            title: rds module loads on demand
+            title: Kernel module “rds” loads automatically
           - id: kernel-modules/rds-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2393,7 +2393,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:3.2.4
-            title: rds module is not blacklisted
+            title: Kernel module “rds” is not blacklisted
           - id: kernel-modules/rds-loaded
             ruleset: kernel-modules
             score: 5.0
@@ -2403,7 +2403,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:3.2.4
               - lynis
-            title: rds module is loaded
+            title: Kernel module “rds” is loaded
           - id: kernel-modules/sctp
             ruleset: kernel-modules
             score: 5.0
@@ -2413,7 +2413,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:3.2.5
               - lynis
-            title: sctp module loads on demand
+            title: Kernel module “sctp” loads automatically
           - id: kernel-modules/sctp-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2421,7 +2421,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:3.2.5
-            title: sctp module is not blacklisted
+            title: Kernel module “sctp” is not blacklisted
           - id: kernel-modules/sctp-loaded
             ruleset: kernel-modules
             score: 5.0
@@ -2431,7 +2431,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:3.2.5
               - lynis
-            title: sctp module is loaded
+            title: Kernel module “sctp” is loaded
           - id: kernel-modules/squashfs
             ruleset: kernel-modules
             score: 4.0
@@ -2441,7 +2441,7 @@ org:
               - cis-ubuntu-26.04:1.1.1.7
               - dev-sec-linux-baseline:os-10
               - lynis
-            title: squashfs module loads on demand
+            title: Kernel module “squashfs” loads automatically
           - id: kernel-modules/squashfs-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2449,7 +2449,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.7
-            title: squashfs module is not blacklisted
+            title: Kernel module “squashfs” is not blacklisted
           - id: kernel-modules/squashfs-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2458,7 +2458,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.7
               - lynis
-            title: squashfs module is loaded
+            title: Kernel module “squashfs” is loaded
           - id: kernel-modules/tipc
             ruleset: kernel-modules
             score: 5.0
@@ -2468,7 +2468,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:3.2.6
               - lynis
-            title: tipc module loads on demand
+            title: Kernel module “tipc” loads automatically
           - id: kernel-modules/tipc-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2476,7 +2476,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:3.2.6
-            title: tipc module is not blacklisted
+            title: Kernel module “tipc” is not blacklisted
           - id: kernel-modules/tipc-loaded
             ruleset: kernel-modules
             score: 5.0
@@ -2486,7 +2486,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:3.2.6
               - lynis
-            title: tipc module is loaded
+            title: Kernel module “tipc” is loaded
           - id: kernel-modules/udf
             ruleset: kernel-modules
             score: 4.0
@@ -2497,7 +2497,7 @@ org:
               - cis-ubuntu-26.04:1.1.1.8
               - dev-sec-linux-baseline:os-10
               - lynis
-            title: udf module loads on demand
+            title: Kernel module “udf” loads automatically
           - id: kernel-modules/udf-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2505,7 +2505,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.8
-            title: udf module is not blacklisted
+            title: Kernel module “udf” is not blacklisted
           - id: kernel-modules/udf-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2515,7 +2515,7 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.8
               - lynis
-            title: udf module is loaded
+            title: Kernel module “udf” is loaded
           - id: kernel-modules/usb-storage
             ruleset: kernel-modules
             score: 4.0
@@ -2525,7 +2525,7 @@ org:
               - cis-ubuntu-26.04:1.1.1.10
               - stig-ubuntu-26.04:UBTU-24-300039
               - lynis
-            title: usb-storage module loads on demand
+            title: Kernel module “usb-storage” loads automatically
           - id: kernel-modules/usb-storage-blacklist
             ruleset: kernel-modules
             score: 2.0
@@ -2535,7 +2535,7 @@ org:
               - cis-ubuntu-26.04:1.1.1.10
               - stig-ubuntu-26.04:UBTU-24-300039
               - lynis
-            title: usb-storage module is not blacklisted
+            title: Kernel module “usb-storage” is not blacklisted
           - id: kernel-modules/usb-storage-loaded
             ruleset: kernel-modules
             score: 4.0
@@ -2543,7 +2543,7 @@ org:
             tags:
               - kernel
               - cis-ubuntu-26.04:1.1.1.10
-            title: usb-storage module is loaded
+            title: Kernel module “usb-storage” is loaded
           - id: kernel/apparmor-unconfined
             ruleset: kernel
             score: 5.0

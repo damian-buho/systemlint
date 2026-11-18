@@ -20,7 +20,10 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is enabled or running, so any host that reaches its port can write entries into this host’s journal, flooding the disk or forging records"
-    fix: run “systemctl mask --now {subject}”, unless this host collects other hosts’ logs, and then limit who reaches its port
+    fix:
+      - 'Unless this host collects other hosts’ logs, stop the service and keep it from starting:'
+      - run: 'systemctl mask --now {subject}'
+      - 'If it does collect them, let only those hosts reach its port in the firewall.'
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journal-remote.service.8.html
     tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.2]
   journald/inactive:
@@ -32,7 +35,12 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is {got}, so programs that log to the journal or to syslog lose what they write"
-    fix: run “systemctl unmask {subject}”, then “systemctl start {subject}”, and read “journalctl --boot” for why it stopped
+    fix:
+      - 'Let the service start again, and start it:'
+      - run: 'systemctl unmask {subject}'
+      - run: 'systemctl start {subject}'
+      - 'Read why it stopped:'
+      - run: 'journalctl --boot --unit {subject}'
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
     tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.1]
   journald/no-syslog-forward:
@@ -49,7 +57,11 @@ rules:
     severity: info
     score: 1.0
     message: "journald.conf and its drop-ins leave ForwardToSyslog off while rsyslog is installed; the benchmark asks rsyslog to receive every entry"
-    fix: set “ForwardToSyslog=yes” under “[Journal]” in “/etc/systemd/journald.conf.d/60-journald.conf”, then run “systemctl restart systemd-journald.service”
+    fix:
+      - 'Write these lines to “/etc/systemd/journald.conf.d/60-journald.conf”:'
+      - lines: ['[Journal]', 'ForwardToSyslog=yes']
+      - 'Restart journald:'
+      - run: 'systemctl restart systemd-journald.service'
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
     tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.3, '!default']
   journald/storage-not-persistent:
@@ -62,7 +74,11 @@ rules:
     severity: info
     score: 1.0
     message: "journald.conf and its drop-ins do not set Storage=persistent, so the journal stays in memory, lost at reboot, unless /var/log/journal happens to exist"
-    fix: set “Storage=persistent” under “[Journal]” in “/etc/systemd/journald.conf.d/60-journald.conf”, then run “systemctl restart systemd-journald.service”
+    fix:
+      - 'Write these lines to “/etc/systemd/journald.conf.d/60-journald.conf”:'
+      - lines: ['[Journal]', 'Storage=persistent']
+      - 'Restart journald:'
+      - run: 'systemctl restart systemd-journald.service'
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
     tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.6]
   journald/compress-off:
@@ -76,7 +92,10 @@ rules:
     severity: info
     score: 1.0
     message: "journald.conf or a drop-in turns Compress off, so large journal entries fill the disk sooner"
-    fix: remove the “Compress” line under “[Journal]”, or set “Compress=yes”, then run “systemctl restart systemd-journald.service”
+    fix:
+      - 'Remove the “Compress” line under “[Journal]” in the journald files, or set “Compress=yes” there.'
+      - 'Restart journald:'
+      - run: 'systemctl restart systemd-journald.service'
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
     tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.7]
   journald/stig-directory-mode:
@@ -131,7 +150,11 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the STIG asks 0740, so only root and its group run it"
-    fix: run “chmod 0740” on the file, and keep it so across package upgrades with “dpkg-statoverride”
+    fix:
+      - 'Let only root and its group run it:'
+      - run: 'chmod 0740 {subject}'
+      - 'Keep that mode across package upgrades:'
+      - run: 'dpkg-statoverride --update --add root root 0740 {subject}'
     remedy: {chmod: "ugo-st,g-wx,o-rwx"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/journalctl.1.html
     tags: [journald, logging, stig-ubuntu-26.04:UBTU-24-700030, '!default']
