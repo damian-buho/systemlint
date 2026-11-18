@@ -30,7 +30,7 @@ facts yet.
 | `audit-rules-loaded` | `/usr/sbin/auditctl -l` on a live host, as root | `options` | `audit.loaded./usr/sbin/auditctl` |
 | `auditd-binary` | `auditd` in `/usr/local/sbin`, `/usr/sbin`, `/sbin` and their `bin` siblings | `stat` | `auditd.binary` |
 | `kernel-cmdline` | `/proc/cmdline` on a live host | `kv` | `kernel.cmdline` |
-| `apparmor-binary` | `apparmor_parser` in `/usr/local/sbin`, `/usr/sbin`, `/sbin` and their `bin` siblings | `stat` | `apparmor.binary` |
+| `apparmor-binary` | `apparmor_parser` in `/usr/local/sbin`, `/usr/sbin`, `/sbin` and their `bin` siblings, on the host only (a container takes the profile its runtime loads from the host) | `stat` | `apparmor.binary` |
 | `apparmor-profiles` | `/sys/kernel/security/apparmor/profiles` on a live host, as root | `match` | `apparmor.profiles.<profile>` |
 | `aide-binary` | `aide` in `/usr/local/bin`, `/usr/bin`, `/bin` and their `sbin` siblings | `stat` | `aide.binary` |
 | `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
