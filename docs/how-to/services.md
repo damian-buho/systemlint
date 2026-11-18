@@ -698,13 +698,19 @@ The `journald-files` collector stats both journal trees (`**`) into
 `journald.journalctl`. Ubuntu ships the directories 2755 and journalctl 0755,
 so a stock host fails those rules.
 
-The `logs` ruleset, out of `default`, judges `/var/log` as the STIG asks.
-The `logs-files` collector (privileged, since `/var/log/private` is 0700) stats
-`/var/log` and everything below it into `logs.files`:
+The `logs` ruleset judges `/var/log`, and what logrotate creates in it:
+`logs/file-mode` and `logs/rotation-mode` by default, the rest only under
+their standard’s tags. The `logs-files` collector (privileged, since
+`/var/log/private` is 0700) stats `/var/log` and everything below it into
+`logs.files`. The `logrotate` collector reads `/etc/logrotate.conf` and
+`/etc/logrotate.d/*` through `words` `blocks` into `logrotate`, the
+directives outside any stanza keyed by the file’s path, each stanza by
+`path:line`, with its `names` and `directives`:
 
 | Rule | Severity | Fails when |
 | --- | --- | --- |
-| `logs/file-mode` | info | a log file but `wtmp`, `btmp` and `lastlog` is more open than 0640 (STIG only) |
+| `logs/file-mode` | info | a log file but `wtmp`, `btmp` and `lastlog` is more open than 0640 |
+| `logs/rotation-mode` | info | a `create` mode, in a stanza or outside one, is more open than 0640, so a rotated log reopens to other users; a stanza for `wtmp`, `btmp` or `lastlog`, one with `copytruncate` or `nocreate`, and a file logrotate skips by its extension (`.dpkg-old`, `~`) are left out |
 | `logs/directory-mode` | info | `/var/log` is more open than 0755, Ubuntu’s stock 0775 included (STIG only) |
 | `logs/directory-owner` | info | `/var/log` is not owned by root (STIG only) |
 | `logs/directory-group` | info | `/var/log` is not in group `syslog` (STIG only) |

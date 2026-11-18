@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: logrotate
+read:
+  files: [/etc/logrotate.conf, /etc/logrotate.d/*]
+parse:
+  plugin: formats
+  op: words
+  with:
+    blocks: {scripts: {postrotate: endscript, prerotate: endscript, firstaction: endscript, lastaction: endscript, preremove: endscript}}
+    repeat: last
+into: logrotate

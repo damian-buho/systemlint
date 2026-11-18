@@ -15,10 +15,32 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}, beyond 0640, so other users read what services log, addresses, failed logins and leaked tokens included"
-    fix: run “chmod 0640” on the file, and set the mode its writer creates it with (rsyslog “$FileCreateMode”, logrotate “create”)
+    fix:
+      - 'Close the file to other users now:'
+      - run: chmod 0640 {subject}
+      - 'Then set 0640 where the file is created, or it comes back at the next rotation: the “create” line of its logrotate stanza, or rsyslog’s “$FileCreateMode”.'
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
     tags: [logging, stig-ubuntu-26.04:UBTU-24-700010, stig-ubuntu-26.04:UBTU-24-700150]
+  logs/rotation-mode:
+    title: Logrotate creates new logs more open than 0640
+    fact: logrotate.*.directives
+    keys: {not: {pattern: "(~|,v|\\.(cfsaved|disabled|dpkg-(bak|del|dist|new|old)|rpm(new|orig|save)|swp|ucf-(dist|new|old)))(:[0-9]+)?$"}}
+    when:
+      logrotate.*.directives:
+        required: [create]
+        not: {anyOf: [{required: [copytruncate]}, {required: [nocreate]}]}
+        properties: {create: {minItems: 1, prefixItems: [{anyOf: [{type: integer}, {type: string, pattern: "^[0-7]{3,4}$"}]}]}}
+      logrotate.*.names: {not: {contains: {type: string, pattern: "/(lastlog|[bw]tmp)$"}}}
+    expect: {properties: {create: {prefixItems: [{anyOf: [{enum: [0, 40, 200, 240, 400, 440, 600, 640]}, {type: string, pattern: "^0?[0246][04]0$"}]}]}}}
+    severity: info
+    score: 1.0
+    message: "{subject} has logrotate create each new log with a mode beyond 0640, so every rotation opens the log to other users again, whatever “chmod” set"
+    fix:
+      - 'Set the mode on its “create” line to 0640, keeping its owner and group, such as:'
+      - lines: ["create 0640 root adm"]
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
+    tags: [logging]
   logs/directory-mode:
     title: /var/log is more open than 0755
     fact: logs.files.*.mode
@@ -85,7 +107,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0664 or stricter for wtmp, btmp and lastlog"
-    fix: run “chmod 0664” on the file, and set its mode in the “create” line of “/etc/logrotate.d/wtmp” or “/etc/logrotate.d/btmp”
+    fix:
+      - 'Close the file to other users now:'
+      - run: chmod 0664 {subject}
+      - Then set 0664 or stricter on the “create” line of “/etc/logrotate.d/wtmp” or “/etc/logrotate.d/btmp”, or it comes back at the next rotation.
     remedy: {chmod: "ugo-xst,o-w"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
     tags: [logging, cis-ubuntu-26.04:6.1.3.1, '!default']
@@ -124,7 +149,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter for every log it names no other mode for"
-    fix: run “chmod 0640” on the file, and set the mode its writer creates it with (rsyslog “$FileCreateMode”, logrotate “create”)
+    fix:
+      - 'Close the file to other users now:'
+      - run: chmod 0640 {subject}
+      - 'Then set 0640 where the file is created, or it comes back at the next rotation: the “create” line of its logrotate stanza, or rsyslog’s “$FileCreateMode”.'
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
     tags: [logging, cis-ubuntu-26.04:6.1.3.1, '!default']
