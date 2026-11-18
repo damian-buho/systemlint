@@ -226,8 +226,8 @@ rules:
     score: 2.0
     message: "APT::Install-Recommends or APT::Install-Suggests is on, so every install pulls in packages nobody asked for, each one more to patch"
     fix:
-      - 'Write these lines to a file under “/etc/apt/apt.conf.d/”, such as “/etc/apt/apt.conf.d/60-weak-dependencies.conf”:'
+      - 'Write these lines to “/etc/apt/apt.conf.d/60-systemlint-skip-recommends-and-suggests.conf”:'
       - lines: ['APT::Install-Recommends "0";', 'APT::Install-Suggests "0";']
-    remedy: {drop-in: {into: apt, name: weak-dependencies, lines: ['APT::Install-Recommends "0";', 'APT::Install-Suggests "0";']}}
+    remedy: {drop-in: {into: apt, name: skip-recommends-and-suggests, lines: ['APT::Install-Recommends "0";', 'APT::Install-Suggests "0";']}}
     docs: https://manpages.debian.org/unstable/apt/apt.conf.5.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.2]

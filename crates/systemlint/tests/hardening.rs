@@ -1560,6 +1560,37 @@ fn every_shipped_rule_states_its_rationale() {
 }
 
 #[test]
+fn every_drop_in_fix_names_the_file_its_remedy_writes() {
+    for entry in
+        std::fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets")).unwrap()
+    {
+        let path = entry.unwrap().path();
+        let ruleset: Value =
+            systemlint::yaml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for (id, rule) in ruleset["rules"].as_object().unwrap() {
+            let Ok(systemlint::fix::Remedy::DropIn(drop)) =
+                serde_json::from_value(rule["remedy"].clone())
+            else {
+                continue;
+            };
+            let fix = rule["fix"].to_string();
+            assert!(
+                fix.contains(&format!("“{}”", drop.path())),
+                "{id} in {}: its fix never names {}",
+                path.display(),
+                drop.path()
+            );
+            for line in &drop.lines {
+                assert!(
+                    fix.contains(&serde_json::to_string(line).unwrap()),
+                    "{id}: {line}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn every_shipped_rule_with_an_expression_words_its_own_message() {
     for entry in
         std::fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets")).unwrap()
