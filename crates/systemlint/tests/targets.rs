@@ -355,6 +355,24 @@ fn human_prints_a_subject_shared_by_containers_once_beside_the_ones_they_differ_
 }
 
 #[test]
+fn human_offers_systemlint_fix_after_the_fix_steps_it_makes() {
+    let yaml = "fact: v\nexpect: {const: 0}\nfix:\n  - 'Add this line:'\n  - lines: ['blacklist atm']\nremedy: {drop-in: {into: modprobe, name: atm, lines: ['blacklist atm']}}\n";
+    let rules = [compile("x/drop", systemlint::yaml::from_str(yaml).unwrap()).unwrap()];
+    let host = json!({"v": 1});
+    let text = lint_human_targets(
+        &host,
+        &lint(&host, &rules, &[], "2026-11-18"),
+        0,
+        &[],
+        (true, false, false),
+    );
+    assert!(
+        text.contains("Fix:\n  1. Add this line:\n       blacklist atm\nOr let systemlint make the change:\n  systemlint fix --tags x/drop\n"),
+        "{text}"
+    );
+}
+
+#[test]
 fn human_keeps_each_targets_closing_text_with_its_own_subjects() {
     let compiled =
         |id: &str, yaml: &str| compile(id, systemlint::yaml::from_str(yaml).unwrap()).unwrap();

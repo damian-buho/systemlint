@@ -1137,10 +1137,17 @@ pub fn lint_human_targets(
         let holding = joined.rests.iter().map(|(_, k)| k.len()).sum::<usize>();
         let mut told = vec![false; joined.ends.len()];
         let within = |held: &[&str], keys: &[&str]| held.iter().all(|k| keys.contains(k));
+        let trailing = joined.ends.iter().any(|(end, held)| {
+            !end.is_empty() && (held.len() >= holding || !sets.iter().any(|(keys, _)| keys == held))
+        });
+        log::debug!("{head}: closing text after every group {trailing}");
         let last: Vec<Option<usize>> = joined
             .tails
             .iter()
-            .map(|(_, held)| sets.iter().rposition(|(keys, _)| within(held, keys)))
+            .map(|(_, held)| match trailing {
+                true => None,
+                false => sets.iter().rposition(|(keys, _)| within(held, keys)),
+            })
             .collect();
         for (n, (keys, items)) in sets.iter().enumerate() {
             if n > 0 {
