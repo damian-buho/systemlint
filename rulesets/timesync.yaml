@@ -40,7 +40,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is not both enabled and running, and no other time daemon is installed, so the clock drifts and log times stop matching other hosts’"
-    fix: run “systemctl unmask {subject}”, then “systemctl enable --now {subject}”
+    fix:
+      - 'Let the service start again:'
+      - run: systemctl unmask {subject}
+      - 'Then enable and start it:'
+      - run: systemctl enable --now {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
     tags: [timesync, cis-ubuntu-26.04:2.3.2.2]
   timesync/chrony-no-server:
@@ -109,7 +113,11 @@ rules:
     severity: info
     score: 1.0
     message: "chrony.conf has no makestep 1 -1 line, so chrony corrects a clock off by more than a second slowly, leaving log times wrong meanwhile"
-    fix: add “makestep 1 -1” to “/etc/chrony/chrony.conf”, then run “systemctl restart chrony.service”
+    fix:
+      - 'Add this line to “/etc/chrony/chrony.conf”:'
+      - lines: ["makestep 1 -1"]
+      - 'Then restart the service:'
+      - run: systemctl restart chrony.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-600180, '!default']
   timesync/stig-chrony-maxpoll:
@@ -120,7 +128,10 @@ rules:
     severity: info
     score: 1.0
     message: "the {subject} line in chrony’s configuration sets maxpoll above ${chrony-maxpoll-max}, so chrony may wait more than 2 to the power of that many seconds between polls of it, past the STIG’s 24 hours"
-    fix: set “maxpoll ${chrony-maxpoll-max}” or lower on the line, or remove the option to get chrony’s default of 10, then run “systemctl restart chrony.service”
+    fix:
+      - Set “maxpoll ${chrony-maxpoll-max}” or lower on the line, or remove the option to get chrony’s default of 10.
+      - 'Then restart the service:'
+      - run: systemctl restart chrony.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-600160, '!default']
   timesync/rtc-local:

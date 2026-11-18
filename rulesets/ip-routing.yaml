@@ -15,7 +15,10 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} accepts IPv4 ICMP redirects (accept_redirects {got}), so anyone on the link can reroute this host’s traffic through themselves"
-    fix: set “net.ipv4.conf.all.accept_redirects = 0” and “net.ipv4.conf.default.accept_redirects = 0”, then each listed interface’s key
+    fix:
+      - 'Set these lines:'
+      - lines: ["net.ipv4.conf.all.accept_redirects = 0", "net.ipv4.conf.default.accept_redirects = 0"]
+      - Then set each listed interface’s key the same way.
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -29,7 +32,10 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} accepts IPv6 ICMP redirects (accept_redirects {got}), so anyone on the link can reroute this host’s traffic through themselves"
-    fix: set “net.ipv6.conf.default.accept_redirects = 0”, then each listed interface’s key
+    fix:
+      - 'Set this line:'
+      - lines: ["net.ipv6.conf.default.accept_redirects = 0"]
+      - Then set each listed interface’s key the same way.
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -68,7 +74,11 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} sets route_localnet {got}, so a packet from the link addressed to 127.0.0.1 is delivered, and services bound to loopback only answer anyone next to this host"
-    fix: set “net.ipv4.conf.all.route_localnet = 0” and “net.ipv4.conf.default.route_localnet = 0”, then each listed interface’s key; on a Kubernetes node, run kube-proxy with “--iptables-localhost-nodeports=false”
+    fix:
+      - 'Set these lines:'
+      - lines: ["net.ipv4.conf.all.route_localnet = 0", "net.ipv4.conf.default.route_localnet = 0"]
+      - Then set each listed interface’s key the same way.
+      - On a Kubernetes node, run kube-proxy with “--iptables-localhost-nodeports=false”.
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.19]
   ip-routing/ipv4-ip-forward:

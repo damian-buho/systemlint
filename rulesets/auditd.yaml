@@ -16,7 +16,10 @@ rules:
     severity: info
     score: 3.0
     message: "no auditd program is in /usr/sbin, /sbin or /usr/local/sbin, so no audit record is kept on disk"
-    fix: install auditd (“apt install auditd audispd-plugins” on Ubuntu), then add rules to “/etc/audit/rules.d/”
+    fix:
+      - 'Install auditd, on Ubuntu with:'
+      - run: apt install auditd audispd-plugins
+      - Then add rules to “/etc/audit/rules.d/”.
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditd.8.html
     tags: [audit, cis-ubuntu-26.04:6.2.1.1, stig-ubuntu-26.04:UBTU-24-100400, '!default']
   auditd/boot-unaudited:
@@ -27,7 +30,11 @@ rules:
     severity: info
     score: 2.0
     message: "the running kernel was booted without audit=1, so whatever starts before auditd.service leaves no audit record"
-    fix: append “audit=1” to “GRUB_CMDLINE_LINUX” in a file ending in “.cfg” under “/etc/default/grub.d/”, keeping the value it extends, then run “update-grub” and reboot
+    fix:
+      - Append “audit=1” to “GRUB_CMDLINE_LINUX” in a file ending in “.cfg” under “/etc/default/grub.d/”, keeping the value it extends.
+      - 'Then run:'
+      - run: update-grub
+      - Then reboot.
     docs: https://docs.kernel.org/admin-guide/kernel-parameters.html
     tags: [audit, cis-ubuntu-26.04:6.2.1.3, stig-ubuntu-26.04:UBTU-24-102010]
   auditd/boot-backlog:
@@ -40,7 +47,11 @@ rules:
     severity: info
     score: 2.0
     message: "audit_backlog_limit on the running kernel’s command line is unset (64) or below ${audit-backlog-limit}, so records queued before auditd reads them can be lost"
-    fix: append “audit_backlog_limit=${audit-backlog-limit}” to “GRUB_CMDLINE_LINUX” in a file ending in “.cfg” under “/etc/default/grub.d/”, keeping the value it extends, then run “update-grub” and reboot
+    fix:
+      - Append “audit_backlog_limit=${audit-backlog-limit}” to “GRUB_CMDLINE_LINUX” in a file ending in “.cfg” under “/etc/default/grub.d/”, keeping the value it extends.
+      - 'Then run:'
+      - run: update-grub
+      - Then reboot.
     docs: https://docs.kernel.org/admin-guide/kernel-parameters.html
     tags: [audit, cis-ubuntu-26.04:6.2.1.4]
   auditd/disabled:
@@ -52,7 +63,11 @@ rules:
     severity: info
     score: 3.0
     message: "auditd.service is not enabled, so after the next boot no audit record is written"
-    fix: run “systemctl unmask auditd.service”, then “systemctl enable --now auditd.service”
+    fix:
+      - 'Let the service start again:'
+      - run: systemctl unmask auditd.service
+      - 'Then enable and start it:'
+      - run: systemctl enable --now auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditd.8.html
     tags: [audit, cis-ubuntu-26.04:6.2.1.2, stig-ubuntu-26.04:UBTU-24-100410]
   auditd/inactive:
@@ -64,7 +79,11 @@ rules:
     severity: info
     score: 3.0
     message: "auditd.service is {got}, so the kernel’s audit records go nowhere they are kept"
-    fix: run “systemctl start auditd.service”, then read “journalctl --unit auditd.service” if it stops again
+    fix:
+      - 'Start the service:'
+      - run: systemctl start auditd.service
+      - 'If it stops again, read why:'
+      - run: journalctl --unit auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditd.8.html
     references:
       - {title: Lynis ACCT-9628, url: "https://cisofy.com/lynis/controls/ACCT-9628/"}
@@ -77,7 +96,11 @@ rules:
     severity: info
     score: 3.0
     message: "auditctl -l lists no rule, so auditd runs and records only what the kernel logs on its own"
-    fix: add the rules you need to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”; or stop and disable auditd.service
+    fix:
+      - Add the rules you need to a file ending in “.rules” under “/etc/audit/rules.d/”.
+      - 'Then load them:'
+      - run: augenrules --load
+      - Or stop and disable auditd.service instead.
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     references:
       - {title: Lynis ACCT-9630, url: "https://cisofy.com/lynis/controls/ACCT-9630/"}
@@ -92,7 +115,12 @@ rules:
     severity: info
     score: 2.0
     message: "max_log_file_action in /etc/audit/auditd.conf is not keep_logs (unset means rotate), so auditd deletes the oldest log once num_logs are full"
-    fix: set “max_log_file_action = keep_logs” in “/etc/audit/auditd.conf”, watch the free space it then uses, and run “systemctl restart auditd.service”
+    fix:
+      - 'Set this line in “/etc/audit/auditd.conf”:'
+      - lines: ["max_log_file_action = keep_logs"]
+      - 'Then restart the service:'
+      - run: systemctl restart auditd.service
+      - Watch the free space the logs then use.
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, cis-ubuntu-26.04:6.2.2.2, '!default']
   auditd/full-disk:
@@ -109,7 +137,11 @@ rules:
     severity: info
     score: 2.0
     message: "disk_full_action in /etc/audit/auditd.conf is not halt or single, or disk_error_action is not syslog, single or halt (unset means suspend), so the host keeps running with no audit record written"
-    fix: set “disk_full_action = single” and “disk_error_action = single” in “/etc/audit/auditd.conf”, then run “systemctl restart auditd.service”
+    fix:
+      - 'Set these lines in “/etc/audit/auditd.conf”:'
+      - lines: ["disk_full_action = single", "disk_error_action = single"]
+      - 'Then restart the service:'
+      - run: systemctl restart auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, cis-ubuntu-26.04:6.2.2.3, '!default']
   auditd/low-space:
@@ -126,7 +158,11 @@ rules:
     severity: info
     score: 2.0
     message: "space_left_action in /etc/audit/auditd.conf is not email, exec, single or halt, or admin_space_left_action is not single or halt, so nobody hears of a filling audit disk before records are lost"
-    fix: set “space_left_action = email”, “action_mail_acct = root” and “admin_space_left_action = single” in “/etc/audit/auditd.conf”, then run “systemctl restart auditd.service”
+    fix:
+      - 'Set these lines in “/etc/audit/auditd.conf”:'
+      - lines: ["space_left_action = email", "action_mail_acct = root", "admin_space_left_action = single"]
+      - 'Then restart the service:'
+      - run: systemctl restart auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, cis-ubuntu-26.04:6.2.2.4]
   auditd/log-mode:
@@ -137,7 +173,10 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} has mode {got}; audit records hold the commands and files of every user, so they need 0640 or stricter"
-    fix: run “chmod 0640” on the file, and set “log_group” in “/etc/audit/auditd.conf” to the group that reads audit logs
+    fix:
+      - 'Limit the file to its owner and group:'
+      - run: chmod 0640 {subject}
+      - Then set “log_group” in “/etc/audit/auditd.conf” to the group that reads audit logs.
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [default, audit, cis-ubuntu-26.04:6.2.4.1]
@@ -173,7 +212,11 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the STIG asks 0600, readable by root alone"
-    fix: run “chmod 0600” on the file, and set “log_group = root” in “/etc/audit/auditd.conf”
+    fix:
+      - 'Limit the file to root:'
+      - run: chmod 0600 {subject}
+      - 'Then set this line in “/etc/audit/auditd.conf”:'
+      - lines: ["log_group = root"]
     remedy: {chmod: "u-xs,g-rwxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, stig-ubuntu-26.04:UBTU-24-901300, '!default']
@@ -185,7 +228,11 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the STIG asks group root"
-    fix: run “chgrp 0” on the file, and set “log_group = root” in “/etc/audit/auditd.conf”
+    fix:
+      - 'Give the file to group root:'
+      - run: chgrp 0 {subject}
+      - 'Then set this line in “/etc/audit/auditd.conf”:'
+      - lines: ["log_group = root"]
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, stig-ubuntu-26.04:UBTU-24-901350, '!default']
@@ -197,7 +244,13 @@ rules:
     severity: info
     score: 1.0
     message: "the au-remote plugin is not active, or audisp-remote.conf names no remote_server, so whoever takes root here can erase the only copy of the audit trail"
-    fix: install audispd-plugins, set “active = yes” in “/etc/audit/plugins.d/au-remote.conf” and “remote_server” in “/etc/audit/audisp-remote.conf”, then run “systemctl restart auditd.service”
+    fix:
+      - Install audispd-plugins.
+      - 'Set this line in “/etc/audit/plugins.d/au-remote.conf”:'
+      - lines: ["active = yes"]
+      - Set “remote_server” in “/etc/audit/audisp-remote.conf”.
+      - 'Then restart the service:'
+      - run: systemctl restart auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/audisp-remote.conf.5.html
     tags: [audit, stig-ubuntu-26.04:UBTU-24-100450, '!default']
   auditd/stig-space-left:
@@ -214,7 +267,11 @@ rules:
     severity: info
     score: 1.0
     message: "auditd.conf does not set space_left_action = email with space_left at 25% or more, as the STIG asks"
-    fix: set “space_left = 25%” and “space_left_action = email” in “/etc/audit/auditd.conf”, then run “systemctl restart auditd.service”
+    fix:
+      - 'Set these lines in “/etc/audit/auditd.conf”:'
+      - lines: ["space_left = 25%", "space_left_action = email"]
+      - 'Then restart the service:'
+      - run: systemctl restart auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, stig-ubuntu-26.04:UBTU-24-900960, '!default']
   auditd/stig-mail-account:
@@ -236,7 +293,11 @@ rules:
     severity: info
     score: 1.0
     message: "max_log_file in /etc/audit/auditd.conf is below ${audit-max-log-file} MB, so each audit log holds less than the site asks before it rotates"
-    fix: set “max_log_file = ${audit-max-log-file}” or more in “/etc/audit/auditd.conf”, then run “systemctl restart auditd.service”
+    fix:
+      - 'Set this line, or a larger number, in “/etc/audit/auditd.conf”:'
+      - lines: ["max_log_file = ${audit-max-log-file}"]
+      - 'Then restart the service:'
+      - run: systemctl restart auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, cis-ubuntu-26.04:6.2.2.1]
   auditd/log-group:
@@ -247,7 +308,11 @@ rules:
     severity: info
     score: 1.0
     message: "log_group in /etc/audit/auditd.conf is not root or adm, so that group reads every audit record"
-    fix: set “log_group = adm”, or “log_group = root”, in “/etc/audit/auditd.conf”, then run “systemctl restart auditd.service”
+    fix:
+      - 'Set this line, or “log_group = root”, in “/etc/audit/auditd.conf”:'
+      - lines: ["log_group = adm"]
+      - 'Then restart the service:'
+      - run: systemctl restart auditd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, cis-ubuntu-26.04:6.2.4.3]
   auditd/log-file-group:
@@ -258,6 +323,10 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, neither root nor adm ({same}), so that group reads every audit record"
-    fix: run “chgrp adm” on the file, and set “log_group = adm” in “/etc/audit/auditd.conf”
+    fix:
+      - 'Give the file to group adm:'
+      - run: chgrp adm {subject}
+      - 'Then set this line in “/etc/audit/auditd.conf”:'
+      - lines: ["log_group = adm"]
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, cis-ubuntu-26.04:6.2.4.3]

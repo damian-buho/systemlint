@@ -14,7 +14,11 @@ rules:
     severity: info
     score: 1.0
     message: "postconf reports disable_vrfy_command = no, so any SMTP client asks which local addresses exist and builds a list to target"
-    fix: run “postconf -e disable_vrfy_command=yes”, then “postfix reload”
+    fix:
+      - 'Turn the VRFY command off:'
+      - run: postconf -e disable_vrfy_command=yes
+      - 'Then reload postfix:'
+      - run: postfix reload
     docs: https://www.postfix.org/postconf.5.html#disable_vrfy_command
     references:
       - {title: Lynis MAIL-8820, url: "https://cisofy.com/lynis/controls/MAIL-8820/"}

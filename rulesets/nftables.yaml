@@ -17,7 +17,10 @@ rules:
     severity: error
     score: 7.0
     message: "nftables.service is enabled, yet no chain on the IPv4 input hook has a drop policy or reaches a drop or reject rule, so the host accepts every IPv4 packet sent to it"
-    fix: give the input chain in “/etc/nftables.conf” the policy “drop” after accepting lo, established traffic and the ports you serve, then run “systemctl reload nftables.service”
+    fix:
+      - Give the input chain in “/etc/nftables.conf” the policy “drop” after accepting lo, established traffic and the ports you serve.
+      - 'Reload the firewall:'
+      - run: systemctl reload nftables.service
     docs: https://wiki.nftables.org/wiki-nftables/index.php/Simple_ruleset_for_a_server
     references:
       - {title: Lynis FIRE-4540, url: "https://cisofy.com/lynis/controls/FIRE-4540/"}
@@ -30,7 +33,10 @@ rules:
     severity: error
     score: 7.0
     message: "nftables.service is enabled, yet no chain on the IPv6 input hook has a drop policy or reaches a drop or reject rule, so the host accepts every IPv6 packet sent to it"
-    fix: filter IPv6 too, since an “inet” table covers both families and an “ip” table IPv4 alone, then run “systemctl reload nftables.service”
+    fix:
+      - Filter IPv6 too, since an “inet” table covers both families and an “ip” table IPv4 alone.
+      - 'Reload the firewall:'
+      - run: systemctl reload nftables.service
     docs: https://wiki.nftables.org/wiki-nftables/index.php/Nftables_families
     references:
       - {title: Lynis FIRE-4540, url: "https://cisofy.com/lynis/controls/FIRE-4540/"}
@@ -44,6 +50,11 @@ rules:
     severity: error
     score: 7.0
     message: "nftables.service failed, so the ruleset in /etc/nftables.conf is not loaded and the host runs without its firewall"
-    fix: run “nft --check --file /etc/nftables.conf” for the error, fix the line it names, then run “systemctl restart nftables.service”
+    fix:
+      - 'Read the error in the ruleset:'
+      - run: nft --check --file /etc/nftables.conf
+      - Fix the line it names.
+      - 'Restart the firewall:'
+      - run: systemctl restart nftables.service
     docs: https://www.netfilter.org/projects/nftables/manpage.html
     tags: [nftables, firewall, systemd]

@@ -13,7 +13,11 @@ rules:
     severity: info
     score: 2.0
     message: "no aide program is in /usr/bin, /bin or /usr/local/bin, so a changed system file goes unnoticed"
-    fix: install AIDE (“apt install aide aide-common” on Ubuntu), then run “aideinit” to build its first database
+    fix:
+      - 'Install AIDE, on Ubuntu with:'
+      - run: apt install aide aide-common
+      - 'Then build its first database:'
+      - run: aideinit
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/aide.1.html
     references:
       - {title: Lynis FINT-4350, url: "https://cisofy.com/lynis/controls/FINT-4350/"}
@@ -30,7 +34,11 @@ rules:
     severity: info
     score: 2.0
     message: "dailyaidecheck.timer is missing, not enabled or not active, or dailyaidecheck.service is masked, so AIDE never compares the disk against its database"
-    fix: run “systemctl unmask dailyaidecheck.timer dailyaidecheck.service”, then “systemctl enable --now dailyaidecheck.timer”
+    fix:
+      - 'Let the units start again:'
+      - run: systemctl unmask dailyaidecheck.timer dailyaidecheck.service
+      - 'Then enable and start the timer:'
+      - run: systemctl enable --now dailyaidecheck.timer
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/aide.1.html
     tags: [integrity, cis-ubuntu-26.04:6.3.2, stig-ubuntu-26.04:UBTU-24-100120]
   aide/no-config:
@@ -54,7 +62,10 @@ rules:
     severity: info
     score: 2.0
     message: "aide is on disk but /var/lib/aide/aide.db is not, so AIDE has no baseline to compare the disk against"
-    fix: run “aideinit”, then move “/var/lib/aide/aide.db.new” to “/var/lib/aide/aide.db”
+    fix:
+      - 'Build the database:'
+      - run: aideinit
+      - Then move “/var/lib/aide/aide.db.new” to “/var/lib/aide/aide.db”.
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/aideinit.8.html
     references:
       - {title: Lynis FINT-4316, url: "https://cisofy.com/lynis/controls/FINT-4316/"}

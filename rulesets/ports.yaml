@@ -27,7 +27,12 @@ rules:
     severity: error
     score: 9.0
     message: "{subject} listens on {got}, cups-browsed’s legacy CUPS browsing, so any host that reaches it can add a printer whose driver runs commands here"
-    fix: set “BrowseRemoteProtocols dnssd” in “/etc/cups/cups-browsed.conf” and run “systemctl restart cups-browsed”, or remove cups-browsed
+    fix:
+      - 'Set this line in “/etc/cups/cups-browsed.conf”:'
+      - lines: ["BrowseRemoteProtocols dnssd"]
+      - 'Then restart the service:'
+      - run: systemctl restart cups-browsed
+      - Or remove cups-browsed instead.
     docs: https://www.cve.org/CVERecord?id=CVE-2024-47176
     references:
       - {title: Lynis NETW-3012, url: "https://cisofy.com/lynis/controls/NETW-3012/"}
@@ -53,6 +58,9 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} listens on {got}, so a mail server meant for local mail takes connections from the network, where an open relay or a parser flaw is reachable"
-    fix: set “inet_interfaces = loopback-only” in “/etc/postfix/main.cf”, or the local interfaces of your MTA, and restart it, unless this host receives mail for others
+    fix:
+      - 'Unless this host receives mail for others, set this line in “/etc/postfix/main.cf”, or the local interfaces of your MTA:'
+      - lines: ["inet_interfaces = loopback-only"]
+      - Then restart the MTA.
     docs: https://www.postfix.org/postconf.5.html#inet_interfaces
     tags: [mail, network, cis-ubuntu-26.04:2.1.22]

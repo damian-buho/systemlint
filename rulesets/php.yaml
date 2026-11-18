@@ -23,7 +23,11 @@ rules:
     severity: error
     score: 9.2
     message: "{subject} PHP predates the 2026-10-21 security release and keeps session upload progress on, so an unauthenticated multipart request can run code in a PHP worker"
-    fix: update PHP to 8.2.35, 8.3.36, 8.4.27 or 8.5.12, or later; until then set “session.upload_progress.enabled = 0” in the “php.ini” of every SAPI and restart every worker
+    fix:
+      - Update PHP to 8.2.35, 8.3.36, 8.4.27 or 8.5.12, or later.
+      - 'Until then, set this line in the “php.ini” of every SAPI:'
+      - lines: ["session.upload_progress.enabled = 0"]
+      - Then restart every worker.
     docs: https://www.php.net/archive/2026.php#2026-10-21-5
     rationale: an unauthenticated multipart request can run code in a PHP worker
     references:

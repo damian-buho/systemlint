@@ -70,7 +70,9 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} is switched on in {got} and inetd runs, so anyone who reaches its port talks to it in plain text: telnet, rlogin, rsh and rexec carry passwords, tftp has none, and chargen, echo and the other debugging services reflect floods at a third host"
-    fix: comment the line out in {got}, as “update-inetd --disable {subject}” does, and run “systemctl reload” on the inetd unit
+    fix:
+      - Comment the line out in {got}, as “update-inetd --disable {subject}” does.
+      - Then run “systemctl reload” on the inetd unit.
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/update-inetd.8.html
     references:
       - {title: Lynis INSE-8002, url: "https://cisofy.com/lynis/controls/INSE-8002/"}
@@ -87,7 +89,11 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} lacks disable = yes and xinetd runs, so anyone who reaches its port talks to it in plain text: telnet, rlogin, rsh and rexec carry passwords, tftp has none, and chargen, echo and the other debugging services reflect floods at a third host"
-    fix: set “disable = yes” in {subject}, or delete it, and run “systemctl reload xinetd.service”
+    fix:
+      - 'Set this line in {subject}, or delete it:'
+      - lines: ["disable = yes"]
+      - 'Then reload the service:'
+      - run: systemctl reload xinetd.service
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/xinetd.conf.5.html
     references:
       - {title: Lynis INSE-8116, url: "https://cisofy.com/lynis/controls/INSE-8116/"}

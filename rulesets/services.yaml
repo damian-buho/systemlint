@@ -25,7 +25,11 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} runs as root with every capability, may gain privileges through setuid programs and may write anywhere, so any bug in it hands over the whole host"
-    fix: run “systemctl edit” on the unit and add “DynamicUser=yes”, or “User=” with a service account; if it must stay root, add “NoNewPrivileges=yes”, “ProtectSystem=strict” and a “CapabilityBoundingSet=” of only what it needs
+    fix:
+      - Run “systemctl edit” on the unit and add “DynamicUser=yes”, or “User=” with a service account.
+      - 'If it must stay root, add these lines in the same way:'
+      - lines: ["NoNewPrivileges=yes", "ProtectSystem=strict"]
+      - Also add a “CapabilityBoundingSet=” of only what it needs.
     docs: https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#Sandboxing
     references:
       - {title: systemd-analyze security, url: "https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html#systemd-analyze%20security%20%5BUNIT...%5D"}

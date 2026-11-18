@@ -47,7 +47,12 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} does not exist, so every user cron.deny leaves out may schedule jobs with crontab"
-    fix: write the users allowed to schedule jobs to {subject}, one per line, then run “chown root:crontab” and “chmod 0640” on it
+    fix:
+      - Write the users allowed to schedule jobs to {subject}, one per line.
+      - 'Then give it to root and its group:'
+      - run: chown root:crontab {subject}
+      - 'Then limit it to its owner and group:'
+      - run: chmod 0640 {subject}
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
     tags: [cron, cis-ubuntu-26.04:2.4.1.9]
   cron/access-mode:
@@ -59,7 +64,11 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so only root changes who may schedule jobs"
-    fix: run “chgrp crontab {subject}”, then “chmod 0640” on it, since the command reads it through that group
+    fix:
+      - 'Give the file to the group the command reads it through:'
+      - run: chgrp crontab {subject}
+      - 'Then limit it to its owner and that group:'
+      - run: chmod 0640 {subject}
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
     tags: [cron, cis-ubuntu-26.04:2.4.1.9]
   cron/access-owner:

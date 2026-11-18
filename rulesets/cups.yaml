@@ -28,7 +28,11 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} listens on {got}, so any host that reaches it talks to cupsd, its web interface and its printer drivers"
-    fix: replace “Port 631” with “Listen localhost:631” in “/etc/cups/cupsd.conf”, then run “systemctl restart cups”, unless this host shares printers
+    fix:
+      - 'Unless this host shares printers, replace “Port 631” with this line in “/etc/cups/cupsd.conf”:'
+      - lines: ["Listen localhost:631"]
+      - 'Then restart the service:'
+      - run: systemctl restart cups
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/cupsd.conf.5.html
     references:
       - {title: Lynis PRNT-2308, url: "https://cisofy.com/lynis/controls/PRNT-2308/"}

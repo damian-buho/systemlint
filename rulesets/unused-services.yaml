@@ -219,7 +219,13 @@ rules:
     severity: info
     score: 1.0
     message: "Apport is enabled in /etc/default/apport or apport.service is active, so crashes leave reports holding their memory, stack and logs, to be sent to a third party"
-    fix: set “enabled=0” in “/etc/default/apport” and run “systemctl mask --now apport.service”, or run “apt purge apport”
+    fix:
+      - 'Set this line in “/etc/default/apport”:'
+      - lines: ["enabled=0"]
+      - 'Then stop the service and keep it from starting:'
+      - run: systemctl mask --now apport.service
+      - 'Or remove apport instead:'
+      - run: apt purge apport
     docs: https://wiki.ubuntu.com/Apport
     tags: [services, coredump, cis-ubuntu-26.04:1.5.7]
   unused-services/x-server:

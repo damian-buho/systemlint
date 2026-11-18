@@ -37,7 +37,10 @@ rules:
     severity: warning
     score: 3.0
     message: "pam_limits sets no hard core limit of 0 for every user, or raises it for some, so a program that crashes in a login session can write its memory, secrets included, to a core file"
-    fix: add “* hard core 0” to “/etc/security/limits.conf”, and remove from it and from “limits.d” any “hard” or “-” core line with another value
+    fix:
+      - 'Add this line to “/etc/security/limits.conf”:'
+      - lines: ["* hard core 0"]
+      - Remove from that file and from “limits.d” any “hard” or “-” core line with another value.
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/limits.conf.5.html
     references:
       - {title: Lynis KRNL-5820, url: "https://cisofy.com/lynis/controls/KRNL-5820/"}

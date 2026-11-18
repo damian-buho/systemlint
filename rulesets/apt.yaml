@@ -99,7 +99,10 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} lists nothing that {got} does not list already"
-    fix: remove this entry, then run “sudo apt update”
+    fix:
+      - Remove this entry.
+      - 'Then refresh the package lists:'
+      - run: sudo apt update
     remedy: {disable-line: apt-list}
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
@@ -111,7 +114,10 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} lists some of the same suites and components as {got}"
-    fix: list each suite and component in one entry only, then run “sudo apt update”
+    fix:
+      - List each suite and component in one entry only.
+      - 'Then refresh the package lists:'
+      - run: sudo apt update
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
   apt/key-conflict:

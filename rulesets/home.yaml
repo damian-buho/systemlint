@@ -21,7 +21,11 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has mode {got}, so every user can list it and read whatever its owner leaves readable there"
-    fix: run “chmod o-rwx” on the directory, and set “HOME_MODE 0750” in “/etc/login.defs” for new accounts
+    fix:
+      - 'Take access away from other users:'
+      - run: chmod o-rwx {subject}
+      - 'Then set this line in “/etc/login.defs” for new accounts:'
+      - lines: ["HOME_MODE 0750"]
     remedy: {chmod: o-rwx}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
@@ -77,7 +81,9 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} exists, so the local mail of its owner leaves the host, or is piped into a command the mail system runs"
-    fix: remove {subject}, and set the forward in “/etc/aliases” if the site wants one
+    fix:
+      - Remove {subject}.
+      - Set the forward in “/etc/aliases” if the site wants one.
     docs: https://www.postfix.org/local.8.html
     tags: [files, cis-ubuntu-26.04:7.2.10, '!default']
   home/dot-directory-mode:

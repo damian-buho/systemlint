@@ -118,6 +118,9 @@ rules:
     severity: info
     score: 1.0
     message: "/proc/sys/crypto/fips_enabled is 0 or absent, so the kernel and the libraries that follow it may use algorithms outside FIPS 140-3"
-    fix: enable FIPS mode through Ubuntu Pro with “pro enable fips-updates”, then reboot
+    fix:
+      - 'Enable FIPS mode through Ubuntu Pro:'
+      - run: pro enable fips-updates
+      - Then reboot.
     docs: https://ubuntu.com/security/certifications/docs/fips
     tags: [kernel, sysctl, stig-ubuntu-26.04:UBTU-24-600030, '!default']

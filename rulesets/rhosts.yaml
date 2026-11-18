@@ -15,7 +15,9 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} names hosts, so the installed rsh or rlogin server lets their users in as the same local user with no password"
-    fix: empty or remove “/etc/hosts.equiv”, and remove the rsh server if nothing needs it
+    fix:
+      - Empty or remove “/etc/hosts.equiv”.
+      - Remove the rsh server if nothing needs it.
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/hosts.equiv.5.html
     tags: [accounts, dev-sec-linux-baseline:os-01]
   rhosts/user-file:
@@ -26,6 +28,8 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} names hosts, so the installed rsh or rlogin server lets the users it lists log in as its owner with no password"
-    fix: remove the file, and remove the rsh server if nothing needs it
+    fix:
+      - Remove the file.
+      - Remove the rsh server if nothing needs it.
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/hosts.equiv.5.html
     tags: [accounts, dev-sec-linux-baseline:os-09]

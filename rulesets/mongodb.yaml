@@ -17,7 +17,10 @@ rules:
     severity: error
     score: 9.0
     message: "mongod listens beyond the loopback on TCP 27017 and /etc/mongod.conf leaves security.authorization unset or disabled, so whoever reaches it reads and drops every database"
-    fix: create an administrator, then set “security.authorization” to “enabled” in “/etc/mongod.conf” and restart mongod
+    fix:
+      - Create an administrator.
+      - Then set “security.authorization” to “enabled” in “/etc/mongod.conf”.
+      - Restart mongod.
     docs: https://www.mongodb.com/docs/manual/tutorial/enable-authentication/
     references:
       - {title: Lynis DBS-1820, url: "https://cisofy.com/lynis/controls/DBS-1820/"}

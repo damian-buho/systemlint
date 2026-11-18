@@ -45,7 +45,11 @@ rules:
     severity: warning
     score: 4.0
     message: "no rsyslog configuration file sets $FileCreateMode or the omfile module’s fileCreateMode, so rsyslog creates each log file 0644, readable by every user"
-    fix: set “$FileCreateMode 0640” in “/etc/rsyslog.conf”, then run “systemctl restart rsyslog.service”
+    fix:
+      - 'Set this line in “/etc/rsyslog.conf”:'
+      - lines: ['$FileCreateMode 0640']
+      - 'Then restart the service:'
+      - run: systemctl restart rsyslog.service
     docs: https://www.rsyslog.com/doc/configuration/modules/omfile.html
     tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.3]
   rsyslog/file-create-mode-open:
@@ -58,7 +62,10 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} sets a $FileCreateMode or fileCreateMode more open than 0640, so rsyslog creates log files other users can read or anyone can change"
-    fix: set the mode to “0640” in {subject}, then run “systemctl restart rsyslog.service”
+    fix:
+      - Set the mode to “0640” in {subject}.
+      - 'Then restart the service:'
+      - run: systemctl restart rsyslog.service
     docs: https://www.rsyslog.com/doc/configuration/modules/omfile.html
     tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.3]
   rsyslog/receives-network:
@@ -71,7 +78,10 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} starts an rsyslog network input, so any host that reaches the port can write log lines here, fill the disk or forge entries"
-    fix: remove the “input(type=…)” or “$…ServerRun” line from {subject} unless this host is the site’s log server, then run “systemctl restart rsyslog.service”
+    fix:
+      - Unless this host is the site’s log server, remove the “input(type=…)” or “$…ServerRun” line from {subject}.
+      - 'Then restart the service:'
+      - run: systemctl restart rsyslog.service
     docs: https://www.rsyslog.com/doc/configuration/modules/imtcp.html
     tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.6, '!default']
   rsyslog/forwards-in-clear:
@@ -98,7 +108,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} forwards logs over UDP, or over TCP without StreamDriverMode 1, so anyone on the path reads them and can forge entries"
-    fix: forward with “action(type="omfwd" protocol="tcp" StreamDriver="gtls" StreamDriverMode="1" StreamDriverAuthMode="x509/name" …)” in {subject}, then run “systemctl restart rsyslog.service”
+    fix:
+      - 'Forward with this line in {subject}:'
+      - lines: ['action(type="omfwd" protocol="tcp" StreamDriver="gtls" StreamDriverMode="1" StreamDriverAuthMode="x509/name" …)']
+      - 'Then restart the service:'
+      - run: systemctl restart rsyslog.service
     docs: https://www.rsyslog.com/doc/configuration/modules/omfwd.html
     tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.9, '!default']
   rsyslog/stig-auth-unlogged:
@@ -112,6 +126,10 @@ rules:
     severity: info
     score: 1.0
     message: "no rsyslog selector writes every auth, authpriv and daemon message to a file; the STIG asks for all three, so remote access attempts are kept"
-    fix: add “auth,authpriv.* /var/log/auth.log” and “daemon.* -/var/log/daemon.log” to “/etc/rsyslog.d/50-default.conf”, then run “systemctl restart rsyslog.service”
+    fix:
+      - 'Add these lines to “/etc/rsyslog.d/50-default.conf”:'
+      - lines: ['auth,authpriv.* /var/log/auth.log', 'daemon.* -/var/log/daemon.log']
+      - 'Then restart the service:'
+      - run: systemctl restart rsyslog.service
     docs: https://www.rsyslog.com/doc/configuration/filters.html
     tags: [rsyslog, logging, stig-ubuntu-26.04:UBTU-24-200090, '!default']
