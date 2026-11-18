@@ -449,6 +449,7 @@ the next one.
 | `key-underscores` | read `-` as `_` in each key, as kmod spells module names |
 | `repeat` | for a key seen again: `first` [default] or `last`, the other lines’ numbers in the kept record’s `shadowed`, or `list` keeping every record; without `columns`, also `append`, joining the words, and a map giving a policy per first word, `*` for the rest |
 | `octal` | decode `\040`-style escapes, as fstab(5) and the kernel’s mount tables write a space |
+| `blocks` | `{ … }` blocks of directives, as logrotate writes its stanzas: a line ending in `{` opens one named by its words before it and by every line since the last directive, a line opening with a letter being a directive; `}` alone closes it. Directives outside any block are keyed by the input path, each block by `path:line`, each entry holding `path`, `names` and `directives` (a block also its `line`). `scripts` maps a directive opening a script to the word ending it (`postrotate: endscript`), the lines between never read. Needs directives, not `columns` or `separator` |
 
 `/etc/resolv.conf` as glibc reads it, every `nameserver` kept and the
 `resolv-nameservers` collector taking the first 3 with `nameserver.:3`:

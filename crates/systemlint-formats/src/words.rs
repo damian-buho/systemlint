@@ -78,7 +78,20 @@ struct Options {
     directives: Option<Vec<String>>,
     #[serde(default)]
     octal: bool,
+    blocks: Option<Blocks>,
 }
+
+/// `{ … }` blocks of directives named by the words before them, as logrotate writes its stanzas.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Blocks {
+    /// A directive opening a script, mapped to the word that ends it; the lines between are never read.
+    #[serde(default)]
+    scripts: BTreeMap<String, String>,
+}
+
+/// A block being read: its first line, its names and its directives.
+type Open = (u64, Vec<Value>, Map<String, Value>);
 
 fn hash() -> Vec<String> {
     vec!["#".to_owned()]
@@ -125,6 +138,9 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     if columns.is_none() && (options.rest.is_some() || options.required.is_some()) {
         return Err("with.rest and with.required need with.columns".into());
     }
+    if options.blocks.is_some() && (columns.is_some() || options.separator.is_some()) {
+        return Err("with.blocks needs directives, not with.columns or with.separator".into());
+    }
     let policy = options.repeat.take().unwrap_or(Policy::One(Repeat::First));
     if columns.is_some() {
         match &policy {
@@ -143,6 +159,10 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
         let Some((path, content)) = text(input, &mut reply.diagnostics) else {
             continue;
         };
+        if let Some(blocks) = &options.blocks {
+            blocked(path, content, &options, blocks, &policy, &mut reply);
+            continue;
+        }
         let mut per_path: Vec<Value> = Vec::new();
         let mut directives = Map::new();
         for (number, line) in records(
@@ -231,6 +251,111 @@ pub fn words(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
         }
     }
     Ok(reply)
+}
+
+/// One input’s directives outside any block keyed by its path, and each block keyed `path:line`, a line opening with a letter being a directive and any other line before a `{` naming the block.
+fn blocked(
+    path: &str,
+    content: &str,
+    options: &Options,
+    blocks: &Blocks,
+    policy: &Policy,
+    reply: &mut Reply,
+) {
+    let mut diagnose = |line: Option<u64>, message: String| {
+        reply.diagnostics.push(Diagnostic {
+            path: path.to_owned(),
+            line,
+            message,
+        })
+    };
+    let (mut globals, mut found) = (Map::new(), Vec::new());
+    let (mut names, mut first): (Vec<Value>, Option<u64>) = (Vec::new(), None);
+    let (mut open, mut script): (Option<Open>, Option<(u64, &str)>) = (None, None);
+    for (number, line) in records(content, None, &options.comments, options.inline_comments) {
+        if let Some((_, end)) = script {
+            if line.as_ref().is_ok_and(|w| w[0].0 == end) {
+                script = None;
+            }
+            continue;
+        }
+        let words = match line {
+            Ok(words) => words,
+            Err(message) => {
+                diagnose(Some(number), message);
+                continue;
+            }
+        };
+        let bare = |w: &Word, s: &str| w.0 == s && !w.1;
+        if words.len() == 1 && bare(&words[0], "}") {
+            match open.take() {
+                Some(block) => found.push(block),
+                None => diagnose(Some(number), "a } closes no block".to_owned()),
+            }
+            continue;
+        }
+        if words.last().is_some_and(|w| bare(w, "{")) {
+            names.extend(words[..words.len() - 1].iter().map(typed));
+            let start = first.take().unwrap_or(number);
+            match (open.is_some(), names.is_empty()) {
+                (true, _) => diagnose(Some(number), "a block opens inside another".to_owned()),
+                (_, true) => diagnose(Some(number), "a block opens with no name".to_owned()),
+                _ => open = Some((start, std::mem::take(&mut names), Map::new())),
+            }
+            names.clear();
+            continue;
+        }
+        if open.is_none() && !words[0].0.starts_with(|c: char| c.is_ascii_alphabetic()) {
+            first.get_or_insert(number);
+            names.extend(words.iter().map(typed));
+            continue;
+        }
+        if !names.is_empty() {
+            diagnose(first.take(), "names no block, as no { follows".to_owned());
+            names.clear();
+        }
+        let (head, args) = words.split_first().unwrap_or((&words[0], &[]));
+        if let Some(end) = blocks.scripts.get(&head.0) {
+            script = Some((number, end.as_str()));
+        }
+        if options
+            .directives
+            .as_ref()
+            .is_some_and(|d| !d.contains(&head.0))
+        {
+            continue;
+        }
+        let args = Value::from(args.iter().map(typed).collect::<Vec<_>>());
+        let into = open.as_mut().map_or(&mut globals, |(_, _, map)| map);
+        merge(into, &head.0, args, policy.of(&head.0));
+    }
+    let unclosed = [
+        open.as_ref().map(|(n, _, _)| (*n, "a block never closes")),
+        script.map(|(n, _)| (n, "a script never ends")),
+        first.map(|n| (n, "names no block, as no { follows")),
+    ];
+    for (number, message) in unclosed.into_iter().flatten() {
+        diagnose(Some(number), message.to_owned());
+    }
+    let entry = |line: Option<u64>, names: Vec<Value>, directives: Map<String, Value>| {
+        let mut record = Map::new();
+        record.insert("path".to_owned(), Value::from(path));
+        if let Some(line) = line {
+            record.insert("line".to_owned(), Value::from(line));
+        }
+        record.insert("names".to_owned(), Value::from(names));
+        record.insert("directives".to_owned(), Value::Object(directives));
+        Value::Object(record)
+    };
+    reply
+        .facts
+        .insert(path.to_owned(), entry(None, Vec::new(), globals));
+    for (line, names, directives) in found {
+        let key = format!("{path}:{line}");
+        reply
+            .facts
+            .insert(key, entry(Some(line), names, directives));
+    }
 }
 
 /// A word with its `\040`-style octal escapes decoded, as fstab(5) and the kernel’s mount tables write them.
@@ -511,6 +636,52 @@ mod tests {
 
     fn lines(reply: &Reply) -> Vec<Option<u64>> {
         reply.diagnostics.iter().map(|d| d.line).collect()
+    }
+
+    #[test]
+    fn blocks_key_each_stanza_by_its_line_and_never_read_a_script() {
+        let text = "weekly\ncreate\n/var/log/a.log\n\"/var/log/b c.log\" {\n  create 644 root root\n  postrotate\n    if [ -f x ]; then { kill; }; fi \"\n  endscript\n  create 0640 root adm\n}\n/var/log/d {\n}\n";
+        let with = json!({"blocks": {"scripts": {"postrotate": "endscript"}}, "repeat": "last"});
+        let reply = run(&[file("/etc/logrotate.d/x", text)], with);
+        assert_eq!(reply.diagnostics, vec![], "a script’s lines are never read");
+        assert_eq!(
+            serde_json::to_value(&reply.facts).unwrap(),
+            json!({
+                "/etc/logrotate.d/x": {"path": "/etc/logrotate.d/x", "names": [], "directives": {"weekly": [], "create": []}},
+                "/etc/logrotate.d/x:3": {"path": "/etc/logrotate.d/x", "line": 3, "names": ["/var/log/a.log", "/var/log/b c.log"], "directives": {"create": ["0640", "root", "adm"], "postrotate": []}},
+                "/etc/logrotate.d/x:11": {"path": "/etc/logrotate.d/x", "line": 11, "names": ["/var/log/d"], "directives": {}},
+            })
+        );
+    }
+
+    #[test]
+    fn blocks_name_every_line_that_does_not_fit() {
+        let with = json!({"blocks": {"scripts": {"postrotate": "endscript"}}});
+        let cases = [
+            ("}\n", 1, "closes no block"),
+            ("{\n", 1, "no name"),
+            ("/a {\n/b {\n}\n", 2, "inside another"),
+            ("/a {\n", 1, "never closes"),
+            ("/a {\npostrotate\n}\n", 2, "never ends"),
+            ("/a\nweekly\n", 1, "no { follows"),
+            ("/a\n", 1, "no { follows"),
+        ];
+        for (text, line, said) in cases {
+            let reply = run(&[file("/f", text)], with.clone());
+            assert!(
+                reply
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.line == Some(line) && d.message.contains(said)),
+                "{text:?}: {:?}",
+                reply.diagnostics
+            );
+        }
+        let refused = words(
+            &[],
+            json!({"blocks": {}, "columns": ["a"]}).as_object().unwrap(),
+        );
+        assert!(refused.is_err_and(|e| e.to_string().contains("with.blocks")));
     }
 
     #[test]
