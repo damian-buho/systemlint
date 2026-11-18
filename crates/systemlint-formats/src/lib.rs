@@ -471,6 +471,12 @@ pub fn passwd(inputs: &[Input]) -> Reply {
 /// The shells getusershell(3) falls back to when `/etc/shells` is absent.
 const FALLBACK_SHELLS: [&str; 2] = ["/bin/sh", "/bin/csh"];
 
+/// Program names of interactive shells, so a person’s shell missing from `/etc/shells` is never read as no shell.
+const INTERACTIVE_SHELLS: [&str; 18] = [
+    "ash", "bash", "busybox", "csh", "dash", "elvish", "fish", "ksh", "mksh", "nu", "oksh", "pwsh",
+    "rbash", "sh", "tcsh", "xonsh", "yash", "zsh",
+];
+
 /// `passwd`’s options: `shells`, the input listing login shells, which adds `login-shell` to every entry.
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -478,7 +484,7 @@ struct PasswdOptions {
     shells: Option<String>,
 }
 
-/// [`passwd`] over every input but `with.shells`, each entry’s `login-shell` true when its shell is empty or listed there, as getusershell(3) reads it.
+/// [`passwd`] over every input but `with.shells`, each entry’s `login-shell` true when its shell is empty or listed there, as getusershell(3) reads it, and `interactive-shell` when its program is one of [`INTERACTIVE_SHELLS`].
 pub fn passwd_with(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
     let PasswdOptions { shells } = options("passwd", with)?;
     let Some(shells) = shells else {
@@ -504,7 +510,10 @@ pub fn passwd_with(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply>
     for entry in reply.facts.values_mut().filter_map(Value::as_object_mut) {
         let shell = entry["shell"].as_str().unwrap_or_default();
         let login = shell.is_empty() || allowed.iter().any(|s| s == shell);
+        let program = shell.rsplit('/').next().unwrap_or_default();
+        let interactive = shell.is_empty() || INTERACTIVE_SHELLS.contains(&program);
         entry.insert("login-shell".to_owned(), Value::Bool(login));
+        entry.insert("interactive-shell".to_owned(), Value::Bool(interactive));
     }
     reply.diagnostics.extend(diagnostics);
     Ok(reply)
@@ -1767,29 +1776,36 @@ mod tests {
         let with = Map::from_iter([("shells".to_owned(), json!("/etc/shells"))]);
         let users = file(
             "/etc/passwd",
-            "root:x:0:0::/root:/bin/bash\nsync:x:4:65534::/bin:/bin/sync\nold:x:5:5::/:\n",
+            "root:x:0:0::/root:/bin/bash\nsync:x:4:65534::/bin:/bin/sync\nold:x:5:5::/:\nme:x:1000:1000::/home/me:/usr/bin/zsh\nnobody:x:65534:65534::/:/usr/sbin/nologin\n",
         );
         let shells = file("/etc/shells", "# /etc/shells\n/bin/sh\n  /bin/bash \n");
         let login = |reply: &Reply| {
             reply
                 .facts
                 .iter()
-                .map(|(k, v)| (k.clone(), v["login-shell"].clone()))
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        (v["login-shell"].clone(), v["interactive-shell"].clone()),
+                    )
+                })
                 .collect::<BTreeMap<_, _>>()
         };
         let reply = passwd_with(&[users.clone(), shells], &with).unwrap();
         assert_eq!(
             login(&reply),
             BTreeMap::from([
-                ("old".to_owned(), json!(true)),
-                ("root".to_owned(), json!(true)),
-                ("sync".to_owned(), json!(false))
+                ("me".to_owned(), (json!(false), json!(true))),
+                ("nobody".to_owned(), (json!(false), json!(false))),
+                ("old".to_owned(), (json!(true), json!(true))),
+                ("root".to_owned(), (json!(true), json!(true))),
+                ("sync".to_owned(), (json!(false), json!(false)))
             ]),
-            "an empty shell is /bin/sh"
+            "an empty shell is /bin/sh; an unlisted zsh is still interactive"
         );
         let fallback = passwd_with(std::slice::from_ref(&users), &with).unwrap();
         assert_eq!(
-            login(&fallback)["root"],
+            login(&fallback)["root"].0,
             json!(false),
             "no /etc/shells: only /bin/sh and /bin/csh"
         );

@@ -160,6 +160,14 @@ org:
               - accounts
               - lynis
             title: An account defers to /etc/shadow, which has no line for it
+          - id: accounts/shell-not-listed
+            ruleset: accounts
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - accounts
+            title: A login shell is missing from /etc/shells
           - id: accounts/stig-root-unlocked
             ruleset: accounts
             score: 1.0

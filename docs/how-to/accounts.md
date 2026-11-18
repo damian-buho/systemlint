@@ -56,6 +56,10 @@ accounts:
 - `login-shell` is true when the shell is empty or listed in `/etc/shells`,
   as getusershell(3) reads it, and without that file only for `/bin/sh` and
   `/bin/csh`; the `sshd` collector runs for these accounts and root.
+- `interactive-shell` is true when the shell is empty or its program is an
+  interactive shell (`bash`, `zsh`, `fish`, `dash` and the like), listed in
+  `/etc/shells` or not, so a person whose shell is missing there is never read
+  as an account with no shell.
 - Empty lines and lines starting with `#` are skipped. A line with the wrong
   number of fields, or a uid that is not a number, is left out with a
   diagnostic naming its line; a group’s `gid` is a number when it is written
@@ -80,6 +84,7 @@ accounts:
 | `accounts/shadow-group-members` | group `shadow` lists members, who can read every hash |
 | `accounts/shadow-group-primary` | an account’s primary gid is 42, while group `shadow` holds gid 42 as Debian’s `base-passwd` fixes it; elsewhere it answers `skip` |
 | `accounts/nologin-shell` | `/etc/shells` lists `nologin` on a line that is no comment, so it counts as a valid shell |
+| `accounts/shell-not-listed` | an account’s shell is an interactive shell that `/etc/shells` does not list |
 
 The rules only CIS Ubuntu 26.04 asks for carry `'!default'` and run with
 `--tags 'cis-ubuntu-26.04:*'` or `--tags accounts`. Each ageing rule judges an
@@ -99,7 +104,7 @@ standard sets it, daily rotation included (`--var password-max-days=1`, or
 | `accounts/stig-root-unlocked` | STIG 400110 | root’s shadow password is not `locked` |
 | `accounts/grpck` | Lynis AUTH-9216 | `grpck --read-only`, run as root by `accounts-grpck`, exits non-zero (in `default`) |
 | `accounts/system-login-shell` | 5.4.2.7 | an account other than root, halt, sync, shutdown and nfsnobody, below `uid-min` (1000) or uid 65534, has a login shell |
-| `accounts/no-shell-unlocked` | 5.4.2.8 | an account other than root has no login shell, and its shadow password is a hash or empty |
+| `accounts/no-shell-unlocked` | 5.4.2.8 | an account other than root has no login shell and no interactive one (`nologin`, `false`), and its shadow password is a hash or empty |
 
 NIST SP 800-63B-4 §3.1.1.2 forbids forced periodic password changes, so
 `accounts/password-rotation` (tag `nist-sp-800-63b-4:3.1.1.2`, in `default`)

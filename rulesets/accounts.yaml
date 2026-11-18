@@ -185,7 +185,7 @@ rules:
     title: An account without a login shell has a usable password
     fact: accounts.shadow.*.password
     keys: {not: {const: root}}
-    when: {accounts.shadow.*.in-passwd: true, accounts.passwd.*.login-shell: false, accounts.passwd.*.password: shadow}
+    when: {accounts.shadow.*.in-passwd: true, accounts.passwd.*.login-shell: false, accounts.passwd.*.interactive-shell: false, accounts.passwd.*.password: shadow}
     expect: {not: {enum: [hash, empty]}}
     severity: info
     score: 2.0
@@ -193,6 +193,18 @@ rules:
     fix: run “usermod --lock {subject}”, unless a service logs it in by password on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
     tags: [accounts, cis-ubuntu-26.04:5.4.2.8]
+  accounts/shell-not-listed:
+    title: A login shell is missing from /etc/shells
+    fact: accounts.passwd.*.login-shell
+    when: {accounts.passwd.*.interactive-shell: true}
+    expect: {const: true}
+    severity: info
+    score: 1.0
+    suggest: {fact: accounts.passwd.*.shell, otherwise: its shell}
+    message: "{subject} logs in with {suggested}, which /etc/shells does not list, so chsh, FTP servers and any PAM check for a valid shell treat it as an account with no shell"
+    fix: add {suggested} to /etc/shells with “add-shell”
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/shells.5.html
+    tags: [accounts]
   accounts/gid-zero:
     title: An account other than root has group root as its primary group
     fact: accounts.passwd.*.gid
