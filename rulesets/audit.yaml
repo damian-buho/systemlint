@@ -28,7 +28,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/sudoers or /etc/sudoers.d, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/sudoers -F perm=wa -k scope” and “-a always,exit -F arch=b64 -F dir=/etc/sudoers.d -F perm=wa -k scope” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/sudoers -F perm=wa -k scope", "-a always,exit -F arch=b64 -F dir=/etc/sudoers.d -F perm=wa -k scope"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.1, stig-ubuntu-26.04:UBTU-24-900510, stig-ubuntu-26.04:UBTU-24-900520]
   audit/user-emulation:
@@ -42,7 +46,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records execve on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S execve -k user_emulation” and “-a always,exit -F arch=b32 -S execve -k user_emulation” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S execve -k user_emulation", "-a always,exit -F arch=b32 -S execve -k user_emulation"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.2, stig-ubuntu-26.04:UBTU-24-200580]
   audit/time:
@@ -58,7 +66,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records adjtimex, settimeofday, clock_settime or writes to /etc/localtime, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/localtime -F perm=wa -k time-change” and “-a always,exit -F arch=b64 -S adjtimex,settimeofday,clock_settime -k time-change” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/localtime -F perm=wa -k time-change", "-a always,exit -F arch=b64 -S adjtimex,settimeofday,clock_settime -k time-change"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.4]
   audit/host-name:
@@ -74,7 +86,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records sethostname or setdomainname on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S sethostname,setdomainname -k system-locale” and “-a always,exit -F arch=b32 -S sethostname,setdomainname -k system-locale” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S sethostname,setdomainname -k system-locale", "-a always,exit -F arch=b32 -S sethostname,setdomainname -k system-locale"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.5]
   audit/issue:
@@ -88,7 +104,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/issue or /etc/issue.net, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/issue -F perm=wa -k system-locale” and “-a always,exit -F arch=b64 -F path=/etc/issue.net -F perm=wa -k system-locale” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/issue -F perm=wa -k system-locale", "-a always,exit -F arch=b64 -F path=/etc/issue.net -F perm=wa -k system-locale"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.6]
   audit/hosts:
@@ -102,7 +122,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/hosts or /etc/hostname, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/hosts -F perm=wa -k system-locale” and “-a always,exit -F arch=b64 -F path=/etc/hostname -F perm=wa -k system-locale” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/hosts -F perm=wa -k system-locale", "-a always,exit -F arch=b64 -F path=/etc/hostname -F perm=wa -k system-locale"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.7]
   audit/network:
@@ -117,7 +141,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/network/interfaces, /etc/network/interfaces.d or /etc/netplan, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/network/interfaces -F perm=wa -k system-locale”, “-a always,exit -F arch=b64 -F dir=/etc/network/interfaces.d -F perm=wa -k system-locale” and “-a always,exit -F arch=b64 -F dir=/etc/netplan -F perm=wa -k system-locale” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/network/interfaces -F perm=wa -k system-locale", "-a always,exit -F arch=b64 -F dir=/etc/network/interfaces.d -F perm=wa -k system-locale", "-a always,exit -F arch=b64 -F dir=/etc/netplan -F perm=wa -k system-locale"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.8]
   audit/network-manager:
@@ -130,7 +158,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/NetworkManager, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F dir=/etc/NetworkManager -F perm=wa -k system-locale” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F dir=/etc/NetworkManager -F perm=wa -k system-locale"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.9]
   audit/access-denied:
@@ -162,7 +194,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records creat, open, openat, truncate or ftruncate failing with EACCES or EPERM on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S creat,open,openat,truncate,ftruncate -F exit=-EACCES -k access”, “-a always,exit -F arch=b32 -S creat,open,openat,truncate,ftruncate -F exit=-EACCES -k access”, “-a always,exit -F arch=b64 -S creat,open,openat,truncate,ftruncate -F exit=-EPERM -k access” and “-a always,exit -F arch=b32 -S creat,open,openat,truncate,ftruncate -F exit=-EPERM -k access” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S creat,open,openat,truncate,ftruncate -F exit=-EACCES -k access", "-a always,exit -F arch=b32 -S creat,open,openat,truncate,ftruncate -F exit=-EACCES -k access", "-a always,exit -F arch=b64 -S creat,open,openat,truncate,ftruncate -F exit=-EPERM -k access", "-a always,exit -F arch=b32 -S creat,open,openat,truncate,ftruncate -F exit=-EPERM -k access"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.11, stig-ubuntu-26.04:UBTU-24-900160]
   audit/group:
@@ -175,7 +211,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/group, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/group -F perm=wa -k identity” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/group -F perm=wa -k identity"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.12, stig-ubuntu-26.04:UBTU-24-200290]
   audit/passwd:
@@ -188,7 +228,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/passwd, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/passwd -F perm=wa -k identity” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/passwd -F perm=wa -k identity"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.13, stig-ubuntu-26.04:UBTU-24-200280]
   audit/shadow:
@@ -202,7 +246,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/shadow or /etc/gshadow, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/shadow -F perm=wa -k identity” and “-a always,exit -F arch=b64 -F path=/etc/gshadow -F perm=wa -k identity” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/shadow -F perm=wa -k identity", "-a always,exit -F arch=b64 -F path=/etc/gshadow -F perm=wa -k identity"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.14, stig-ubuntu-26.04:UBTU-24-200300, stig-ubuntu-26.04:UBTU-24-200310]
   audit/opasswd:
@@ -215,7 +263,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/security/opasswd, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/security/opasswd -F perm=wa -k identity” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/security/opasswd -F perm=wa -k identity"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.15, stig-ubuntu-26.04:UBTU-24-200320]
   audit/nsswitch:
@@ -228,7 +280,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/nsswitch.conf, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/nsswitch.conf -F perm=wa -k identity” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/nsswitch.conf -F perm=wa -k identity"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.16]
   audit/pam:
@@ -242,7 +298,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/pam.conf or /etc/pam.d, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/etc/pam.conf -F perm=wa -k identity” and “-a always,exit -F arch=b64 -F dir=/etc/pam.d -F perm=wa -k identity” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/etc/pam.conf -F perm=wa -k identity", "-a always,exit -F arch=b64 -F dir=/etc/pam.d -F perm=wa -k identity"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.17]
   audit/chmod:
@@ -262,7 +322,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records chmod, fchmod, fchmodat or fchmodat2 on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S chmod,fchmod,fchmodat,fchmodat2 -k perm_mod” and “-a always,exit -F arch=b32 -S chmod,fchmod,fchmodat,fchmodat2 -k perm_mod” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S chmod,fchmod,fchmodat,fchmodat2 -k perm_mod", "-a always,exit -F arch=b32 -S chmod,fchmod,fchmodat,fchmodat2 -k perm_mod"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.18, stig-ubuntu-26.04:UBTU-24-900130, stig-ubuntu-26.04:UBTU-24-900140]
   audit/chown:
@@ -282,7 +346,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records chown, fchown, lchown or fchownat on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S chown,fchown,lchown,fchownat -k perm_mod” and “-a always,exit -F arch=b32 -S chown,fchown,lchown,fchownat -k perm_mod” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S chown,fchown,lchown,fchownat -k perm_mod", "-a always,exit -F arch=b32 -S chown,fchown,lchown,fchownat -k perm_mod"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.19, stig-ubuntu-26.04:UBTU-24-900130, stig-ubuntu-26.04:UBTU-24-900140]
   audit/xattr:
@@ -306,7 +374,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records setxattr, lsetxattr, fsetxattr, removexattr, lremovexattr or fremovexattr on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S setxattr,lsetxattr,fsetxattr,removexattr,lremovexattr,fremovexattr -k perm_mod” and “-a always,exit -F arch=b32 -S setxattr,lsetxattr,fsetxattr,removexattr,lremovexattr,fremovexattr -k perm_mod” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S setxattr,lsetxattr,fsetxattr,removexattr,lremovexattr,fremovexattr -k perm_mod", "-a always,exit -F arch=b32 -S setxattr,lsetxattr,fsetxattr,removexattr,lremovexattr,fremovexattr -k perm_mod"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.20, stig-ubuntu-26.04:UBTU-24-900130, stig-ubuntu-26.04:UBTU-24-900140]
   audit/mount:
@@ -320,7 +392,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records mount on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S mount -k mounts” and “-a always,exit -F arch=b32 -S mount -k mounts” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S mount -k mounts", "-a always,exit -F arch=b32 -S mount -k mounts"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.21]
   audit/session:
@@ -335,7 +411,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to utmp, wtmp or btmp, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/var/run/utmp -F perm=wa -k session”, “-a always,exit -F arch=b64 -F path=/var/log/wtmp -F perm=wa -k session” and “-a always,exit -F arch=b64 -F path=/var/log/btmp -F perm=wa -k session” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/var/run/utmp -F perm=wa -k session", "-a always,exit -F arch=b64 -F path=/var/log/wtmp -F perm=wa -k session", "-a always,exit -F arch=b64 -F path=/var/log/btmp -F perm=wa -k session"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.22, stig-ubuntu-26.04:UBTU-24-900590, stig-ubuntu-26.04:UBTU-24-900600, stig-ubuntu-26.04:UBTU-24-900610]
   audit/logins:
@@ -349,7 +429,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /var/log/lastlog or /var/run/faillock, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/var/log/lastlog -F perm=wa -k logins” and “-a always,exit -F arch=b64 -F path=/var/run/faillock -F perm=wa -k logins” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/var/log/lastlog -F perm=wa -k logins", "-a always,exit -F arch=b64 -F path=/var/run/faillock -F perm=wa -k logins"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.23, stig-ubuntu-26.04:UBTU-24-900260]
   audit/unlink:
@@ -365,7 +449,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records unlink or unlinkat on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S unlink,unlinkat -k delete” and “-a always,exit -F arch=b32 -S unlink,unlinkat -k delete” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S unlink,unlinkat -k delete", "-a always,exit -F arch=b32 -S unlink,unlinkat -k delete"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.24, stig-ubuntu-26.04:UBTU-24-900540]
   audit/rename:
@@ -383,7 +471,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records rename, renameat or renameat2 on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S rename,renameat,renameat2 -k delete” and “-a always,exit -F arch=b32 -S rename,renameat,renameat2 -k delete” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S rename,renameat,renameat2 -k delete", "-a always,exit -F arch=b32 -S rename,renameat,renameat2 -k delete"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.25, stig-ubuntu-26.04:UBTU-24-900540]
   audit/apparmor:
@@ -397,7 +489,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records writes to /etc/apparmor or /etc/apparmor.d, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F dir=/etc/apparmor -F perm=wa -k MAC-policy” and “-a always,exit -F arch=b64 -F dir=/etc/apparmor.d -F perm=wa -k MAC-policy” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F dir=/etc/apparmor -F perm=wa -k MAC-policy", "-a always,exit -F arch=b64 -F dir=/etc/apparmor.d -F perm=wa -k MAC-policy"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.26]
   audit/chcon:
@@ -410,7 +506,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records runs of /usr/bin/chcon, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/usr/bin/chcon -F perm=x -k perm_chng” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/usr/bin/chcon -F perm=x -k perm_chng"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.27, stig-ubuntu-26.04:UBTU-24-900210]
   audit/setfacl:
@@ -423,7 +523,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records runs of /usr/bin/setfacl, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/usr/bin/setfacl -F perm=x -k perm_chng” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/usr/bin/setfacl -F perm=x -k perm_chng"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.28, stig-ubuntu-26.04:UBTU-24-900230]
   audit/chacl:
@@ -436,7 +540,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records runs of /usr/bin/chacl, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/usr/bin/chacl -F perm=x -k perm_chng” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/usr/bin/chacl -F perm=x -k perm_chng"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.29, stig-ubuntu-26.04:UBTU-24-900240]
   audit/usermod:
@@ -449,7 +557,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records runs of /usr/sbin/usermod, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/usr/sbin/usermod -F perm=x -k usermod” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/usr/sbin/usermod -F perm=x -k usermod"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.30, stig-ubuntu-26.04:UBTU-24-900310]
   audit/kmod:
@@ -462,7 +574,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records runs of /usr/bin/kmod, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -F path=/usr/bin/kmod -F perm=x -k kernel_modules” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -F path=/usr/bin/kmod -F perm=x -k kernel_modules"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.31]
   audit/module-load:
@@ -478,7 +594,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records init_module or finit_module on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S init_module,finit_module -k kernel_modules” and “-a always,exit -F arch=b32 -S init_module,finit_module -k kernel_modules” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S init_module,finit_module -k kernel_modules", "-a always,exit -F arch=b32 -S init_module,finit_module -k kernel_modules"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.32, stig-ubuntu-26.04:UBTU-24-900340]
   audit/module-delete:
@@ -492,7 +612,11 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}: no audit rule records delete_module on both architectures, so such a change leaves no trace for an investigation"
-    fix: add “-a always,exit -F arch=b64 -S delete_module -k kernel_modules” and “-a always,exit -F arch=b32 -S delete_module -k kernel_modules” to a file ending in “.rules” under “/etc/audit/rules.d/”, then run “augenrules --load”
+    fix:
+      - 'Add these lines to a file ending in “.rules” under “/etc/audit/rules.d/”:'
+      - lines: ["-a always,exit -F arch=b64 -S delete_module -k kernel_modules", "-a always,exit -F arch=b32 -S delete_module -k kernel_modules"]
+      - 'Load them now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man7/audit.rules.7.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.33, stig-ubuntu-26.04:UBTU-24-900350]
   audit/continue-on-error:
@@ -502,7 +626,11 @@ rules:
     severity: info
     score: 2.0
     message: "no file in /etc/audit/rules.d holds -c, so one rule auditctl rejects keeps every rule after it from loading"
-    fix: add “-c” to a file ending in “.rules” under “/etc/audit/rules.d/”, such as “01-initialize.rules”, then run “augenrules --load”
+    fix:
+      - 'Add this line to a file ending in “.rules” under “/etc/audit/rules.d/”, such as “/etc/audit/rules.d/01-initialize.rules”:'
+      - lines: ["-c"]
+      - 'Load it now:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man8/auditctl.8.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.34]
   audit/immutable:
@@ -515,6 +643,11 @@ rules:
     severity: warning
     score: 4.0
     message: "no file in /etc/audit/rules.d locks the rules with -e 2, or one sets -e 0 or -e 1, so root can switch auditing off and back on without a reboot to hide what it did"
-    fix: add “-e 2” as the last line of “/etc/audit/rules.d/99-finalize.rules”, remove every “-e 0” and “-e 1”, then run “augenrules --load” and reboot
+    fix:
+      - Remove every “-e 0” and “-e 1” line from the files under “/etc/audit/rules.d/”.
+      - 'Add this line as the last line of “/etc/audit/rules.d/99-finalize.rules”:'
+      - lines: ["-e 2"]
+      - 'Load the rules, then reboot, since locked rules change only at boot:'
+      - run: augenrules --load
     docs: https://man7.org/linux/man-pages/man8/auditctl.8.html
     tags: [audit, cis-ubuntu-26.04:6.2.3.35, stig-ubuntu-26.04:UBTU-24-909000]
