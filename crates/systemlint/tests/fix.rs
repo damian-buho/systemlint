@@ -431,6 +431,39 @@ fn a_drop_in_writes_only_lines_that_turn_something_off() {
 }
 
 #[test]
+fn a_drop_in_without_a_fix_shows_the_file_it_writes_as_the_fix_steps() {
+    let yaml = |lines: &str| {
+        format!(
+            "fact: v\nexpect: {{const: 0}}\nremedy: {{drop-in: {{into: apt, name: quiet, lines: [{lines}]}}}}\n"
+        )
+    };
+    let steps = |lines: &str| {
+        let rule =
+            systemlint::judge::compile("x/apt", systemlint::yaml::from_str(&yaml(lines)).unwrap())
+                .unwrap();
+        rule.spec.fix.unwrap().text()
+    };
+    assert!(
+        steps(r#"'APT::Install-Suggests "0";'"#)
+            .contains("Write this line to “/etc/apt/apt.conf.d/60-systemlint-quiet.conf”:"),
+        "one line"
+    );
+    assert!(
+        steps(r#"'APT::Install-Suggests "0";', 'APT::Install-Recommends "0";'"#)
+            .contains("Write these lines to “/etc/apt/apt.conf.d/60-systemlint-quiet.conf”:"),
+        "two lines"
+    );
+    let own = "fact: v\nexpect: {const: 0}\nfix: write it yourself\nremedy: {drop-in: {into: apt, name: quiet, lines: ['APT::Install-Suggests \"0\";']}}\n";
+    let rule =
+        systemlint::judge::compile("x/apt", systemlint::yaml::from_str(own).unwrap()).unwrap();
+    assert_eq!(
+        rule.spec.fix.unwrap().text(),
+        "write it yourself",
+        "a rule’s own fix wins"
+    );
+}
+
+#[test]
 fn applying_a_drop_in_writes_it_once_and_leaves_a_file_with_other_lines() {
     let dir = base("drop-in");
     std::fs::create_dir_all(dir.join("etc/modprobe.d")).unwrap();

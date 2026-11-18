@@ -681,12 +681,16 @@ fn guards(when: Option<&When>, most: usize, over: &str) -> Result<Vec<Vec<Guard>
 }
 
 /// Compiles one selected rule, refusing a bad path, schema or `when`, its rulesets’ included.
-pub fn compile(id: &str, spec: Spec) -> Result<Rule, String> {
+pub fn compile(id: &str, mut spec: Spec) -> Result<Rule, String> {
     let fail = |e: String| format!("rule {id}: {e}");
     spec.remedy
         .as_ref()
         .map_or(Ok(()), crate::fix::Remedy::validate)
         .map_err(fail)?;
+    if let (None, Some(crate::fix::Remedy::DropIn(drop))) = (&spec.fix, &spec.remedy) {
+        log::debug!("rule {id}: fix steps from its drop-in {}", drop.path());
+        spec.fix = Some(drop.steps());
+    }
     let applies = spec
         .applies
         .iter()

@@ -101,6 +101,20 @@ impl DropIn {
     pub fn text(&self) -> String {
         self.lines.iter().map(|l| format!("{l}\n")).collect()
     }
+
+    /// The fix steps a reader follows to write it by hand, the very file `systemlint fix` writes.
+    pub fn steps(&self) -> crate::rules::Fix {
+        use crate::rules::{Fix, Shown, Step};
+        let these = if self.lines.len() == 1 {
+            "this line"
+        } else {
+            "these lines"
+        };
+        Fix::Steps(vec![
+            Step::Say(format!("Write {these} to “{}”:", self.path())),
+            Step::Show(Shown::Lines(self.lines.clone())),
+        ])
+    }
 }
 
 /// A file syntax whose every line only grants access, so commenting one out only takes access away.

@@ -640,7 +640,7 @@ fn human_folds_rotated_copies_under_their_log_unless_verbose() {
 
 #[test]
 fn human_shows_a_drop_in_as_its_fix_steps_then_offers_systemlint_fix() {
-    let yaml = "fact: v\nexpect: {const: 0}\nfix:\n  - 'Add this line:'\n  - lines: ['blacklist atm']\nremedy: {drop-in: {into: modprobe, name: atm, lines: ['blacklist atm']}}\n";
+    let yaml = "fact: v\nexpect: {const: 0}\nremedy: {drop-in: {into: modprobe, name: atm, lines: ['blacklist atm']}}\n";
     let rule = compile("x/drop", systemlint::yaml::from_str(yaml).unwrap()).unwrap();
     let document = json!({"v": 1});
     let text = lint_human(
@@ -652,7 +652,10 @@ fn human_shows_a_drop_in_as_its_fix_steps_then_offers_systemlint_fix() {
         false,
     );
     assert!(!text.contains("printf"), "{text}");
-    assert!(text.contains("       blacklist atm\n"), "{text}");
+    assert!(
+        text.contains("Fix:\n  1. Write this line to “/etc/modprobe.d/60-systemlint-atm.conf”:\n       blacklist atm\n"),
+        "{text}"
+    );
     assert!(
         text.ends_with("Or let systemlint make the change:\n  systemlint fix --tags x/drop\n\n"),
         "{text}"
