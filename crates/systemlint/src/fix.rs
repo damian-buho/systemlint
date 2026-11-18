@@ -39,6 +39,9 @@ pub struct DropIn {
     pub into: Directory,
     pub name: String,
     pub lines: Vec<String>,
+    /// Unloads every module its lines name from the running kernel once written, `into: modprobe` only.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub unload: bool,
 }
 
 /// A configuration directory a drop-in may go in, each with the only lines it may write there.
@@ -50,6 +53,12 @@ pub enum Directory {
     /// `/etc/apt/apt.conf.d`, for turning off recommended and suggested packages.
     Apt,
 }
+
+/// The modprobe that unloads a module, the one the kernel-modules collectors run.
+const MODPROBE: &str = "/usr/sbin/modprobe";
+
+/// How long one unload may take before it counts as failed.
+const UNLOAD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 
 /// The apt settings a drop-in may write, each turning off an install default.
 const APT_LINES: [&str; 4] = [
@@ -102,7 +111,21 @@ impl DropIn {
         self.lines.iter().map(|l| format!("{l}\n")).collect()
     }
 
-    /// The fix steps a reader follows to write it by hand, the very file `systemlint fix` writes.
+    /// The modules its lines name, as `install <module> …` and `blacklist <module>` spell them.
+    pub fn modules(&self) -> Vec<&str> {
+        self.lines
+            .iter()
+            .filter_map(|l| l.split(' ').nth(1))
+            .collect()
+    }
+
+    /// The command that unloads its modules, when it unloads any.
+    fn unloading(&self) -> Option<String> {
+        self.unload
+            .then(|| format!("modprobe -r {}", self.modules().join(" ")))
+    }
+
+    /// The fix steps a reader follows to do by hand what `systemlint fix` does: the very file it writes, then any unload.
     pub fn steps(&self) -> crate::rules::Fix {
         use crate::rules::{Fix, Shown, Step};
         let these = if self.lines.len() == 1 {
@@ -110,10 +133,20 @@ impl DropIn {
         } else {
             "these lines"
         };
-        Fix::Steps(vec![
+        let mut steps = vec![
             Step::Say(format!("Write {these} to “{}”:", self.path())),
             Step::Show(Shown::Lines(self.lines.clone())),
-        ])
+        ];
+        if let Some(command) = self.unloading() {
+            let them = if self.modules().len() == 1 {
+                "it"
+            } else {
+                "them"
+            };
+            steps.push(Step::Say(format!("Unload {them} from the running kernel:")));
+            steps.push(Step::Show(Shown::Run(command)));
+        }
+        Fix::Steps(steps)
     }
 }
 
@@ -168,6 +201,9 @@ impl Remedy {
                         drop.name
                     ));
                 }
+                if drop.unload && drop.into != Directory::Modprobe {
+                    return Err("remedy drop-in unload takes into: modprobe".to_owned());
+                }
                 if drop.lines.is_empty() || drop.lines.len() > 16 {
                     return Err("remedy drop-in takes 1 to 16 lines".to_owned());
                 }
@@ -194,11 +230,15 @@ impl Remedy {
             },
             Self::DropIn(drop) => {
                 let lines: Vec<String> = drop.lines.iter().map(|l| quote(l)).collect();
-                format!(
+                let written = format!(
                     "printf '%s\\n' {} > {}",
                     lines.join(" "),
                     quote(&drop.path())
-                )
+                );
+                match drop.unloading() {
+                    Some(command) => format!("{written} && {command}"),
+                    None => written,
+                }
             }
         }
     }
@@ -330,7 +370,20 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> P
         .collect();
     let key = |c: &Change| (c.path.clone(), c.line.clone(), c.remedy.command(""));
     changes.sort_by_key(key);
-    changes.dedup_by(|a, b| a.path == b.path && a.line == b.line && a.remedy == b.remedy);
+    changes.dedup_by(|a, b| match (&a.remedy, &mut b.remedy) {
+        (Remedy::DropIn(later), Remedy::DropIn(kept))
+            if later.lines == kept.lines && a.path == b.path =>
+        {
+            log::debug!(
+                "{}: one write, unload {}",
+                a.path,
+                later.unload || kept.unload
+            );
+            kept.unload |= later.unload;
+            true
+        }
+        _ => a.path == b.path && a.line == b.line && a.remedy == b.remedy,
+    });
     let mut disabled: BTreeSet<String> = BTreeSet::new();
     let mut plan = Plan::default();
     for change in changes {
@@ -369,7 +422,7 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
     change.remedy.validate().map_err(std::io::Error::other)?;
     match &change.remedy {
         Remedy::DisableLine(_) => return disable(root, change),
-        Remedy::DropIn(drop) => return write(root, drop),
+        Remedy::DropIn(drop) => return write(root, drop).and_then(|w| unload(root, drop, w)),
         _ => {}
     }
     let file = root.open_for_change(&change.path).map_err(|e| {
@@ -417,7 +470,7 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
             Ok(Some((format!("gid {}", meta.gid()), format!("gid {gid}"))))
         }
         Remedy::DisableLine(_) => disable(root, change),
-        Remedy::DropIn(drop) => write(root, drop),
+        Remedy::DropIn(drop) => write(root, drop).and_then(|w| unload(root, drop, w)),
     }
 }
 
@@ -447,6 +500,63 @@ fn write(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
         }
         Err(e) => Err(e),
     }
+}
+
+/// The `modules` that `/proc/modules` text lists, either spelling (`usb-storage`, `usb_storage`) matching kmod’s.
+pub fn loaded<'a>(listed: &str, modules: &[&'a str]) -> Vec<&'a str> {
+    let spelled = |m: &str| m.replace('-', "_");
+    modules
+        .iter()
+        .copied()
+        .filter(|m| {
+            listed
+                .lines()
+                .any(|l| l.split(' ').next() == Some(spelled(m).as_str()))
+        })
+        .collect()
+}
+
+/// Unloads the modules of `drop` the running kernel lists, only on the live root, adding what it did to `written`.
+fn unload(root: &Root, drop: &DropIn, written: Applied) -> Result<Applied, std::io::Error> {
+    let live = root.path() == std::path::Path::new("/");
+    log::debug!("{}: unload {}, live root {live}", drop.path(), drop.unload);
+    if !drop.unload || !live {
+        return Ok(written);
+    }
+    let listed = String::from_utf8_lossy(&root.read("/proc/modules", crate::runner::OUTPUT_CAP)?)
+        .into_owned();
+    let loaded = loaded(&listed, &drop.modules());
+    log::debug!("{}: {} of its modules loaded", drop.path(), loaded.len());
+    if loaded.is_empty() {
+        return Ok(written);
+    }
+    let mut args = vec!["-r"];
+    args.extend(&loaded);
+    let output = crate::runner::run(
+        std::path::Path::new(MODPROBE),
+        &args,
+        None,
+        UNLOAD_TIMEOUT,
+        crate::runner::OUTPUT_CAP,
+        None,
+    )
+    .map_err(std::io::Error::other)?;
+    log::debug!("modprobe -r {}: exit {}", loaded.join(" "), output.code());
+    if output.code() != 0 {
+        return Err(std::io::Error::other(format!(
+            "modprobe -r {} answered “{}”, so it stays loaded until the next boot",
+            loaded.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    let names = loaded.join(", ");
+    Ok(Some(match written {
+        Some((before, after)) => (
+            format!("{before}, {names} loaded"),
+            format!("{after}, {names} unloaded"),
+        ),
+        None => (format!("{names} loaded"), format!("{names} unloaded")),
+    }))
 }
 
 /// Comments out the line `change` names, refusing when it no longer holds the text the lint hashed.

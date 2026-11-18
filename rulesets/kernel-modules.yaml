@@ -27,11 +27,7 @@ rules:
     severity: warning
     score: 4.0
     message: "cramfs is loaded in the running kernel, so a crafted cramfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-cramfs-autoloading.conf”:'
-      - lines: ["install cramfs /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r cramfs
+    remedy: {drop-in: {into: modprobe, name: block-cramfs-autoloading, lines: ["install cramfs /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -68,11 +64,7 @@ rules:
     severity: warning
     score: 4.0
     message: "freevxfs is loaded in the running kernel, so a crafted freevxfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-freevxfs-autoloading.conf”:'
-      - lines: ["install freevxfs /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r freevxfs
+    remedy: {drop-in: {into: modprobe, name: block-freevxfs-autoloading, lines: ["install freevxfs /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -109,11 +101,7 @@ rules:
     severity: warning
     score: 4.0
     message: "hfs is loaded in the running kernel, so a crafted hfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-hfs-autoloading.conf”:'
-      - lines: ["install hfs /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r hfs
+    remedy: {drop-in: {into: modprobe, name: block-hfs-autoloading, lines: ["install hfs /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -150,11 +138,7 @@ rules:
     severity: warning
     score: 4.0
     message: "hfsplus is loaded in the running kernel, so a crafted hfsplus image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-hfsplus-autoloading.conf”:'
-      - lines: ["install hfsplus /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r hfsplus
+    remedy: {drop-in: {into: modprobe, name: block-hfsplus-autoloading, lines: ["install hfsplus /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -191,11 +175,7 @@ rules:
     severity: warning
     score: 4.0
     message: "jffs2 is loaded in the running kernel, so a crafted jffs2 image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-jffs2-autoloading.conf”:'
-      - lines: ["install jffs2 /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r jffs2
+    remedy: {drop-in: {into: modprobe, name: block-jffs2-autoloading, lines: ["install jffs2 /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -230,11 +210,7 @@ rules:
     severity: warning
     score: 4.0
     message: overlay is loaded in the running kernel, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-overlay-autoloading.conf”:'
-      - lines: ["install overlay /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r overlay
+    remedy: {drop-in: {into: modprobe, name: block-overlay-autoloading, lines: ["install overlay /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/overlay-blacklist:
@@ -269,11 +245,7 @@ rules:
     severity: warning
     score: 4.0
     message: "squashfs is loaded in the running kernel, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-squashfs-autoloading.conf”:'
-      - lines: ["install squashfs /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r squashfs
+    remedy: {drop-in: {into: modprobe, name: block-squashfs-autoloading, lines: ["install squashfs /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -310,11 +282,7 @@ rules:
     severity: warning
     score: 4.0
     message: "udf is loaded in the running kernel, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-udf-autoloading.conf”:'
-      - lines: ["install udf /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r udf
+    remedy: {drop-in: {into: modprobe, name: block-udf-autoloading, lines: ["install udf /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -351,11 +319,7 @@ rules:
     severity: warning
     score: 4.0
     message: "firewire_core is loaded in the running kernel, so a FireWire device plugged in can read and write memory through DMA"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-firewire-core-autoloading.conf”:'
-      - lines: ["install firewire_core /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r firewire_core
+    remedy: {drop-in: {into: modprobe, name: block-firewire-core-autoloading, lines: ["install firewire_core /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.9]
   kernel-modules/firewire-core-blacklist:
@@ -392,11 +356,7 @@ rules:
     severity: warning
     score: 4.0
     message: "usb_storage is loaded in the running kernel, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-usb-storage-autoloading.conf”:'
-      - lines: ["install usb_storage /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r usb_storage
+    remedy: {drop-in: {into: modprobe, name: block-usb-storage-autoloading, lines: ["install usb_storage /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.10, '!default']
   kernel-modules/usb-storage-blacklist:
@@ -431,11 +391,7 @@ rules:
     severity: warning
     score: 5.0
     message: "atm is loaded in the running kernel, so any local user opening an atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-atm-autoloading.conf”:'
-      - lines: ["install atm /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r atm
+    remedy: {drop-in: {into: modprobe, name: block-atm-autoloading, lines: ["install atm /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.1]
   kernel-modules/atm-blacklist:
@@ -468,11 +424,7 @@ rules:
     severity: warning
     score: 5.0
     message: "can is loaded in the running kernel, so any local user opening a can socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-can-autoloading.conf”:'
-      - lines: ["install can /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r can
+    remedy: {drop-in: {into: modprobe, name: block-can-autoloading, lines: ["install can /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.2]
   kernel-modules/can-blacklist:
@@ -507,11 +459,7 @@ rules:
     severity: warning
     score: 5.0
     message: "dccp is loaded in the running kernel, so any local user opening a dccp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-dccp-autoloading.conf”:'
-      - lines: ["install dccp /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r dccp
+    remedy: {drop-in: {into: modprobe, name: block-dccp-autoloading, lines: ["install dccp /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -548,11 +496,7 @@ rules:
     severity: warning
     score: 5.0
     message: "rds is loaded in the running kernel, so any local user opening a rds socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-rds-autoloading.conf”:'
-      - lines: ["install rds /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r rds
+    remedy: {drop-in: {into: modprobe, name: block-rds-autoloading, lines: ["install rds /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -589,11 +533,7 @@ rules:
     severity: warning
     score: 5.0
     message: "sctp is loaded in the running kernel, so any local user opening a sctp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-sctp-autoloading.conf”:'
-      - lines: ["install sctp /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r sctp
+    remedy: {drop-in: {into: modprobe, name: block-sctp-autoloading, lines: ["install sctp /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -630,11 +570,7 @@ rules:
     severity: warning
     score: 5.0
     message: "tipc is loaded in the running kernel, so any local user opening a tipc socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
-    fix:
-      - 'Write this line to “/etc/modprobe.d/60-systemlint-block-tipc-autoloading.conf”:'
-      - lines: ["install tipc /bin/false"]
-      - 'Unload it from the running kernel:'
-      - run: modprobe -r tipc
+    remedy: {drop-in: {into: modprobe, name: block-tipc-autoloading, lines: ["install tipc /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}

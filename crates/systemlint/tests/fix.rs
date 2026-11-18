@@ -409,6 +409,7 @@ fn a_drop_in_writes_only_lines_that_turn_something_off() {
         "drop-in: {into: modprobe, name: ../x, lines: ['blacklist atm']}",
         "drop-in: {into: modprobe, name: X, lines: ['blacklist atm']}",
         "drop-in: {into: modprobe, name: x, lines: []}",
+        "drop-in: {into: apt, name: x, lines: ['APT::Install-Recommends \"0\";'], unload: true}",
     ] {
         assert!(ok(refused).is_err(), "{refused}");
     }
@@ -460,6 +461,77 @@ fn a_drop_in_without_a_fix_shows_the_file_it_writes_as_the_fix_steps() {
         rule.spec.fix.unwrap().text(),
         "write it yourself",
         "a rule’s own fix wins"
+    );
+}
+
+#[test]
+fn an_unloading_drop_in_shows_and_runs_the_unload_after_the_file() {
+    let remedy = "drop-in: {into: modprobe, name: block-atm-autoloading, lines: ['install atm /bin/false'], unload: true}";
+    let Remedy::DropIn(drop) = drop_in(remedy) else {
+        unreachable!()
+    };
+    assert_eq!(
+        drop.steps().text(),
+        systemlint::rules::Fix::Steps(vec![
+            systemlint::rules::Step::Say(
+                "Write this line to “/etc/modprobe.d/60-systemlint-block-atm-autoloading.conf”:"
+                    .into()
+            ),
+            systemlint::rules::Step::Show(systemlint::rules::Shown::Lines(vec![
+                "install atm /bin/false".into()
+            ])),
+            systemlint::rules::Step::Say("Unload it from the running kernel:".into()),
+            systemlint::rules::Step::Show(systemlint::rules::Shown::Run("modprobe -r atm".into())),
+        ])
+        .text()
+    );
+    assert!(drop_in(remedy).command("").ends_with(" && modprobe -r atm"));
+    let dir = base("drop-in-unload");
+    std::fs::create_dir_all(dir.join("etc/modprobe.d")).unwrap();
+    let change = Change {
+        rule: "test/loaded".into(),
+        path: drop.path(),
+        line: None,
+        remedy: drop_in(remedy),
+    };
+    assert_eq!(
+        apply(&Root::open(&dir).unwrap(), &change).unwrap(),
+        Some(("absent".into(), "written".into())),
+        "under another root the running kernel is left alone"
+    );
+}
+
+#[test]
+fn an_unload_picks_the_listed_modules_in_either_spelling() {
+    let listed =
+        "usb_storage 86016 0 - Live 0x0\nfirewire_core 1 0 - Live 0x0\natm 1 0 - Live 0x0\n";
+    assert_eq!(
+        systemlint::fix::loaded(listed, &["usb-storage", "firewire_core", "cramfs", "at"]),
+        ["usb-storage", "firewire_core"]
+    );
+    assert!(systemlint::fix::loaded("", &["atm"]).is_empty());
+}
+
+#[test]
+fn a_plan_writes_one_drop_in_once_unloading_when_either_rule_asks() {
+    let rule = |id: &str, unload: bool| {
+        let yaml = format!(
+            "fact: v\nexpect: {{const: 0}}\nremedy: {{drop-in: {{into: modprobe, name: block-atm-autoloading, lines: ['install atm /bin/false'], unload: {unload}}}}}\n"
+        );
+        compile(id, systemlint::yaml::from_str(&yaml).unwrap()).unwrap()
+    };
+    let document = json!({"v": 1});
+    let rules = [rule("a/written", false), rule("b/loaded", true)];
+    let changes = plan(
+        &lint(&document, &rules, &[], "2026-11-18"),
+        &rules,
+        &document,
+    )
+    .changes;
+    assert_eq!(changes.len(), 1, "{changes:?}");
+    assert!(
+        matches!(&changes[0].remedy, Remedy::DropIn(d) if d.unload),
+        "{changes:?}"
     );
 }
 
