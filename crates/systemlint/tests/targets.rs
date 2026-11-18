@@ -355,6 +355,49 @@ fn human_prints_a_subject_shared_by_containers_once_beside_the_ones_they_differ_
 }
 
 #[test]
+fn human_keeps_each_targets_closing_text_with_its_own_subjects() {
+    let compiled =
+        |id: &str, yaml: &str| compile(id, systemlint::yaml::from_str(yaml).unwrap()).unwrap();
+    let rules = [
+        compiled(
+            "x/fix",
+            "fact: mounts.*\nexpect: {const: 0}\nfix: remount {subject}\n",
+        ),
+        compiled(
+            "x/mode",
+            "fact: files.*\nexpect: {const: 0}\nremedy: {chmod: o-r}\n",
+        ),
+    ];
+    let host = json!({"mounts": {"/dev/shm": 1, "/tmp": 1}, "files": {"/a": 1, "/b": 1}});
+    let doc = |files: Value| json!({"meta": {"subject": {"kind": "container", "image": "i", "changed": ["/a", "/b"]}}, "mounts": {}, "files": files});
+    let (m, c) = (
+        json!({"mounts": {"/tmp": 1}, "files": {}}),
+        doc(json!({"/a": 1})),
+    );
+    let n = doc(json!({"/b": 1}));
+    let judged = |d: &Value| lint(d, &rules, &[], "2026-11-18");
+    let (jh, jm, jc, jn) = (judged(&host), judged(&m), judged(&c), judged(&n));
+    let targets = [
+        ("m", &m, jm.as_slice()),
+        ("c", &c, jc.as_slice()),
+        ("n", &n, jn.as_slice()),
+    ];
+    let text = lint_human_targets(&host, &jh, 0, &targets, (true, false, false));
+    assert_eq!(text.matches("In m:").count(), 1, "{text}");
+    assert!(
+        text.contains("In m:\n- mounts./tmp: 0 was expected.\nFix: remount /tmp.\n"),
+        "{text}"
+    );
+    assert_eq!(text.matches("In the host:").count(), 1, "{text}");
+    assert!(
+        text.contains(
+            "  Run: chmod o-r /b\nOr make every change at once:\n  systemlint fix --tags x/mode\n"
+        ),
+        "{text}"
+    );
+}
+
+#[test]
 fn human_fixes_a_shipped_path_in_the_image_build_and_never_offers_fix_in_a_container() {
     let yaml = "fact: files.*\nexpect: {const: 0}\nremedy: {chown: 0}\n";
     let rules = [compile("x/owner", systemlint::yaml::from_str(yaml).unwrap()).unwrap()];

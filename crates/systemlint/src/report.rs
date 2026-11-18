@@ -1055,6 +1055,7 @@ struct Joined<'a> {
     rests: Vec<(String, Vec<&'a str>)>,
     items: Vec<(Item, Vec<(&'a str, &'a str)>)>,
     ends: Vec<(String, Vec<&'a str>)>,
+    tails: Vec<(String, Vec<&'a str>)>,
 }
 
 /// Each block by where it sorts and its first line, joined across targets.
@@ -1098,7 +1099,8 @@ pub fn lint_human_targets(
                 .items
                 .into_iter()
                 .for_each(|item| join(&mut joined.items, item, (*key, image)));
-            join(&mut joined.ends, block.mid + &block.tail, *key);
+            join(&mut joined.ends, block.mid, *key);
+            join(&mut joined.tails, block.tail, *key);
         }
     }
     let containers: Vec<&str> = targets.iter().map(|(key, _, _)| *key).collect();
@@ -1134,6 +1136,12 @@ pub fn lint_human_targets(
         );
         let holding = joined.rests.iter().map(|(_, k)| k.len()).sum::<usize>();
         let mut told = vec![false; joined.ends.len()];
+        let within = |held: &[&str], keys: &[&str]| held.iter().all(|k| keys.contains(k));
+        let last: Vec<Option<usize>> = joined
+            .tails
+            .iter()
+            .map(|(_, held)| sets.iter().rposition(|(keys, _)| within(held, keys)))
+            .collect();
         for (n, (keys, items)) in sets.iter().enumerate() {
             if n > 0 {
                 out.push('\n');
@@ -1161,6 +1169,15 @@ pub fn lint_human_targets(
                     told[i] = true;
                 }
             }
+            for (i, (tail, held)) in joined.tails.iter().enumerate() {
+                if !tail.is_empty() && last[i] == Some(n) {
+                    log::debug!(
+                        "{head}: closing text after the last group of its {} targets",
+                        held.len()
+                    );
+                    out.push_str(tail);
+                }
+            }
         }
         for (i, (end, keys)) in joined.ends.iter().enumerate() {
             if end.is_empty() || told[i] {
@@ -1173,6 +1190,15 @@ pub fn lint_human_targets(
                 let _ = writeln!(out, "In {}:", place(keys, &containers, on));
             }
             out.push_str(end);
+        }
+        for (i, (tail, keys)) in joined.tails.iter().enumerate() {
+            if tail.is_empty() || last[i].is_some() {
+                continue;
+            }
+            if !containers.is_empty() && keys.len() < holding {
+                let _ = writeln!(out, "\nIn {}:", place(keys, &containers, on));
+            }
+            out.push_str(tail);
         }
         out.push('\n');
     }
