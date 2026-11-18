@@ -162,8 +162,10 @@ logs/file-mode:
   fix: set 0640 on the “create” line in {suggested}
 ```
 
-A log file finds the logrotate stanza whose names match it, and no match is
-an absent fact, as for `{path}`.
+A log file finds the logrotate stanza whose names match it. With no match,
+`suggest` takes its `otherwise` and `same` is `unknown`, while a `when` judges
+`null`, so `not: {type: object}` holds for a log no stanza names; the map at
+the `*` absent is `unknown` everywhere.
 
 ### Outcomes
 

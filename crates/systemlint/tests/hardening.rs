@@ -1510,6 +1510,56 @@ fn every_rule_carrying_a_lynis_reference_is_tagged_lynis_and_back() {
 }
 
 #[test]
+fn every_shipped_rule_states_its_rationale() {
+    for entry in
+        std::fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets")).unwrap()
+    {
+        let path = entry.unwrap().path();
+        let ruleset: Value =
+            systemlint::yaml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for (id, rule) in ruleset["rules"].as_object().unwrap() {
+            let rationale = rule["rationale"]
+                .as_str()
+                .unwrap_or_else(|| panic!("{id} in {} carries no rationale", path.display()));
+            assert!(!rationale.is_empty(), "{id} in {}", path.display());
+            assert!(
+                rationale.starts_with(char::is_lowercase),
+                "{id} in {}: {rationale} opens uppercase",
+                path.display()
+            );
+            assert!(
+                !rationale.ends_with('.'),
+                "{id} in {}: {rationale} ends with a full stop",
+                path.display()
+            );
+            assert!(
+                !rationale.contains('{'),
+                "{id} in {}: {rationale} keeps a placeholder",
+                path.display()
+            );
+            assert!(
+                !rationale.contains(['\'', '"']),
+                "{id} in {}: {rationale} quotes in ASCII",
+                path.display()
+            );
+            for wording in [
+                "benchmark",
+                "stig",
+                "best practice",
+                "recommended",
+                "compliance",
+            ] {
+                assert!(
+                    !rationale.to_lowercase().contains(wording),
+                    "{id} in {}: {rationale} repeats the standard ({wording})",
+                    path.display()
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn every_shipped_rule_with_an_expression_words_its_own_message() {
     for entry in
         std::fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets")).unwrap()
@@ -5288,6 +5338,7 @@ fn owned(rule: &str, id: &str, into: &str, stats: Value) -> Vec<(String, Outcome
         "accounts": {"group": {"syslog": {"gid": 110}, "adm": {"gid": 4}, "systemd-journal": {"gid": 999}},
                      "passwd": {"syslog": {"uid": 104}}},
         "auditd": {"binary": {"/usr/sbin/auditd": {"exists": true}}},
+        "logrotate": {},
         "collectors": {id: {"status": "ok", "into": into},
                        "accounts-group": {"status": "ok", "into": "accounts.group"},
                        "accounts-passwd": {"status": "ok", "into": "accounts.passwd"},
@@ -6647,7 +6698,10 @@ fn cis_dot_files_logs_and_audit_log_size_and_group_fail_at_their_edge() {
     let log = |rule: &str, path: &str, mode: &str| {
         the(
             rule,
-            &facts(&[("logs.files", json!({path: {"kind": "file", "mode": mode}}))]),
+            &facts(&[
+                ("logs.files", json!({path: {"kind": "file", "mode": mode}})),
+                ("logrotate", json!({})),
+            ]),
         )
     };
     assert_eq!(

@@ -869,6 +869,25 @@ fn a_matching_segment_finds_the_first_key_whose_glob_names_the_subject() {
     }
 }
 
+#[test]
+fn a_when_over_an_unmatched_glob_join_reads_null_and_over_an_absent_map_is_unknown() {
+    let rule = "fact: f.*\nexpect: {const: 0}\nwhen: {'r.{~r.*.names}': {not: {type: object}}}\n";
+    let document = json!({"f": {"/a": 1, "/b": 1}, "r": {"x": {"names": ["/a"]}}, "collectors": {"r": {"status": "ok", "into": "r"}}});
+    let outcomes: Vec<_> = run(rule, &document)
+        .into_iter()
+        .map(|c| (c.subject_text(), c.outcome))
+        .collect();
+    assert_eq!(
+        outcomes,
+        [
+            ("/a".to_owned(), Outcome::Skip),
+            ("/b".to_owned(), Outcome::Fail)
+        ]
+    );
+    let absent = json!({"f": {"/b": 1}, "collectors": {"r": {"status": "failed", "into": "r"}}});
+    assert_eq!(run(rule, &absent)[0].outcome, Outcome::Unknown);
+}
+
 fn in_ruleset(yaml: &str, document: &Value) -> Result<Vec<Check>, String> {
     let library = systemlint::rules::Library::new(std::collections::BTreeMap::from([(
         "deb".to_owned(),

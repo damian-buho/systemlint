@@ -900,6 +900,23 @@ enum Tri {
     Unknown(String, Option<String>),
 }
 
+/// Whether a `{~path}` segment of `path` matches no key of its present map on `bound`, which a `when` reads as `null`.
+fn unmatched(document: &Value, path: &[Segment], bound: &[String]) -> bool {
+    let none = path.iter().any(|s| match s {
+        Segment::Matching(inner) => {
+            let star = inner
+                .iter()
+                .position(|s| *s == Segment::Star)
+                .unwrap_or(inner.len());
+            get(document, &concrete(&inner[..star], &[])).is_some()
+                && matched(document, inner, bound).is_err()
+        }
+        _ => false,
+    });
+    log::trace!("{} unmatched on {bound:?}: {none}", path.len());
+    none
+}
+
 /// `when` on `bound`; with `unproduced`, a fact no collector produces is false, as a ruleset’s guard reads it.
 fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String], unproduced: bool) -> Tri {
     if when.is_empty() {
@@ -912,7 +929,9 @@ fn guard(when: &[Vec<Guard>], document: &Value, bound: &[String], unproduced: bo
         for g in branch {
             let resolved = resolve(document, &g.path, bound);
             let (Ok(keys) | Err(keys)) = resolved.clone();
-            let Some(actual) = resolved.ok().and_then(|_| get(document, &keys)) else {
+            let unmatched = resolved.is_err() && unmatched(document, &g.path, bound);
+            let found = resolved.ok().and_then(|_| get(document, &keys));
+            let Some(actual) = found.or(unmatched.then_some(&Value::Null)) else {
                 let (reason, collector) = absent(document, &keys);
                 if unproduced && collector.is_none() {
                     log::debug!("when {} has no producer, so it is false", keys.join("."));
