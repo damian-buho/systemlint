@@ -354,6 +354,18 @@ fn location(subject: &str, detail: Option<&str>, on: bool) -> String {
     }
 }
 
+/// The log a path was rotated from: its `.N` or dateext `-N` suffix cut, after a compression suffix; none for any other path.
+fn rotated_from(path: &str) -> Option<&str> {
+    let name = path.rfind('/')? + 1;
+    let bare = [".gz", ".xz", ".zst", ".bz2"]
+        .iter()
+        .find_map(|z| path.strip_suffix(z))
+        .unwrap_or(path);
+    let (head, tail) = bare.rsplit_once(['.', '-'])?;
+    let numbered = !tail.is_empty() && tail.bytes().all(|b| b.is_ascii_digit());
+    (numbered && head.len() > name).then_some(head)
+}
+
 /// The header of one rule’s block: label, rule ID in bold, and the title when the rule has one.
 fn header(label: &str, check: &Check, on: bool) -> String {
     let id = paint(on, "1", &format!("[{}]", check.rule));
@@ -541,8 +553,21 @@ fn failure_block(
     let written = group
         .iter()
         .any(|c| c.remedy.as_deref().is_some_and(crate::fix::writes));
+    let family = |c: &Check| {
+        let subject = c.subject_label();
+        rotated_from(&subject).map_or(subject.clone(), str::to_owned)
+    };
+    let mut families: BTreeMap<String, usize> = BTreeMap::new();
+    for check in group.iter().filter(|_| !verbose) {
+        *families.entry(family(check)).or_default() += 1;
+    }
+    let mut shown: BTreeSet<String> = BTreeSet::new();
     for problem in &problems {
         for check in problem {
+            let kin = families.get(&family(check)).copied().unwrap_or(1);
+            if kin > 1 && !shown.insert(family(check)) {
+                continue;
+            }
             let (subject, said) = (
                 check.subject_label(),
                 if problem.len() > 1 {
@@ -562,8 +587,18 @@ fn failure_block(
             let waiver = check.waiver.as_ref().map_or_else(String::new, |w| {
                 format!(" (waiver expired on {}: {})", w.until, w.reason)
             });
+            let mut line = location(if named { "" } else { &subject }, said.as_deref(), on);
+            if kin > 1 {
+                let own = family(check) == subject;
+                log::debug!("{subject}: {kin} rotations folded, base failing {own}");
+                let copies = if kin == 2 { "copy" } else { "copies" };
+                line += &match own {
+                    true => format!(", and its {} rotated {copies}", kin - 1),
+                    false => format!(", and {} more rotated {copies}", kin - 1),
+                };
+            }
             let mut item = Item {
-                line: location(if named { "" } else { &subject }, said.as_deref(), on),
+                line,
                 waiver,
                 under: String::new(),
                 shipped,

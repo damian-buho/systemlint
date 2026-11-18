@@ -507,7 +507,7 @@ fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_first() {
     let (document, checks) = sources();
     let text = lint_human(&document, &checks, 0, false, false, false);
     let expected = "Error (7.5): [apt/stale-suite] A source fetches an older release’s suite\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
-        Warning (4.5): [apt/overlap] A repository is partly listed in two places\n- /a.list:1.\n- /b.sources:1.\nFix: list each suite and component in one entry only, then run “sudo apt update”.\n\n\
+        Warning (4.5): [apt/overlap] A repository is partly listed in two places\n- /a.list:1.\n- /b.sources:1.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
         Rating            F\nErrors            2\nWarnings          2\nInfo              0\nPassed            2\n";
     assert_eq!(text, expected);
     let painted = lint_human(&document, &checks, 0, true, false, true);
@@ -604,6 +604,38 @@ fn human_folds_three_remedy_commands_into_one_fix_line_unless_verbose() {
         "{}",
         text(true)
     );
+}
+
+#[test]
+fn human_folds_rotated_copies_under_their_log_unless_verbose() {
+    let rule = compile(
+        "x/mode",
+        systemlint::yaml::from_str("fact: files.*\nexpect: {const: 0}\nfix: clear it\n").unwrap(),
+    )
+    .unwrap();
+    let document = json!({"files": {
+        "/l/a.log": 1, "/l/a.log.1": 1, "/l/a.log.2.gz": 1,
+        "/l/b.log": 0, "/l/b.log-20261111.gz": 1, "/l/b.log-20261118": 1,
+        "/l/c-2": 1,
+    }});
+    let checks = lint(&document, &[rule], &[], "2026-11-18");
+    let text = |verbose| lint_human(&document, &checks, 0, true, verbose, false);
+    let lines: Vec<String> = text(false)
+        .lines()
+        .filter(|l| l.starts_with("- "))
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(
+        lines,
+        [
+            "- files./l/a.log: 0 was expected, and its 2 rotated copies.",
+            "- files./l/b.log-20261111.gz: 0 was expected, and 1 more rotated copy.",
+            "- files./l/c-2: 0 was expected."
+        ],
+        "{}",
+        text(false)
+    );
+    assert_eq!(text(true).matches("\n- ").count(), 6, "{}", text(true));
 }
 
 #[test]
@@ -746,7 +778,7 @@ fn plain_prints_one_tab_separated_line_per_finding() {
     assert_eq!(lines.len(), 5, "{text}");
     assert_eq!(
         lines[2],
-        "warning\t4.5\tapt/overlap\t/a.list:1\tlists some of the same suites and components as “/b.sources:1”.\tList each suite and component in one entry only, then run “sudo apt update”."
+        "warning\t4.5\tapt/overlap\t/a.list:1\tlists some of the same suites and components as “/b.sources:1”.\t1. List each suite and component in one entry only. 2. Then refresh the package lists: “sudo apt update”."
     );
     assert!(
         lines[0].starts_with("error\t7.5\tapt/stale-suite\t/a.list:1\t"),
