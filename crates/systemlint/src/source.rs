@@ -404,6 +404,38 @@ impl Root {
         .map(File::from)
     }
 
+    /// `text` as the new file `name` in the directory `dir`, through a temporary sibling renamed without replacing, so it appears whole or not at all and never over another file.
+    pub fn write_new(&self, dir: &str, name: &str, text: &str, mode: u32) -> io::Result<()> {
+        let parent = self.open_at(dir, OFlags::PATH | OFlags::DIRECTORY | OFlags::NOFOLLOW)?;
+        let temporary = format!(".{name}.{}.tmp", std::process::id());
+        let flags =
+            OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+        let fd = rustix::fs::openat(
+            &parent,
+            temporary.as_str(),
+            flags,
+            Mode::from_raw_mode(mode),
+        )?;
+        let written = (|| {
+            let mut file = File::from(fd);
+            io::Write::write_all(&mut file, text.as_bytes())?;
+            file.sync_all()?;
+            rustix::fs::renameat_with(
+                &parent,
+                temporary.as_str(),
+                &parent,
+                name,
+                rustix::fs::RenameFlags::NOREPLACE,
+            )
+            .map_err(io::Error::from)
+        })();
+        if written.is_err() {
+            log::debug!("write {dir}/{name} failed, removing {temporary}");
+            let _ = rustix::fs::unlinkat(&parent, temporary.as_str(), rustix::fs::AtFlags::empty());
+        }
+        written
+    }
+
     /// The metadata of `path` itself, a final symlink not followed.
     pub fn stat(&self, path: &str) -> io::Result<Stat> {
         let fd = self.open_at(path, OFlags::PATH | OFlags::NOFOLLOW)?;

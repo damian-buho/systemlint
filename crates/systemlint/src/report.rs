@@ -533,7 +533,14 @@ fn failure_block(
     let folded = !verbose && !contained && remedied >= FOLD_REMEDIES;
     let mut items: Vec<Item> = Vec::new();
     let shared = problems.iter().all(|p| p[0].fix == problems[0][0].fix);
-    let commanded = |checks: &[&Check]| checks.iter().all(|c| c.remedy.is_some());
+    let commanded = |checks: &[&Check]| {
+        checks
+            .iter()
+            .all(|c| c.remedy.as_deref().is_some_and(|r| !crate::fix::writes(r)))
+    };
+    let written = group
+        .iter()
+        .any(|c| c.remedy.as_deref().is_some_and(crate::fix::writes));
     for problem in &problems {
         for check in problem {
             let (subject, said) = (
@@ -563,7 +570,10 @@ fn failure_block(
                 step: None,
             };
             match (
-                check.remedy.as_deref().filter(|_| check.is_failing()),
+                check
+                    .remedy
+                    .as_deref()
+                    .filter(|r| check.is_failing() && !crate::fix::writes(r)),
                 shipped,
             ) {
                 (Some(command), true) => item.step = Some(build_step(command, check)),
@@ -592,11 +602,11 @@ fn failure_block(
         mid.push_str(&fix_text(fix, "", on));
     }
     let mut tail = String::new();
-    if (folded || remedied > 1) && !contained {
-        let lead = if folded {
-            "To make every change, run:"
-        } else {
-            "Or make every change at once:"
+    if (folded || remedied > 1 || written) && !contained {
+        let lead = match (folded, remedied > 1) {
+            (true, _) => "To make every change, run:",
+            (false, true) => "Or make every change at once:",
+            (false, false) => "Or let systemlint make the change:",
         };
         log::debug!("rule {}: {remedied} remedies, folded {folded}", worst.rule);
         let command = format!("systemlint fix --tags {}", worst.rule);

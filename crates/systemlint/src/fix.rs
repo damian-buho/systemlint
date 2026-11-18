@@ -27,6 +27,80 @@ pub enum Remedy {
     /// Comments out the subject line, only in a syntax where every line grants access.
     #[serde(rename = "disable-line")]
     DisableLine(Lines),
+    /// Writes one systemlint-owned file of lines that only turn something off, refused when it holds anything else.
+    #[serde(rename = "drop-in")]
+    DropIn(DropIn),
+}
+
+/// A drop-in file: the directory it goes in, the name it takes after `60-systemlint-`, and its lines.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DropIn {
+    pub into: Directory,
+    pub name: String,
+    pub lines: Vec<String>,
+}
+
+/// A configuration directory a drop-in may go in, each with the only lines it may write there.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase", deny_unknown_fields)]
+pub enum Directory {
+    /// `/etc/modprobe.d`, for `install <module> /bin/false` and `blacklist <module>`.
+    Modprobe,
+    /// `/etc/apt/apt.conf.d`, for turning off recommended and suggested packages.
+    Apt,
+}
+
+/// The apt settings a drop-in may write, each turning off an install default.
+const APT_LINES: [&str; 4] = [
+    "APT::Install-Recommends \"0\";",
+    "APT::Install-Recommends \"false\";",
+    "APT::Install-Suggests \"0\";",
+    "APT::Install-Suggests \"false\";",
+];
+
+impl Directory {
+    /// Where its drop-ins go.
+    fn path(self) -> &'static str {
+        match self {
+            Self::Modprobe => "/etc/modprobe.d",
+            Self::Apt => "/etc/apt/apt.conf.d",
+        }
+    }
+
+    /// Whether `line` only turns something off here.
+    fn admits(self, line: &str) -> bool {
+        let module = |m: &str| {
+            !m.is_empty()
+                && m.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        };
+        match (self, line.split(' ').collect::<Vec<_>>().as_slice()) {
+            (
+                Self::Modprobe,
+                [
+                    "install",
+                    m,
+                    "/bin/false" | "/bin/true" | "/usr/bin/false" | "/usr/bin/true",
+                ],
+            ) => module(m),
+            (Self::Modprobe, ["blacklist", m]) => module(m),
+            (Self::Apt, _) => APT_LINES.contains(&line),
+            _ => false,
+        }
+    }
+}
+
+impl DropIn {
+    /// The file it writes.
+    pub fn path(&self) -> String {
+        format!("{}/60-systemlint-{}.conf", self.into.path(), self.name)
+    }
+
+    /// Its text: every line ended by a newline.
+    pub fn text(&self) -> String {
+        self.lines.iter().map(|l| format!("{l}\n")).collect()
+    }
 }
 
 /// A file syntax whose every line only grants access, so commenting one out only takes access away.
@@ -67,6 +141,30 @@ impl Remedy {
                 "remedy chgrp {gid}: only chgrp 0 is allowed, a fix never hands a file to a group of users"
             )),
             Self::DisableLine(_) => Ok(()),
+            Self::DropIn(drop) => {
+                let named = !drop.name.is_empty()
+                    && drop.name.len() <= 64
+                    && drop
+                        .name
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+                if !named {
+                    return Err(format!(
+                        "remedy drop-in name {:?}: write lowercase letters, digits and -",
+                        drop.name
+                    ));
+                }
+                if drop.lines.is_empty() || drop.lines.len() > 16 {
+                    return Err("remedy drop-in takes 1 to 16 lines".to_owned());
+                }
+                match drop.lines.iter().find(|l| !drop.into.admits(l)) {
+                    Some(line) => Err(format!(
+                        "remedy drop-in line {line:?} is not one that only turns something off in {}",
+                        drop.into.path()
+                    )),
+                    None => Ok(()),
+                }
+            }
         }
     }
 
@@ -80,8 +178,21 @@ impl Remedy {
                 Some((path, line)) => format!("sed -i '{line}s/^/#/' {}", quote(path)),
                 None => format!("# no line named in {}", quote(subject)),
             },
+            Self::DropIn(drop) => {
+                let lines: Vec<String> = drop.lines.iter().map(|l| quote(l)).collect();
+                format!(
+                    "printf '%s\\n' {} > {}",
+                    lines.join(" "),
+                    quote(&drop.path())
+                )
+            }
         }
     }
+}
+
+/// Whether a remedy command writes a drop-in file, which a fix’s steps explain better than its shell line.
+pub fn writes(command: &str) -> bool {
+    command.starts_with("printf '%s\\n' ")
 }
 
 /// The mode bits a symbolic `who-perms[,…]` clears; only `-` is accepted.
@@ -191,6 +302,7 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> P
                         .push((owner, siblings));
                     (path.to_owned(), Some((n, sha?.to_owned())))
                 }
+                Remedy::DropIn(drop) => (drop.path(), None),
                 _ => (subject, None),
             };
             Some(Change {
@@ -241,8 +353,10 @@ pub type Applied = Option<(String, String)>;
 /// Makes `change` on the file it names under `root`, re-read right before, refusing a symlink or a special file.
 pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
     change.remedy.validate().map_err(std::io::Error::other)?;
-    if let Remedy::DisableLine(_) = change.remedy {
-        return disable(root, change);
+    match &change.remedy {
+        Remedy::DisableLine(_) => return disable(root, change),
+        Remedy::DropIn(drop) => return write(root, drop),
+        _ => {}
     }
     let file = root.open_for_change(&change.path).map_err(|e| {
         if e.raw_os_error() == Some(libc::ELOOP) {
@@ -289,6 +403,35 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
             Ok(Some((format!("gid {}", meta.gid()), format!("gid {gid}"))))
         }
         Remedy::DisableLine(_) => disable(root, change),
+        Remedy::DropIn(drop) => write(root, drop),
+    }
+}
+
+/// Writes `drop` as a new file, nothing when it already holds exactly its lines, refusing one that holds anything else.
+fn write(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
+    let path = drop.path();
+    let text = drop.text();
+    let name = path.rsplit('/').next().unwrap_or_default();
+    match root.write_new(drop.into.path(), name, &text, 0o644) {
+        Ok(()) => {
+            log::debug!("{path}: written, {} lines", drop.lines.len());
+            Ok(Some(("absent".to_owned(), "written".to_owned())))
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            let mut held = String::new();
+            root.open_for_change(&path)?
+                .take(crate::runner::OUTPUT_CAP)
+                .read_to_string(&mut held)?;
+            log::debug!("{path}: exists, holds its lines {}", held == text);
+            match held == text {
+                true => Ok(None),
+                false => Err(std::io::Error::new(
+                    std::io::ErrorKind::AlreadyExists,
+                    "it exists with other lines, so systemlint leaves it",
+                )),
+            }
+        }
+        Err(e) => Err(e),
     }
 }
 

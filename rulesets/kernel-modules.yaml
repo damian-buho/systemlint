@@ -17,6 +17,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install cramfs /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-cramfs, lines: ["install cramfs /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -49,6 +50,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist cramfs"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-cramfs, lines: ["blacklist cramfs"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.1, '!default']
   kernel-modules/freevxfs:
@@ -62,6 +64,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install freevxfs /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-freevxfs, lines: ["install freevxfs /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -94,6 +97,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist freevxfs"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-freevxfs, lines: ["blacklist freevxfs"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.2, '!default']
   kernel-modules/hfs:
@@ -107,6 +111,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install hfs /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-hfs, lines: ["install hfs /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -139,6 +144,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist hfs"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-hfs, lines: ["blacklist hfs"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.3, '!default']
   kernel-modules/hfsplus:
@@ -152,6 +158,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install hfsplus /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-hfsplus, lines: ["install hfsplus /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -184,6 +191,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist hfsplus"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-hfsplus, lines: ["blacklist hfsplus"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.4, '!default']
   kernel-modules/jffs2:
@@ -197,6 +205,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install jffs2 /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-jffs2, lines: ["install jffs2 /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -229,6 +238,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist jffs2"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-jffs2, lines: ["blacklist jffs2"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.5, '!default']
   kernel-modules/overlay:
@@ -242,6 +252,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install overlay /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-overlay, lines: ["install overlay /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/overlay-loaded:
@@ -270,6 +281,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist overlay"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-overlay, lines: ["blacklist overlay"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/squashfs:
@@ -283,6 +295,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install squashfs /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-squashfs, lines: ["install squashfs /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -315,6 +328,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist squashfs"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-squashfs, lines: ["blacklist squashfs"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.7, '!default']
   kernel-modules/udf:
@@ -328,6 +342,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install udf /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-udf, lines: ["install udf /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -360,6 +375,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist udf"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-udf, lines: ["blacklist udf"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.8, '!default']
   kernel-modules/firewire-core:
@@ -373,6 +389,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install firewire_core /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-firewire-core, lines: ["install firewire_core /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis STRG-1846, url: "https://cisofy.com/lynis/controls/STRG-1846/"}
@@ -403,6 +420,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist firewire_core"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-firewire-core, lines: ["blacklist firewire_core"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis STRG-1846, url: "https://cisofy.com/lynis/controls/STRG-1846/"}
@@ -418,6 +436,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install usb_storage /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-usb-storage, lines: ["install usb_storage /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis USB-1000, url: "https://cisofy.com/lynis/controls/USB-1000/"}
@@ -448,6 +467,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist usb_storage"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-usb-storage, lines: ["blacklist usb_storage"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis USB-1000, url: "https://cisofy.com/lynis/controls/USB-1000/"}
@@ -463,6 +483,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install atm /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-atm, lines: ["install atm /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.1]
   kernel-modules/atm-loaded:
@@ -491,6 +512,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist atm"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-atm, lines: ["blacklist atm"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.1, '!default']
   kernel-modules/can:
@@ -504,6 +526,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install can /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-can, lines: ["install can /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.2]
   kernel-modules/can-loaded:
@@ -532,6 +555,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist can"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-can, lines: ["blacklist can"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.2, '!default']
   kernel-modules/dccp:
@@ -545,6 +569,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install dccp /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-dccp, lines: ["install dccp /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -577,6 +602,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist dccp"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-dccp, lines: ["blacklist dccp"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.3, '!default']
   kernel-modules/rds:
@@ -590,6 +616,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install rds /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-rds, lines: ["install rds /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -622,6 +649,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist rds"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-rds, lines: ["blacklist rds"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.4, '!default']
   kernel-modules/sctp:
@@ -635,6 +663,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install sctp /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-sctp, lines: ["install sctp /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -667,6 +696,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist sctp"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-sctp, lines: ["blacklist sctp"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.5, '!default']
   kernel-modules/tipc:
@@ -680,6 +710,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["install tipc /bin/false"]
+    remedy: {drop-in: {into: modprobe, name: install-tipc, lines: ["install tipc /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -712,6 +743,7 @@ rules:
     fix:
       - 'Add this line to a file ending in “.conf” under “/etc/modprobe.d/”, such as “/etc/modprobe.d/hardening.conf”:'
       - lines: ["blacklist tipc"]
+    remedy: {drop-in: {into: modprobe, name: blacklist-tipc, lines: ["blacklist tipc"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.6, '!default']
   kernel-modules/builtin:

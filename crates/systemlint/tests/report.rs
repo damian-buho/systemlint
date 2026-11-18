@@ -606,6 +606,27 @@ fn human_folds_three_remedy_commands_into_one_fix_line_unless_verbose() {
     );
 }
 
+#[test]
+fn human_shows_a_drop_in_as_its_fix_steps_then_offers_systemlint_fix() {
+    let yaml = "fact: v\nexpect: {const: 0}\nfix:\n  - 'Add this line:'\n  - lines: ['blacklist atm']\nremedy: {drop-in: {into: modprobe, name: atm, lines: ['blacklist atm']}}\n";
+    let rule = compile("x/drop", systemlint::yaml::from_str(yaml).unwrap()).unwrap();
+    let document = json!({"v": 1});
+    let text = lint_human(
+        &document,
+        &lint(&document, &[rule], &[], "2026-11-18"),
+        0,
+        true,
+        false,
+        false,
+    );
+    assert!(!text.contains("printf"), "{text}");
+    assert!(text.contains("       blacklist atm\n"), "{text}");
+    assert!(
+        text.ends_with("Or let systemlint make the change:\n  systemlint fix --tags x/drop\n\n"),
+        "{text}"
+    );
+}
+
 const EXPLAINED: &str = "title: Dropped value\nfact: v\nexpect: {const: 0}\nfix: drop it\nrationale: a value [here] leaks\nreferences: [{title: 'CIS 1.2', url: 'https://example.org/cis'}, {title: 'Man page', url: 'https://example.org/man'}]\n";
 
 #[test]

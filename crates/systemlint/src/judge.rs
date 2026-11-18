@@ -1001,6 +1001,9 @@ pub fn describe(value: Option<&Value>) -> String {
     }
 }
 
+/// The subject a drop-in remedy stands on, which names no path.
+static EMPTY: String = String::new();
+
 fn fill(template: &str, variables: &BTreeMap<String, String>) -> String {
     variables
         .iter()
@@ -1257,7 +1260,13 @@ fn failure(
             .spec
             .remedy
             .as_ref()
-            .zip(bound.last().filter(|p| p.starts_with('/')))
+            .zip(bound.last().filter(|p| p.starts_with('/')).or_else(|| {
+                rule.spec
+                    .remedy
+                    .as_ref()
+                    .filter(|r| matches!(r, crate::fix::Remedy::DropIn(_)))
+                    .map(|_| &EMPTY)
+            }))
             .filter(|(r, _)| {
                 !matches!(r, crate::fix::Remedy::DisableLine(_))
                     || rule

@@ -389,3 +389,96 @@ fn a_line_remedy_names_a_syntax_whose_every_line_grants() {
     );
     assert!(serde_json::from_value::<Remedy>(json!({"disable-line": "sudoers"})).is_err());
 }
+
+fn drop_in(yaml: &str) -> Remedy {
+    systemlint::yaml::from_str(yaml).unwrap()
+}
+
+#[test]
+fn a_drop_in_writes_only_lines_that_turn_something_off() {
+    let ok = |yaml: &str| drop_in(yaml).validate();
+    assert!(ok("drop-in: {into: modprobe, name: install-atm, lines: ['install atm /bin/false', 'blacklist usb_storage']}").is_ok());
+    assert!(
+        ok("drop-in: {into: apt, name: weak, lines: ['APT::Install-Recommends \"0\";']}").is_ok()
+    );
+    for refused in [
+        "drop-in: {into: modprobe, name: x, lines: ['install atm /bin/sh -c id']}",
+        "drop-in: {into: modprobe, name: x, lines: ['options atm x=1']}",
+        "drop-in: {into: modprobe, name: x, lines: ['blacklist a b']}",
+        "drop-in: {into: apt, name: x, lines: ['APT::Install-Recommends \"1\";']}",
+        "drop-in: {into: modprobe, name: ../x, lines: ['blacklist atm']}",
+        "drop-in: {into: modprobe, name: X, lines: ['blacklist atm']}",
+        "drop-in: {into: modprobe, name: x, lines: []}",
+    ] {
+        assert!(ok(refused).is_err(), "{refused}");
+    }
+    let lines = |n: usize| {
+        format!(
+            "drop-in: {{into: modprobe, name: x, lines: [{}]}}",
+            vec!["'blacklist a'"; n].join(", ")
+        )
+    };
+    assert!(ok(&lines(16)).is_ok());
+    assert!(ok(&lines(17)).is_err(), "at most 16 lines");
+    let name = |n: usize| {
+        format!(
+            "drop-in: {{into: modprobe, name: {}, lines: ['blacklist a']}}",
+            "a".repeat(n)
+        )
+    };
+    assert!(ok(&name(64)).is_ok());
+    assert!(ok(&name(65)).is_err(), "a name of at most 64 characters");
+}
+
+#[test]
+fn applying_a_drop_in_writes_it_once_and_leaves_a_file_with_other_lines() {
+    let dir = base("drop-in");
+    std::fs::create_dir_all(dir.join("etc/modprobe.d")).unwrap();
+    let root = Root::open(&dir).unwrap();
+    let change = |name: &str| Change {
+        rule: "test/rule".into(),
+        path: format!("/etc/modprobe.d/60-systemlint-{name}.conf"),
+        line: None,
+        remedy: drop_in(&format!(
+            "drop-in: {{into: modprobe, name: {name}, lines: ['install atm /bin/false']}}"
+        )),
+    };
+    assert_eq!(
+        apply(&root, &change("atm")).unwrap(),
+        Some(("absent".into(), "written".into()))
+    );
+    let written = dir.join("etc/modprobe.d/60-systemlint-atm.conf");
+    assert_eq!(
+        std::fs::read_to_string(&written).unwrap(),
+        "install atm /bin/false\n"
+    );
+    assert_eq!(
+        std::fs::metadata(&written).unwrap().permissions().mode() & 0o777,
+        0o644
+    );
+    assert_eq!(
+        apply(&root, &change("atm")).unwrap(),
+        None,
+        "a re-run changes nothing"
+    );
+    std::fs::write(
+        dir.join("etc/modprobe.d/60-systemlint-mine.conf"),
+        "blacklist atm\n",
+    )
+    .unwrap();
+    let error = apply(&root, &change("mine")).unwrap_err();
+    assert!(error.to_string().contains("other lines"), "{error}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("etc/modprobe.d/60-systemlint-mine.conf")).unwrap(),
+        "blacklist atm\n"
+    );
+    let leftovers: Vec<_> = std::fs::read_dir(dir.join("etc/modprobe.d"))
+        .unwrap()
+        .filter_map(|e| e.ok()?.file_name().into_string().ok())
+        .filter(|n| n.starts_with('.'))
+        .collect();
+    assert!(
+        leftovers.is_empty(),
+        "no temporary file is left: {leftovers:?}"
+    );
+}
