@@ -8,8 +8,9 @@ set -eu
 
 # install-binary.sh — build the host-native archive, unpack it into SYSTEMLINT_PREFIX and link the core into ~/.local/bin.
 
-prefix="${SYSTEMLINT_PREFIX:-${HOME}/.systemlint}"
-bindir="${HOME}/.local/bin"
+home="${HOME%/}" # a HOME ending in a slash would double it in every path
+prefix="${SYSTEMLINT_PREFIX:-${home}/.systemlint}"
+bindir="${home}/.local/bin"
 
 log() { printf '[install-binary] %s\n' "$*" >&2; }
 
@@ -33,6 +34,7 @@ rm --recursive --force -- "${old}"
 log "swapped ${stage} -> ${prefix}, dropping files the archive no longer ships"
 
 mkdir --parents "${bindir}"
+[ -x "${prefix}/bin/systemlint" ] || { log "the archive holds no executable ${prefix}/bin/systemlint"; exit 1; }
 ln --symbolic --force --no-dereference "${prefix}/bin/systemlint" "${bindir}/systemlint"
 log "linked ${bindir}/systemlint -> ${prefix}/bin/systemlint ($("${bindir}/systemlint" --version))"
 log "sudo resets PATH, so run it as root with: sudo ${bindir}/systemlint check"
