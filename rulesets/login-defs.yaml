@@ -18,6 +18,7 @@ rules:
     severity: warning
     score: 4.0
     message: "UMASK in /etc/login.defs is unset (022) or keeps group write or any other-user bit open, so every user’s new files are readable, or writable, by users who should not see them"
+    rationale: files a user creates are readable by other users on the host, so private documents and keys are exposed
     fix: set “UMASK 027” in “/etc/login.defs”, written in octal with its leading 0
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
@@ -30,6 +31,7 @@ rules:
     severity: info
     score: 2.0
     message: "UMASK in /etc/login.defs is unset (022) or leaves a group bit open, where 077 is asked, so a user’s new files are readable by the members of their group"
+    rationale: files a user creates can be read by every member of their group, so private documents and keys are exposed to people who need not see them
     fix: set “UMASK 077” in “/etc/login.defs”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     tags: [auth, stig-ubuntu-26.04:UBTU-24-300030, '!default']
@@ -40,6 +42,7 @@ rules:
     severity: warning
     score: 5.0
     message: "ENCRYPT_METHOD in /etc/login.defs is unset or names a scheme other than SHA512 or YESCRYPT, written in capitals, so chpasswd, newusers and pam_unix with no hash option fall back to DES or MD5, whose hashes crack offline in hours"
+    rationale: password hashes stored in the weak scheme can be cracked offline within hours once the hash file leaks
     fix:
       - 'Set this line in “/etc/login.defs”, or “ENCRYPT_METHOD SHA512” where FIPS 140-3 applies:'
       - lines: ["ENCRYPT_METHOD YESCRYPT"]
@@ -55,6 +58,7 @@ rules:
     severity: info
     score: 2.0
     message: "ENCRYPT_METHOD in /etc/login.defs is {got}, where SHA512, the FIPS 140-3 approved scheme, is asked"
+    rationale: password hashes may be stored in a scheme outside the approved set, which a regulated environment rejects and may be cracked faster
     fix:
       - 'Set this line in “/etc/login.defs”:'
       - lines: ["ENCRYPT_METHOD SHA512"]
@@ -72,6 +76,7 @@ rules:
     severity: info
     score: 2.0
     message: "SHA_CRYPT_MIN_ROUNDS, or SHA_CRYPT_MAX_ROUNDS when it is the only one set, in /etc/login.defs is below 5000, the default, so new password hashes cost an offline attacker less than an unconfigured host’s"
+    rationale: each password guess costs an attacker less to try, so a leaked hash file is cracked sooner
     fix: set “SHA_CRYPT_MIN_ROUNDS 5000” in “/etc/login.defs”, or remove both “SHA_CRYPT_*_ROUNDS” lines to get the default
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
@@ -84,6 +89,7 @@ rules:
     severity: info
     score: 2.0
     message: "PASS_MAX_DAYS in /etc/login.defs is unset or outside 1 to ${password-max-days}, so accounts made from now on get that maximum password age"
+    rationale: new accounts keep one password forever, so a password stolen once stays useful to the thief indefinitely
     fix:
       - 'Set this line in “/etc/login.defs”:'
       - lines: ["PASS_MAX_DAYS ${password-max-days}"]
@@ -103,6 +109,7 @@ rules:
     severity: info
     score: 2.0
     message: "PASS_MAX_DAYS in /etc/login.defs is {got}, so accounts made from now on must change their password on a schedule, which steers people to predictable successors of the old one"
+    rationale: forced regular changes push people to pick small variations of the old password, which an attacker can guess from a leaked one
     fix: set “PASS_MAX_DAYS 99999” in “/etc/login.defs”, and force a change only on evidence of compromise
     docs: https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver
     references:
@@ -116,6 +123,7 @@ rules:
     severity: info
     score: 2.0
     message: "PASS_MIN_DAYS in /etc/login.defs is unset or below ${password-min-days}, so on accounts made from now on a forced password change can be undone at once"
+    rationale: a user can change the password straight back to the old one, so a forced change on a possibly leaked password achieves nothing
     fix:
       - 'Set this line in “/etc/login.defs”:'
       - lines: ["PASS_MIN_DAYS ${password-min-days}"]
@@ -131,6 +139,7 @@ rules:
     severity: info
     score: 2.0
     message: "PASS_WARN_AGE in /etc/login.defs is unset or below ${password-warn-days}, so accounts made from now on get less warning before their password expires"
+    rationale: users learn too late that their password is about to expire and can be locked out of the host or caught off guard
     fix:
       - 'Set this line in “/etc/login.defs”:'
       - lines: ["PASS_WARN_AGE ${password-warn-days}"]

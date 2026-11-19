@@ -17,6 +17,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} has !authenticate in its sudo Defaults, so any program running as {subject} gets every right sudo grants it unasked"
+    rationale: any program that runs as the user, such as malware in a browser, gets root rights with no password
     fix: remove “!authenticate” from the Defaults lines in “/etc/sudoers” and “/etc/sudoers.d” that apply to {subject}, editing them with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.5, stig-ubuntu-26.04:UBTU-24-300021]
@@ -28,6 +29,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has !use_pty in its sudo Defaults, so a command run as root shares {subject}’s terminal, and a process it leaves behind can type into it"
+    rationale: a process left behind by a root command can keep typing into the user’s terminal, so it can run further commands as that user
     fix: remove “!use_pty” from the Defaults lines in “/etc/sudoers” and “/etc/sudoers.d” that apply to {subject}, editing them with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo]
@@ -39,6 +41,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s sudo Defaults do not set use_pty, so where the build does not default to it, a program run with sudo shares the caller’s terminal and can push keystrokes into it after sudo returns"
+    rationale: a program started through sudo can push keystrokes into the user’s terminal after sudo has returned, and run commands as that user
     fix: add “Defaults use_pty” to “/etc/sudoers” with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.2]
@@ -50,6 +53,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s sudo Defaults set no logfile, so sudo logs only to syslog"
+    rationale: the record of who ran what through sudo lives only in the system log, where a user who gains access can erase or alter it
     fix: add “Defaults logfile="/var/log/sudo.log"” to “/etc/sudoers” with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.3, '!default']
@@ -61,6 +65,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s sudo timestamp_timeout is {got} minutes, where 0 to ${sudo-timestamp-timeout} is asked; -1 never asks again"
+    rationale: a stolen or unattended session can run root commands with no password for a long time, or for good
     fix: set “Defaults timestamp_timeout=${sudo-timestamp-timeout}” in “/etc/sudoers” with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.6, '!default']

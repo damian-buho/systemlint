@@ -28,6 +28,7 @@ rules:
     severity: info
     score: 1.0
     message: "timesyncd.conf and its drop-ins leave NTP= and FallbackNTP= empty or unset, so the clock follows the compiled-in servers or the network’s DHCP offer, not one the site chose"
+    rationale: the clock follows whatever servers the distribution or a network’s DHCP happens to offer, so a hostile network can feed the host wrong time
     fix: set “NTP=” to the site’s time servers under “[Time]” in “/etc/systemd/timesyncd.conf.d/60-ntp.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/timesyncd.conf.5.html
     tags: [timesync, cis-ubuntu-26.04:2.3.2.1]
@@ -40,6 +41,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is not both enabled and running, and no other time daemon is installed, so the clock drifts and log times stop matching other hosts’"
+    rationale: with no running time daemon the clock slowly drifts, so logs from this host cannot be lined up with other machines when tracing an intrusion
     fix:
       - 'Let the service start again:'
       - run: systemctl unmask {subject}
@@ -60,6 +62,7 @@ rules:
     severity: info
     score: 1.0
     message: "chrony.conf and the files its confdir and sourcedir lines name hold no server or pool line, so chrony has no time source to follow"
+    rationale: chrony with no time source never corrects the clock, so it drifts and certificates and logs go wrong
     fix: add “server” or “pool” lines naming the site’s time servers to “/etc/chrony/sources.d/site.sources”, and the line “sourcedir /etc/chrony/sources.d” to “chrony.conf” if it has none
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
     tags: [timesync, cis-ubuntu-26.04:2.3.3.1]
@@ -72,6 +75,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is not both enabled and running, so the clock drifts and log times stop matching other hosts’"
+    rationale: the clock keeps drifting, so timestamps in logs no longer match other hosts and expiry checks misfire
     fix: run “systemctl enable --now {subject}”, or mask it if another time daemon keeps the clock
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/chronyd.8.html
     tags: [timesync, cis-ubuntu-26.04:2.3.3.3]
@@ -82,6 +86,7 @@ rules:
     severity: info
     score: 1.0
     message: "chrony.service is not on disk, or is masked; the STIG asks for chrony as the time daemon"
+    rationale: a host without the site’s chosen time daemon may rely on a weaker one, leaving its clock less accurate and harder to audit
     fix: install chrony with “apt install chrony”, which replaces systemd-timesyncd
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/chronyd.8.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-100700, '!default']
@@ -92,6 +97,7 @@ rules:
     severity: info
     score: 1.0
     message: "systemd-timesyncd.service is on disk and not masked; the STIG asks that only chrony keep the clock"
+    rationale: two time daemons on one host can fight over the clock, so it jumps or drifts unpredictably
     fix: install chrony, which removes systemd-timesyncd, or run “systemctl mask --now systemd-timesyncd.service”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-100010, '!default']
@@ -102,6 +108,7 @@ rules:
     severity: info
     score: 1.0
     message: "ntpsec.service or ntp.service is on disk and not masked; the STIG asks that only chrony keep the clock"
+    rationale: a second time daemon can fight chrony over the clock, so it jumps or drifts unpredictably
     fix: remove the ntp daemon with “apt purge ntpsec ntp”, and install chrony
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ntpd.8.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-100020, '!default']
@@ -113,6 +120,7 @@ rules:
     severity: info
     score: 1.0
     message: "chrony.conf has no makestep 1 -1 line, so chrony corrects a clock off by more than a second slowly, leaving log times wrong meanwhile"
+    rationale: after a long suspend or a bad boot clock the host keeps wrong time for hours, so its logs are stamped with the wrong moment
     fix:
       - 'Add this line to “/etc/chrony/chrony.conf”:'
       - lines: ["makestep 1 -1"]
@@ -128,6 +136,7 @@ rules:
     severity: info
     score: 1.0
     message: "the {subject} line in chrony’s configuration sets maxpoll above ${chrony-maxpoll-max}, so chrony may wait more than 2 to the power of that many seconds between polls of it, past the STIG’s 24 hours"
+    rationale: between polls the clock can wander far enough that logs and certificate checks use the wrong time
     fix:
       - Set “maxpoll ${chrony-maxpoll-max}” or lower on the line, or remove the option to get chrony’s default of 10.
       - 'Then restart the service:'
@@ -141,6 +150,7 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/adjtime says LOCAL, so the hardware clock jumps with daylight saving and times read from it before the time daemon starts are off"
+    rationale: each daylight saving change moves the hardware clock by an hour, so timestamps written right after boot can be an hour wrong
     fix: run “timedatectl set-local-rtc 0”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/adjtime_config.5.html
     tags: [timesync, stig-ubuntu-26.04:UBTU-24-901220]
@@ -158,6 +168,7 @@ rules:
     severity: info
     score: 2.0
     message: "none of systemd-timesyncd, chrony, ntpsec, ntp or openntpd is running, so the clock drifts and log times stop matching other hosts’"
+    rationale: nothing corrects the clock, so it drifts and logs from this host stop lining up with other machines when tracing an intrusion
     fix: run “systemctl enable --now systemd-timesyncd.service”, or install and start chrony
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
     references:
@@ -171,6 +182,7 @@ rules:
     severity: info
     score: 2.0
     message: "timedatectl reports NTP=yes but NTPSynchronized={got}, so the kernel has not marked the clock synchronized: no time server answers, or the daemon has only just started"
+    rationale: the host may be running on a wrong clock, so its logs are stamped with the wrong time and certificate checks can fail
     fix: read the time daemon’s log (“journalctl --unit systemd-timesyncd” or “chronyc sources”) and let it reach a server
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/timedatectl.1.html
     references:

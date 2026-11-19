@@ -19,6 +19,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is not both enabled and running, so nothing writes the log files in /var/log or forwards them to a log host"
+    rationale: nothing writes the system logs, so there is no record of what happened on the host after an incident
     fix: run “systemctl enable --now {subject}”, or remove rsyslog if the journal is the chosen logger
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
     tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.2, stig-ubuntu-26.04:UBTU-24-100200]
@@ -29,6 +30,7 @@ rules:
     severity: info
     score: 1.0
     message: "neither lmnsd_gtls.so nor lmnsd_ossl.so is in an rsyslog module directory, so rsyslog can send logs to a log host only in clear text"
+    rationale: logs sent to a central log host cross the network readable, so anyone on the path can read or alter them
     fix: install rsyslog-gnutls with “apt install rsyslog-gnutls”, or install rsyslog-openssl
     docs: https://packages.ubuntu.com/resolute/rsyslog-gnutls
     tags: [rsyslog, logging, cis-ubuntu-26.04:6.1.2.8, '!default']
@@ -45,6 +47,7 @@ rules:
     severity: warning
     score: 4.0
     message: "no rsyslog configuration file sets $FileCreateMode or the omfile module’s fileCreateMode, so rsyslog creates each log file 0644, readable by every user"
+    rationale: any local user can read the new log files, which hold client addresses, failed logins and leaked tokens
     fix:
       - 'Set this line in “/etc/rsyslog.conf”:'
       - lines: ['$FileCreateMode 0640']
@@ -62,6 +65,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} sets a $FileCreateMode or fileCreateMode more open than 0640, so rsyslog creates log files other users can read or anyone can change"
+    rationale: other users can read, or even change, the log files, which hold client addresses, failed logins and leaked tokens
     fix:
       - Set the mode to “0640” in {subject}.
       - 'Then restart the service:'
@@ -78,6 +82,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} starts an rsyslog network input, so any host that reaches the port can write log lines here, fill the disk or forge entries"
+    rationale: anyone who can reach the port can flood the disk with fake lines or plant forged log entries to cover an intrusion
     fix:
       - Unless this host is the site’s log server, remove the “input(type=…)” or “$…ServerRun” line from {subject}.
       - 'Then restart the service:'
@@ -108,6 +113,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} forwards logs over UDP, or over TCP without StreamDriverMode 1, so anyone on the path reads them and can forge entries"
+    rationale: anyone on the network path can read the logs in transit and inject forged entries into the central log
     fix:
       - 'Forward with this line in {subject}:'
       - lines: ['action(type="omfwd" protocol="tcp" StreamDriver="gtls" StreamDriverMode="1" StreamDriverAuthMode="x509/name" …)']
@@ -126,6 +132,7 @@ rules:
     severity: info
     score: 1.0
     message: "no rsyslog selector writes every auth, authpriv and daemon message to a file; the STIG asks for all three, so remote access attempts are kept"
+    rationale: logins, privilege changes and daemon errors may be dropped from the log files, so a break-in leaves no trace to examine
     fix:
       - 'Add these lines to “/etc/rsyslog.d/50-default.conf”:'
       - lines: ['auth,authpriv.* /var/log/auth.log', 'daemon.* -/var/log/daemon.log']

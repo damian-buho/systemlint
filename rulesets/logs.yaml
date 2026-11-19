@@ -30,6 +30,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}, beyond 0640, so other users read what services log, addresses, failed logins and leaked tokens included"
+    rationale: any local user can read what services logged, including client addresses, failed logins and leaked tokens
     fix:
       - 'Close the file to other users now:'
       - run: chmod 0640 {subject}
@@ -66,6 +67,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}, beyond 0755, so its group can delete or replace any log in it and hide an intrusion; Ubuntu ships 0775 for its syslog group"
+    rationale: members of the directory’s group can delete or swap log files, so an intruder in that group can erase their traces
     fix: run “chmod 0755 /var/log”
     remedy: {chmod: "ugo-st,go-w"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
@@ -78,6 +80,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, so that user can replace any log in it"
+    rationale: a non-root owner can delete or replace any log file, so whoever controls that account can erase the evidence of an intrusion
     fix: run “chown root /var/log”
     remedy: {chown: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
@@ -90,6 +93,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not syslog ({same})"
+    rationale: the wrong group may write to the log directory or the logging service may fail to write, so logs can be lost or tampered with
     fix: run “chgrp syslog /var/log”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
     tags: [logging, stig-ubuntu-26.04:UBTU-24-700100, '!default']
@@ -101,6 +105,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, not syslog ({same})"
+    rationale: the wrong owner of the main system log can rewrite or delete it, and the logging service may be unable to write to it
     fix: run “chown syslog /var/log/syslog”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
     tags: [logging, stig-ubuntu-26.04:UBTU-24-700140, '!default']
@@ -112,6 +117,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not adm ({same})"
+    rationale: the wrong group on the main system log can read it or alter it, while the admins meant to read it may be shut out
     fix: run “chgrp adm /var/log/syslog”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
     tags: [logging, stig-ubuntu-26.04:UBTU-24-700130, '!default']
@@ -124,6 +130,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0664 or stricter for wtmp, btmp and lastlog"
+    rationale: a login record open for writing lets any user erase or forge who logged in and when
     fix:
       - 'Close the file to other users now:'
       - run: chmod 0664 {subject}
@@ -140,6 +147,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0644 or stricter"
+    rationale: a log open for writing lets any user edit the history of package installs or agent activity to hide their tracks
     fix: run “chmod 0644” on the file
     remedy: {chmod: "u-xs,g-wxs,o-wxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
@@ -153,6 +161,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0660 or stricter"
+    rationale: a login or session log open to other users lets them read which accounts signed in, or alter that record
     fix: run “chmod 0660” on the file
     remedy: {chmod: "ugo-xst,o-rw"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
@@ -168,6 +177,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter for every log it names no other mode for"
+    rationale: any local user can read what services logged, including client addresses, failed logins and leaked tokens
     fix:
       - 'Close the file to other users now:'
       - run: chmod 0640 {subject}

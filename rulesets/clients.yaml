@@ -14,6 +14,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: NIS sends account maps, password hashes included, unencrypted to any host that binds to the domain"
+    rationale: the NIS protocol sends account data and password hashes unencrypted, so anyone on the network can read them and crack the passwords
     fix: remove the package that ships {subject} (“apt purge nis ypbind-mt yp-tools”), unless this host is an NIS client on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ypbind.8.html
     references:
@@ -27,6 +28,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: rsh, rcp and rlogin send the session, and rlogin a password, in plain text"
+    rationale: anyone on the network path can read the whole session and the password, or trick the host into trusting them
     fix: remove the package that ships {subject} (“apt purge rsh-client”), and use ssh, scp or sftp
     docs: https://manpages.debian.org/bookworm/rsh-client/netkit-rsh.1.en.html
     references:
@@ -40,6 +42,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: talk carries chat sessions in plain text"
+    rationale: anyone on the network path can read the chat in plain text
     fix: remove the package that ships {subject} (“apt purge talk”)
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/netkit-ntalk.1.html
     tags: [clients, cis-ubuntu-26.04:2.2.3]
@@ -51,6 +54,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: telnet sends the session, password included, in plain text"
+    rationale: anyone on the network path can read the session and the password typed into it
     fix: remove the package that ships {subject} (“apt purge telnet inetutils-telnet telnet-ssl”), and use ssh
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/inetutils-telnet.1.html
     references:
@@ -64,6 +68,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: a tool to query and change directory entries, which a host that does not administer LDAP has no use for"
+    rationale: a tool that can query and change directory entries lies unused on the host, ready for an intruder to browse or edit accounts
     fix: remove the package that ships {subject} (“apt purge ldap-utils”), unless this host administers LDAP
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/ldapsearch.1.html
     tags: [clients, cis-ubuntu-26.04:2.2.5]
@@ -75,6 +80,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is on disk: FTP sends the password in plain text, and TFTP has no login at all"
+    rationale: the FTP protocol sends the password in plain text for anyone on the path to read, and TFTP lets anyone transfer files with no login
     fix: remove the package that ships {subject} (“apt purge ftp tnftp atftp inetutils-ftp ftp-ssl”), and use sftp, scp or curl
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/tnftp.1.html
     references:

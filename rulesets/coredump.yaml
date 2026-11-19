@@ -13,6 +13,7 @@ rules:
     severity: error
     score: 6.8
     message: "fs.suid_dumpable is {got}, so a crashed setuid program leaves a core file its user can read, with the secrets it held"
+    rationale: a crash of a privileged program leaves a file anyone can read, holding its memory with password hashes and keys
     fix: set “fs.suid_dumpable = 0”, or “fs.suid_dumpable = 2” when a root-only crash handler such as apport or systemd-coredump receives the dumps
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#suid-dumpable
     references:
@@ -37,6 +38,7 @@ rules:
     severity: warning
     score: 3.0
     message: "pam_limits sets no hard core limit of 0 for every user, or raises it for some, so a program that crashes in a login session can write its memory, secrets included, to a core file"
+    rationale: a crashing program writes its memory, with passwords and keys in it, to disk where it can be read later
     fix:
       - 'Add this line to “/etc/security/limits.conf”:'
       - lines: ["* hard core 0"]
@@ -53,6 +55,7 @@ rules:
     severity: info
     score: 1.0
     message: "kernel.core_pattern is {got} while fs.suid_dumpable is 2, so the kernel refuses every setuid core dump to that relative path and a crash of a setuid program leaves nothing to debug"
+    rationale: a crash of a privileged program leaves no core file, so the cause of the crash cannot be examined
     fix: set “kernel.core_pattern” to an absolute path or a “|pipe”, or set “fs.suid_dumpable = 0”
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html
     tags: [coredump, sysctl, dev-sec-linux-baseline:sysctl-31b]
@@ -66,6 +69,7 @@ rules:
     severity: info
     score: 1.0
     message: "coredump.conf and its drop-ins do not set Storage=none, so systemd-coredump writes each crash’s memory, its secrets included, under /var/lib/systemd/coredump"
+    rationale: every crash writes the program’s memory, with passwords and keys in it, to disk where anyone with access to that directory can read it
     fix: set “Storage=none” under “[Coredump]” in “/etc/systemd/coredump.conf.d/60-coredump.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/coredump.conf.5.html
     tags: [coredump, cis-ubuntu-26.04:1.5.12, '!default']
@@ -79,6 +83,7 @@ rules:
     severity: info
     score: 1.0
     message: "coredump.conf and its drop-ins do not set ProcessSizeMax=0, so systemd-coredump still reads each crash’s memory and logs its stack"
+    rationale: the service still reads each crashed program’s memory, with passwords and keys in it, and writes its stack into the logs
     fix: set “ProcessSizeMax=0” under “[Coredump]” in “/etc/systemd/coredump.conf.d/60-coredump.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/coredump.conf.5.html
     tags: [coredump, cis-ubuntu-26.04:1.5.11, '!default']

@@ -13,6 +13,7 @@ rules:
     severity: info
     score: 1.0
     message: "no ufw program is in /usr/sbin, /sbin or /usr/local/sbin; the benchmark asks for ufw as the host firewall"
+    rationale: the host has no firewall managed by ufw, so every service it runs listens to whoever can reach it
     fix:
       - 'Install ufw:'
       - run: apt install ufw
@@ -30,6 +31,7 @@ rules:
     severity: error
     score: 7.0
     message: "/etc/ufw/ufw.conf sets ENABLED={got}, so ufw loads no rules at boot and the host runs without its firewall"
+    rationale: the host runs with no firewall, so every listening service is open to the network
     fix: run “ufw enable” once the rules allow your own SSH session, or uninstall ufw if another firewall guards the host
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     references:
@@ -44,6 +46,7 @@ rules:
     severity: error
     score: 7.0
     message: "ufw.service is masked, so systemd never starts it and the rules /etc/ufw/ufw.conf enables are never loaded at boot"
+    rationale: after each reboot the firewall rules are not loaded, so the host comes up open to the network
     fix:
       - 'Let the service start again:'
       - run: systemctl unmask ufw.service
@@ -62,6 +65,7 @@ rules:
     severity: error
     score: 7.0
     message: "ufw.service failed, so the rules /etc/ufw/ufw.conf enables are not loaded and the host runs without its firewall"
+    rationale: the firewall rules are not loaded, so every listening service is open to the network
     fix:
       - 'Read the error:'
       - run: journalctl --unit ufw.service
@@ -81,6 +85,7 @@ rules:
     severity: error
     score: 7.0
     message: "no .wants or .requires link pulls in ufw.service, so systemd never starts it and the rules /etc/ufw/ufw.conf enables are never loaded at boot"
+    rationale: after each reboot the firewall rules are not loaded, so the host comes up open to the network
     fix: run “systemctl enable --now ufw.service”
     docs: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#enable%20UNIT%E2%80%A6
     references:
@@ -94,6 +99,7 @@ rules:
     severity: warning
     score: 6.0
     message: "/etc/default/ufw sets DEFAULT_INPUT_POLICY={got}, so every port no rule denies is open to the network although ufw is on"
+    rationale: every service listening on an unlisted port, including ones installed by accident, can be reached from the network
     fix: run “ufw default deny incoming” once the rules allow your own SSH session
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     tags: [ufw, firewall, cis-ubuntu-26.04:4.1.3]
@@ -105,6 +111,7 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/default/ufw sets DEFAULT_OUTPUT_POLICY={got}; the benchmark asks to deny outgoing traffic no rule allows"
+    rationale: malware on the host can call out to any address and send data away without the firewall stopping it
     fix:
       - 'Allow the outgoing traffic the host needs, for example DNS:'
       - run: ufw allow out 53
@@ -121,6 +128,7 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/default/ufw sets DEFAULT_FORWARD_POLICY={got}; the benchmark asks to deny routed traffic no rule allows, whether or not the kernel forwards"
+    rationale: a host that forwards packets passes traffic between networks that nobody approved, so one segment can reach another
     fix:
       - 'Deny routed traffic by default:'
       - run: ufw default deny routed
@@ -135,6 +143,7 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/ufw/ufw.conf sets LOGLEVEL=off, so a blocked probe or a refused connection leaves no trace"
+    rationale: port scans and attack attempts leave no record, so an intrusion attempt goes unseen
     fix: run “ufw logging low”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
     references:

@@ -21,6 +21,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has mode {got}, so every user can list it and read whatever its owner leaves readable there"
+    rationale: any local user can browse another user’s home and read the files left readable in it, such as notes and configuration
     fix:
       - 'Take access away from other users:'
       - run: chmod o-rwx {subject}
@@ -42,6 +43,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject}’s home is owned by uid {same}, not by its own uid {got}, so that owner can read, change or replace its files and shell startup scripts"
+    rationale: the actual owner of the directory can read the account’s files and plant startup scripts that run as the account’s user
     fix: give the home to {subject} with “chown”, or point the account at a home of its own with “usermod --home”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
     references:
@@ -56,6 +58,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0644 or stricter, so no other user changes what its owner’s shell or tools run"
+    rationale: another user can edit the shell and tool settings in this file, so they run commands as its owner at the next login
     fix: run “chmod 0644” on the file, or “chmod 0600” if it holds anything private
     remedy: {chmod: "u-xs,g-wxs,o-wxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/bash.1.html#files
@@ -69,6 +72,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}, beyond 0600, so other users read the commands its owner typed, and any password typed into one"
+    rationale: any other user can read the commands the owner typed, including passwords typed on a command line by mistake
     fix: run “chmod 0600” on the file
     remedy: {chmod: "u-xs,g-rwxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/bash.1.html#files
@@ -81,6 +85,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} exists, so the local mail of its owner leaves the host, or is piped into a command the mail system runs"
+    rationale: a user’s mail can be quietly redirected to an outside address or into a program, which hides mail or runs commands on delivery
     fix:
       - Remove {subject}.
       - Set the forward in “/etc/aliases” if the site wants one.
@@ -95,6 +100,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0750 or stricter, so no other user reads its owner’s configuration, keys or cached sessions"
+    rationale: other users can read the owner’s configuration, keys and cached sessions and then act as them
     fix: run “chmod 0750” on the directory, or “chmod 0700”
     remedy: {chmod: "g-w,o-rwx"}
     docs: https://specifications.freedesktop.org/basedir-spec/latest/
@@ -108,6 +114,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0700, so neither the owner’s group nor other users reach its keys"
+    rationale: another user can read or replace the owner’s SSH keys and authorized keys, then log in as them
     fix: run “chmod 0700” on the directory
     remedy: {chmod: "g-rwx,o-rwx"}
     docs: https://man.openbsd.org/ssh#FILES

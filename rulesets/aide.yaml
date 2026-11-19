@@ -13,6 +13,7 @@ rules:
     severity: info
     score: 2.0
     message: "no aide program is in /usr/bin, /bin or /usr/local/bin, so a changed system file goes unnoticed"
+    rationale: nothing watches for changed system files, so a planted backdoor or altered program stays undetected
     fix:
       - 'Install AIDE, on Ubuntu with:'
       - run: apt install aide aide-common
@@ -34,6 +35,7 @@ rules:
     severity: info
     score: 2.0
     message: "dailyaidecheck.timer is missing, not enabled or not active, or dailyaidecheck.service is masked, so AIDE never compares the disk against its database"
+    rationale: file changes are never checked, so a planted backdoor or altered program stays undetected
     fix:
       - 'Let the units start again:'
       - run: systemctl unmask dailyaidecheck.timer dailyaidecheck.service
@@ -49,6 +51,7 @@ rules:
     severity: info
     score: 1.0
     message: "aide is on disk but neither /etc/aide/aide.conf nor /etc/aide.conf is, so AIDE knows no file to watch"
+    rationale: the integrity checker has no list of files to watch, so a planted backdoor or altered program stays undetected
     fix: reinstall aide-common, or write “/etc/aide/aide.conf” naming the paths to check
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/aide.conf.5.html
     references:
@@ -62,6 +65,7 @@ rules:
     severity: info
     score: 2.0
     message: "aide is on disk but /var/lib/aide/aide.db is not, so AIDE has no baseline to compare the disk against"
+    rationale: the integrity checker has no record of how the files used to look, so it cannot spot a planted backdoor or altered program
     fix:
       - 'Build the database:'
       - run: aideinit
@@ -78,6 +82,7 @@ rules:
     severity: info
     score: 1.0
     message: "SILENTREPORTS in /etc/default/aide is unset or not no, so the daily check reports a changed file to nobody"
+    rationale: the daily check can find a changed file and tell nobody, so a planted backdoor or altered program stays unnoticed
     fix: set “SILENTREPORTS=no” in “/etc/default/aide”, and “MAILTO” to the address that reads the reports
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/aideinit.8.html
     tags: [integrity, stig-ubuntu-26.04:UBTU-24-100130]

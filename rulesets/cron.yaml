@@ -17,6 +17,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has mode {got}; every user can read the jobs root runs from it, and any password or token written into one"
+    rationale: any local user can read the scheduled jobs root runs, including passwords or tokens written into them
     fix: run “chmod o-rwx” on “/etc/crontab” and on each cron directory
     remedy: {chmod: o-rwx}
     docs: https://manpages.debian.org/unstable/cron/cron.8.en.html
@@ -35,6 +36,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is not both enabled and running, so the jobs in /etc/crontab and /etc/cron.d, log rotation and other upkeep among them, never run"
+    rationale: scheduled jobs such as log rotation and security upkeep never run, so logs fill the disk and routine tasks silently stop
     fix: run “systemctl enable --now {subject}”, or remove the cron package if no job is wanted
     docs: https://manpages.debian.org/unstable/cron/cron.8.en.html
     tags: [cron, cis-ubuntu-26.04:2.4.1.1, '!default']
@@ -47,6 +49,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} does not exist, so every user cron.deny leaves out may schedule jobs with crontab"
+    rationale: any user not blocked by name can schedule their own jobs, and a job planted by a compromised account keeps running unseen
     fix:
       - Write the users allowed to schedule jobs to {subject}, one per line.
       - 'Then give it to root and its group:'
@@ -64,6 +67,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so only root changes who may schedule jobs"
+    rationale: a user who can edit the list can allow themselves to schedule jobs, which can be used to keep a foothold on the host
     fix:
       - 'Give the file to the group the command reads it through:'
       - run: chgrp crontab {subject}
@@ -80,6 +84,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, not root, so that user decides who may schedule jobs"
+    rationale: that user can allow themselves to schedule jobs, and so keep a foothold on the host
     fix: run “chown root {subject}”
     remedy: {chown: 0}
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
@@ -93,6 +98,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not root or crontab (gid {same}), so the members of that group get the group’s access to the list of who may schedule cron jobs"
+    rationale: members of that group can edit the list of who may schedule jobs, and so give themselves a way to keep a foothold on the host
     fix: run “chgrp crontab {subject}”
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
     tags: [cron, cis-ubuntu-26.04:2.4.1.9]
