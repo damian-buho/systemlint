@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Disks whose own health check, as smartctl reads it, says they are failing or worn out
+topic: Files and permissions
+tags: [default]
+rules:
+  smart/failing:
+    title: A disk fails its own health check
+    fact: smart.devices.*.smart_status.passed
+    when: {smart.devices.*: {required: [smart_status]}}
+    expect: {const: true}
+    severity: error
+    score: 9.0
+    message: "{subject} reports that its own SMART health check failed, so it may stop working or lose data at any time"
+    rationale: the disk itself predicts its failure, so the data on it may be lost and the services using it may stop without warning
+    fix:
+      - 'Back up what is on it now, then replace it. The full report says what failed:'
+      - run: smartctl --all {subject}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/smartctl.8.html
+    tags: [disk, stability]
+  smart/nvme-critical-warning:
+    title: An NVMe disk raises a critical warning
+    fact: smart.devices.*.nvme_smart_health_information_log.critical_warning
+    when: {smart.devices.*: {required: [nvme_smart_health_information_log]}}
+    expect: {const: 0}
+    severity: error
+    score: 8.0
+    message: "{subject} raises {field} {got}: its spare blocks ran low, it overheated, its reliability degraded, it turned read-only or its backup power failed"
+    rationale: the controller reports a condition that degrades or ends the disk’s ability to keep data, so writes may start failing
+    fix:
+      - 'Read which condition it is under “Critical Warning”, back up the disk, then cool or replace it:'
+      - run: smartctl --all {subject}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/smartctl.8.html
+    tags: [disk, stability]
+  smart/nvme-media-errors:
+    title: An NVMe disk has had unrecovered media errors
+    fact: smart.devices.*.nvme_smart_health_information_log.media_errors
+    when: {smart.devices.*: {required: [nvme_smart_health_information_log]}}
+    expect: {maximum: 0}
+    unit: count
+    severity: warning
+    score: 6.0
+    message: "{subject} counts {field} {got}, media errors it could not recover, so some data it held was lost or corrupted"
+    rationale: data was already lost on this disk, and more media errors often follow on a failing flash device
+    fix:
+      - 'Check the file systems on it, restore what was damaged from backup, and plan its replacement; the count never goes down:'
+      - run: smartctl --all {subject}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/smartctl.8.html
+    tags: [disk, stability]
+  smart/nvme-worn-out:
+    title: An NVMe disk is past its rated endurance
+    fact: smart.devices.*.nvme_smart_health_information_log.percentage_used
+    when: {smart.devices.*: {required: [nvme_smart_health_information_log]}}
+    expect: {maximum: 99}
+    severity: warning
+    score: 6.0
+    message: "{subject} reports {field} {got}, the percent of its rated write endurance used, so it may turn read-only or fail at any time"
+    rationale: past its rated endurance the flash wears out unpredictably, so the disk may stop accepting writes
+    fix: replace {subject} soon, and keep a backup of it until then
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/smartctl.8.html
+    tags: [disk, stability]

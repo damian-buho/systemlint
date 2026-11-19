@@ -334,3 +334,20 @@ a failed collector answers `unknown`.
 kernels than the `boot-kernels` var, 3 by default: the running one, the
 previous one and one being installed. A `--root` run, or a `/boot` on the root
 filesystem, skips it.
+
+The `smart` ruleset judges what each disk says of itself through smartctl 7 or
+later, on a live, privileged run of the host only. `smart-scan` runs
+`smartctl --scan-open --json`, keyed by device name (`index`), and
+`smart-health` runs `smartctl --json --all` once per device that opened,
+into `smart.devices.<name>`. smartctl sets exit bits 3 to 7 when a disk is
+failing, which `exit-mask: 248` still reads; the serial number, WWN, logical
+unit ID and namespace IDs are redacted. A host without smartctl has nothing
+to check. Only what the disk calls failed is judged, never a vendor’s raw
+attribute value:
+
+| Rule | Severity | Fails when |
+| --- | --- | --- |
+| `smart/failing` | error | the disk’s overall SMART health check failed; a disk with no `smart_status` (a USB bridge, a virtual disk) is skipped |
+| `smart/nvme-critical-warning` | error | an NVMe disk’s `critical_warning` is not 0: spare blocks low, too hot, reliability degraded, read-only or backup power failed |
+| `smart/nvme-media-errors` | warning | an NVMe disk counts unrecovered media errors, a count that never goes down |
+| `smart/nvme-worn-out` | warning | an NVMe disk’s `percentage_used` is 100 or more |

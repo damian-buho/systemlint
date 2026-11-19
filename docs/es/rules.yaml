@@ -3775,6 +3775,42 @@ org:
               - default
               - setuid
             title: A set-user-ID file or its directory is writable by every user
+          - id: smart/failing
+            ruleset: smart
+            score: 9.0
+            severity: error
+            tags:
+              - default
+              - disk
+              - stability
+            title: A disk fails its own health check
+          - id: smart/nvme-critical-warning
+            ruleset: smart
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - disk
+              - stability
+            title: An NVMe disk raises a critical warning
+          - id: smart/nvme-media-errors
+            ruleset: smart
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - disk
+              - stability
+            title: An NVMe disk has had unrecovered media errors
+          - id: smart/nvme-worn-out
+            ruleset: smart
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - disk
+              - stability
+            title: An NVMe disk is past its rated endurance
           - id: snmp/default-community
             ruleset: snmp
             score: 6.0

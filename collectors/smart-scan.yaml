@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: smart-scan
+host: true
+live: true
+privileged: true
+read:
+  exec: [/usr/sbin/smartctl, --scan-open, --json]
+parse:
+  - {plugin: formats, op: json}
+  - {index: name, at: devices}
+into: smart.scan

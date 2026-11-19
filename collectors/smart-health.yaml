@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: smart-health
+host: true
+live: true
+privileged: true
+read:
+  exec-from:
+    each: smart.scan.devices
+    keep: {not: {required: [open_error]}}
+    argv: [/usr/sbin/smartctl, --json, --all, '{key}']
+    split: true
+parse:
+  plugin: formats
+  op: json
+  with:
+    exit-mask: 248
+    redact: [/serial_number, /wwn, /logical_unit_id, /nvme_namespaces, /local_time]
+into: smart.devices
