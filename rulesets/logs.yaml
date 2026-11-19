@@ -84,7 +84,7 @@ rules:
     fix: run “chown root /var/log”
     remedy: {chown: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rsyslogd.8.html
-    tags: [logging, stig-ubuntu-26.04:UBTU-24-700110]
+    tags: [logging, stig-ubuntu-26.04:UBTU-24-700110, dev-sec-linux-baseline:os-11]
   logs/directory-group:
     title: /var/log is not in group syslog
     fact: logs.files.*.gid
