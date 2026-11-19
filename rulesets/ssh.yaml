@@ -19,6 +19,7 @@ rules:
     severity: error
     score: 8.5
     message: "{subject} gets PermitRootLogin {got}, so sshd lets it log in with a password"
+    rationale: anyone who guesses or steals the root password gets full control of the machine over the network
     fix: set “PermitRootLogin prohibit-password”, or “PermitRootLogin no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -31,6 +32,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} has PasswordAuthentication {got}, so sshd accepts passwords, which can be guessed over the network"
+    rationale: an attacker can try millions of passwords against any account from anywhere until one works
     fix: set “PasswordAuthentication no” once every user has a key
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-27]
@@ -41,6 +43,7 @@ rules:
     severity: error
     score: 9.5
     message: "{subject} has PermitEmptyPasswords {got}, so sshd lets it log in with an empty password"
+    rationale: any account with no password can be logged into by anyone who knows its name
     fix: set “PermitEmptyPasswords no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-28]
@@ -51,6 +54,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} has KbdInteractiveAuthentication {got}, so sshd accepts keyboard-interactive logins, which through PAM ask for the password"
+    rationale: password guessing stays possible through the back door even when plain password login is off
     fix: set “KbdInteractiveAuthentication no”, unless a second factor needs it
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-29]
@@ -61,6 +65,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} has HostbasedAuthentication {got}, so sshd trusts the client host’s word for who the user is"
+    rationale: anyone who controls or impersonates a listed machine can log in as its users without a password
     fix: set “HostbasedAuthentication no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-25]
@@ -71,6 +76,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} has IgnoreRhosts {got}, so sshd reads users’ .rhosts and .shosts files"
+    rationale: a one-line .rhosts file in a home directory lets a named host log in as that user without a password
     fix: set “IgnoreRhosts yes”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -83,6 +89,7 @@ rules:
     severity: warning
     score: 5.5
     message: "{subject} sets StrictModes {got}, so it accepts key files that other users can write"
+    rationale: another local user can add their own key to a writable key file and log in as its owner
     fix: set “StrictModes yes”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -95,6 +102,7 @@ rules:
     severity: warning
     score: 6.5
     message: "{subject} sets PermitUserEnvironment {got}, so it lets users set variables such as LD_PRELOAD for their session"
+    rationale: a user can plant LD_PRELOAD or a similar variable that makes a restricted login run their own code
     fix: set “PermitUserEnvironment no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -107,6 +115,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has X11Forwarding {got}, so sshd forwards X11, which hands the server a way into the client’s display"
+    rationale: a hostile server can read the client’s screen and keystrokes or send input to its windows
     fix: set “X11Forwarding no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-42]
@@ -117,6 +126,7 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} has GatewayPorts {got}, so sshd lets forwarded ports listen on every address, not only on loopback"
+    rationale: a port forwarded for one user becomes reachable by every machine on the network
     fix: set “GatewayPorts no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -129,6 +139,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} has PermitTunnel {got}, so sshd allows tun device forwarding, a full network link into the host"
+    rationale: a logged-in user can bridge the host’s network to a machine they control and bypass its firewall
     fix: set “PermitTunnel no”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -141,6 +152,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} offers {got}, a weak cipher, so a client that still accepts it may settle on a session an eavesdropper can attack"
+    rationale: an eavesdropper on the network path can break the weak cipher and read or alter the session
     fix: remove {got} from “Ciphers”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-01]
@@ -151,6 +163,7 @@ rules:
     severity: warning
     score: 5.5
     message: "{subject} offers {got}, a weak MAC, so a client that still accepts it may settle on a session whose integrity an attacker on the path can forge"
+    rationale: an attacker on the network path can alter commands or data in transit without being noticed
     fix: remove {got} from “MACs”, for example with “MACs -hmac-sha1*,umac-64*”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-03]
@@ -161,6 +174,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} offers {got}, a weak key exchange, so a client that still accepts it may agree on a session key an eavesdropper can recover"
+    rationale: an eavesdropper who records the handshake can work out the session key and read everything sent
     fix: remove {got} from “KexAlgorithms”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, dev-sec-ssh-baseline:sshd-02]
@@ -171,6 +185,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} offers no post-quantum key exchange, so a session recorded today can be decrypted once a quantum computer breaks its key exchange: {got}"
+    rationale: an attacker who records traffic now can read it years later with a quantum computer
     fix: add “mlkem768x25519-sha256” and “sntrup761x25519-sha512” to the front of “KexAlgorithms”, or remove the “KexAlgorithms” line to get OpenSSH’s defaults
     docs: https://www.openssh.com/pq.html
     tags: [ssh, cis-ubuntu-26.04:5.1.14]
@@ -181,6 +196,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has MaxAuthTries {got}, so sshd allows many authentication attempts per connection"
+    rationale: an attacker gets many password or key guesses on every connection before being disconnected
     fix: set “MaxAuthTries ${ssh-max-auth-tries}” or lower
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -193,6 +209,7 @@ rules:
     severity: info
     score: 1.5
     message: "{subject} sets LoginGraceTime {got}, so it keeps unauthenticated connections open for long, 0 meaning forever"
+    rationale: an attacker can open many silent connections and hold them until sshd has no slots left for real users
     fix: set “LoginGraceTime” between 1 and ${ssh-login-grace-time} seconds
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -205,6 +222,7 @@ rules:
     severity: info
     score: 2.5
     message: "{subject} has LogLevel {got}, so sshd does not log which key each user logged in with"
+    rationale: after a break-in nothing shows which key was used, so a stolen key cannot be traced to its owner
     fix: set “LogLevel VERBOSE”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     references:
@@ -217,6 +235,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} sets none of AllowUsers, AllowGroups, DenyUsers or DenyGroups, so every account with a shell and a credential may log in over SSH"
+    rationale: any account with a shell, including forgotten service accounts, can be used to log in remotely
     fix: set “AllowGroups” to the group of the people who log in over SSH
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.5, '!default']
@@ -227,6 +246,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has Banner none, so no usage notice is shown before authentication"
+    rationale: an intruder can later claim they were never told the system is private and monitored
     fix: set “Banner /etc/issue.net”, with a notice that names no system details
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.6, stig-ubuntu-26.04:UBTU-24-200640, '!default']
@@ -237,6 +257,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has ClientAliveInterval 0, so a session whose client vanished stays open"
+    rationale: a session left behind by a crashed or abandoned client stays open for anyone who reaches that terminal
     fix: set “ClientAliveInterval 15” and “ClientAliveCountMax 3”, or the timeout your site asks
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.8]
@@ -247,6 +268,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has ClientAliveCountMax 0, which turns the client alive check off"
+    rationale: a dead client’s session is never closed, so it stays open for anyone who takes over that connection
     fix: set “ClientAliveCountMax 3”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.8]
@@ -257,6 +279,7 @@ rules:
     severity: warning
     score: 3.0
     message: "{subject} has GSSAPIAuthentication {got}, so sshd runs the Kerberos library on input from every client, a parser most hosts never need"
+    rationale: a flaw in the Kerberos code can be reached by any stranger who connects, before they log in
     fix: set “GSSAPIAuthentication no”, unless users log in with Kerberos tickets
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.10]
@@ -267,6 +290,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has MaxSessions {got}, above ${ssh-max-sessions}"
+    rationale: one logged-in user can open dozens of sessions over a single connection and exhaust the server
     fix: set “MaxSessions ${ssh-max-sessions}” or lower
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.19, '!default']
@@ -277,6 +301,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has MaxStartups {got}, looser than the benchmark’s 10:30:60, so more half-open logins are kept before sshd starts dropping them"
+    rationale: an attacker can pile up half-open logins and keep real users from connecting
     fix: set “MaxStartups 10:30:60”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.20, '!default']
@@ -287,6 +312,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has UsePAM {got}, so logins skip the PAM account and session stacks: lockout, limits and expiry checks"
+    rationale: locked, expired and rate-limited accounts can still log in because the account checks never run
     fix: set “UsePAM yes”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, cis-ubuntu-26.04:5.1.24, stig-ubuntu-26.04:UBTU-24-500050]
@@ -297,6 +323,7 @@ rules:
     severity: warning
     score: 3.0
     message: "{subject} has X11UseLocalhost {got}, so a forwarded X11 display listens on the network, where any host may connect to the user’s session"
+    rationale: other machines on the network can connect to the user’s forwarded display and see or control their windows
     fix: set “X11UseLocalhost yes”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-300023]
@@ -307,6 +334,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has ClientAliveInterval {got}; the STIG asks 1 to ${ssh-stig-client-alive-interval} seconds"
+    rationale: an idle session stays open long enough for someone at an unattended terminal to use it
     fix: set “ClientAliveInterval ${ssh-stig-client-alive-interval}”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-600010, '!default']
@@ -317,6 +345,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has ClientAliveCountMax {got}; the STIG asks 1, so a session ends at the first unanswered check"
+    rationale: an idle session survives several missed checks, leaving an unattended terminal usable for longer
     fix: set “ClientAliveCountMax 1”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-600000, '!default']
@@ -327,6 +356,7 @@ rules:
     severity: info
     score: 1.0
     message: "no sshd program is in /usr/sbin or /usr/local/sbin; the STIG asks for SSH as the remote access"
+    rationale: administrators have no encrypted way to reach the machine and fall back on weaker remote tools
     fix: install openssh-server with “apt install openssh-server”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd.8.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-100800, '!default']
@@ -341,6 +371,7 @@ rules:
     severity: info
     score: 1.0
     message: "neither ssh.service nor ssh.socket is both enabled and running; the STIG asks for SSH as the remote access"
+    rationale: administrators cannot reach the machine remotely over an encrypted channel when they need to
     fix: run “systemctl enable --now ssh.socket”, or “systemctl enable --now ssh.service”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd.8.en.html
     tags: [ssh, stig-ubuntu-26.04:UBTU-24-100810, '!default']

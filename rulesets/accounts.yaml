@@ -21,6 +21,7 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} has uid 0 in /etc/passwd, so it holds every privilege root does under another name"
+    rationale: a second account with root’s uid is an unnoticed way to have full control of the machine
     fix: give {subject} its own uid with “usermod --uid”, or remove it with “userdel” if nobody needs it
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     references:
@@ -34,6 +35,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} shares uid {got} with {others}, so each owns the other’s files and processes"
+    rationale: two people or services can read, change and kill each other’s files and processes
     fix:
       - Give {subject} a uid of its own with “usermod --uid”.
       - Then run “chown” on what it should own.
@@ -48,6 +50,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} shares gid {got} with {others}, so a member of one gets the other’s file access"
+    rationale: members of one group quietly get access to everything the other group owns
     fix:
       - Give {subject} a gid of its own with “groupmod --gid”.
       - Then run “chgrp” on what it should own.
@@ -62,6 +65,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} appears again on line(s) {got} of /etc/passwd, which the system never reads, since the first line wins"
+    rationale: the second entry is silently ignored, so settings an administrator thinks apply never do
     fix: merge what you meant into the first {subject} line of “/etc/passwd”, and delete the later one with “vipw”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     tags: [accounts]
@@ -72,6 +76,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} appears again on line(s) {got} of /etc/group, which the system never reads, since the first line wins"
+    rationale: the second entry is silently ignored, so members an administrator thinks have access never get it
     fix: merge the members you meant into the first {subject} line of “/etc/group”, and delete the later one with “vigr”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/group.5.html
     references:
@@ -84,6 +89,7 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} has an empty password field in /etc/passwd, so any service that allows empty passwords lets it in without one"
+    rationale: anyone who knows the account name can log in without a password wherever empty passwords are allowed
     fix: run “passwd {subject}” to set a password, or “passwd --lock {subject}” if nobody logs in as it
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     references:
@@ -96,6 +102,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} keeps its password hash in /etc/passwd, which every local user can read, so anyone on the host can crack it offline"
+    rationale: any local user can read the password hash and crack it offline at leisure
     fix:
       - 'Move the hash into “/etc/shadow”:'
       - run: pwconv
@@ -111,6 +118,7 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} has an empty password in /etc/shadow, so any service that allows empty passwords lets it in without one"
+    rationale: anyone who knows the account name can log in without a password wherever empty passwords are allowed
     fix: run “passwd {subject}” to set a password, or “passwd --lock {subject}” if nobody logs in as it
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     references:
@@ -123,6 +131,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} defers to /etc/shadow in /etc/passwd, but /etc/shadow has no line for it, so its password, lock and ageing live nowhere and pwck reports the entry as broken"
+    rationale: the account has no recorded password state, so it may be unlocked, never expire, or fail checks unpredictably
     fix:
       - 'Give {subject} its “/etc/shadow” line:'
       - run: pwconv
@@ -142,6 +151,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s maximum password age in days is {got}, where 1 to ${password-max-days} is asked"
+    rationale: a leaked password keeps working indefinitely, or users are forced to change it so often they pick weak ones
     fix:
       - 'Set the limit on this account:'
       - run: chage --maxdays ${password-max-days} {subject}
@@ -160,6 +170,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s maximum password age in days is {got}, so the password must change on a schedule, which steers people to predictable successors of the old one"
+    rationale: people choose small variations of the old password, so a stolen one is easy to guess forward
     fix: run “chage --maxdays -1 {subject}”, set “PASS_MAX_DAYS 99999” in “/etc/login.defs” for new accounts, and force a change only on evidence of compromise
     docs: https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver
     references:
@@ -174,6 +185,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s minimum password age in days is {got}, so a forced change can be undone sooner than the ${password-min-days} asked"
+    rationale: a user forced to change a password can switch straight back to the old one
     fix:
       - 'Set the limit on this account:'
       - run: chage --mindays ${password-min-days} {subject}
@@ -189,6 +201,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s password expiry warning in days is {got}, where at least ${password-warn-days} is asked"
+    rationale: users are locked out by an expiry they had no time to notice and prepare for
     fix:
       - 'Set the warning on this account:'
       - run: chage --warndays ${password-warn-days} {subject}
@@ -204,6 +217,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject}’s grace in days before an expired password locks it is {got}, where at most ${password-inactive-days} is asked"
+    rationale: an abandoned account with an expired password stays open to an attacker for weeks
     fix: run “chage --inactive ${password-inactive-days} {subject}”, and “useradd -D -f ${password-inactive-days}” for new accounts
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.1.5, '!default']
@@ -216,6 +230,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has no login shell but an unlocked password, so any service that authenticates through PAM without a shell, such as mail or FTP, still accepts it"
+    rationale: an account meant only for a service can still be broken into by guessing its password through mail or FTP
     fix: run “usermod --lock {subject}”, unless a service logs it in by password on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
     tags: [accounts, cis-ubuntu-26.04:5.4.2.8]
@@ -239,6 +254,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} has gid 0 as its primary group in /etc/passwd, so every file it creates belongs to group root"
+    rationale: every file the account creates is shared with root’s group, readable or writable by other members of it
     fix: give {subject} its own primary group with “usermod --gid”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.2.2]
@@ -250,6 +266,7 @@ rules:
     severity: warning
     score: 6.0
     message: "group shadow lists {got} in /etc/group, so they can read every password hash in /etc/shadow"
+    rationale: those users can read every password hash on the machine and crack them offline
     fix: remove each member with “gpasswd --delete <user> shadow”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     tags: [accounts, cis-ubuntu-26.04:7.2.4]
@@ -261,6 +278,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} has group shadow (gid 42) as its primary group, so it can read every password hash in /etc/shadow"
+    rationale: that account can read every password hash on the machine and crack them offline
     fix: give {subject} another primary group with “usermod --gid”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     tags: [accounts, cis-ubuntu-26.04:7.2.4]
@@ -271,6 +289,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} lists nologin, so a service that only admits accounts with a valid shell, such as an FTP server, admits accounts meant to have none"
+    rationale: accounts meant to be unable to log in can still pass the shell check of FTP and similar services
     fix: delete the “nologin” lines from {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shells.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.3.1]
@@ -285,6 +304,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} is a system account with a shell listed in /etc/shells, so anyone who gets its password or key gets a shell"
+    rationale: anyone who steals a service account’s key or password gets an interactive shell on the machine
     fix: run “usermod --shell /usr/sbin/nologin {subject}”, unless a person logs in as it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
     tags: [accounts, cis-ubuntu-26.04:5.4.2.7, '!default']
@@ -295,6 +315,7 @@ rules:
     severity: info
     score: 1.0
     message: "INACTIVE in /etc/default/useradd is unset (-1, never) or above ${password-inactive-days}, so an account made from now on stays usable that long after its password expires"
+    rationale: every account created from now on stays open to an attacker long after its owner stopped using it
     fix: run “useradd -D -f ${password-inactive-days}”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/useradd.8.html
     tags: [accounts, cis-ubuntu-26.04:5.4.1.5, '!default']
@@ -305,6 +326,7 @@ rules:
     severity: info
     score: 1.0
     message: "INACTIVE in /etc/default/useradd is unset (-1, never) or above ${stig-password-inactive-days}"
+    rationale: every account created from now on stays open to an attacker long after its owner stopped using it
     fix: run “useradd -D -f ${stig-password-inactive-days}”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/useradd.8.html
     tags: [accounts, stig-ubuntu-26.04:UBTU-24-200260, '!default']
@@ -315,6 +337,7 @@ rules:
     severity: info
     score: 1.0
     message: "root’s password in /etc/shadow is {got}, not locked, so root may log in directly with it, leaving no record of which administrator did"
+    rationale: whoever has the root password logs in as plain root and the logs cannot say which administrator did what
     fix: run “passwd --lock root” once every administrator reaches root through sudo
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/passwd.1.html
     tags: [accounts, stig-ubuntu-26.04:UBTU-24-400110, '!default']
@@ -325,6 +348,7 @@ rules:
     severity: warning
     score: 3.0
     message: "grpck --read-only exits {got}, so /etc/group and /etc/gshadow hold a malformed line, a duplicate name or a member with no account, which tools read differently"
+    rationale: a malformed group entry can give or deny access differently in different tools without anyone noticing
     fix: run “grpck --read-only” as root and fix each line it names, or let “grpck” fix them
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/grpck.8.html
     references:
