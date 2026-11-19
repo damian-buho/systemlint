@@ -94,7 +94,7 @@ pub fn op(request: Request) -> Result<Reply> {
         "deb822" => Ok(deb822(&request.inputs)),
         "exec" => Ok(exec(&request.inputs)),
         "ini" => Ok(ini(&request.inputs)),
-        "json" => Ok(json(&request.inputs)),
+        "json" => json(&request.inputs, &request.with),
         "kv" => kv(&request.inputs, &request.with),
         "lines" => Ok(lines(&request.inputs)),
         "match" => r#match(&request.inputs, &request.with),
@@ -667,11 +667,27 @@ pub fn parse_ini(text: &str, mut diagnose: impl FnMut(u64, String)) -> Sections 
     sections
 }
 
-/// Every input’s top-level JSON object merged into one, the first input holding a key winning.
-pub fn json(inputs: &[Input]) -> Reply {
+/// Every input’s top-level JSON object merged into one, the first input holding a key winning; `with.exit-mask` reads a command whose exit bits all lie in it.
+pub fn json(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
+    if let Some(other) = with.keys().find(|k| *k != "exit-mask") {
+        return Err(format!("with.{other} is unknown to json").into());
+    }
+    let mask = match with.get("exit-mask") {
+        None => 0,
+        Some(v) => v
+            .as_i64()
+            .filter(|m| (1..=255).contains(m))
+            .ok_or("with.exit-mask is an exit status bit mask from 1 to 255")?,
+    };
     let mut reply = Reply::default();
     for input in inputs {
-        let Some((path, text)) = text(input, &mut reply.diagnostics) else {
+        let read = match input {
+            Input::Exec(run) if run.exit > 0 && i64::from(run.exit) & !mask == 0 => {
+                Some((run.argv[0].as_str(), run.stdout.as_str()))
+            }
+            _ => text(input, &mut reply.diagnostics),
+        };
+        let Some((path, text)) = read else {
             continue;
         };
         match serde_json::from_str::<Value>(text) {
@@ -692,7 +708,7 @@ pub fn json(inputs: &[Input]) -> Reply {
             }),
         }
     }
-    reply
+    Ok(reply)
 }
 
 /// Every input parsed as one YAML document, YAML 1.2 booleans only, keyed by its path.
@@ -1708,15 +1724,19 @@ mod tests {
 
     #[test]
     fn json_merges_objects_and_names_the_rest() {
-        let reply = json(&[
-            file(
-                "/etc/docker/daemon.json",
-                r#"{"icc": false, "hosts": ["unix:///run/docker.sock"]}"#,
-            ),
-            file("/b", r#"{"icc": true, "live-restore": true}"#),
-            file("/c", "[1]"),
-            file("/d", "{\n  \"x\": ,\n}"),
-        ]);
+        let reply = json(
+            &[
+                file(
+                    "/etc/docker/daemon.json",
+                    r#"{"icc": false, "hosts": ["unix:///run/docker.sock"]}"#,
+                ),
+                file("/b", r#"{"icc": true, "live-restore": true}"#),
+                file("/c", "[1]"),
+                file("/d", "{\n  \"x\": ,\n}"),
+            ],
+            &Map::new(),
+        )
+        .unwrap();
         assert_eq!(
             (
                 reply.facts["icc"].clone(),
@@ -1733,6 +1753,37 @@ mod tests {
             [("/c", None), ("/d", Some(2))]
         );
         assert!(reply.diagnostics[0].message.contains("list"));
+    }
+
+    #[test]
+    fn json_exit_mask_reads_an_exit_whose_bits_it_holds_only() {
+        let run = |exit, key: &str| {
+            Input::Exec(ExecInput {
+                argv: vec!["/usr/sbin/smartctl".into()],
+                stdout: format!(r#"{{"{key}": {exit}}}"#),
+                stderr: "failed".into(),
+                exit,
+            })
+        };
+        let with = json!({"exit-mask": 248}).as_object().unwrap().clone();
+        let reply = json(
+            &[run(8, "a"), run(255, "b"), run(4, "c"), run(0, "d")],
+            &with,
+        )
+        .unwrap();
+        assert_eq!(reply.facts.keys().collect::<Vec<_>>(), ["a", "d"]);
+        assert_eq!(reply.diagnostics.len(), 2, "{:?}", reply.diagnostics);
+        assert!(json(&[run(8, "a")], &Map::new()).unwrap().facts.is_empty());
+        for bad in [
+            json!({"exit-mask": 0}),
+            json!({"exit-mask": 256}),
+            json!({"mask": 8}),
+        ] {
+            assert!(json(&[], bad.as_object().unwrap()).is_err(), "{bad}");
+        }
+        for good in [json!({"exit-mask": 1}), json!({"exit-mask": 255})] {
+            assert!(json(&[], good.as_object().unwrap()).is_ok(), "{good}");
+        }
     }
 
     #[test]

@@ -119,6 +119,19 @@ fn shape(step: &Shape, value: &mut Value, path: &str, diagnostics: &mut Vec<Diag
             }
             *map = out;
         }
+        Shape::Index(field) => {
+            let Value::Array(items) = value else {
+                return diagnose(path, format!("index takes a list, not {value}"));
+            };
+            let mut out = Map::new();
+            for (i, item) in std::mem::take(items).into_iter().enumerate() {
+                if let Err(message) = index(&mut out, field, item) {
+                    diagnose(&join(path, &i.to_string()), message);
+                }
+            }
+            log::trace!("index by {field} at {path:?} kept {} items", out.len());
+            *value = Value::Object(out);
+        }
         _ => leaves(value, path, &mut |leaf, at| {
             if let Err(message) = convert(step, leaf) {
                 diagnose(at, message);
@@ -165,6 +178,20 @@ fn nest(
     Ok(())
 }
 
+/// Places `item` in `out` under its string or number at `field`, refusing one without it or with a key already there.
+fn index(out: &mut Map<String, Value>, field: &str, item: Value) -> Result<(), String> {
+    let key = match item.get(field) {
+        Some(Value::String(s)) => s.clone(),
+        Some(Value::Number(n)) => n.to_string(),
+        _ => return Err(format!("item has no string or number {field}; not kept")),
+    };
+    if out.contains_key(&key) {
+        return Err(format!("{field} {key} repeats an earlier item; not kept"));
+    }
+    out.insert(key, item);
+    Ok(())
+}
+
 /// Places every value below `value` in `out` under its keys joined on `separator`, refusing a key already there.
 fn flatten(
     out: &mut Map<String, Value>,
@@ -196,7 +223,7 @@ fn convert(step: &Shape, leaf: &mut Value) -> Result<(), String> {
         Shape::Bytes if leaf.is_number() => return Ok(()),
         Shape::Bytes => bytes(&text)?,
         Shape::Ranges(by) => ranges(&text, by)?,
-        Shape::Nest(_) | Shape::Flatten(_) => return Ok(()),
+        Shape::Nest(_) | Shape::Flatten(_) | Shape::Index(_) => return Ok(()),
     };
     Ok(())
 }
@@ -428,6 +455,28 @@ mod tests {
             ),
             "{said:?}"
         );
+    }
+
+    #[test]
+    fn index_keys_a_list_by_a_field_and_names_an_item_it_drops() {
+        let (facts, said) = shaped(
+            json!([op(), {"index": "name", "at": "devices"}]),
+            json!({"devices": [{"name": "/dev/sda"}, {"name": 7}, {"type": "sat"}, {"name": "/dev/sda", "n": 2}]}),
+        );
+        assert_eq!(
+            facts,
+            json!({"devices": {"/dev/sda": {"name": "/dev/sda"}, "7": {"name": 7}}})
+        );
+        assert_eq!(
+            said,
+            [
+                "devices.2: item has no string or number name; not kept",
+                "devices.3: name /dev/sda repeats an earlier item; not kept"
+            ]
+        );
+        let (facts, said) = shaped(json!([op(), {"index": "name"}]), json!({"name": "x"}));
+        assert_eq!((facts, said.len()), (json!({"name": "x"}), 1), "{said:?}");
+        assert!(serde_json::from_value::<Parse>(json!([op(), {"index": ""}])).is_err());
     }
 
     #[test]

@@ -409,7 +409,9 @@ into: commands.nginx-test
 The text ops (`lines`, `kv`, `words`, `options`, `match`, `deb822`, `ini`, `json`, `yaml`, `toml`, `csv`) read a
 command’s `stdout` as they read a file when it exits 0, its program path
 standing in for a file path; any other exit is a diagnostic naming the status
-and the first line of `stderr`:
+and the first line of `stderr`. `json` also takes `with.exit-mask`, a number
+from 1 to 255: an exit whose bits all lie in it is read as well, as smartctl
+sets bits 3 to 7 when a disk is failing and still prints its JSON:
 
 ```yaml
 id: mounts-json
@@ -585,6 +587,7 @@ was and is named in a diagnostic.
 | `split` | `whitespace` or a literal: a value into its typed words, empty fields kept for a literal; with `fields`, a map of those names, a different count being a diagnostic |
 | `unit` | `bytes`: `<integer> <unit>` into bytes, units `B`, `K`, `M`, `G`, `T` with or without `B` or `iB`, all binary, as the kernel prints `kB` for 1024; a number stays as it is |
 | `ranges` | the separator between `a-b` or `a` items: a value into `[{from, to}]`, empty for an empty text, a range running backwards a diagnostic |
+| `index` | a field name: the list at `at` into a map keyed by each item’s string or number there, so `read.exec-from` and a rule’s `*` can bind it; an item without it, or repeating an earlier item’s, is dropped and named in a diagnostic |
 
 The kernel’s memory counters in bytes:
 

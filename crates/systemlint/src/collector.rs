@@ -318,6 +318,8 @@ pub enum Shape {
     Bytes,
     /// Each `a-b` or `a` list on the separator into `[{from, to}]`.
     Ranges(String),
+    /// A list of maps into one map keyed by each item’s string or number at the field.
+    Index(String),
 }
 
 /// One `parse:` list entry as written.
@@ -336,6 +338,7 @@ struct Entry {
     fields: Option<Vec<String>>,
     unit: Option<String>,
     ranges: Option<String>,
+    index: Option<String>,
     at: Option<String>,
 }
 
@@ -405,13 +408,14 @@ impl TryFrom<Entry> for Step {
             e.split.is_some(),
             e.unit.is_some(),
             e.ranges.is_some(),
+            e.index.is_some(),
         ];
         let kinds = usize::from(e.plugin.is_some() || e.op.is_some())
             + usize::from(e.section.is_some())
             + usize::from(e.skip.is_some())
             + shapes.iter().filter(|s| **s).count();
         if kinds != 1 {
-            return Err("give exactly one of plugin with op, section, skip, nest, flatten, split, unit, ranges".to_owned());
+            return Err("give exactly one of plugin with op, section, skip, nest, flatten, split, unit, ranges, index".to_owned());
         }
         if e.fields.is_some() && e.split.is_none() {
             return Err("fields names what split yields; give split".to_owned());
@@ -429,6 +433,15 @@ impl TryFrom<Entry> for Step {
             return Err(format!(
                 "at {at:?} is not a dotted fact path whose wildcards are whole segments"
             ));
+        }
+        if let Some(field) = e.index {
+            if field.is_empty() {
+                return Err("index is empty; give the field that keys each item".to_owned());
+            }
+            return Ok(Self::Tree(Tree {
+                at: e.at,
+                shape: Shape::Index(field),
+            }));
         }
         let shape = match (
             e.plugin, e.op, e.section, e.skip, e.nest, e.flatten, e.split, e.unit, e.ranges,
