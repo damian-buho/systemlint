@@ -124,6 +124,12 @@ fn fix_with_force_and_dry_run_exits_2() {
 }
 
 #[test]
+fn fix_with_all_and_tags_exits_2() {
+    let (code, stderr) = run(&base("fix-all"), "", &["fix", "--all", "--tags", "files"]);
+    assert_eq!(code, 2, "{stderr}");
+}
+
+#[test]
 fn a_missing_config_exits_5_with_the_fix() {
     let dir = base("config");
     let missing = dir.join("absent.yaml");

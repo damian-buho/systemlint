@@ -154,7 +154,7 @@ enum Command {
         output: Option<PathBuf>,
     },
     /// Check this host or a root filesystem, then make the changes its failing rules declare as a remedy
-    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint fix --dry-run\n  sudo systemlint fix --tags files\n  systemlint fix --root rootfs --force")]
+    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint fix --dry-run\n  sudo systemlint fix --all --dry-run\n  sudo systemlint fix --tags files\n  systemlint fix --root rootfs --force")]
     #[command(
         after_help = "A remedy clears permission bits or gives a file to root, never more, and each file is read again right before its change.\nExit codes: 0 every change made or none needed, 1 a change failed or was declined, 2 bad arguments or a change needing --force, 4 a plugin or collector refused, 5 config, rules or fix.enabled: false, 6 the root can’t be opened, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md#remedies"
     )]
@@ -165,6 +165,9 @@ enum Command {
         /// Rules to fix, as for check [default: check.tags, else default]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
+        /// Fix every rule, standard-only ones included, as --tags all does
+        #[arg(long, conflicts_with = "tags")]
+        all: bool,
         /// Settle a conflict for the side holding a tag GLOB matches, comma-separated or repeated (cis-ubuntu-26.04:*) [default: check.prefer]
         #[arg(long, value_name = "GLOB", value_delimiter = ',')]
         prefer: Vec<String>,
@@ -375,6 +378,7 @@ fn main() -> ExitCode {
         Command::Fix {
             root,
             tags,
+            all,
             prefer,
             vars,
             dry_run,
@@ -383,7 +387,15 @@ fn main() -> ExitCode {
         } => ExitCode::from(fix(
             &config,
             root.as_deref(),
-            &Selection { tags, prefer, vars },
+            &Selection {
+                tags: if all {
+                    vec![rules::ALL.to_owned()]
+                } else {
+                    tags
+                },
+                prefer,
+                vars,
+            },
             Ask {
                 dry_run,
                 force,
