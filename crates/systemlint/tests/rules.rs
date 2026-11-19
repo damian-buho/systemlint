@@ -612,3 +612,19 @@ fn conflicts_must_be_declared_on_both_sides_of_a_defined_pair() {
     let over = format!("{pair}  fixture/x: {{conflicts: [s/a]}}\n");
     assert!(refused(&over).contains("overrides a rule, so it takes no conflicts"));
 }
+
+#[test]
+fn the_built_in_catalog_holds_every_shipped_ruleset_file() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rulesets");
+    let mut files: Vec<String> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|e| e == "yaml"))
+        .map(|p| p.file_stem().unwrap().to_string_lossy().into_owned())
+        .collect();
+    files.sort();
+    let mut built: Vec<&str> = systemlint::rules::SHIPPED.iter().map(|(n, _)| *n).collect();
+    built.sort_unstable();
+    assert_eq!(built, files);
+    assert!(Library::shipped().unwrap().definitions.len() > 1);
+}

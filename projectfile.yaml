@@ -57,6 +57,7 @@ org:
     artifacts:
       cargo-binary:
         command: systemlint
+        executable: dist/systemlint
         path: dist/systemlint
     architecture:
       - amd64

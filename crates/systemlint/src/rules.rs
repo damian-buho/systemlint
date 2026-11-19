@@ -471,7 +471,23 @@ fn merge(base: Spec, over: Spec) -> Spec {
     }
 }
 
+/// The shipped rulesets built into this binary, by file stem, as `rulesets/` held them at compile time.
+pub const SHIPPED: &[(&str, &str)] = include!(concat!(env!("OUT_DIR"), "/rulesets.rs"));
+
 impl Library {
+    /// The library of the rulesets built into this binary, every var at its default.
+    pub fn shipped() -> Result<Self, String> {
+        let mut rulesets = BTreeMap::new();
+        for (name, text) in SHIPPED {
+            let ruleset = crate::yaml::from_str::<Ruleset>(text)
+                .map_err(|e| format!("built-in ruleset {name}: {e}"))?;
+            log::debug!("built-in ruleset {name} with {} rules", ruleset.rules.len());
+            rulesets.insert((*name).to_owned(), ruleset);
+        }
+        crate::vars::apply(&mut rulesets, &crate::vars::Supplied::default())?;
+        Self::new(rulesets)
+    }
+
     /// The library of `rulesets`, refusing a rule defined twice or an invalid entry.
     pub fn new(rulesets: BTreeMap<String, Ruleset>) -> Result<Self, String> {
         let mut definitions: BTreeMap<String, Spec> = BTreeMap::new();

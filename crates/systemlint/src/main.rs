@@ -179,7 +179,7 @@ enum Command {
     /// Print the shipped rule catalog, or write one Markdown page per rule
     #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint rules\n  systemlint rules --format markdown --output book/rules")]
     #[command(
-        after_help = "Reads only the rulesets shipped in ../share/systemlint/rulesets beside the binary, never a configured one.\nExit codes: 0 printed or written, 2 bad arguments, 5 a shipped ruleset can’t be loaded, 7 a page or stdout can’t be written."
+        after_help = "Prints the rulesets built into this binary, the ones its release ships, never an installed or configured one.\nExit codes: 0 printed or written, 2 bad arguments, 5 a built-in ruleset can’t be loaded, 7 a page or stdout can’t be written."
     )]
     Rules {
         /// yaml: the catalog at org.projectfile.pages.rules.items; markdown: a page per rule, ruleset and standard under --output
@@ -1191,28 +1191,15 @@ fn load_config(explicit: Option<&Path>, project: bool) -> Result<Config, String>
 
 /// The shipped rule catalog as YAML on stdout, or every rule page under `output`.
 fn rule_pages(format: PagesFormat, lang: &str, output: Option<&Path>) -> u8 {
-    let dirs = rules::directories(&exe(), &[]);
-    let (library, refusals) = trail::scoped(trail::CONFIG, || {
-        Library::load(
-            &dirs,
-            &Trust::invoking_user(),
-            &std::collections::BTreeMap::new(),
-            &systemlint::vars::Supplied::default(),
-        )
-    });
-    print_refusals(trail::CONFIG, &refusals);
-    let library = match library.map_err(fail(trail::CONFIG, EXIT_CONFIG)) {
-        Ok(library) if refusals.is_empty() => library,
-        Ok(_) => return EXIT_CONFIG,
+    let library = match trail::scoped(trail::CONFIG, Library::shipped)
+        .map_err(fail(trail::CONFIG, EXIT_CONFIG))
+    {
+        Ok(library) => library,
         Err(code) => return code,
     };
     log::debug!(
-        "rule pages lang {lang}, {} rules from {}",
-        library.definitions.len(),
-        dirs.iter()
-            .map(|d| d.display().to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
+        "rule pages lang {lang}, {} built-in rules",
+        library.definitions.len()
     );
     match (format, output) {
         (PagesFormat::Markdown, Some(dir)) => match systemlint::pages::write_all(dir, &library) {
