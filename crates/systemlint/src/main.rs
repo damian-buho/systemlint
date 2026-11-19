@@ -132,7 +132,7 @@ enum Command {
     Check {
         #[command(flatten)]
         input: Input,
-        /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, !x removes [default: check.tags, else default]
+        /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, a standard-only rule by its ID or a standard tag (cis-*:*), !x removes [default: check.tags, else default]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
         /// Exit 1 on a failure at error, warning, info, advice, a score from 0.1 to 9.9, or never [default: check.fail-on, else error]

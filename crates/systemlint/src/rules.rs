@@ -609,23 +609,59 @@ impl Library {
         Ok(merged)
     }
 
-    fn matching(&self, pattern: &str) -> Result<BTreeMap<String, Spec>, String> {
-        let picked: BTreeMap<String, Spec> = self
+    /// Every rule `pattern` matches by ID or tag, standard-only ones included, as a `!` selector removes them.
+    fn matched(&self, pattern: &str) -> Result<BTreeMap<String, Spec>, String> {
+        let matched: BTreeMap<String, Spec> = self
             .definitions
             .iter()
             .filter(|(id, spec)| glob(pattern, id) || spec.tags.iter().any(|t| glob(pattern, t)))
             .map(|(id, spec)| (id.clone(), spec.clone()))
             .collect();
-        log::debug!(
-            "selector {pattern} matches {} rules by ID or tag",
-            picked.len()
-        );
-        if picked.is_empty() {
+        if matched.is_empty() {
             return Err(format!(
                 "{pattern} is no ruleset, and no rule ID or tag matches it"
             ));
         }
+        Ok(matched)
+    }
+
+    /// The rules `pattern` picks: what it matches, a standard-only rule only by its exact ID or a standard’s tag.
+    fn matching(&self, pattern: &str) -> Result<BTreeMap<String, Spec>, String> {
+        let matched = self.matched(pattern)?;
+        let picked: BTreeMap<String, Spec> = matched
+            .iter()
+            .filter(|(id, spec)| {
+                *id == pattern
+                    || spec
+                        .tags
+                        .iter()
+                        .any(|t| t.contains(':') && glob(pattern, t))
+                    || !self.standard_only(id, spec)
+            })
+            .map(|(id, spec)| (id.clone(), spec.clone()))
+            .collect();
+        log::debug!(
+            "selector {pattern} matches {} rules by ID or tag, {} of them standard-only and left out",
+            matched.len(),
+            matched.len() - picked.len()
+        );
+        if picked.is_empty() {
+            let id = matched.keys().next().cloned().unwrap_or_default();
+            return Err(format!(
+                "{pattern} matches only rules a standard alone asks for: name each by its ID ({id}) or select its standard’s tag"
+            ));
+        }
         Ok(picked)
+    }
+
+    /// Whether `id` is a rule its `default` ruleset leaves out with `!default`, which only its ID or a standard’s tag selects.
+    fn standard_only(&self, id: &str, spec: &Spec) -> bool {
+        let owner_default = self
+            .owners
+            .get(id)
+            .and_then(|o| self.rulesets.get(o))
+            .is_some_and(|r| r.tags.iter().any(|t| t == DEFAULT));
+        owner_default && !spec.tags.iter().any(|t| t == DEFAULT)
     }
 
     /// A selector’s rules as (overrides, plain picks): a ruleset’s own plus the rules its name matches by ID or tag, else the glob’s.
@@ -634,7 +670,16 @@ impl Library {
         if !self.rulesets.contains_key(selector) {
             return Ok((BTreeMap::new(), found));
         }
-        Ok((found, self.tagged(selector)))
+        let mut own = found;
+        own.retain(|id, spec| {
+            let defined = self.owners.get(id).is_some_and(|o| o == selector);
+            let kept = !defined || !self.standard_only(id, spec);
+            if !kept {
+                log::debug!("ruleset {selector} leaves out standard-only rule {id}");
+            }
+            kept
+        });
+        Ok((own, self.tagged(selector)))
     }
 
     /// The rules a ruleset’s name matches by ID or tag, which naming it picks beside its own.
@@ -671,7 +716,14 @@ impl Library {
             }
         }
         for selector in selectors.iter().filter_map(|s| s.strip_prefix('!')) {
-            let (overrides, plain) = self.named(selector)?;
+            let overrides = match self.rulesets.contains_key(selector) {
+                true => self.resolve(selector)?,
+                false => BTreeMap::new(),
+            };
+            let plain = match self.rulesets.contains_key(selector) {
+                true => self.matched(selector).unwrap_or_default(),
+                false => self.matched(selector)?,
+            };
             log::debug!(
                 "selector !{selector} removes {} rules",
                 overrides.len() + plain.len()

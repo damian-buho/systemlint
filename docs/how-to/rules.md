@@ -340,7 +340,13 @@ is a glob (`*` any run of characters, `/` and `:` included; `?` one) over rule
 IDs and tags; a selector naming a ruleset also picks that ruleset’s rules, so
 `ssh` brings the `ssh` ruleset and every rule tagged `ssh`. The list is a union: a ruleset
 brings its overrides, an ID or tag pick brings the plain rule unless a ruleset
-already brought it. `!x` removes what `x` names; `off` rules drop out. With no
+already brought it. A rule a `default` ruleset leaves out with `'!default'`,
+one a standard alone asks for, is picked only by its exact ID or by a tag
+holding `:` (a standard’s control, `cis-ubuntu-26.04:*`), never by a ruleset
+name, a plain tag or an ID glob: `kernel-modules/*` is the default rules of
+`kernel-modules`, `kernel-modules/*,cis-*:*` adds the CIS ones, so `fix` never
+changes what a default `check` did not show. `!x` removes everything `x`
+matches, those rules included; `off` rules drop out. With no
 selector, or only `!` ones, the rules tagged `default` run: every shipped
 ruleset carries it, an opinionated one (performance, a latency profile) does
 not. A selector matching nothing is an error.

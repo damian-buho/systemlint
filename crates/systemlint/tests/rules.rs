@@ -482,6 +482,50 @@ fn a_bang_tag_drops_an_inherited_tag_from_a_definition_or_an_override() {
 }
 
 #[test]
+fn a_standard_only_rule_is_picked_by_its_id_or_a_standard_tag_alone() {
+    let lib = Library::new(BTreeMap::from([
+        (
+            "mods".to_owned(),
+            systemlint::yaml::from_str("tags: [default, kernel]\nrules:\n  mods/a: {fact: a, expect: {minimum: 1}}\n  mods/b: {fact: b, expect: {minimum: 1}, tags: ['cis:1.1', '!default']}\n").unwrap(),
+        ),
+        (
+            "extra".to_owned(),
+            systemlint::yaml::from_str("rules:\n  extra/c: {fact: c, expect: {minimum: 1}}\n").unwrap(),
+        ),
+    ]))
+    .unwrap();
+    let picked = |s: &[&str]| {
+        let selectors: Vec<String> = s.iter().map(|x| (*x).to_owned()).collect();
+        ids(&lib.select(&selectors).unwrap())
+            .into_iter()
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(picked(&["mods/*"]), ["mods/a"], "an ID glob");
+    assert_eq!(picked(&["mods"]), ["mods/a"], "a ruleset name");
+    assert_eq!(picked(&["kernel"]), ["mods/a"], "a plain tag");
+    assert_eq!(picked(&["mods/b"]), ["mods/b"], "its exact ID");
+    assert_eq!(picked(&["cis:*"]), ["mods/b"], "a standard’s tag");
+    assert_eq!(picked(&["mods/*", "cis:*"]), ["mods/a", "mods/b"]);
+    assert_eq!(
+        picked(&["extra"]),
+        ["extra/c"],
+        "a ruleset outside default keeps every rule"
+    );
+    assert_eq!(
+        picked(&["cis:*", "!mods/*"]),
+        Vec::<String>::new(),
+        "a bang removes it"
+    );
+    assert!(
+        lib.select(&["*/b".to_owned()])
+            .unwrap_err()
+            .contains("mods/b"),
+        "a glob matching only it names its ID"
+    );
+}
+
+#[test]
 fn no_rule_tagged_default_selects_nothing_rather_than_failing() {
     let lib = Library::new(BTreeMap::from([(
         "mine".to_owned(),

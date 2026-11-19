@@ -90,7 +90,7 @@ fn judged(grants: Value, check: Option<i32>, installed: bool) -> Vec<(String, St
     .unwrap();
     let library = Library::new(BTreeMap::from([("sudo".to_owned(), ruleset)])).unwrap();
     let rules: Vec<_> = library
-        .select(&["sudo".to_owned()])
+        .select(&["sudo".to_owned(), "*:*".to_owned()])
         .unwrap()
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
@@ -160,7 +160,7 @@ fn defaults(sudo: &str) -> Vec<(String, String, Outcome)> {
     let ruleset = systemlint::yaml::from_str(&text).unwrap();
     let library = Library::new(BTreeMap::from([("sudo-defaults".to_owned(), ruleset)])).unwrap();
     let rules: Vec<_> = library
-        .select(&["sudo".to_owned()])
+        .select(&["sudo".to_owned(), "*:*".to_owned()])
         .unwrap()
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())

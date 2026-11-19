@@ -80,7 +80,7 @@ fn checks_with(document: &Value, config: Value) -> Vec<Check> {
     systemlint::vars::apply(&mut rulesets, &supplied).unwrap();
     let library = Library::new(rulesets).unwrap();
     let rules: Vec<_> = library
-        .select(&["ssh".to_owned()])
+        .select(&["ssh".to_owned(), "*:*".to_owned()])
         .unwrap()
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
