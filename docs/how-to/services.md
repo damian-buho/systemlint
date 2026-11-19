@@ -33,7 +33,7 @@ facts yet.
 | `apparmor-binary` | `apparmor_parser` in `/usr/local/sbin`, `/usr/sbin`, `/sbin` and their `bin` siblings, on the host only (a container takes the profile its runtime loads from the host) | `stat` | `apparmor.binary` |
 | `apparmor-profiles` | `/sys/kernel/security/apparmor/profiles` on a live host, as root | `match` | `apparmor.profiles.<profile>` |
 | `aide-binary` | `aide` in `/usr/local/bin`, `/usr/bin`, `/bin` and their `sbin` siblings | `stat` | `aide.binary` |
-| `docker-daemon` | `/etc/docker/daemon.json` | `json` | `docker.daemon` |
+| `docker-daemon` | `/etc/docker/daemon.json`, snap Docker’s `/var/snap/docker/current/config/daemon.json` | `json` | `docker.daemon` |
 | `systemd-units` | every `.service` file and drop-in in `/etc`, `/run`, `/usr/local/lib`, `/usr/lib` and `/lib` `systemd/system`, with its `stat` | `units` | `systemd.units.<unit>` |
 | `systemd-state` | every entry and `.wants`/`.requires` link in the unit directories, and `systemctl list-units --all --output=json` on a live host | `systemd` | `systemd.state.<unit>` |
 | `ufw` | `/etc/ufw/ufw.conf` | `kv` | `ufw.conf` |
@@ -375,14 +375,16 @@ standard controls alone, since a host may confine with another LSM:
 
 ## Docker daemon
 
-`docker.daemon` is `/etc/docker/daemon.json` as it stands, so
+`docker.daemon` is `/etc/docker/daemon.json` as it stands, with snap Docker’s
+`/var/snap/docker/current/config/daemon.json` merged under it (the first file
+holding a top-level key wins), so
 `docker.daemon.icc` or `docker.daemon.userns-remap` are facts. With no file,
 `docker.daemon` is empty, and a rule on one key answers `unknown`.
 `docker/logs-unbounded` judges the whole map once a `dockerd` is on disk: it
 fails the default `json-file` driver with no `log-opts.max-size`, which
 never rotates a container’s log. A `--log-opt`, `--log-driver` or
 `--config-file` on `docker.service`’s `ExecStart` skips it, since the file is
-then not the whole setting; snap Docker’s own `daemon.json` is not read.
+then not the whole setting.
 
 ## systemd units
 

@@ -4,6 +4,6 @@
 
 id: docker-daemon
 read:
-  files: [/etc/docker/daemon.json]
+  files: [/etc/docker/daemon.json, /var/snap/docker/current/config/daemon.json]
 parse: {plugin: formats, op: json}
 into: docker.daemon
