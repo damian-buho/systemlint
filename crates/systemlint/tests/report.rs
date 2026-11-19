@@ -506,8 +506,8 @@ fn sources() -> (Value, Vec<Check>) {
 fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_first() {
     let (document, checks) = sources();
     let text = lint_human(&document, &checks, 0, false, false, false);
-    let expected = "Error (7.5): [apt/stale-suite] A source fetches an older release’s suite\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
-        Warning (4.5): [apt/overlap] A repository is partly listed in two places\n- /a.list:1.\n- /b.sources:1.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
+    let expected = "Error (7.5): [apt/stale-suite] A source fetches an older release’s suite\nWhy: the host stops getting new package versions and security fixes from that source, and its old packages can clash with the rest of the system.\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
+        Warning (4.5): [apt/overlap] A repository is partly listed in two places\nWhy: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour.\n- /a.list:1.\n- /b.sources:1.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
         Rating            F\nErrors            2\nWarnings          2\nInfo              0\nPassed            2\n";
     assert_eq!(text, expected);
     let painted = lint_human(&document, &checks, 0, true, false, true);
