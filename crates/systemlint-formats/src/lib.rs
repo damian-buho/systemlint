@@ -87,7 +87,11 @@ pub fn op(request: Request) -> Result<Reply> {
         return Err(format!("op {} takes no with", request.op).into());
     }
     if TEXT_OPS.contains(&request.op.as_str()) {
-        ran(&request.inputs)?;
+        let mask = request.with.get("exit-mask").and_then(Value::as_i64);
+        ran(
+            &request.inputs,
+            mask.filter(|_| request.op == "json").unwrap_or(0),
+        )?;
     }
     match request.op.as_str() {
         "csv" => Ok(csv(&request.inputs)),
@@ -130,7 +134,9 @@ const TEXT_OPS: [&str; 12] = [
 ];
 
 /// The family ops that take typed options under `with`.
-const WITH_OPS: [&str; 6] = ["kv", "match", "options", "passwd", "shadow", "words"];
+const WITH_OPS: [&str; 7] = [
+    "json", "kv", "match", "options", "passwd", "shadow", "words",
+];
 
 /// The typed options of `op` from `with`, or an error naming what is wrong.
 pub fn options<T: serde::de::DeserializeOwned>(op: &str, with: &Map<String, Value>) -> Result<T> {
@@ -139,10 +145,14 @@ pub fn options<T: serde::de::DeserializeOwned>(op: &str, with: &Map<String, Valu
 }
 pub use systemlint_protocol::scalar;
 
-/// An error naming the first command that exited non-zero, 127 (absent) aside, so its collector fails rather than reading as empty.
-fn ran(inputs: &[Input]) -> Result<()> {
+/// An error naming the first command that exited non-zero, 127 (absent) and an exit within `mask` aside, so its collector fails rather than reading as empty.
+fn ran(inputs: &[Input], mask: i64) -> Result<()> {
     match inputs.iter().find_map(|i| match i {
-        Input::Exec(run) if run.exit != 0 && run.exit != 127 => Some(run),
+        Input::Exec(run)
+            if run.exit != 0 && run.exit != 127 && i64::from(run.exit) & !mask != 0 =>
+        {
+            Some(run)
+        }
         _ => None,
     }) {
         Some(run) => Err(format!(
@@ -1679,6 +1689,27 @@ mod tests {
             refused(json!({"pattern": "(?P<key>x)", "flags": "i"})),
             "with.flags is unknown to match"
         );
+    }
+
+    #[test]
+    fn json_takes_its_exit_mask_and_redact_through_the_op() {
+        let with = json!({"exit-mask": 1, "redact": ["/serial"]});
+        let reply = op(request("json", vec![], with)).unwrap();
+        assert_eq!(reply.redact, ["/serial"]);
+        let run = |exit, mask| {
+            let with = json!({"exit-mask": mask});
+            let input = Input::Exec(ExecInput {
+                argv: vec!["/usr/bin/sensors".into()],
+                stdout: r#"{"a": 1}"#.into(),
+                stderr: "failed".into(),
+                exit,
+            });
+            op(request("json", vec![input], with))
+        };
+        assert!(run(1, 1).unwrap().facts.contains_key("a"));
+        assert!(run(8, 248).unwrap().facts.contains_key("a"));
+        assert!(run(2, 1).is_err(), "bit 2 is outside the mask");
+        assert!(run(4, 248).is_err(), "bit 4 is outside the mask");
     }
 
     #[test]
