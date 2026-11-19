@@ -289,3 +289,17 @@ fn a_refusal_is_denied_and_keeps_its_words_through_a_glob() {
         matches!(other.within("glob /x"), Failure::Other(r) if r.starts_with("glob /x: can’t read /x: "))
     );
 }
+
+#[test]
+fn stat_allocates_bytes_only_for_a_regular_file() {
+    let dir = fixture("allocated");
+    let sparse = std::fs::File::create(dir.join("etc/sparse")).unwrap();
+    sparse.set_len(1 << 30).unwrap();
+    let root = Root::open(&dir).unwrap();
+    let file = root.stat("/etc/sparse").unwrap();
+    assert_eq!(file.size, 1 << 30);
+    assert!(file.allocated.unwrap() < 1 << 20, "{:?}", file.allocated);
+    let small = root.stat("/etc/passwd").unwrap().allocated.unwrap();
+    assert!((1..1 << 20).contains(&small), "{small}");
+    assert_eq!(root.stat("/etc").unwrap().allocated, None);
+}

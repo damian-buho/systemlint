@@ -598,6 +598,7 @@ mod tests {
                 uid: 0,
                 gid: 0,
                 size: 0,
+                allocated: None,
                 world_writable: false,
                 group_writable: false,
                 setuid: false,

@@ -505,6 +505,7 @@ pub fn stat_of(meta: &std::fs::Metadata) -> Stat {
         uid: meta.uid(),
         gid: meta.gid(),
         size: meta.size(),
+        allocated: (kind == FileKind::File).then(|| meta.blocks() * 512),
         world_writable: bits & 0o002 != 0,
         group_writable: bits & 0o020 != 0,
         setuid: bits & 0o4000 != 0,

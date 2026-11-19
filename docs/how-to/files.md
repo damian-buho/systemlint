@@ -43,7 +43,8 @@ Each collector passes its `read.stat` globs to the `stat` op of
 | `files-commands` | every regular file in `/usr/bin`, `/usr/sbin`, `/usr/local/bin`, `/usr/local/sbin`, and in `/bin` and `/sbin` where they are directories, not merged `/usr`’s symlinks | `files.commands.<path>` |
 
 A stat holds `kind` (`file`, `directory`, `symlink`, `other`), `mode` as four
-octal digits, `uid`, `gid`, `size`, and the `world-writable`,
+octal digits, `uid`, `gid`, `size`, `allocated` (the bytes on disk of a regular file, below `size` for a
+sparse one) and the `world-writable`,
 `group-writable`, `setuid` and `setgid` booleans. A symlink is described
 itself, not followed, with its target as written in `linked-to`, and its
 booleans are all false; its target is judged where a collector lists it. A

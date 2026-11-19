@@ -203,6 +203,9 @@ pub struct Stat {
     pub uid: u32,
     pub gid: u32,
     pub size: u64,
+    /// Bytes allocated on disk (512-byte blocks), set for a regular file; below `size` for a sparse one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allocated: Option<u64>,
     pub world_writable: bool,
     pub group_writable: bool,
     pub setuid: bool,
@@ -509,6 +512,7 @@ mod tests {
             uid: 0,
             gid: 0,
             size: 3,
+            allocated: None,
             world_writable: false,
             group_writable: false,
             setuid: false,
