@@ -5,6 +5,8 @@
 description: Filesystems close to full
 topic: Files and permissions
 tags: [default]
+vars:
+  boot-kernels: {default: 3}
 rules:
   disk/full:
     title: A filesystem is almost out of space
@@ -36,3 +38,20 @@ rules:
     fix: remove small files on {subject}, such as old sessions, caches or mail; “du --inodes --one-file-system --max-depth 1 {subject}” shows where they are
     docs: https://man7.org/linux/man-pages/man1/df.1.html
     tags: [disk]
+  disk/boot-kernels:
+    title: A separate /boot keeps too many kernels
+    fact: boot.kernels
+    when:
+      mounts: {required: [active]}
+      mounts.active: {required: [/boot]}
+    expect: {maxProperties: "${boot-kernels}"}
+    severity: warning
+    score: 4.0
+    message: "/boot is its own filesystem and keeps more than ${boot-kernels} kernels, so the next kernel and its initramfs may not fit and the upgrade fails halfway"
+    rationale: a full /boot fails a kernel upgrade halfway, which can leave the host without a bootable initramfs for the new kernel
+    fix:
+      - 'Remove the kernels you no longer boot, keeping the running one (“uname -r”). On Debian and Ubuntu:'
+      - run: apt autoremove --purge
+      - 'A kernel installed by hand is not autoremoved: remove it by its package name, such as “apt purge linux-image-<version>”.'
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/apt-get.8.html
+    tags: [disk, kernel, stability]

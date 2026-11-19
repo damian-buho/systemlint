@@ -1306,6 +1306,16 @@ org:
               - network
               - lynis
             title: CUPS listens beyond the loopback
+          - id: disk/boot-kernels
+            ruleset: disk
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - disk
+              - kernel
+              - stability
+            title: A separate /boot keeps too many kernels
           - id: disk/full
             ruleset: disk
             score:
@@ -2912,6 +2922,15 @@ org:
               - logging
               - stig-ubuntu-26.04:UBTU-24-700140
             title: /var/log/syslog is not owned by syslog
+          - id: logs/unrotated
+            ruleset: logs
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - logging
+              - stability
+            title: A large log file is rotated by no logrotate stanza
           - id: mongodb/no-authorization
             ruleset: mongodb
             score: 9.0

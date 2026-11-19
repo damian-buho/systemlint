@@ -328,3 +328,9 @@ which hold no data and which an unprivileged run may not reach:
 
 Both guard on `collectors.mounts-usage.status`, so a `--root` run skips them and
 a failed collector answers `unknown`.
+
+`disk/boot-kernels` fails when `/boot` is a mount of its own and the
+`boot-kernels` collector (host only, a stat of `/boot/vmlinuz-*`) finds more
+kernels than the `boot-kernels` var, 3 by default: the running one, the
+previous one and one being installed. A `--root` run, or a `/boot` on the root
+filesystem, skips it.

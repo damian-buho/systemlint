@@ -5,6 +5,8 @@
 description: Log files under /var/log, and the directory itself, more open or differently owned than the STIG asks
 topic: Logging and auditing
 tags: [default]
+vars:
+  unrotated-bytes: {default: 1073741824}
 rules:
   logs/file-mode:
     title: A log file is more open than 0640
@@ -59,6 +61,24 @@ rules:
     suggest: {fact: logrotate.*.names, otherwise: the logs it names}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
     tags: [logging]
+  logs/unrotated:
+    title: A large log file is rotated by no logrotate stanza
+    fact: logs.files.*.size
+    keys: {not: {pattern: "(/lastlog|\\.journal~?|/audit/audit\\.log(\\.[0-9]+)?|[.-][0-9]+(\\.(gz|bz2|xz|zst|lz4))?|\\.(gz|bz2|xz|zst|lz4|old))$"}}
+    when:
+      logs.files.*.kind: file
+      'logrotate.{~logrotate.*.names}': {not: {type: object}}
+    expect: {maximum: "${unrotated-bytes}"}
+    severity: warning
+    score: 4.0
+    message: "{subject} has {field} {got} bytes and no logrotate stanza names it, so nothing caps it and it grows until /var/log fills, taking logging and every service that writes there with it"
+    rationale: an unrotated log grows without limit until its filesystem is full, and then logging and the services writing there fail
+    fix:
+      - 'Rotate it with a stanza in a new file under “/etc/logrotate.d/”, such as for “/var/log/app.log”:'
+      - lines: ["/var/log/app.log {", "    weekly", "    rotate 4", "    compress", "    missingok", "    notifempty", "}"]
+      - 'If the program writing it rotates it itself, raise “unrotated-bytes” above the size it rotates at, or waive the file.'
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
+    tags: [logging, stability]
   logs/directory-mode:
     title: /var/log is more open than 0755
     fact: logs.files.*.mode
