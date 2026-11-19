@@ -333,7 +333,9 @@ state, so the timer passes on being enabled. Once aide is on disk,
 100110) without `/var/lib/aide/aide.db` (`aide-database`), and
 `aide/silent-reports` (STIG 100130, *standard-only*) while
 `/etc/default/aide`, read through `kv` by `aide-default`, leaves
-`SILENTREPORTS` unset or other than `no`.
+`SILENTREPORTS` unset or other than `no`. Its four collectors are `host: true`, so
+a container is `not-applicable`: an image’s integrity is its registry digest’s
+concern, not an in-container database’s.
 
 ## AppArmor
 

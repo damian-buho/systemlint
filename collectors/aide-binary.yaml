@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: aide-binary
+host: true
 read:
   stat: [/usr/local/*bin/aide, /usr/*bin/aide, /*bin/aide]
 parse: {plugin: formats, op: stat}

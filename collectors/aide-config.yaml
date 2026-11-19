@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: aide-config
+host: true
 read:
   stat: [/etc/aide/aide.conf, /etc/aide.conf]
   stat-keep: {properties: {kind: {const: file}}}

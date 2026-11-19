@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: aide-default
+host: true
 read:
   files: [/etc/default/aide]
 parse: {plugin: formats, op: kv, with: {repeat: last}}

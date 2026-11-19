@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: aide-database
+host: true
 read:
   stat: [/var/lib/aide/aide.db, /var/lib/aide/aide.db.gz]
   stat-keep: {properties: {kind: {const: file}}}
