@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: nsswitch
+read:
+  files: [/etc/nsswitch.conf]
+parse:
+  - {plugin: formats, op: kv, with: {separator: ":"}}
+  - {split: whitespace}
+into: nsswitch

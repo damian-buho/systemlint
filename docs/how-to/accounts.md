@@ -24,6 +24,8 @@ systemlint check --root /mnt/image --tags accounts
 | `accounts-group` | `/etc/group` | `words` on `:`, the password field dropped | `accounts.group.<name>` |
 | `accounts-shadow` | `/etc/shadow`, `/etc/passwd`, root only | `shadow` with `passwd: /etc/passwd` | `accounts.shadow.<name>` |
 | `accounts-shells` | `/etc/shells` | `lines` | `accounts.shells./etc/shells` |
+| `accounts-passwd-compat`, `-group-compat`, `-shadow-compat` (root only) | `/etc/passwd`, `/etc/group`, `/etc/shadow` | `match`, the name of each line starting `+` | `accounts.compat.<file>.<name>` |
+| `nsswitch` | `/etc/nsswitch.conf` | `kv` on `:`, then `split` on blanks | `nsswitch.<database>` |
 
 ```yaml
 accounts:
@@ -73,13 +75,15 @@ accounts:
 | --- | --- |
 | `accounts/uid-zero` | an account other than `root` has uid 0 |
 | `accounts/uid-unique` | two accounts share a uid other than 0, which `uid-zero` reports |
-| `accounts/gid-unique` | two groups share a gid |
+| `accounts/gid-unique` | two groups share a gid, NIS `+` and `-` entries left out |
 | `accounts/user-repeated` | a name appears on a later line of `/etc/passwd` |
 | `accounts/group-repeated` | a name appears on a later line of `/etc/group` |
 | `accounts/passwd-empty-password` | the password field in `/etc/passwd` is empty |
 | `accounts/passwd-hash` | `/etc/passwd`, which every user can read, holds the password hash |
 | `accounts/shadow-empty-password` | `/etc/passwd` defers to `/etc/shadow`, whose password is empty |
 | `accounts/shadow-missing` | `/etc/passwd` defers to `/etc/shadow`, which has no line for the account |
+| `accounts/root-gid` | `root`’s primary group is not gid 0 (CIS 5.4.2.2) |
+| `accounts/passwd-nis-entry`, `group-nis-entry`, `shadow-nis-entry` | the file holds a NIS `+` entry while `nsswitch.conf` reads that database in `compat` mode and `ypbind` is on disk, so whichever server answers for the NIS domain fills it |
 | `accounts/gid-zero` | an account other than `root`, `sync`, `shutdown`, `halt` and `operator` has gid 0 as its primary group |
 | `accounts/shadow-group-members` | group `shadow` lists members, who can read every hash |
 | `accounts/shadow-group-primary` | an account’s primary gid is 42, while group `shadow` holds gid 42 as Debian’s `base-passwd` fixes it; elsewhere it answers `skip` |

@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: accounts-group-compat
+read:
+  files: [/etc/group]
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^\s*(?P<key>\+[^:]*)'}
+into: accounts.compat.group

@@ -46,6 +46,7 @@ rules:
   accounts/gid-unique:
     title: Groups share a gid
     fact: accounts.group.*.gid
+    keys: {not: {pattern: "^[+-]"}}
     unique: true
     severity: warning
     score: 5.0
@@ -258,6 +259,52 @@ rules:
     fix: give {subject} its own primary group with “usermod --gid”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
     tags: [accounts, cis-ubuntu-26.04:5.4.2.2]
+  accounts/root-gid:
+    title: root’s primary group is not gid 0
+    fact: accounts.passwd.*.gid
+    keys: {const: root}
+    expect: {const: 0}
+    severity: warning
+    score: 5.0
+    message: "root has gid {got} as its primary group in /etc/passwd, so every file root creates belongs to that group"
+    rationale: members of that group can read, and often change, files root creates, from logs to keys
+    fix: run “usermod --gid 0 root”, then “chgrp” back to root what root created under gid {got}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
+    tags: [accounts, cis-ubuntu-26.04:5.4.2.2]
+  accounts/passwd-nis-entry: &nis-entry
+    title: /etc/passwd pulls accounts from NIS
+    fact: accounts.compat.passwd.*
+    when:
+      nsswitch: {required: [passwd], properties: {passwd: {contains: {const: compat}}}}
+      clients.binaries: {not: {propertyNames: {not: {pattern: "/ypbind$"}}}}
+    expect: {not: {}}
+    severity: warning
+    score: 5.0
+    message: "/etc/passwd holds the NIS entry “{subject}”, which nsswitch.conf’s compat mode fills with accounts from whichever server answers for the NIS domain"
+    rationale: NIS never authenticates its server, so a host on the network that answers first can add accounts here, uid 0 included
+    fix: 'delete the “{subject}” line with “vipw”, and set “passwd: files” in “/etc/nsswitch.conf” once no account comes from NIS'
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/nsswitch.conf.5.html
+    tags: [accounts]
+  accounts/group-nis-entry:
+    <<: *nis-entry
+    title: /etc/group pulls groups from NIS
+    fact: accounts.compat.group.*
+    when:
+      nsswitch: {required: [group], properties: {group: {contains: {const: compat}}}}
+      clients.binaries: {not: {propertyNames: {not: {pattern: "/ypbind$"}}}}
+    message: "/etc/group holds the NIS entry “{subject}”, which nsswitch.conf’s compat mode fills with groups from whichever server answers for the NIS domain"
+    rationale: NIS never authenticates its server, so a host on the network that answers first can add members to any group here, sudo included
+    fix: 'delete the “{subject}” line with “vigr”, and set “group: files” in “/etc/nsswitch.conf” once no group comes from NIS'
+  accounts/shadow-nis-entry:
+    <<: *nis-entry
+    title: /etc/shadow pulls passwords from NIS
+    fact: accounts.compat.shadow.*
+    when:
+      nsswitch: {required: [shadow], properties: {shadow: {contains: {const: compat}}}}
+      clients.binaries: {not: {propertyNames: {not: {pattern: "/ypbind$"}}}}
+    message: "/etc/shadow holds the NIS entry “{subject}”, which nsswitch.conf’s compat mode fills with password hashes from whichever server answers for the NIS domain"
+    rationale: NIS never authenticates its server, so a host on the network that answers first can set the password of an account here
+    fix: 'delete the “{subject}” line with “vipw --shadow”, and set “shadow: files” in “/etc/nsswitch.conf” once no account comes from NIS'
   accounts/shadow-group-members:
     title: The shadow group has members
     fact: accounts.group.*.members

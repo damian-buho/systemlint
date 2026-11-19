@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: accounts-shadow-compat
+read:
+  files: [/etc/shadow]
+privileged: true
+parse:
+  plugin: formats
+  op: match
+  with: {pattern: '^\s*(?P<key>\+[^:]*)'}
+into: accounts.compat.shadow
