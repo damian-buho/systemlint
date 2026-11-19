@@ -411,7 +411,9 @@ command’s `stdout` as they read a file when it exits 0, its program path
 standing in for a file path; any other exit is a diagnostic naming the status
 and the first line of `stderr`. `json` also takes `with.exit-mask`, a number
 from 1 to 255: an exit whose bits all lie in it is read as well, as smartctl
-sets bits 3 to 7 when a disk is failing and still prints its JSON:
+sets bits 3 to 7 when a disk is failing and still prints its JSON, and
+`with.redact`, JSON Pointers into its facts that the core replaces with
+`[redacted]`, such as a disk’s `/serial_number`:
 
 ```yaml
 id: mounts-json

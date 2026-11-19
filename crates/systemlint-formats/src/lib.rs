@@ -667,9 +667,12 @@ pub fn parse_ini(text: &str, mut diagnose: impl FnMut(u64, String)) -> Sections 
     sections
 }
 
-/// Every input’s top-level JSON object merged into one, the first input holding a key winning; `with.exit-mask` reads a command whose exit bits all lie in it.
+/// Every input’s top-level JSON object merged into one, the first input holding a key winning; `with.exit-mask` reads a command whose exit bits all lie in it, `with.redact` names JSON Pointers the core redacts.
 pub fn json(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
-    if let Some(other) = with.keys().find(|k| *k != "exit-mask") {
+    if let Some(other) = with
+        .keys()
+        .find(|k| !matches!(k.as_str(), "exit-mask" | "redact"))
+    {
         return Err(format!("with.{other} is unknown to json").into());
     }
     let mask = match with.get("exit-mask") {
@@ -679,7 +682,22 @@ pub fn json(inputs: &[Input], with: &Map<String, Value>) -> Result<Reply> {
             .filter(|m| (1..=255).contains(m))
             .ok_or("with.exit-mask is an exit status bit mask from 1 to 255")?,
     };
-    let mut reply = Reply::default();
+    let redact = match with.get("redact") {
+        None => Vec::new(),
+        Some(v) => v
+            .as_array()
+            .and_then(|items| {
+                items
+                    .iter()
+                    .map(|i| i.as_str().filter(|p| p.starts_with('/')).map(str::to_owned))
+                    .collect::<Option<Vec<_>>>()
+            })
+            .ok_or("with.redact is a list of JSON Pointers, each starting with /")?,
+    };
+    let mut reply = Reply {
+        redact,
+        ..Reply::default()
+    };
     for input in inputs {
         let read = match input {
             Input::Exec(run) if run.exit > 0 && i64::from(run.exit) & !mask == 0 => {
@@ -1778,6 +1796,16 @@ mod tests {
             json!({"exit-mask": 0}),
             json!({"exit-mask": 256}),
             json!({"mask": 8}),
+        ] {
+            assert!(json(&[], bad.as_object().unwrap()).is_err(), "{bad}");
+        }
+        let with = json!({"redact": ["/serial_number", "/wwn"]});
+        let reply = json(&[run(0, "a")], with.as_object().unwrap()).unwrap();
+        assert_eq!(reply.redact, ["/serial_number", "/wwn"]);
+        for bad in [
+            json!({"redact": "/a"}),
+            json!({"redact": ["a"]}),
+            json!({"redact": [1]}),
         ] {
             assert!(json(&[], bad.as_object().unwrap()).is_err(), "{bad}");
         }
