@@ -2156,6 +2156,8 @@ fn disk(usage: Option<Value>, filesystem: &str) -> Vec<(String, String, Outcome,
         document["collectors"]["mounts-usage"] = json!({"status": "ok", "into": "mounts.usage"});
     }
     let mut checks = scored("disk", &document);
+    // boot-kernels reads kernel facts, not mount usage
+    checks.retain(|check| check.0 != "disk/boot-kernels");
     checks.sort_by(|a, b| a.0.cmp(&b.0));
     checks
 }
@@ -2231,6 +2233,7 @@ fn a_disk_rule_skips_read_only_overlay_and_uncounted_filesystems_and_never_passe
         let document = json!({"mounts": {"active": {"/srv": {"filesystem": filesystem}}, "usage": {}}, "collectors": {"mounts-active": {"status": "ok", "into": "mounts.active"}, "mounts-usage": {"status": "ok", "into": "mounts.usage", "unreadable": {"/srv": "permission denied"}}}});
         judge("disk", &document)
             .into_iter()
+            .filter(|check| check.0 != "disk/boot-kernels")
             .map(|(rule, _, outcome)| (rule, outcome))
             .collect::<Vec<_>>()
     };
@@ -2246,7 +2249,10 @@ fn a_disk_rule_skips_read_only_overlay_and_uncounted_filesystems_and_never_passe
     );
     let root = json!({"collectors": {"mounts-active": {"status": "skipped", "reason": "live", "into": "mounts.active"}, "mounts-usage": {"status": "skipped", "reason": "live", "into": "mounts.usage"}}});
     assert_eq!(
-        judge("disk", &root),
+        judge("disk", &root)
+            .into_iter()
+            .filter(|check| check.0 != "disk/boot-kernels")
+            .collect::<Vec<_>>(),
         [
             ("disk/full".to_owned(), String::new(), Outcome::Skip),
             ("disk/inodes".to_owned(), String::new(), Outcome::Skip)
