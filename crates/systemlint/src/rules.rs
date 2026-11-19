@@ -205,6 +205,8 @@ pub struct Spec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit: Option<crate::numbers::Unit>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fix: Option<Fix>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fixes: Vec<Choice>,
@@ -446,6 +448,11 @@ fn merge(base: Spec, over: Spec) -> Spec {
         message: over
             .message
             .or(if expect_changed { None } else { base.message }),
+        unit: if subject_changed {
+            over.unit
+        } else {
+            over.unit.or(base.unit)
+        },
         fix: over.fix.or(base.fix),
         fixes: if over.fixes.is_empty() {
             base.fixes

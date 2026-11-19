@@ -11,6 +11,13 @@ other tools, and `--output PATH` writes any format to a file through a
 temporary sibling and a rename, mode 0644 under the umask, so a reader never
 sees half a report. `--output -` prints to stdout.
 
+The human report prints its counts, and a `{got}` its rule gives a `unit`,
+as people read them: digits grouped as the locale groups them, the first of
+`LC_ALL`, `LC_NUMERIC` and `LANG` that is set (`10,000` in English, `10.000`
+in Spanish), and bytes in binary units to one decimal (`1.5 GiB`). The C and
+POSIX locales, or one CLDR does not know, print plain digits. The other
+formats keep every number as it is, for the tools that read them.
+
 ## SARIF
 
 `--format sarif` writes a [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/sarif-v2.1.0-errata01-os-complete.html)

@@ -12,6 +12,7 @@ use std::str::FromStr;
 use serde_json::{Value, json};
 
 use crate::judge::{Check, Outcome, band};
+use crate::numbers;
 use crate::rules::{Fix, Severity, Step};
 
 /// The failures that make `check` exit 1: at or above a level, at or above a score, or never.
@@ -303,14 +304,20 @@ fn clusters<'a>(checks: &[&'a Check]) -> Vec<Vec<&'a Check>> {
     out
 }
 
-/// What one location adds to its rule’s title: the message without a title, else the field and offending value the message names.
+/// What one location adds to its rule’s title: the message without a title, else the field and offending value the message names, `{got}` as a quantity of the rule’s unit.
 fn detail(check: &Check) -> Option<String> {
+    let mut variables = check.variables.clone();
+    if let (Some(unit), Some(got)) = (check.unit, variables.get_mut("got")) {
+        *got = numbers::quantity(unit, got);
+    }
     let Some(template) = check.text.as_deref().filter(|_| check.title.is_some()) else {
-        return check.message.clone();
+        return match (check.unit, check.text.as_deref()) {
+            (Some(_), Some(text)) => Some(crate::judge::fill(text, &variables)),
+            _ => check.message.clone(),
+        };
     };
     let var = |name: &str| {
-        check
-            .variables
+        variables
             .get(name)
             .filter(|_| template.contains(&format!("{{{name}}}")))
             .cloned()
@@ -591,8 +598,14 @@ fn failure_block(
                 log::debug!("{subject}: {kin} rotations folded, base failing {own}");
                 let copies = if kin == 2 { "copy" } else { "copies" };
                 line += &match own {
-                    true => format!(", and its {} rotated {copies}", kin - 1),
-                    false => format!(", and {} more rotated {copies}", kin - 1),
+                    true => format!(
+                        ", and its {} rotated {copies}",
+                        numbers::count(kin as u64 - 1)
+                    ),
+                    false => format!(
+                        ", and {} more rotated {copies}",
+                        numbers::count(kin as u64 - 1)
+                    ),
                 };
             }
             let mut item = Item {
@@ -786,8 +799,8 @@ fn summary_rows(document: &Value, checks: &[Check], left_out: usize, on: bool) -
     let mut out = row("Rating", &rating);
     for (label, count, why, level) in counts(document, checks, left_out) {
         let shown = match level.filter(|_| count > 0) {
-            Some(l) => paint(on, level_word(Some(l)).1, &count.to_string()),
-            None => count.to_string(),
+            Some(l) => paint(on, level_word(Some(l)).1, &numbers::count(count as u64)),
+            None => numbers::count(count as u64),
         };
         out += &row(label, &format!("{shown}{why}"));
     }
@@ -1283,7 +1296,11 @@ fn target_rows(every: &[Target], on: bool) -> String {
         let counts = counts(doc, judged, 0);
         for label in labels {
             let count = counts.iter().find(|c| c.0 == label).map_or(0, |c| c.1);
-            let shown = format!("{count:<w$}", w = label.chars().count());
+            let shown = format!(
+                "{:<w$}",
+                numbers::count(count as u64),
+                w = label.chars().count()
+            );
             let level = counts
                 .iter()
                 .find(|c| c.0 == label)

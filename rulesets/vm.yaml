@@ -24,6 +24,7 @@ rules:
     fact: sysctl.settings.vm.dirty_background_bytes
     expect: {x-cel: "self == 0 || facts.sysctl.settings.vm.dirty_bytes == 0 || self < facts.sysctl.settings.vm.dirty_bytes"}
     severity: advice
+    unit: bytes
     message: "vm.dirty_background_bytes is {got}, not below vm.dirty_bytes, so the kernel ignores it and starts background writeback at half of vm.dirty_bytes"
     rationale: the setting is silently ignored, so writeback starts at a different point than the administrator chose
     fix: set “vm.dirty_background_bytes” below “vm.dirty_bytes”, about a quarter of it

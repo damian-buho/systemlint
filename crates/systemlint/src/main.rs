@@ -15,6 +15,7 @@ use systemlint::config::{self, Config, FactsFormat, ListFormat};
 use systemlint::discovery::{self, Trust};
 use systemlint::judge::{self, Rule};
 use systemlint::net;
+use systemlint::numbers;
 use systemlint::report::{self, Colour, FailOn, Format};
 use systemlint::rules::Library;
 use systemlint::source::Root;
@@ -308,6 +309,7 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     };
     trail::install(cli.verbose, cli.log_format);
+    numbers::set(numbers::locale(|v| std::env::var(v).ok()));
     let mut config = match trail::scoped(trail::CONFIG, || {
         load_config(cli.config.as_deref(), !cli.no_project_config)
     })

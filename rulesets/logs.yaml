@@ -71,7 +71,8 @@ rules:
     expect: {maximum: "${unrotated-bytes}"}
     severity: warning
     score: 4.0
-    message: "{subject} has {field} {got} bytes and no logrotate stanza names it, so nothing caps it and it grows until /var/log fills, taking logging and every service that writes there with it"
+    unit: bytes
+    message: "{subject} has {field} {got} and no logrotate stanza names it, so nothing caps it and it grows until /var/log fills, taking logging and every service that writes there with it"
     rationale: an unrotated log grows without limit until its filesystem is full, and then logging and the services writing there fail
     fix:
       - 'Rotate it with a stanza in a new file under “/etc/logrotate.d/”, such as for “/var/log/app.log”:'

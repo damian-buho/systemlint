@@ -84,6 +84,8 @@ pub struct Check {
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub variables: BTreeMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit: Option<crate::numbers::Unit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
@@ -1087,7 +1089,8 @@ pub fn describe(value: Option<&Value>) -> String {
 /// The subject a drop-in remedy stands on, which names no path.
 static EMPTY: String = String::new();
 
-fn fill(template: &str, variables: &BTreeMap<String, String>) -> String {
+/// `template` with each `{name}` replaced by its variable.
+pub(crate) fn fill(template: &str, variables: &BTreeMap<String, String>) -> String {
     variables
         .iter()
         .fold(template.to_owned(), |text, (name, value)| {
@@ -1107,6 +1110,7 @@ fn base(rule: &Rule, outcome: Outcome, bound: &[String]) -> Check {
         message: None,
         text: None,
         variables: BTreeMap::new(),
+        unit: rule.spec.unit,
         value: None,
         reason: None,
         collector: None,

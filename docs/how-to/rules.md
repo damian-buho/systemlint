@@ -42,6 +42,7 @@ apt/https:
 | `severity` | `error`, `warning`, `info`, `advice` (a tuning hint, below `info`) or `off`; `warning` when absent |
 | `score` | a number from 0.0 to 9.9, or a curve of `[value, score]` points read against the fact’s number |
 | `message` | the finding’s sentence, with `{got}`, `{field}`, `{fact}` and `{subject}` filled in |
+| `unit` | `bytes` or `count`: what `{got}` measures, so the human report prints it as a quantity (`2 GiB`, `12,345`) in the locale `LC_ALL`, `LC_NUMERIC` or `LANG` names, with no grouping in C or POSIX; JSON, SARIF, plain and textfile keep the number |
 | `fix` | how to fix it, with the same placeholders: a sentence, or a list of steps, each a sentence, a `{run: command}` or `{lines: [line, …]}`, which the human report numbers and prints each command and file line of alone below its step; JSON and SARIF keep the list; the human report lists the subjects above it, so a fix that leaves `{subject}` out reads once for all of them |
 | `remedy` | a change `systemlint fix` makes to the subject path, see [Remedies](#remedies) |
 | `fixes` | a list of `{keys, when, fix}` choices tried in order: the first whose `keys` admits the subject’s key and whose `when`, bound like the rule’s, holds gives that subject its `fix`, else the rule’s `fix` applies; a fact a `when` finds absent passes to the next choice, and a choice with neither `keys` nor `when` is refused |

@@ -15,13 +15,14 @@ fn base(name: &str) -> PathBuf {
     dir
 }
 
-/// The core in an empty working and user config directory, with no SYSTEMLINT_CONFIG.
+/// The core in an empty working and user config directory, with no SYSTEMLINT_CONFIG, in the C locale.
 fn core() -> Command {
     let home = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-home");
     std::fs::create_dir_all(&home).unwrap();
     let mut command = Command::new(env!("CARGO_BIN_EXE_systemlint"));
     command
         .env("XDG_CONFIG_HOME", &home)
+        .env("LC_ALL", "C")
         .env_remove("SYSTEMLINT_CONFIG")
         .current_dir(&home);
     command

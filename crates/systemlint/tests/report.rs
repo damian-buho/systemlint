@@ -337,6 +337,7 @@ fn judged(outcome: Outcome, score: f64) -> Check {
         message: None,
         text: None,
         variables: BTreeMap::new(),
+        unit: None,
         value: None,
         reason: None,
         collector: None,
@@ -517,6 +518,29 @@ fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_first() {
         "{painted}"
     );
     assert!(!painted.contains("Rating"), "quiet drops the summary");
+}
+
+#[test]
+fn human_prints_a_unit_rule_got_as_a_quantity_and_json_keeps_the_number() {
+    let rule = |title: &str| {
+        compile("x/big", systemlint::yaml::from_str(&format!("{title}fact: v.*.size\nexpect: {{maximum: 0}}\nunit: bytes\nmessage: '{{subject}} has {{field}} {{got}}'\n")).unwrap()).unwrap()
+    };
+    let document = json!({"v": {"a": {"size": 2_147_483_648_u64}}});
+    let titled = lint(&document, &[rule("title: Big\n")], &[], "2026-11-11");
+    systemlint::numbers::set(systemlint::numbers::locale(|v| {
+        (v == "LANG").then(|| "en_US.UTF-8".into())
+    }));
+    let text = lint_human(&document, &titled, 0, false, false, false);
+    assert!(text.contains("- a: size 2 GiB.\n"), "{text}");
+    let bare = lint(&document, &[rule("")], &[], "2026-11-11");
+    let text = lint_human(&document, &bare, 0, false, false, false);
+    assert!(text.contains("a has size 2 GiB"), "{text}");
+    let passes: Vec<Check> = (0..1000).map(|_| judged(Outcome::Pass, 0.0)).collect();
+    let text = lint_human(&json!({}), &passes, 0, false, false, false);
+    assert!(text.contains("Passed            1,000\n"), "{text}");
+    systemlint::numbers::set(None);
+    let raw: Value = serde_json::from_str(&lint_json(&document, &titled)).unwrap();
+    assert!(raw.to_string().contains("2147483648"), "{raw}");
 }
 
 #[test]

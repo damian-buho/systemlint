@@ -19,6 +19,7 @@ hmac.workspace = true
 jsonschema.workspace = true
 libc.workspace = true
 log.workspace = true
+num-format.workspace = true
 rustix.workspace = true
 rustls.workspace = true
 rustls-native-certs.workspace = true
