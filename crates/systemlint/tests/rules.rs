@@ -526,6 +526,44 @@ fn a_standard_only_rule_is_picked_by_its_id_or_a_standard_tag_alone() {
 }
 
 #[test]
+fn all_selects_every_rule_and_no_ruleset_rule_or_tag_may_take_the_name() {
+    let lib = Library::new(BTreeMap::from([(
+        "mods".to_owned(),
+        systemlint::yaml::from_str("tags: [default]\nrules:\n  mods/a: {fact: a, expect: {minimum: 1}}\n  mods/b: {fact: b, expect: {minimum: 1}, tags: ['cis:1.1', '!default']}\n").unwrap(),
+    )]))
+    .unwrap();
+    assert_eq!(
+        ids(&lib.select(&["all".into()]).unwrap()),
+        ["mods/a", "mods/b"]
+    );
+    assert_eq!(
+        ids(&lib.select(&["all".into(), "!cis:*".into()]).unwrap()),
+        ["mods/a"]
+    );
+    let refused = |name: &str, yaml: &str| {
+        Library::new(BTreeMap::from([(
+            name.to_owned(),
+            systemlint::yaml::from_str(yaml).unwrap(),
+        )]))
+        .unwrap_err()
+    };
+    let rule = "rules:\n  x/a: {fact: a, expect: {minimum: 1}}\n";
+    assert!(refused("all", rule).contains("no ruleset or tag"));
+    assert!(refused("x", &format!("tags: [all]\n{rule}")).contains("no ruleset or tag"));
+    assert!(
+        refused(
+            "x",
+            "rules:\n  x/a: {fact: a, expect: {minimum: 1}, tags: [all]}\n"
+        )
+        .contains("no rule ID or tag")
+    );
+    assert!(
+        refused("x", "rules:\n  all: {fact: a, expect: {minimum: 1}}\n")
+            .contains("no rule ID or tag")
+    );
+}
+
+#[test]
 fn no_rule_tagged_default_selects_nothing_rather_than_failing() {
     let lib = Library::new(BTreeMap::from([(
         "mine".to_owned(),

@@ -67,6 +67,7 @@ collect:
 check:
   directories: [rulesets]
   tags: [default, performance]  # the default --tags, else default
+  prefer: ['cis-ubuntu-26.04:*']  # the default --prefer: the side of a conflict to keep
   vars: {ntp: time.example}  # ruleset var values, under --var, --vars and from-env
   fail-on: warning     # the default --fail-on
   format: sarif        # the default --format: human, json, sarif or textfile

@@ -135,6 +135,9 @@ enum Command {
         /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, a standard-only rule by its ID or a standard tag (cis-*:*), !x removes [default: check.tags, else default]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
+        /// Settle a conflict for the side holding a tag GLOB matches, comma-separated or repeated (cis-ubuntu-26.04:*) [default: check.prefer]
+        #[arg(long, value_name = "GLOB", value_delimiter = ',')]
+        prefer: Vec<String>,
         /// Exit 1 on a failure at error, warning, info, advice, a score from 0.1 to 9.9, or never [default: check.fail-on, else error]
         #[arg(long, value_name = "LEVEL")]
         fail_on: Option<FailOn>,
@@ -158,6 +161,9 @@ enum Command {
         /// Rules to fix, as for check [default: check.tags, else default]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
+        /// Settle a conflict for the side holding a tag GLOB matches, comma-separated or repeated (cis-ubuntu-26.04:*) [default: check.prefer]
+        #[arg(long, value_name = "GLOB", value_delimiter = ',')]
+        prefer: Vec<String>,
         #[command(flatten)]
         vars: Vars,
         /// Print each change as its command and make none
@@ -335,6 +341,7 @@ fn main() -> ExitCode {
         Command::Check {
             input,
             tags,
+            prefer,
             fail_on,
             vars,
             look,
@@ -342,7 +349,7 @@ fn main() -> ExitCode {
         } => ExitCode::from(lint(
             &config,
             &input,
-            &Selection { tags, vars },
+            &Selection { tags, prefer, vars },
             fail_on,
             &Look {
                 verbose: cli.verbose,
@@ -354,6 +361,7 @@ fn main() -> ExitCode {
         Command::Fix {
             root,
             tags,
+            prefer,
             vars,
             dry_run,
             force,
@@ -361,7 +369,7 @@ fn main() -> ExitCode {
         } => ExitCode::from(fix(
             &config,
             root.as_deref(),
-            &Selection { tags, vars },
+            &Selection { tags, prefer, vars },
             Ask {
                 dry_run,
                 force,
@@ -817,9 +825,15 @@ fn compiled(
     } else {
         &selection.tags
     };
+    let prefer = if selection.prefer.is_empty() {
+        &config.check.prefer
+    } else {
+        &selection.prefer
+    };
     let selected = trail::scoped(trail::CONFIG, || {
-        library.select_for(base).and_then(|selected| {
+        library.select_for(base).and_then(|mut selected| {
             let left_out = left_out(&selected.left_out).filter(|_| selection.tags.is_empty());
+            rules::prefer(&mut selected.rules, prefer);
             selected
                 .rules
                 .into_iter()
@@ -887,9 +901,10 @@ fn today(now: SystemTime) -> String {
     collect::rfc3339(now)[..10].to_owned()
 }
 
-/// What `check` runs: the `--tags` selectors and the ruleset var values.
+/// What `check` runs: the `--tags` selectors, the `--prefer` globs and the ruleset var values.
 struct Selection {
     tags: Vec<String>,
+    prefer: Vec<String>,
     vars: Vars,
 }
 

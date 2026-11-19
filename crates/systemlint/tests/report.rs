@@ -972,8 +972,8 @@ fn plain_drops_only_a_whole_leading_subject_from_the_message() {
     }
 }
 
-// Two standards’ rules on one fact that contradict each other, as `selectors` pick them.
-fn contradicting(selectors: &[&str]) -> Vec<Check> {
+// Two standards’ rules on one fact that contradict each other, as `selectors` pick them and `prefer` settles them.
+fn contradicting(selectors: &[&str], prefer: &[&str]) -> Vec<Check> {
     let yaml = "tags: [default]\nrules:\n  pw/rotate: {fact: pw.max, expect: {maximum: 365}, severity: error, tags: ['cis:5.4.1.1'], conflicts: [pw/keep]}\n  pw/keep: {fact: pw.max, expect: {minimum: 99999}, severity: error, tags: ['nist:5.1.1.2'], conflicts: [pw/rotate]}\n  pw/other: {fact: pw.max, expect: {const: 0}, severity: error}\n";
     let library = Library::new(BTreeMap::from([(
         "pw".to_owned(),
@@ -981,9 +981,10 @@ fn contradicting(selectors: &[&str]) -> Vec<Check> {
     )]))
     .unwrap();
     let selectors: Vec<String> = selectors.iter().map(|s| (*s).to_owned()).collect();
-    let rules: Vec<_> = library
-        .select(&selectors)
-        .unwrap()
+    let mut picked = library.select(&selectors).unwrap();
+    let prefer: Vec<String> = prefer.iter().map(|s| (*s).to_owned()).collect();
+    systemlint::rules::prefer(&mut picked, &prefer);
+    let rules: Vec<_> = picked
         .into_iter()
         .map(|(id, spec)| compile(&id, spec).unwrap())
         .collect();
@@ -992,7 +993,7 @@ fn contradicting(selectors: &[&str]) -> Vec<Check> {
 
 #[test]
 fn two_selected_rules_in_conflict_print_one_block_and_fail_nothing() {
-    let checks = contradicting(&[]);
+    let checks = contradicting(&[], &[]);
     let outcome = |id: &str| checks.iter().find(|c| c.rule == id).map(|c| c.outcome);
     assert_eq!(
         (
@@ -1007,7 +1008,7 @@ fn two_selected_rules_in_conflict_print_one_block_and_fail_nothing() {
         )
     );
     let human = lint_human(&json!({}), &checks, 0, false, false, false);
-    let line = "Conflict: pw/keep (nist:5.1.1.2) and pw/rotate (cis:5.4.1.1) contradict each other, so none of them counts; keep the standard you follow by leaving the other out with --tags '!pw/keep' or '!pw/rotate'.\n";
+    let line = "Conflict: pw/keep (nist:5.1.1.2) and pw/rotate (cis:5.4.1.1) contradict each other, so none of them counts; keep the standard you follow with --prefer 'nist:*' or --prefer 'cis:*'.\n";
     assert_eq!(human.matches("Conflict:").count(), 1, "{human}");
     assert!(human.contains(line), "{human}");
     assert!(
@@ -1047,13 +1048,13 @@ fn two_selected_rules_in_conflict_print_one_block_and_fail_nothing() {
 
 #[test]
 fn leaving_one_side_out_judges_the_other_as_usual() {
-    let checks = contradicting(&["!pw/keep"]);
+    let checks = contradicting(&["!pw/keep"], &[]);
     let outcome = |id: &str| checks.iter().find(|c| c.rule == id).map(|c| c.outcome);
     assert_eq!(
         (outcome("pw/rotate"), outcome("pw/keep")),
         (Some(Outcome::Fail), None)
     );
-    let checks = contradicting(&["!pw/rotate"]);
+    let checks = contradicting(&["!pw/rotate"], &[]);
     assert_eq!(
         checks
             .iter()
@@ -1061,6 +1062,20 @@ fn leaving_one_side_out_judges_the_other_as_usual() {
             .map(|c| c.outcome),
         Some(Outcome::Pass)
     );
+}
+
+#[test]
+fn prefer_keeps_the_one_matching_side_and_a_tie_or_no_match_stays_a_conflict() {
+    let outcomes = |prefer: &[&str]| {
+        let checks = contradicting(&[], prefer);
+        let outcome = |id: &str| checks.iter().find(|c| c.rule == id).map(|c| c.outcome);
+        (outcome("pw/keep"), outcome("pw/rotate"))
+    };
+    assert_eq!(outcomes(&["nist:*"]), (Some(Outcome::Pass), None));
+    assert_eq!(outcomes(&["cis:5.4.*"]), (None, Some(Outcome::Fail)));
+    let conflict = (Some(Outcome::Conflict), Some(Outcome::Conflict));
+    assert_eq!(outcomes(&["nist:*", "cis:*"]), conflict, "both sides match");
+    assert_eq!(outcomes(&["stig:*"]), conflict, "no side matches");
 }
 
 #[test]

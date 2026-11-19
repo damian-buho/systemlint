@@ -286,6 +286,55 @@ pub struct Selected {
     pub left_out: BTreeMap<String, usize>,
 }
 
+/// The selector that picks every rule, standard-only ones included, as `*` does.
+pub const ALL: &str = "all";
+
+/// `selector` with [`ALL`] spelled `*`, a `!` kept.
+fn every(selector: &str) -> String {
+    match selector.strip_prefix('!').unwrap_or(selector) {
+        ALL => selector.replacen(ALL, "*", 1),
+        _ => selector.to_owned(),
+    }
+}
+
+/// Drops from `rules` every other side of a conflict set where exactly one side holds a tag a `prefer` glob matches.
+pub fn prefer(rules: &mut Picks, prefer: &[String]) {
+    let preferred = |spec: &Spec| spec.tags.iter().any(|t| prefer.iter().any(|p| glob(p, t)));
+    let mut dropped: Vec<String> = Vec::new();
+    for (id, spec) in rules.iter() {
+        let mut side: Vec<(&String, &Spec)> = spec
+            .conflicts
+            .iter()
+            .filter_map(|c| rules.get_key_value(c))
+            .collect();
+        if side.is_empty() {
+            continue;
+        }
+        side.push((id, spec));
+        let winners: Vec<&String> = side
+            .iter()
+            .filter(|(_, s)| preferred(s))
+            .map(|(i, _)| *i)
+            .collect();
+        log::debug!(
+            "rule {id} conflicts with {} selected rules, {winners:?} preferred by {prefer:?}",
+            side.len() - 1
+        );
+        if let [winner] = winners[..] {
+            dropped.extend(
+                side.iter()
+                    .filter(|(i, _)| *i != winner)
+                    .map(|(i, _)| (*i).clone()),
+            );
+        }
+    }
+    for id in dropped {
+        if rules.remove(&id).is_some() {
+            log::debug!("rule {id} not selected: --prefer keeps the other side of its conflict");
+        }
+    }
+}
+
 /// Whether `text` matches `pattern`, where `*` is any run of characters and `?` one.
 pub fn glob(pattern: &str, text: &str) -> bool {
     let (p, t): (Vec<char>, Vec<char>) = (pattern.chars().collect(), text.chars().collect());
@@ -428,9 +477,19 @@ impl Library {
         let mut definitions: BTreeMap<String, Spec> = BTreeMap::new();
         let mut owner: BTreeMap<String, String> = BTreeMap::new();
         for (name, ruleset) in &rulesets {
+            if name == ALL || ruleset.tags.iter().any(|t| t == ALL) {
+                return Err(format!(
+                    "ruleset {name}: {ALL} selects every rule, so no ruleset or tag may take it"
+                ));
+            }
             for (id, raw) in &ruleset.rules {
                 let mut spec =
                     defined(ruleset, raw).map_err(|e| format!("ruleset {name}: rule {id}: {e}"))?;
+                if id == ALL || spec.tags.iter().any(|t| t == ALL) {
+                    return Err(format!(
+                        "ruleset {name}: rule {id}: {ALL} selects every rule, so no rule ID or tag may take it"
+                    ));
+                }
                 if !spec.defines() {
                     if !spec.conflicts.is_empty() {
                         return Err(format!(
@@ -699,6 +758,7 @@ impl Library {
 
     /// [`Library::select`] before `off` rules are dropped.
     fn pick(&self, selectors: &[String]) -> Result<Picks, String> {
+        let selectors: Vec<String> = selectors.iter().map(|s| every(s)).collect();
         let mut picked: BTreeMap<String, Spec> = BTreeMap::new();
         let includes: Vec<&String> = selectors.iter().filter(|s| !s.starts_with('!')).collect();
         if includes.is_empty() {

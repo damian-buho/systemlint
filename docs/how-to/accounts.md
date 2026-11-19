@@ -115,8 +115,8 @@ NIST SP 800-63B-4 §3.1.1.2 forbids forced periodic password changes, so
 fails an account with a usable hash whose `max-days` is set below 99999,
 shadow’s “never”; an empty field passes. It and `accounts/password-max-days`
 name each other in `conflicts`: a run selecting both answers `conflict` on
-both and fails on neither, and `--tags '!accounts/password-max-days'` or
-`'!accounts/password-rotation'` keeps the standard you follow, see
+both and fails on neither, and `--prefer 'nist-sp-800-63b-4:*'` or
+`--prefer 'cis-ubuntu-26.04:*'` keeps the standard you follow, see
 [conflicting standards](rule-book.md#conflicting-standards).
 
 The two `unique` rules fail every account or group holding the shared value

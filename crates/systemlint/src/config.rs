@@ -95,6 +95,8 @@ pub struct Check {
     #[serde(default)]
     pub tags: Vec<String>,
     #[serde(default)]
+    pub prefer: Vec<String>,
+    #[serde(default)]
     pub vars: serde_json::Map<String, serde_json::Value>,
     #[serde(default, rename = "fail-on")]
     pub fail_on: Option<String>,

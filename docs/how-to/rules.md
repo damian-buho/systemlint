@@ -352,7 +352,18 @@ ruleset carries it, an opinionated one (performance, a latency profile) does
 not. A selector matching nothing is an error.
 
 `--tags performance` replaces the default, `--tags default,performance` extends
-it, `--tags '*'` runs every rule, and `check.tags` sets a site’s own default.
+it, `--tags all` (or `'*'`) runs every rule, the standard-only ones included,
+and `check.tags` sets a site’s own default. No ruleset, rule ID or tag may be
+named `all`.
+
+Selecting every rule also selects both sides of each conflict.
+`--prefer GLOB` (comma-separated or repeated, `check.prefer` in the config)
+settles them: in each set of selected rules naming each other in `conflicts`,
+when exactly one rule holds a tag the glob matches, it stays and the others
+are left out, as if not selected (`-v` logs each). A set where two rules
+match, or none does, stays one `Conflict` block. `--tags 'all,!stig-*'` is no
+substitute: it also removes every rule that carries a STIG tag beside a CIS
+one.
 A run on the default counts what it left out in a `Not selected` summary
 row, so a rule of your own without `default` never vanishes silently; `-v`
 logs the count per defining ruleset:
@@ -365,6 +376,7 @@ Not selected      12, run them by naming their ruleset in --tags
 systemlint check facts.yaml --tags 'default,performance'
 systemlint check facts.yaml --tags 'strict,!experimental'
 systemlint check facts.yaml --tags 'cis-ubuntu-26.04:5.2.*'
+systemlint check facts.yaml --tags all --prefer 'cis-ubuntu-26.04:*'
 ```
 
 ## Remedies
@@ -432,7 +444,7 @@ run did not ask for (`--image-config`, `--network`, `--containers`), which only 
 `Not read` block per path a collector could not read (still `unknown` in the
 counts and every machine format), an `Unknown` block per collector error with
 the rules it left undecided wrapped under it,
-one `Conflict` block per set of selected rules declaring `conflicts` on each other, naming each with its control tags and the `--tags '!ID'` that keeps the other (their checks answer `conflict` in every format, `kind: review` in SARIF, and never fail the run),
+one `Conflict` block per set of selected rules declaring `conflicts` on each other, naming each with its control tags and the `--prefer 'STANDARD:*'` that keeps each (`--tags '!ID'` when a side has no control tag of its own standard) (their checks answer `conflict` in every format, `kind: review` in SARIF, and never fail the run),
 `Unknown`, `Manual` (with the `Rationale:` procedure) and `Waived` blocks, then the failures, worst first: errors,
 then warnings, info and advice, each level highest score first. A failure
 lists a `Run:` command under each subject with a remedy, up to two, then from

@@ -5,7 +5,7 @@
 //! Judges a facts document: ruleset applicability, subjects bound by `*`, the `when` guard, `expect`, the outcomes, scores and waivers.
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use jsonschema::paths::Location;
 use jsonschema::{Keyword, ValidationError, Validator};
@@ -1626,7 +1626,16 @@ fn contradict(checks: &mut [Check], rules: &[Rule]) {
             }
         };
         let names: Vec<String> = side.iter().map(|r| named(r)).collect();
-        let keep: Vec<String> = side.iter().map(|r| format!("'!{}'", r.id)).collect();
+        let standard = |r: &Rule| {
+            r.spec
+                .tags
+                .iter()
+                .find_map(|t| t.split_once(':').map(|(s, _)| format!("--prefer '{s}:*'")))
+        };
+        let keep: Vec<String> = match side.iter().map(|r| standard(r)).collect::<Option<Vec<_>>>() {
+            Some(globs) if globs.iter().collect::<BTreeSet<_>>().len() == globs.len() => globs,
+            _ => side.iter().map(|r| format!("--tags '!{}'", r.id)).collect(),
+        };
         log::debug!(
             "rule {} on {:?} was {:?}, conflicts with {names:?}",
             check.rule,
@@ -1634,7 +1643,7 @@ fn contradict(checks: &mut [Check], rules: &[Rule]) {
             check.outcome
         );
         check.reason = Some(format!(
-            "{} contradict each other, so none of them counts; keep the standard you follow by leaving the other out with --tags {}",
+            "{} contradict each other, so none of them counts; keep the standard you follow with {}",
             names.join(" and "),
             keep.join(" or ")
         ));
