@@ -163,6 +163,18 @@ By default the first two run for cramfs, freevxfs, hfs, hfsplus, jffs2, udf,
 dccp, rds, sctp and tipc. For firewire-core, atm and can only `-loaded` runs,
 since a host may need them. overlay, squashfs (Docker, snaps) and usb-storage
 run only when their tag is named, as in `--tags 'cis-ubuntu-26.04:*'`.
+
+Where CIS says a host may need a module, all three of its rules skip that
+host: overlay while a container runtime is on disk (`container-runtimes`:
+dockerd, containerd, podman, crio, kubelet, LXC, LXD, Incus, k3s, rke2 and the
+Docker, LXD and MicroK8s snaps, into `runtimes.containers`), squashfs while
+snapd is (`snapd-binary`), udf on Azure (`azure-agent` finds `waagent`,
+`azure-chassis` the Azure chassis asset tag in DMI, live only), and each of
+the four, usb-storage included, while `loaded` gives it `instances` above 0,
+so something uses it now. `systemlint fix` writes no `modprobe.d` drop-in for
+a module the running kernel uses, whatever rule asked for it, since blocking
+it would break that user at the next boot.
+
 `kernel-modules/builtin` fails a module from the default list that some kernel
 builds in, since no `modprobe.d` line can keep it out of that kernel; CIS
 counts that as passing, so it carries no CIS tag.

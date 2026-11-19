@@ -34,7 +34,20 @@ fn checks(ruleset: &str, document: &Value) -> Vec<systemlint::judge::Check> {
 
 // Like checks, its vars filled from `config` as `check.vars` gives them, else their defaults.
 fn checks_with(ruleset: &str, document: &Value, config: Value) -> Vec<systemlint::judge::Check> {
-    selected(ruleset, &[ruleset.to_owned()], document, config)
+    selected(ruleset, &whole(ruleset), document, config)
+}
+
+// Selectors for every rule one shipped ruleset defines: its name, and each ID, as a standard-only rule needs.
+fn whole(ruleset: &str) -> Vec<String> {
+    let rules = ruleset_yaml::<Value>(ruleset)["rules"].clone();
+    std::iter::once(ruleset.to_owned())
+        .chain(
+            rules
+                .as_object()
+                .into_iter()
+                .flat_map(|r| r.keys().cloned()),
+        )
+        .collect()
 }
 
 // One shipped ruleset, parsed.
@@ -51,7 +64,8 @@ fn keeping(ruleset: &str, rule: &str) -> Vec<String> {
         .into_iter()
         .flatten()
         .filter_map(Value::as_str);
-    std::iter::once(ruleset.to_owned())
+    whole(ruleset)
+        .into_iter()
         .chain(others.map(|o| format!("!{o}")))
         .collect()
 }
@@ -3241,7 +3255,16 @@ fn modules() -> Vec<String> {
 
 // The outcome of each kernel-modules rule on module m, keyed by the rule’s suffix.
 fn module(m: &str, kernel: Value) -> BTreeMap<String, Outcome> {
-    judge("kernel-modules", &json!({"kernel": kernel}))
+    needing(m, kernel, json!({}))
+}
+
+// The same on a host whose `needs` facts (runtimes, snapd, azure) say what needs a module, none when empty.
+fn needing(m: &str, kernel: Value, needs: Value) -> BTreeMap<String, Outcome> {
+    let mut document = json!({"kernel": kernel, "runtimes": {"containers": {}}, "snapd": {"binary": {}}, "azure": {"agent": {}}});
+    for (key, value) in needs.as_object().unwrap() {
+        document[key] = value.clone();
+    }
+    judge("kernel-modules", &document)
         .into_iter()
         .filter_map(|(rule, _, outcome)| {
             let tail = rule.strip_prefix(&format!("kernel-modules/{m}"))?;
@@ -3304,6 +3327,53 @@ fn every_kernel_module_rule_passes_when_turned_away_and_fails_when_loadable() {
             "{m}: a failed modprobe collector is unknown, never a finding"
         );
     }
+}
+
+#[test]
+fn a_kernel_module_the_host_needs_is_never_a_finding() {
+    use Outcome::{Fail, Skip};
+    let loaded = |m: &str, users: u64| json!({"shipped": {m: {}}, "install": {}, "blacklist": {}, "loaded": {m.replace('-', "_"): {"instances": users}}});
+    let all = |o| {
+        BTreeMap::from([
+            (String::new(), o),
+            ("-blacklist".to_owned(), o),
+            ("-loaded".to_owned(), o),
+        ])
+    };
+    for m in ["overlay", "squashfs", "udf", "usb-storage"] {
+        assert_eq!(
+            needing(m, loaded(m, 0), json!({})),
+            all(Fail),
+            "{m}: loaded, 0 users"
+        );
+        assert_eq!(
+            needing(m, loaded(m, 1), json!({})),
+            all(Skip),
+            "{m}: loaded, 1 user"
+        );
+    }
+    let on_disk = json!({"/usr/bin/x": {"exists": true}});
+    for (m, needs) in [
+        ("overlay", json!({"runtimes": {"containers": on_disk}})),
+        ("squashfs", json!({"snapd": {"binary": on_disk}})),
+        ("udf", json!({"azure": {"agent": on_disk}})),
+        (
+            "udf",
+            json!({"azure": {"agent": {}, "chassis": {"/sys/class/dmi/id/chassis_asset_tag": ["7783-7084-3265-9085-8269-3286-77"]}}}),
+        ),
+    ] {
+        assert_eq!(
+            needing(m, loaded(m, 0), needs.clone()),
+            all(Skip),
+            "{m}: {needs}"
+        );
+    }
+    let other = json!({"azure": {"agent": {}, "chassis": {"/sys/class/dmi/id/chassis_asset_tag": ["No Asset Tag"]}}});
+    assert_eq!(
+        needing("udf", loaded("udf", 0), other),
+        all(Fail),
+        "udf: another chassis"
+    );
 }
 
 #[test]

@@ -194,44 +194,44 @@ rules:
   kernel-modules/overlay:
     title: Kernel module “overlay” loads automatically
     fact: kernel.install
-    when: {kernel.shipped: {required: [overlay]}}
+    when: {kernel.shipped: {required: [overlay]}, kernel: {not: &overlay-in-use {required: [loaded], properties: {loaded: {required: [overlay], properties: {overlay: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}, runtimes.containers: {maxProperties: 0}}
     expect: {required: [overlay], properties: {overlay: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
     severity: warning
     score: 4.0
-    message: overlay is shipped and no modprobe.d install line turns it away, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
+    message: overlay is shipped, no container runtime is on disk to need it, and no modprobe.d install line turns it away, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
     remedy: {drop-in: {into: modprobe, name: block-overlay-autoloading, lines: ["install overlay /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/overlay-loaded:
     title: Kernel module “overlay” is loaded
     fact: kernel.loaded
-    when: {kernel: {required: [loaded]}}
+    when: {kernel: {required: [loaded], not: *overlay-in-use}, runtimes.containers: {maxProperties: 0}}
     expect: {not: {required: [overlay]}}
     severity: warning
     score: 4.0
-    message: overlay is loaded in the running kernel, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
+    message: overlay is loaded in the running kernel with nothing using it, and no container runtime is on disk to need it, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
     remedy: {drop-in: {into: modprobe, name: block-overlay-autoloading, lines: ["install overlay /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/overlay-blacklist:
     title: Kernel module “overlay” is not blacklisted
     fact: kernel.blacklist
-    when: {kernel.shipped: {required: [overlay]}}
+    when: {kernel.shipped: {required: [overlay]}, kernel: {not: *overlay-in-use}, runtimes.containers: {maxProperties: 0}}
     expect: {required: [overlay]}
     severity: info
     score: 2.0
-    message: "overlay is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
+    message: "overlay is shipped, no container runtime is on disk to need it, and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
     remedy: {drop-in: {into: modprobe, name: skip-overlay-on-device-match, lines: ["blacklist overlay"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/squashfs:
     title: Kernel module “squashfs” loads automatically
     fact: kernel.install
-    when: {kernel.shipped: {required: [squashfs]}}
+    when: {kernel.shipped: {required: [squashfs]}, kernel: {not: &squashfs-in-use {required: [loaded], properties: {loaded: {required: [squashfs], properties: {squashfs: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}, snapd.binary: {maxProperties: 0}}
     expect: {required: [squashfs], properties: {squashfs: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
     severity: warning
     score: 4.0
-    message: "squashfs is shipped and no modprobe.d install line turns it away, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "squashfs is shipped, snapd is not on disk to need it, and no modprobe.d install line turns it away, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     remedy: {drop-in: {into: modprobe, name: block-squashfs-autoloading, lines: ["install squashfs /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
@@ -240,11 +240,11 @@ rules:
   kernel-modules/squashfs-loaded:
     title: Kernel module “squashfs” is loaded
     fact: kernel.loaded
-    when: {kernel: {required: [loaded]}}
+    when: {kernel: {required: [loaded], not: *squashfs-in-use}, snapd.binary: {maxProperties: 0}}
     expect: {not: {required: [squashfs]}}
     severity: warning
     score: 4.0
-    message: "squashfs is loaded in the running kernel, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "squashfs is loaded in the running kernel with nothing using it, and snapd is not on disk to need it, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     remedy: {drop-in: {into: modprobe, name: block-squashfs-autoloading, lines: ["install squashfs /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
@@ -253,22 +253,22 @@ rules:
   kernel-modules/squashfs-blacklist:
     title: Kernel module “squashfs” is not blacklisted
     fact: kernel.blacklist
-    when: {kernel.shipped: {required: [squashfs]}}
+    when: {kernel.shipped: {required: [squashfs]}, kernel: {not: *squashfs-in-use}, snapd.binary: {maxProperties: 0}}
     expect: {required: [squashfs]}
     severity: info
     score: 2.0
-    message: "squashfs is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
+    message: "squashfs is shipped, snapd is not on disk to need it, and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
     remedy: {drop-in: {into: modprobe, name: skip-squashfs-on-device-match, lines: ["blacklist squashfs"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.7, '!default']
   kernel-modules/udf:
     title: Kernel module “udf” loads automatically
     fact: kernel.install
-    when: {kernel.shipped: {required: [udf]}}
+    when: {kernel.shipped: {required: [udf]}, kernel: {not: &udf-in-use {required: [loaded], properties: {loaded: {required: [udf], properties: {udf: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}, azure: {not: &on-azure {anyOf: [{required: [agent], properties: {agent: {minProperties: 1}}}, {required: [chassis], properties: {chassis: {not: {additionalProperties: {not: {contains: {const: "7783-7084-3265-9085-8269-3286-77"}}}}}}}]}}}
     expect: {required: [udf], properties: {udf: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
     severity: warning
     score: 4.0
-    message: "udf is shipped and no modprobe.d install line turns it away, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "udf is shipped, this is no Azure host, which needs it, and no modprobe.d install line turns it away, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     remedy: {drop-in: {into: modprobe, name: block-udf-autoloading, lines: ["install udf /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
@@ -277,11 +277,11 @@ rules:
   kernel-modules/udf-loaded:
     title: Kernel module “udf” is loaded
     fact: kernel.loaded
-    when: {kernel: {required: [loaded]}}
+    when: {kernel: {required: [loaded], not: *udf-in-use}, azure: {not: *on-azure}}
     expect: {not: {required: [udf]}}
     severity: warning
     score: 4.0
-    message: "udf is loaded in the running kernel, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "udf is loaded in the running kernel with nothing using it, and this is no Azure host, which needs it, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     remedy: {drop-in: {into: modprobe, name: block-udf-autoloading, lines: ["install udf /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
@@ -290,11 +290,11 @@ rules:
   kernel-modules/udf-blacklist:
     title: Kernel module “udf” is not blacklisted
     fact: kernel.blacklist
-    when: {kernel.shipped: {required: [udf]}}
+    when: {kernel.shipped: {required: [udf]}, kernel: {not: *udf-in-use}, azure: {not: *on-azure}}
     expect: {required: [udf]}
     severity: info
     score: 2.0
-    message: "udf is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
+    message: "udf is shipped, this is no Azure host, which needs it, and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
     remedy: {drop-in: {into: modprobe, name: skip-udf-on-device-match, lines: ["blacklist udf"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.8, '!default']
@@ -338,11 +338,11 @@ rules:
   kernel-modules/usb-storage:
     title: Kernel module “usb-storage” loads automatically
     fact: kernel.install
-    when: {kernel.shipped: {required: [usb-storage]}}
+    when: {kernel.shipped: {required: [usb-storage]}, kernel: {not: &usb-storage-in-use {required: [loaded], properties: {loaded: {required: [usb_storage], properties: {usb_storage: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}}
     expect: {required: [usb_storage], properties: {usb_storage: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
     severity: warning
     score: 4.0
-    message: "usb-storage is shipped and no modprobe.d install line turns it away, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
+    message: "usb-storage is shipped, no USB storage device uses it, and no modprobe.d install line turns it away, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
     remedy: {drop-in: {into: modprobe, name: block-usb-storage-autoloading, lines: ["install usb_storage /bin/false"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
@@ -351,22 +351,22 @@ rules:
   kernel-modules/usb-storage-loaded:
     title: Kernel module “usb-storage” is loaded
     fact: kernel.loaded
-    when: {kernel: {required: [loaded]}}
+    when: {kernel: {required: [loaded], not: *usb-storage-in-use}}
     expect: {not: {required: [usb_storage]}}
     severity: warning
     score: 4.0
-    message: "usb_storage is loaded in the running kernel, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
+    message: "usb_storage is loaded in the running kernel and no USB storage device uses it, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
     remedy: {drop-in: {into: modprobe, name: block-usb-storage-autoloading, lines: ["install usb_storage /bin/false"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.10, '!default']
   kernel-modules/usb-storage-blacklist:
     title: Kernel module “usb-storage” is not blacklisted
     fact: kernel.blacklist
-    when: {kernel.shipped: {required: [usb-storage]}}
+    when: {kernel.shipped: {required: [usb-storage]}, kernel: {not: *usb-storage-in-use}}
     expect: {required: [usb_storage]}
     severity: info
     score: 2.0
-    message: "usb-storage is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
+    message: "usb-storage is shipped, no USB storage device uses it, and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
     remedy: {drop-in: {into: modprobe, name: skip-usb-storage-on-device-match, lines: ["blacklist usb_storage"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:

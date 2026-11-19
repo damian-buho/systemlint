@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: container-runtimes
+read:
+  stat:
+    - /usr/*bin/dockerd
+    - /usr/*bin/containerd
+    - /usr/*bin/podman
+    - /usr/*bin/crio
+    - /usr/*bin/kubelet
+    - /usr/*bin/lxc-start
+    - /usr/*bin/lxd
+    - /usr/libexec/incus/incusd
+    - /usr/local/bin/dockerd
+    - /usr/local/bin/containerd
+    - /usr/local/bin/k3s
+    - /usr/local/bin/rke2
+    - /snap/bin/docker
+    - /snap/bin/lxd
+    - /snap/bin/microk8s
+parse: {plugin: formats, op: stat}
+into: runtimes.containers

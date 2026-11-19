@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: azure-chassis
+host: true
+live: true
+read:
+  files: [/sys/class/dmi/id/chassis_asset_tag]
+parse: {plugin: formats, op: lines}
+into: azure.chassis
