@@ -231,3 +231,77 @@ rules:
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/chgrp.1.html
     tags: [files, stig-ubuntu-26.04:UBTU-24-300013]
+  files/library-mode:
+    title: A shared library is writable by its group or other users
+    fact: files.libraries.*.mode
+    when: {files.libraries.*.kind: file}
+    expect: {pattern: "^[0-7][0-7][0145][0145]$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}, beyond 0755, so someone other than its owner can change code every program loading it runs"
+    rationale: whoever can write the library runs their own code inside every program that loads it, root’s programs included
+    fix: run “chmod go-w” on the file
+    remedy: {chmod: go-w}
+    docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300006, '!default']
+  files/library-owner:
+    title: A shared library or its directory is not owned by root
+    fact: files.libraries.*.uid
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} is owned by uid {got}, not root, so that user can replace code programs load, root’s programs included"
+    rationale: the owner of a library or its directory can swap in their own code, which every program loading it then runs
+    fix: run “chown root” on it
+    remedy: {chown: 0}
+    docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300007, stig-ubuntu-26.04:UBTU-24-300008, '!default']
+  files/command-mode:
+    title: A system command is writable by its group or other users
+    fact: files.commands.*.mode
+    expect: {pattern: "^[0-7][0-7][0145][0145]$"}
+    severity: info
+    score: 1.0
+    message: "{subject} has mode {got}, beyond 0755, so someone other than its owner can change a command root and every user run"
+    rationale: whoever can write a system command runs their own code as the next user to call it, root included
+    fix: run “chmod go-w” on the file
+    remedy: {chmod: go-w}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/chmod.1.html
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300011, '!default']
+  files/command-owner:
+    title: A system command is not owned by root
+    fact: files.commands.*.uid
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} is owned by uid {got}, not root, so that user can change a command root and every user run"
+    rationale: the owner of a system command can rewrite it and run their own code as the next user to call it, root included
+    fix: run “chown root” on the file
+    remedy: {chown: 0}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man1/chown.1.html
+    tags: [files, stig-ubuntu-26.04:UBTU-24-300012, '!default']
+  files/audit-config-owner:
+    title: The audit configuration is not owned by root
+    fact: files.audit-config.*.uid
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} is owned by uid {got}, not root, so that user can change what is audited"
+    rationale: the owner of the audit configuration can stop the recording of their own actions
+    fix: run “chown root” on the file
+    remedy: {chown: 0}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
+    tags: [files, audit, stig-ubuntu-26.04:UBTU-24-900050, '!default']
+  files/audit-tools-owner:
+    title: An audit tool is not owned by root
+    fact: files.audit-tools.*.uid
+    when: {files.audit-tools.*.kind: file}
+    expect: {const: 0}
+    severity: info
+    score: 1.0
+    message: "{subject} is owned by uid {got}, not root, so that user can swap the tool that reads or changes the audit trail"
+    rationale: the owner of an audit tool can replace it with one that hides their actions from the audit trail
+    fix: run “chown root” on the file
+    remedy: {chown: 0}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditctl.8.html
+    tags: [files, audit, stig-ubuntu-26.04:UBTU-24-901240, '!default']

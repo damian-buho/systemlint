@@ -94,6 +94,12 @@ depends on its environment, which these collectors do not read.
 | `files/library-group` | info | a shared library is in a group above `system-gid-max` (999) (STIG only) |
 | `files/library-directory-group` | info | a library directory is in a group other than root (STIG only) |
 | `files/command-group` | info | a system command is in a group above `system-gid-max` (999) (STIG only) |
+| `files/library-mode` | info | a shared library is writable by its group or other users (STIG only) |
+| `files/library-owner` | info | a shared library or its directory is not owned by root (STIG only) |
+| `files/command-mode` | info | a system command is writable by its group or other users (STIG only) |
+| `files/command-owner` | info | a system command is not owned by root (STIG only) |
+| `files/audit-config-owner` | info | an audit configuration file is not owned by root (STIG only) |
+| `files/audit-tools-owner` | info | an audit tool is not owned by root (STIG only) |
 
 The `grub` ruleset applies where `/boot/grub/grub.cfg` exists. The
 `grub-users` collector matches its `superusers` and `password_pbkdf2` lines
