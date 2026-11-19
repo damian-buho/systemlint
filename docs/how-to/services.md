@@ -709,6 +709,20 @@ ports:
   runs in: inside a container they list the container’s sockets. Under `--root`
   the rules are `Not run`.
 
+`ports-owners.tcp` and `ports-owners.udp` name the program behind each port,
+from `ss -Htlpn` and `ss -Hulpn`, when run as root (`privileged`, so
+unprivileged they are `Not run`, and `Not run` where `ss` is not installed):
+
+```yaml
+ports-owners:
+  tcp: {"22": {program: sshd}}
+  udp: {"5353": {program: avahi-daemon}}
+```
+
+- One fact per port, the first program `ss` lists: IPv4 and IPv6 sockets of a
+  service, or workers sharing one socket, are one; a socket whose process `ss`
+  cannot see is left out.
+
 The `ports` rules fail a listener on any address outside `127.0.0.0/8` and
 `::1`, for services that answer whoever reaches them: `ports/docker-api-plain`
 (TCP 2375, Docker’s API without TLS), `ports/cups-browsed` (UDP 631, legacy
