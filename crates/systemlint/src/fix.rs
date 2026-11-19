@@ -422,7 +422,7 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
     change.remedy.validate().map_err(std::io::Error::other)?;
     match &change.remedy {
         Remedy::DisableLine(_) => return disable(root, change),
-        Remedy::DropIn(drop) => return write(root, drop).and_then(|w| unload(root, drop, w)),
+        Remedy::DropIn(drop) => return drop_in(root, drop),
         _ => {}
     }
     let file = root.open_for_change(&change.path).map_err(|e| {
@@ -470,8 +470,48 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
             Ok(Some((format!("gid {}", meta.gid()), format!("gid {gid}"))))
         }
         Remedy::DisableLine(_) => disable(root, change),
-        Remedy::DropIn(drop) => write(root, drop).and_then(|w| unload(root, drop, w)),
+        Remedy::DropIn(drop) => drop_in(root, drop),
     }
+}
+
+/// Writes `drop` and unloads its modules, refusing first when the running kernel uses one of them.
+fn drop_in(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
+    let live = root.path() == std::path::Path::new("/");
+    if drop.into == Directory::Modprobe && live {
+        let listed =
+            String::from_utf8_lossy(&root.read("/proc/modules", crate::runner::OUTPUT_CAP)?)
+                .into_owned();
+        let used = in_use(&listed, &drop.modules());
+        log::debug!("{}: {} of its modules in use", drop.path(), used.len());
+        if !used.is_empty() {
+            let named: Vec<String> = used
+                .iter()
+                .map(|(m, n)| format!("{m} ({n} users)"))
+                .collect();
+            return Err(std::io::Error::other(format!(
+                "the running kernel uses {}, so systemlint writes nothing: blocking it would break what uses it at the next boot",
+                named.join(", ")
+            )));
+        }
+    }
+    write(root, drop).and_then(|w| unload(root, drop, w))
+}
+
+/// The `modules` that `/proc/modules` text lists with a use count above 0, and that count.
+pub fn in_use<'a>(listed: &str, modules: &[&'a str]) -> Vec<(&'a str, u64)> {
+    modules
+        .iter()
+        .copied()
+        .filter_map(|m| {
+            let spelled = m.replace('-', "_");
+            let line = listed
+                .lines()
+                .find(|l| l.split(' ').next() == Some(spelled.as_str()))?;
+            let users = line.split(' ').nth(2)?.parse::<u64>().ok()?;
+            log::debug!("module {m}: {users} users");
+            (users > 0).then_some((m, users))
+        })
+        .collect()
 }
 
 /// Writes `drop` as a new file, nothing when it already holds exactly its lines, refusing one that holds anything else.
@@ -542,14 +582,17 @@ fn unload(root: &Root, drop: &DropIn, written: Applied) -> Result<Applied, std::
     )
     .map_err(std::io::Error::other)?;
     log::debug!("modprobe -r {}: exit {}", loaded.join(" "), output.code());
+    let names = loaded.join(", ");
     if output.code() != 0 {
-        return Err(std::io::Error::other(format!(
-            "modprobe -r {} answered “{}”, so it stays loaded until the next boot",
-            loaded.join(" "),
-            String::from_utf8_lossy(&output.stderr).trim()
+        let answer = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        let (before, after) = written.unwrap_or(("unchanged".to_owned(), "unchanged".to_owned()));
+        return Ok(Some((
+            format!("{before}, {names} loaded"),
+            format!(
+                "{after}, {names} still loaded until the next boot (modprobe -r answered “{answer}”)"
+            ),
         )));
     }
-    let names = loaded.join(", ");
     Ok(Some(match written {
         Some((before, after)) => (
             format!("{before}, {names} loaded"),

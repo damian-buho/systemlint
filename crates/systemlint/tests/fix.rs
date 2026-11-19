@@ -513,6 +513,15 @@ fn an_unload_picks_the_listed_modules_in_either_spelling() {
 }
 
 #[test]
+fn a_module_with_one_user_is_in_use_and_none_is_not() {
+    let listed = "overlay 229376 1 - Live 0x0\nusb_storage 90112 0 - Live 0x0\n";
+    assert_eq!(
+        systemlint::fix::in_use(listed, &["overlay", "usb-storage", "udf"]),
+        [("overlay", 1)]
+    );
+}
+
+#[test]
 fn a_plan_writes_one_drop_in_once_unloading_when_either_rule_asks() {
     let rule = |id: &str, unload: bool| {
         let yaml = format!(
