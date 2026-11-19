@@ -14,6 +14,7 @@ rules:
     severity: error
     score: 9.8
     message: "{subject} listens on {got}, Docker’s plain-text API, so whoever reaches it runs containers as root on this host"
+    rationale: anyone on the network can start containers that mount the host’s files and take over the machine with no password
     fix: drop the “tcp://…:2375” host from dockerd’s “-H” flags or the “hosts” of “daemon.json”, or serve it on port 2376 with “--tlsverify”
     docs: https://docs.docker.com/engine/security/protect-access/
     references:
@@ -27,6 +28,7 @@ rules:
     severity: error
     score: 9.0
     message: "{subject} listens on {got}, cups-browsed’s legacy CUPS browsing, so any host that reaches it can add a printer whose driver runs commands here"
+    rationale: an attacker on the network can announce a fake printer and get their commands run on this host
     fix:
       - 'Set this line in “/etc/cups/cups-browsed.conf”:'
       - lines: ["BrowseRemoteProtocols dnssd"]
@@ -45,6 +47,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} listens on {got}, memcached’s UDP protocol, which answers a spoofed request with replies thousands of times its size"
+    rationale: attackers can use this host to flood a victim with traffic hundreds of times larger than what they send
     fix: start memcached with “-U 0” (UDP off, the default since memcached 1.5.6), or with “-l 127.0.0.1”
     docs: https://www.cve.org/CVERecord?id=CVE-2018-1000115
     references:
@@ -58,6 +61,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} listens on {got}, so a mail server meant for local mail takes connections from the network, where an open relay or a parser flaw is reachable"
+    rationale: anyone on the network can send mail through this host or exploit a flaw in the mail server
     fix:
       - 'Unless this host receives mail for others, set this line in “/etc/postfix/main.cf”, or the local interfaces of your MTA:'
       - lines: ["inet_interfaces = loopback-only"]

@@ -13,6 +13,7 @@ rules:
     severity: error
     score: 9.0
     message: "{subject} is writable by every user, who can then add a key or a command and log in as its owner"
+    rationale: any local user can add their own key or command and log in as the file’s owner
     fix: run “chmod o-w” on the file
     remedy: {chmod: o-w}
     docs: https://man.openbsd.org/sshd#FILES
@@ -24,6 +25,7 @@ rules:
     severity: warning
     score: 3.0
     message: "{subject} has mode {got}; other users can reach its public keys, known_hosts and config, which name the hosts its owner logs in to"
+    rationale: other local users can see which hosts the owner connects to and which keys are used, which helps them pick targets
     fix: run “chmod 0700” on the directory
     remedy: {chmod: o-rwx}
     docs: https://man.openbsd.org/ssh#FILES

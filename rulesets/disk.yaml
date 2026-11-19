@@ -17,6 +17,7 @@ rules:
     expect: {maximum: 89}
     score: [[90, 3.3], [98, 6.6]]
     message: "{subject} is {got}% full, so writes there soon fail and logs, databases and package upgrades stop with them"
+    rationale: writes start failing, so logs, databases and package upgrades stop working and services crash
     fix: free space on {subject} or grow it; “du --one-file-system --max-depth 1 {subject}” shows what fills it
     docs: https://man7.org/linux/man-pages/man1/df.1.html
     tags: [disk]
@@ -31,6 +32,7 @@ rules:
     expect: {maximum: 89}
     score: [[90, 3.3], [98, 6.6]]
     message: "{subject} has used {got}% of its inodes, so creating a file there soon fails while space is still free"
+    rationale: creating any new file fails even though free space remains, so logs, mail and temporary files stop working
     fix: remove small files on {subject}, such as old sessions, caches or mail; “du --inodes --one-file-system --max-depth 1 {subject}” shows where they are
     docs: https://man7.org/linux/man-pages/man1/df.1.html
     tags: [disk]

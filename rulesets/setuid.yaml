@@ -15,6 +15,7 @@ rules:
     severity: error
     score: 9.0
     message: "{subject} is writable by every user, who can then swap a set-user-ID file below it for a program of their own"
+    rationale: any local user can replace a program that runs with its owner’s rights, usually root, and so take over the host
     fix: run “chmod o-w” on it
     remedy: {chmod: o-w}
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
@@ -28,6 +29,7 @@ rules:
     severity: warning
     score: 6.5
     message: "{subject} is writable by its group, whose every member can then swap a set-user-ID file below it for a program of their own"
+    rationale: any member of that group can replace a program that runs with its owner’s rights, usually root, and so take over the host
     fix: run “chmod g-w” on it, or check that only administrators are in its group
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     tags: [setuid]

@@ -13,6 +13,7 @@ rules:
     severity: info
     score: 1.0
     message: "no sudo program is in /usr/bin, /bin or /usr/local/bin, so administrators share root’s password and leave no record of who ran what"
+    rationale: administrators must share the root password, and nothing records which person made which change
     fix:
       - 'Install sudo:'
       - run: apt install sudo
@@ -27,6 +28,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} may run commands through sudo without its password, so any program running as {subject}, a browser exploit or a package’s install script, gets those rights unasked"
+    rationale: any program running under that account, such as an exploited browser or a malicious installer, gets root without a password
     fix: remove the “NOPASSWD” tag from the grant to {subject} in “/etc/sudoers” or “/etc/sudoers.d”, editing it with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.4, stig-ubuntu-26.04:UBTU-24-300020]
@@ -38,6 +40,7 @@ rules:
     severity: warning
     score: 4.0
     message: "visudo --check exits {got}, so sudo skips the broken lines and runs without the grants or limits they were written to set"
+    rationale: the rules that were meant to limit or grant administrator rights are partly ignored, so people get more or less access than intended
     fix: run “visudo --check” as root, and fix the line it names
     docs: https://www.sudo.ws/docs/man/visudo.man/
     tags: [sudo]

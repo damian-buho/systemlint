@@ -14,6 +14,7 @@ rules:
     severity: info
     score: 2.0
     message: "/boot/grub/grub.cfg sets no superusers with a password_pbkdf2 hash, so anyone at the console may edit a boot entry, add init=/bin/sh and get a root shell"
+    rationale: anyone at the console can edit the boot entry to get a root shell without knowing any password
     fix:
       - 'Make a password hash:'
       - run: grub-mkpasswd-pbkdf2

@@ -15,6 +15,7 @@ rules:
     expect: {x-cel: "self < facts.sysctl.settings.vm.dirty_ratio || facts.sysctl.settings.vm.dirty_bytes > 0 || facts.sysctl.settings.vm.dirty_background_bytes > 0"}
     severity: advice
     message: "vm.dirty_background_ratio is {got}, not below vm.dirty_ratio, so the kernel ignores it and starts background writeback at half of vm.dirty_ratio"
+    rationale: the setting is silently ignored, so writeback starts at a different point than the administrator chose
     fix: set “vm.dirty_background_ratio” below “vm.dirty_ratio”, about a quarter of it
     docs: https://docs.kernel.org/admin-guide/sysctl/vm.html#dirty-background-ratio
     tags: [vm, sysctl, performance]
@@ -24,6 +25,7 @@ rules:
     expect: {x-cel: "self == 0 || facts.sysctl.settings.vm.dirty_bytes == 0 || self < facts.sysctl.settings.vm.dirty_bytes"}
     severity: advice
     message: "vm.dirty_background_bytes is {got}, not below vm.dirty_bytes, so the kernel ignores it and starts background writeback at half of vm.dirty_bytes"
+    rationale: the setting is silently ignored, so writeback starts at a different point than the administrator chose
     fix: set “vm.dirty_background_bytes” below “vm.dirty_bytes”, about a quarter of it
     docs: https://docs.kernel.org/admin-guide/sysctl/vm.html#dirty-background-bytes
     tags: [vm, sysctl, performance]
@@ -36,6 +38,7 @@ rules:
         - {fact: sysctl.settings.vm.dirty_bytes, expect: {exclusiveMinimum: 0}}
     severity: advice
     message: "vm.dirty_ratio is {got}, so over ${dirty-limit-gib} GiB of this host’s memory may fill with unwritten data, and every writer then stalls while the kernel flushes it"
+    rationale: a burst of writes can leave gigabytes of unsaved data in memory, freezing every program that writes until it is flushed and losing it on a power cut
     fix: set “vm.dirty_bytes” to a few seconds of the disk’s write speed and “vm.dirty_background_bytes” to a quarter of it
     docs: https://docs.kernel.org/admin-guide/sysctl/vm.html#dirty-ratio
     tags: [vm, sysctl, performance]
@@ -46,6 +49,7 @@ rules:
     expect: {x-cel: "double(self) * 102400.0 <= double(vars['min-free-percent']) * double(facts.memory.info.MemTotal)"}
     severity: warning
     message: "vm.min_free_kbytes is {got}, over ${min-free-percent}% of this host’s memory, so the kernel reclaims and kills processes for memory while that much stays idle"
+    rationale: a large part of memory sits idle while programs are killed for lack of it
     fix: remove the “vm.min_free_kbytes” setting so the kernel sizes it from memory, or lower it
     docs: https://docs.kernel.org/admin-guide/sysctl/vm.html#min-free-kbytes
     tags: [vm, sysctl, stability]
@@ -57,6 +61,7 @@ rules:
         - {fact: memory.info.CommitLimit, expect: {x-cel: "self * 100 >= vars['commit-limit-percent'] * facts.memory.info.MemTotal"}}
     severity: warning
     message: "vm.overcommit_memory is {got} and the commit limit, vm.overcommit_ratio of memory plus swap, is under ${commit-limit-percent}% of memory, so allocations fail with out-of-memory errors while the rest stays unused"
+    rationale: programs are refused memory and crash with out-of-memory errors while much of the memory is still free
     fix: raise “vm.overcommit_ratio” or add swap until “CommitLimit” in “/proc/meminfo” covers what the services commit
     docs: https://docs.kernel.org/mm/overcommit-accounting.html
     references:

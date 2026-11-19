@@ -13,6 +13,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is present, so an installed kernel or core library update, a security fix among them, is not running until the host reboots"
+    rationale: the old, possibly vulnerable code keeps running, so a fix that was installed gives no protection yet
     fix: reboot the host; “/run/reboot-required.pkgs” names the packages that asked for it
     docs: https://github.com/mvo5/unattended-upgrades/blob/master/README.md
     references:

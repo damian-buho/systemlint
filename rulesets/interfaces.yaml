@@ -13,6 +13,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} has the PROMISC flag, so it hands every frame on its segment to whatever reads it, a sniffer left running or planted"
+    rationale: a sniffer can read all traffic on the network segment, including passwords sent without encryption
     fix:
       - 'Turn promiscuous mode off:'
       - run: ip link set {subject} promisc off

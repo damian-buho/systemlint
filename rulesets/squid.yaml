@@ -14,6 +14,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}, so every user reads it, the logins of its cache_peer lines included"
+    rationale: any local user can read the proxy’s settings, including the passwords it uses to log in to other proxies
     fix: run “chmod 0640 {subject}” and “chgrp proxy {subject}”
     remedy: {chmod: o-rwx}
     docs: https://www.squid-cache.org/Doc/config/cache_peer/

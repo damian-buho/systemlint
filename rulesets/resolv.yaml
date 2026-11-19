@@ -13,6 +13,7 @@ rules:
     expect: {const: true}
     score: 4.0
     message: "{subject} in /etc/resolv.conf answers no query, so every lookup waits out its timeout before the next nameserver, and fails when none is left"
+    rationale: every name lookup stalls for the timeout, making the host slow and its programs appear hung
     fix: remove “nameserver {subject}” from “/etc/resolv.conf” or from what writes it (systemd-resolved, NetworkManager, netplan, DHCP), or let this host reach it on UDP and TCP port 53
     docs: https://man7.org/linux/man-pages/man5/resolv.conf.5.html
     references:
@@ -25,6 +26,7 @@ rules:
     expect: {not: {contains: {const: REFUSED}}}
     score: 4.0
     message: "{subject} in /etc/resolv.conf answers REFUSED, so it serves no recursion to this host and every lookup it gets fails or falls through to the next nameserver"
+    rationale: lookups fail or stall before the next nameserver is tried, making the host slow or cut off from names
     fix: point “/etc/resolv.conf”, or what writes it, at a resolver that serves this host, or allow this host’s address in the recursion ACL of {subject} (“allow-recursion” in BIND, “access-control” in Unbound)
     docs: https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
     references:

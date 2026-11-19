@@ -14,6 +14,7 @@ rules:
     severity: info
     score: 1.0
     message: "postconf reports disable_vrfy_command = no, so any SMTP client asks which local addresses exist and builds a list to target"
+    rationale: anyone who can connect can test which local accounts exist and build a target list for guessing or phishing
     fix:
       - 'Turn the VRFY command off:'
       - run: postconf -e disable_vrfy_command=yes

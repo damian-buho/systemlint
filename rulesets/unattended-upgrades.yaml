@@ -14,6 +14,7 @@ rules:
     severity: warning
     score: 5.5
     message: "APT::Periodic::Unattended-Upgrade is 0 or unset, so apt’s daily run never starts unattended-upgrades and security updates wait for someone to install them"
+    rationale: security fixes sit uninstalled until someone remembers to apply them, leaving known holes open to attackers
     fix: set “APT::Periodic::Unattended-Upgrade "1";” in “/etc/apt/apt.conf.d/20auto-upgrades”, as “dpkg-reconfigure unattended-upgrades” writes it
     docs: https://manpages.debian.org/unstable/unattended-upgrades/unattended-upgrade.8.en.html
     references:
@@ -27,6 +28,7 @@ rules:
     severity: warning
     score: 5.5
     message: "APT::Periodic::Update-Package-Lists is 0 or unset, so unattended-upgrades runs daily against old package lists and finds no new security update"
+    rationale: the daily run cannot see new security fixes, so known holes stay open to attackers
     fix: set “APT::Periodic::Update-Package-Lists "1";” in “/etc/apt/apt.conf.d/20auto-upgrades”, as “dpkg-reconfigure unattended-upgrades” writes it
     docs: https://manpages.debian.org/unstable/unattended-upgrades/unattended-upgrade.8.en.html
     references:
@@ -42,6 +44,7 @@ rules:
     severity: info
     score: 2.0
     message: "Unattended-Upgrade::Remove-Unused-Dependencies is off or Remove-Unused-Kernel-Packages is off, so dependencies and kernels an upgrade replaced stay installed"
+    rationale: old dependencies and kernels pile up, filling the disk until upgrades fail and leaving old vulnerable code on the host
     fix: set “Unattended-Upgrade::Remove-Unused-Dependencies "true";” and “Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";” in “/etc/apt/apt.conf.d/50unattended-upgrades”
     docs: https://manpages.debian.org/unstable/unattended-upgrades/unattended-upgrade.8.en.html
     tags: [apt, '!default', stig-ubuntu-26.04:UBTU-24-700320]

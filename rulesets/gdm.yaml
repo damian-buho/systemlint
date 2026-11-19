@@ -17,6 +17,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} enables XDMCP, which carries the graphical login, password included, in plain text to any host that asks for it"
+    rationale: anyone watching the network can read the typed password, and anyone who reaches the host can start a login session
     fix:
       - Remove “Enable=true” from the “[xdmcp]” section of {subject}.
       - Restart gdm.
@@ -35,6 +36,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} leaves WaylandEnable on, so X11 programs in a Wayland session run under Xwayland, where any X client can read the keystrokes of the others"
+    rationale: a malicious program in the desktop session can capture what the user types into every other X11 program, passwords included
     fix:
       - Set “WaylandEnable=false” in the “[daemon]” section of {subject}.
       - Restart gdm.

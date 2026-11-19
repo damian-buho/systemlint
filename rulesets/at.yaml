@@ -15,6 +15,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} does not exist, so every user at.deny leaves out may schedule jobs with at"
+    rationale: any user not named in at.deny can schedule jobs that run later, unseen, under their own account
     fix:
       - Write the users allowed to schedule jobs to {subject}, one per line.
       - 'Then give it to root and its group:'
@@ -32,6 +33,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so only root changes who may schedule jobs"
+    rationale: a user who can edit the list can add themselves and schedule jobs under their own account
     fix:
       - 'Give the file to the group the command reads it through:'
       - run: chgrp daemon {subject}
@@ -48,6 +50,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, not root, so that user decides who may schedule jobs"
+    rationale: the owning user can add or remove names on the list, so a non-root account decides who may schedule jobs
     fix: run “chown root {subject}”
     remedy: {chown: 0}
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
@@ -61,6 +64,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not root or daemon (gid {same}), so the members of that group get the group’s access to the list of who may schedule at jobs"
+    rationale: every member of an unexpected group can edit the list and so decide who may schedule jobs
     fix: run “chgrp daemon {subject}”
     docs: https://manpages.debian.org/unstable/at/at.allow.5.en.html
     tags: [at, cis-ubuntu-26.04:2.4.2.1]

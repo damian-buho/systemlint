@@ -14,6 +14,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}, more than the 0640 cupsd writes itself, so any local user reads which hosts and accounts may administer printing, or the lp group rewrites that policy"
+    rationale: any local user can read who may administer printing, or a member of the lp group can rewrite that policy
     fix: run “chmod 0640 {subject}”
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/cups-files.conf.5.html
@@ -28,6 +29,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} listens on {got}, so any host that reaches it talks to cupsd, its web interface and its printer drivers"
+    rationale: anyone on the network can reach the print server and the flaws in its web interface and printer drivers
     fix:
       - 'Unless this host shares printers, replace “Port 631” with this line in “/etc/cups/cupsd.conf”:'
       - lines: ["Listen localhost:631"]

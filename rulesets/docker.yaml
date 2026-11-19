@@ -13,6 +13,7 @@ rules:
     severity: error
     score: 9.5
     message: "{subject} is writable by every user, who then runs containers as root through the socket, or rewrites how dockerd starts"
+    rationale: any local user can start containers as root or change how Docker starts, and so take over the host
     fix: run “chmod o-w {subject}”
     remedy: {chmod: o-w}
     docs: https://docs.docker.com/engine/security/#docker-daemon-attack-surface

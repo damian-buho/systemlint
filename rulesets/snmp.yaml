@@ -16,6 +16,7 @@ rules:
     severity: warning
     score: 6.0
     message: "snmpd listens beyond the loopback on UDP 161 and a com2sec, rocommunity or rwcommunity line names public or private, so whoever reaches it reads, or with rw changes, what the agent exposes"
+    rationale: anyone on the network who guesses the well-known password can read the host’s details, and with write access change its settings
     fix: replace the community in “/etc/snmp/snmpd.conf” with a long random one, or move to SNMPv3 users (“createUser”)
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/snmpd.conf.5.html
     references:

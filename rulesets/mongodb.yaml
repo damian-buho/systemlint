@@ -17,6 +17,7 @@ rules:
     severity: error
     score: 9.0
     message: "mongod listens beyond the loopback on TCP 27017 and /etc/mongod.conf leaves security.authorization unset or disabled, so whoever reaches it reads and drops every database"
+    rationale: anyone on the network can read, change or delete all the data, and attackers routinely wipe such databases for ransom
     fix:
       - Create an administrator.
       - Then set “security.authorization” to “enabled” in “/etc/mongod.conf”.

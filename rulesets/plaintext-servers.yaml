@@ -19,6 +19,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} is enabled or running, so any host that guesses the NIS domain name can fetch its maps, password hashes included, in plain text"
+    rationale: anyone on the network can read the account database, including password hashes, and crack them offline
     fix: run “systemctl disable --now {subject}”, and move the accounts it serves to LDAP over TLS or to local files
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ypserv.8.html
     references:
@@ -32,6 +33,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is enabled or running, so anyone who reaches UDP port 69 reads, and where it allows writes, the files it serves with no password at all"
+    rationale: anyone on the network can read, and sometimes overwrite, the served files without logging in
     fix: run “systemctl disable --now {subject}”, unless the host boots others over the network, and then bind it to that network alone
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/in.tftpd.8.html
     references:
@@ -45,6 +47,7 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} is enabled or running, so logins and their passwords cross the network in plain text, and rsh and rlogin trust whole hosts"
+    rationale: anyone watching the network can read passwords as they are typed, and trusted hosts can log in without one
     fix: run “systemctl disable --now {subject}”, and log in over SSH instead
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/ssh.1.html
     references:
@@ -70,6 +73,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} is switched on in {got} and inetd runs, so anyone who reaches its port talks to it in plain text: telnet, rlogin, rsh and rexec carry passwords, tftp has none, and chargen, echo and the other debugging services reflect floods at a third host"
+    rationale: anyone watching the network can read passwords as they are typed, and the host can be used to flood others with traffic
     fix:
       - Comment the line out in {got}, as “update-inetd --disable {subject}” does.
       - Then run “systemctl reload” on the inetd unit.
@@ -89,6 +93,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} lacks disable = yes and xinetd runs, so anyone who reaches its port talks to it in plain text: telnet, rlogin, rsh and rexec carry passwords, tftp has none, and chargen, echo and the other debugging services reflect floods at a third host"
+    rationale: anyone watching the network can read passwords as they are typed, and the host can be used to flood others with traffic
     fix:
       - 'Set this line in {subject}, or delete it:'
       - lines: ["disable = yes"]

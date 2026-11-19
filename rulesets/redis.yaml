@@ -17,6 +17,7 @@ rules:
     severity: error
     score: 9.0
     message: "Redis listens beyond the loopback on TCP 6379 with protected-mode no and no requirepass, so whoever reaches it reads and rewrites every key, and through CONFIG SET writes files as the redis user"
+    rationale: anyone on the network can read and change all the data and use Redis to write files on the host
     fix: set “requirepass”, or an ACL user with a password, in “/etc/redis/redis.conf”, set “bind 127.0.0.1 -::1”, and keep “protected-mode yes”
     docs: https://redis.io/docs/latest/operate/oss_and_stack/management/security/
     references:

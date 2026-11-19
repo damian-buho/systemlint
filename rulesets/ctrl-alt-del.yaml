@@ -15,6 +15,7 @@ rules:
     severity: info
     score: 1.0
     message: "ctrl-alt-del.target is not masked, so anyone at the console, or a stray key press, reboots the host without logging in"
+    rationale: anyone at the keyboard, or a stray key press, restarts the host and cuts off its users and services
     fix:
       - 'Mask the target:'
       - run: systemctl mask ctrl-alt-del.target

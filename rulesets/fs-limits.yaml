@@ -14,6 +14,7 @@ rules:
     expect: {x-cel: "self * 100 < vars['usage-percent'] * facts.sysctl.settings.fs['aio-max-nr']"}
     severity: warning
     message: "fs.aio-nr is {got}, past ${usage-percent}% of fs.aio-max-nr, so the next io_setup() fails and a database or virtual machine refuses to start or falls back to synchronous IO"
+    rationale: a database or virtual machine fails to start or slows down because the system cannot give it more asynchronous IO
     fix: raise “fs.aio-max-nr”, for example “fs.aio-max-nr = 1048576”
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#aio-nr-aio-max-nr
     tags: [fs-limits, sysctl, stability]
@@ -24,6 +25,7 @@ rules:
     expect: {x-cel: "self * 100 < vars['usage-percent'] * facts.sysctl.settings.fs['file-nr'].max"}
     severity: warning
     message: "fs.file-nr counts {got} open file handles, past ${usage-percent}% of fs.file-max, so the next open() anywhere on the host fails with “Too many open files in system”"
+    rationale: programs anywhere on the host start failing to open files, including login and logging
     fix: raise “fs.file-max”, or find the process leaking file handles
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#file-max-file-nr
     tags: [fs-limits, sysctl, stability]
