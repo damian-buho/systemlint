@@ -252,7 +252,7 @@ fn human_prints_one_block_per_rule_across_targets_and_names_where_it_holds() {
         ("d", &shut, d.as_slice()),
     ];
     let text = lint_human_targets(&open, &host, 0, &targets, (false, false, false));
-    assert_eq!(text.matches("[x/mode] Open file").count(), 1, "{text}");
+    assert_eq!(text.matches("[x/mode]\nOpen file").count(), 1, "{text}");
     assert!(text.contains("In the host, a, b:\n- /a"), "{text}");
     assert!(text.contains("In c:\n- /b"), "{text}");
     assert!(

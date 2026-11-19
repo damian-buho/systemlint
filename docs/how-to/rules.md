@@ -47,7 +47,7 @@ apt/https:
 | `fixes` | a list of `{keys, when, fix}` choices tried in order: the first whose `keys` admits the subject’s key and whose `when`, bound like the rule’s, holds gives that subject its `fix`, else the rule’s `fix` applies; a fact a `when` finds absent passes to the next choice, and a choice with neither `keys` nor `when` is refused |
 | `suggest` | `{fact, otherwise}`: the fact, bound like `when`, whose value fills `{suggested}` in `message` and `fix`, and the words used when it is absent or empty |
 | `docs` | a link |
-| `rationale` | why the rule matters, a `Why:` line under the title of its human block, and in JSON and SARIF `help` |
+| `rationale` | why the rule matters, a `Rationale:` line after the subjects of its human block, and in JSON and SARIF `help` |
 | `references` | a list of `{title, url}` sources; an override adds to the list instead of replacing it |
 | `tags` | slugs; a tag with `:` names a control of a standard |
 | `manual` | `true` for a procedure a person follows: no `fact` or `expect`, the steps in `rationale` |
@@ -433,7 +433,7 @@ run did not ask for (`--image-config`, `--network`, `--containers`), which only 
 counts and every machine format), an `Unknown` block per collector error with
 the rules it left undecided wrapped under it,
 one `Conflict` block per set of selected rules declaring `conflicts` on each other, naming each with its control tags and the `--tags '!ID'` that keeps the other (their checks answer `conflict` in every format, `kind: review` in SARIF, and never fail the run),
-`Unknown`, `Manual` (with the `Why:` procedure) and `Waived` blocks, then the failures, worst first: errors,
+`Unknown`, `Manual` (with the `Rationale:` procedure) and `Waived` blocks, then the failures, worst first: errors,
 then warnings, info and advice, each level highest score first. A failure
 lists a `Run:` command under each subject with a remedy, up to two, then from
 two on the `systemlint fix --tags <rule>` command that makes every change, on
@@ -460,8 +460,8 @@ Nothing to check  21, the host has nothing these rules judge
 Not applicable to this host: gdm, nftables, tls.
 ```
 
-A failure block opens with the level, the highest score of the rule, its ID and
-`title`, then a `Why:` line with the `rationale`, lists each subject on its own dash line with the value it failed on, and
+A failure block opens with the level, the highest score of the rule, its ID and tags,
+then the `title` on its own line, lists each subject on its own dash line with the value it failed on, then a `Rationale:` line, and
 ends with one `Fix:` line, or a fix under each subject when they differ. A rule
 with a remedy puts its command under each subject as a `Run:` line with no full
 stop, so it pastes into a shell, in place of the `Fix:` line, and closes with the `systemlint fix --tags`
@@ -470,7 +470,7 @@ Failures that name each other, the two sides of `apt/overlap`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
 or level, score, rule, subject, message, fix, the message without the subject
 it opens with, a rule not run on one `not-run` line per reason whatever its
-subjects, and the counts after `rating` and the grade. Subject, `Why:` and `Fix:` lines, and the last two fields of every
+subjects, and the counts after `rating` and the grade. Subject, `Rationale:` and `Fix:` lines, and the last two fields of every
 line, end with a full stop unless they already end a sentence, and
 the last field opens with a capital, so a screen reader reading the whole report
 pauses between them. Colour marks only the level word

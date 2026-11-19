@@ -366,12 +366,13 @@ fn rotated_from(path: &str) -> Option<&str> {
     (numbered && head.len() > name).then_some(head)
 }
 
-/// The header of one rule’s block: label, rule ID in bold, and the title when the rule has one.
+/// The header of one rule’s block: label, rule ID in bold and its tags, then the title on its own line when the rule has one.
 fn header(label: &str, check: &Check, on: bool) -> String {
-    let id = paint(on, "1", &format!("[{}]", check.rule));
+    let tags: String = check.tags.iter().map(|t| format!(" [{t}]")).collect();
+    let id = paint(on, "1", &format!("[{}]", check.rule)) + &paint(on, "2", &tags);
     check.title.as_deref().map_or_else(
         || format!("{label}: {id}"),
-        |title| format!("{label}: {id} {}", values(on, title)),
+        |title| format!("{label}: {id}\n{}", values(on, title)),
     )
 }
 
@@ -526,9 +527,6 @@ fn failure_block(
         worst.score.unwrap_or_default()
     );
     let _ = writeln!(out, "{}", header(&label, worst, on));
-    if let Some(why) = &worst.rationale {
-        let _ = writeln!(out, "Why: {}", sentence(why));
-    }
     let problems = clusters(group);
     let contained = document["meta"]["subject"]["kind"] == "container";
     let images: Vec<Option<&str>> = group.iter().map(|c| shipped(document, c)).collect();
@@ -629,6 +627,9 @@ fn failure_block(
         }
     }
     let mut mid = String::new();
+    if let Some(why) = &worst.rationale {
+        let _ = writeln!(mid, "Rationale: {}", sentence(why));
+    }
     if let Some(fix) = problems[0][0]
         .fix
         .as_ref()
@@ -928,7 +929,7 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
     for check in checks.iter().filter(|c| c.outcome == Outcome::Manual) {
         let _ = writeln!(out, "{}", header("Manual", check, on));
         if let Some(why) = &check.rationale {
-            let _ = writeln!(out, "Why: {}", sentence(why));
+            let _ = writeln!(out, "Rationale: {}", sentence(why));
         }
         out.push('\n');
     }

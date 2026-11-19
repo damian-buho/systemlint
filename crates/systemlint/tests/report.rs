@@ -506,8 +506,8 @@ fn sources() -> (Value, Vec<Check>) {
 fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_first() {
     let (document, checks) = sources();
     let text = lint_human(&document, &checks, 0, false, false, false);
-    let expected = "Error (7.5): [apt/stale-suite] A source fetches an older release’s suite\nWhy: the host stops getting new package versions and security fixes from that source, and its old packages can clash with the rest of the system.\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
-        Warning (4.5): [apt/overlap] A repository is partly listed in two places\nWhy: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour.\n- /a.list:1.\n- /b.sources:1.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
+    let expected = "Error (7.5): [apt/stale-suite] [default] [apt]\nA source fetches an older release’s suite\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nRationale: the host stops getting new package versions and security fixes from that source, and its old packages can clash with the rest of the system.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
+        Warning (4.5): [apt/overlap] [default] [apt]\nA repository is partly listed in two places\n- /a.list:1.\n- /b.sources:1.\nRationale: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
         Rating            F\nErrors            2\nWarnings          2\nInfo              0\nPassed            2\n";
     assert_eq!(text, expected);
     let painted = lint_human(&document, &checks, 0, true, false, true);
@@ -533,7 +533,7 @@ fn human_puts_a_fix_under_each_location_when_the_fixes_differ() {
     );
     assert_eq!(
         text,
-        "Warning (5.0): [x/drop] Dropped value\n- a: 1.\n  Fix: drop 1.\n- b: 2.\n  Fix: drop 2.\n\n"
+        "Warning (5.0): [x/drop]\nDropped value\n- a: 1.\n  Fix: drop 1.\n- b: 2.\n  Fix: drop 2.\n\n"
     );
 }
 
@@ -551,7 +551,7 @@ fn human_prints_the_whole_message_of_a_subjectless_check_that_names_no_value() {
     );
     assert_eq!(
         text,
-        "Warning (5.0): [x/host] Host lacks it\n- Nothing provides it, so it never arrives.\n\n"
+        "Warning (5.0): [x/host]\nHost lacks it\n- Nothing provides it, so it never arrives.\n\n"
     );
 }
 
@@ -671,11 +671,11 @@ fn rationale_and_references_reach_every_format_and_the_human_references_only_und
     let checks = lint(&document, &[rule], &[], "2026-11-11");
     assert_eq!(
         lint_human(&document, &checks, 0, true, false, false),
-        "Warning (5.0): [x/drop] Dropped value\nWhy: a value [here] leaks.\n- v: 0 was expected.\nFix: drop it.\n\n"
+        "Warning (5.0): [x/drop]\nDropped value\n- v: 0 was expected.\nRationale: a value [here] leaks.\nFix: drop it.\n\n"
     );
     assert_eq!(
         lint_human(&document, &checks, 0, true, true, false),
-        "Warning (5.0): [x/drop] Dropped value\nWhy: a value [here] leaks.\n- v: 0 was expected.\nFix: drop it.\nSee: CIS 1.2 <https://example.org/cis>\nSee: Man page <https://example.org/man>\n\n"
+        "Warning (5.0): [x/drop]\nDropped value\n- v: 0 was expected.\nRationale: a value [here] leaks.\nFix: drop it.\nSee: CIS 1.2 <https://example.org/cis>\nSee: Man page <https://example.org/man>\n\n"
     );
     let report: Value = serde_json::from_str(&lint_json(&document, &checks)).unwrap();
     assert_eq!(
