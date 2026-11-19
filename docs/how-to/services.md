@@ -96,8 +96,8 @@ drop-ins through `kv`, and a drop-in’s value wins. They fail unless the
 effective `Storage` is `none` and `ProcessSizeMax` is 0; unset fails, since
 the defaults are `external` and 32G.
 
-Two practice rulesets leave out the `default` tag and run with `--tags
-performance` or `--tags stability`, each threshold a ruleset var. `vm` fails a
+`vm` is a practice ruleset: it leaves out the `default` tag and runs with `--tags
+performance` or `--tags stability`, each threshold a ruleset var. It fails a
 background writeback limit at or above the writer limit, which the kernel
 silently halves (`dirty-background-ratio-above-limit`,
 `dirty-background-bytes-above-limit`), a `vm.dirty_ratio` that lets more than
@@ -105,7 +105,8 @@ silently halves (`dirty-background-ratio-above-limit`,
 `vm.dirty_bytes` is set (`dirty-ratio-large-memory`), a `vm.min_free_kbytes`
 over `min-free-percent` (5) percent of memory (`min-free-too-high`), and
 strict overcommit whose `CommitLimit` is under `commit-limit-percent` (80)
-percent of memory (`strict-overcommit-half-memory`). `fs-limits` fails
+percent of memory (`strict-overcommit-half-memory`, the one `vm` rule in
+`default`, since with no swap it refuses allocations at half of memory). `fs-limits`, in `default`, fails
 `fs.aio-nr` or the allocated `fs.file-nr` past `usage-percent` (90) percent of
 its maximum; a usage figure is a snapshot, so a spike fails that run only.
 `memory-info` reads the live host, so under `--root` the rules that need it
@@ -353,6 +354,10 @@ standard controls alone, since a host may confine with another LSM:
 `docker.daemon` is `/etc/docker/daemon.json` as it stands, so
 `docker.daemon.icc` or `docker.daemon.userns-remap` are facts. With no file,
 `docker.daemon` is empty, and a rule on one key answers `unknown`.
+`docker/logs-unbounded` judges the whole map once a `dockerd` is on disk: it
+fails the default `json-file` driver with no `log-opts.max-size`, which
+never rotates a container’s log. A `--log-opt` on dockerd’s command line is
+not read.
 
 ## systemd units
 
@@ -506,6 +511,12 @@ systemd:
 
 Both `enabled` and `masked` come from the files, so they read the same live and
 under `--root`.
+
+`units/failed` fails an enabled, unmasked unit whose `active` is `failed`, one
+schema over the whole entry, so a unit with no `active` (`--root`, no
+manager) or no `enabled` (one only the manager knows) is skipped. A failed
+unit leaves `systemctl is-system-running` at `degraded`, which hides the next
+failure from a monitor; a stale snap mount whose revision snapd removed is one.
 
 ## ufw
 

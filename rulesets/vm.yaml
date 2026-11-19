@@ -66,4 +66,4 @@ rules:
     docs: https://docs.kernel.org/mm/overcommit-accounting.html
     references:
       - {title: PostgreSQL Linux memory overcommit, url: "https://www.postgresql.org/docs/current/kernel-resources.html#LINUX-MEMORY-OVERCOMMIT"}
-    tags: [vm, sysctl, stability]
+    tags: [vm, sysctl, stability, default]

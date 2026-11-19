@@ -1328,6 +1328,16 @@ org:
               - default
               - disk
             title: A filesystem is almost out of inodes
+          - id: docker/logs-unbounded
+            ruleset: docker
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - docker
+              - logs
+              - stability
+            title: Container logs grow with no size limit
           - id: docker/world-writable
             ruleset: docker
             score: 9.5
@@ -1639,6 +1649,7 @@ org:
             ruleset: fs-limits
             severity: warning
             tags:
+              - default
               - fs-limits
               - sysctl
               - stability
@@ -1647,6 +1658,7 @@ org:
             ruleset: fs-limits
             severity: warning
             tags:
+              - default
               - fs-limits
               - sysctl
               - stability
@@ -4384,6 +4396,16 @@ org:
               - apt
               - lynis
             title: unattended-upgrades runs on package lists never refreshed
+          - id: units/failed
+            ruleset: units
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - units
+              - systemd
+              - stability
+            title: An enabled unit has failed
           - id: unused-services/apport
             ruleset: unused-services
             score: 1.0
@@ -4601,4 +4623,5 @@ org:
               - vm
               - sysctl
               - stability
+              - default
             title: Strict overcommit caps allocations well below memory

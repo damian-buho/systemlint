@@ -4,6 +4,7 @@
 
 description: System-wide kernel tables close to their limit, where the next open or async IO context fails
 topic: Boot and kernel
+tags: [default]
 vars:
   usage-percent: {default: 90}
 rules:
