@@ -25,6 +25,14 @@ org:
               - accounts
               - cis-ubuntu-26.04:5.4.2.2
             title: An account other than root has group root as its primary group
+          - id: accounts/group-nis-entry
+            ruleset: accounts
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+            title: /etc/group pulls groups from NIS
           - id: accounts/group-repeated
             ruleset: accounts
             score: 4.0
@@ -81,6 +89,14 @@ org:
               - stig-ubuntu-26.04:UBTU-24-400220
               - dev-sec-linux-baseline:os-03b
             title: An account keeps its password hash in /etc/passwd
+          - id: accounts/passwd-nis-entry
+            ruleset: accounts
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+            title: /etc/passwd pulls accounts from NIS
           - id: accounts/password-inactive-days
             ruleset: accounts
             score: 2.0
@@ -123,6 +139,15 @@ org:
               - accounts
               - cis-ubuntu-26.04:5.4.1.3
             title: A password expires with less warning than asked
+          - id: accounts/root-gid
+            ruleset: accounts
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+              - cis-ubuntu-26.04:5.4.2.2
+            title: root’s primary group is not gid 0
           - id: accounts/shadow-empty-password
             ruleset: accounts
             score: 8.0
@@ -160,6 +185,14 @@ org:
               - accounts
               - lynis
             title: An account defers to /etc/shadow, which has no line for it
+          - id: accounts/shadow-nis-entry
+            ruleset: accounts
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - accounts
+            title: /etc/shadow pulls passwords from NIS
           - id: accounts/shell-not-listed
             ruleset: accounts
             score: 1.0
@@ -1435,6 +1468,15 @@ org:
               - cis-ubuntu-26.04:6.2.4.5
               - stig-ubuntu-26.04:UBTU-24-900040
             title: The audit configuration is readable by other users
+          - id: files/audit-config-owner
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - files
+              - audit
+              - stig-ubuntu-26.04:UBTU-24-900050
+            title: The audit configuration is not owned by root
           - id: files/audit-tools-group
             ruleset: files
             score: 1.0
@@ -1457,6 +1499,15 @@ org:
               - cis-ubuntu-26.04:6.2.4.8
               - stig-ubuntu-26.04:UBTU-24-901230
             title: An audit tool is more open than 0755
+          - id: files/audit-tools-owner
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - files
+              - audit
+              - stig-ubuntu-26.04:UBTU-24-901240
+            title: An audit tool is not owned by root
           - id: files/bootloader-readable
             ruleset: files
             score: 2.0
@@ -1476,6 +1527,22 @@ org:
               - files
               - stig-ubuntu-26.04:UBTU-24-300013
             title: A system command belongs to a group of user accounts
+          - id: files/command-mode
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - files
+              - stig-ubuntu-26.04:UBTU-24-300011
+            title: A system command is writable by its group or other users
+          - id: files/command-owner
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - files
+              - stig-ubuntu-26.04:UBTU-24-300012
+            title: A system command is not owned by root
           - id: files/group-writable
             ruleset: files
             score: 6.0
@@ -1503,6 +1570,23 @@ org:
               - files
               - stig-ubuntu-26.04:UBTU-24-300009
             title: A shared library belongs to a group of user accounts
+          - id: files/library-mode
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - files
+              - stig-ubuntu-26.04:UBTU-24-300006
+            title: A shared library is writable by its group or other users
+          - id: files/library-owner
+            ruleset: files
+            score: 1.0
+            severity: info
+            tags:
+              - files
+              - stig-ubuntu-26.04:UBTU-24-300007
+              - stig-ubuntu-26.04:UBTU-24-300008
+            title: A shared library or its directory is not owned by root
           - id: files/owner
             ruleset: files
             score: 8.0
@@ -2780,6 +2864,7 @@ org:
               - default
               - logging
               - stig-ubuntu-26.04:UBTU-24-700110
+              - dev-sec-linux-baseline:os-11
             title: /var/log is not owned by root
           - id: logs/file-mode
             ruleset: logs
@@ -2791,6 +2876,14 @@ org:
               - stig-ubuntu-26.04:UBTU-24-700010
               - stig-ubuntu-26.04:UBTU-24-700150
             title: A log file is more open than 0640
+          - id: logs/rotation-mode
+            ruleset: logs
+            score: 1.0
+            severity: info
+            tags:
+              - default
+              - logging
+            title: Logrotate creates new logs more open than 0640
           - id: logs/syslog-group
             ruleset: logs
             score: 1.0
