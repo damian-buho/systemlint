@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Software RAID arrays that have lost a member disk
+topic: Files and permissions
+tags: [default]
+rules:
+  md/degraded:
+    title: A RAID array has lost a member disk
+    fact: md.degraded.*
+    expect: {type: array, items: {const: "0"}}
+    severity: error
+    score: 8.0
+    message: "the kernel counts {got} member disks missing from the array at {subject}, so the array runs with no redundancy and the next disk failure loses its data"
+    rationale: the array still works, but one more failed disk loses everything on it, and nothing else tells you it is now unprotected
+    fix:
+      - 'See which member failed, then replace the disk and add the new one:'
+      - run: cat /proc/mdstat
+      - run: mdadm --detail /dev/mdN
+      - run: mdadm --manage /dev/mdN --add /dev/NEWDISK
+    docs: https://docs.kernel.org/admin-guide/md.html
+    tags: [raid, stability]

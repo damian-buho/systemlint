@@ -180,6 +180,14 @@ it would break that user at the next boot.
 builds in, since no `modprobe.d` line can keep it out of that kernel; CIS
 counts that as passing, so it carries no CIS tag.
 
+## Software RAID
+
+The `md-degraded` collector (`host`, `live`) reads each
+`/sys/block/md*/md/degraded` into `md.degraded.<path>`, the number of member
+disks the kernel counts missing from that array; RAID 0 and linear arrays have
+no such file. `md/degraded` fails an array above 0, since it then runs without
+redundancy; a resync or a scheduled `check` alone is not a finding.
+
 ## CPU vulnerabilities
 
 The `cpu-vulnerabilities` collector (`live`) reads each file under

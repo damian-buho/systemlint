@@ -2931,6 +2931,15 @@ org:
               - logging
               - stability
             title: A large log file is rotated by no logrotate stanza
+          - id: md/degraded
+            ruleset: md
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - raid
+              - stability
+            title: A RAID array has lost a member disk
           - id: mongodb/no-authorization
             ruleset: mongodb
             score: 9.0
