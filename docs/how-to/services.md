@@ -188,6 +188,20 @@ disks the kernel counts missing from that array; RAID 0 and linear arrays have
 no such file. `md/degraded` fails an array above 0, since it then runs without
 redundancy; a resync or a scheduled `check` alone is not a finding.
 
+## Btrfs and temperature sensors
+
+`btrfs-stats` (`host`, `live`, `privileged`) runs `btrfs device stats` once per
+active btrfs mount point into `btrfs.stats.<mount point>`, keyed
+`[/dev/sda1].write_io_errs`; `btrfs/device-errors` fails any counter above 0.
+Two mounts of one file system, such as subvolumes, report it twice.
+
+`sensors` (`host`, `live`) runs `sensors -j` (lm-sensors 3.5 or later) into
+`sensors.<chip>.<feature>`, and a host with no sensors reads as empty, not
+failed. `sensors/temperature-critical` fails a raised `temp*_crit_alarm` or
+`temp*_emergency_alarm`, `sensors/temperature-high` a raised `temp*_alarm`.
+Fan, voltage and intrusion alarms are not judged: an unconnected fan header or
+a board’s bogus voltage limit raises them on a healthy host.
+
 ## CPU vulnerabilities
 
 The `cpu-vulnerabilities` collector (`live`) reads each file under

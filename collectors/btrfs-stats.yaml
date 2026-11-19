@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: btrfs-stats
+host: true
+live: true
+privileged: true
+read:
+  exec-from:
+    each: mounts.active
+    keep: {properties: {filesystem: {const: btrfs}}}
+    argv: [/usr/bin/btrfs, device, stats, '{key}']
+    split: true
+parse: {plugin: formats, op: kv, with: {separator: whitespace}}
+into: btrfs.stats

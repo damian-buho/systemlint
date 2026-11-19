@@ -1117,6 +1117,16 @@ org:
               - cis-ubuntu-26.04:1.6.9
               - cis-ubuntu-26.04:1.6.10
             title: The login banner is writable by other users
+          - id: btrfs/device-errors
+            ruleset: btrfs
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - btrfs
+              - disk
+              - stability
+            title: A Btrfs device counted errors
           - id: clients/ftp
             ruleset: clients
             score: 1.0
@@ -3750,6 +3760,24 @@ org:
               - logging
               - stig-ubuntu-26.04:UBTU-24-200090
             title: rsyslog does not write every auth, authpriv and daemon message to a file
+          - id: sensors/temperature-critical
+            ruleset: sensors
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - hardware
+              - stability
+            title: A sensor reports a critical temperature
+          - id: sensors/temperature-high
+            ruleset: sensors
+            score: 5.0
+            severity: warning
+            tags:
+              - default
+              - hardware
+              - stability
+            title: A sensor reports a temperature over its limit
           - id: services/unconfined-root
             ruleset: services
             score: 6.0
@@ -3784,6 +3812,24 @@ org:
               - default
               - setuid
             title: A set-user-ID file or its directory is writable by every user
+          - id: smart/ata-attribute-failing
+            ruleset: smart
+            score: 8.0
+            severity: error
+            tags:
+              - default
+              - disk
+              - stability
+            title: A SATA disk has an attribute past its failure threshold
+          - id: smart/ata-bad-sectors
+            ruleset: smart
+            score: 6.0
+            severity: warning
+            tags:
+              - default
+              - disk
+              - stability
+            title: A SATA disk has sectors it cannot read
           - id: smart/failing
             ruleset: smart
             score: 9.0

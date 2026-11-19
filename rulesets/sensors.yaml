@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Hardware temperature sensors whose own alarm flag is raised
+topic: Boot and kernel
+tags: [default]
+rules:
+  sensors/temperature-critical:
+    title: A sensor reports a critical temperature
+    fact: sensors.*.*
+    keys: {not: {const: Adapter}}
+    expect: {patternProperties: {"^temp[0-9]+_(crit|emergency)_alarm$": {const: 0}}}
+    severity: error
+    score: 8.0
+    message: "{subject} raises a temperature alarm, so a part of this host is at its critical temperature and the kernel may shut it down"
+    rationale: hardware past its critical temperature is damaged or powered off by the firmware, which stops every service on it
+    fix:
+      - 'Find the hot part, then clear its fan and vents, check the fan runs, and renew the thermal paste if it still overheats:'
+      - run: sensors
+    docs: https://docs.kernel.org/hwmon/sysfs-interface.html
+    tags: [hardware, stability]
+  sensors/temperature-high:
+    title: A sensor reports a temperature over its limit
+    fact: sensors.*.*
+    keys: {not: {const: Adapter}}
+    expect: {patternProperties: {"^temp[0-9]+_alarm$": {const: 0}}}
+    severity: warning
+    score: 5.0
+    message: "{subject} raises a temperature alarm, so a part of this host runs over its own temperature limit and slows itself down or ages faster"
+    rationale: a part over its temperature limit throttles, which slows every service, and a part kept hot wears out early
+    fix:
+      - 'Find the hot part, then clear its fan and vents and check the fan runs:'
+      - run: sensors
+    docs: https://docs.kernel.org/hwmon/sysfs-interface.html
+    tags: [hardware, stability]

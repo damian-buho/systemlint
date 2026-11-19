@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: sensors
+host: true
+live: true
+read:
+  exec: [/usr/bin/sensors, -j]
+parse: {plugin: formats, op: json, with: {exit-mask: 1}}
+into: sensors

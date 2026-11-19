@@ -342,12 +342,14 @@ later, on a live, privileged run of the host only. `smart-scan` runs
 into `smart.devices.<name>`. smartctl sets exit bits 3 to 7 when a disk is
 failing, which `exit-mask: 248` still reads; the serial number, WWN, logical
 unit ID and namespace IDs are redacted. A host without smartctl has nothing
-to check. Only what the disk calls failed is judged, never a vendor’s raw
-attribute value:
+to check. Only what the disk calls failed is judged, and the two raw values
+that are a plain sector count (197, 198), never another vendor’s raw value:
 
 | Rule | Severity | Fails when |
 | --- | --- | --- |
 | `smart/failing` | error | the disk’s overall SMART health check failed; a disk with no `smart_status` (a USB bridge, a virtual disk) is skipped |
+| `smart/ata-attribute-failing` | error | a SATA disk’s attribute is at or below its threshold now (`when_failed` `now`), not one that failed in the past |
+| `smart/ata-bad-sectors` | warning | a SATA disk counts current pending (197) or offline-uncorrectable (198) sectors above 0 |
 | `smart/nvme-critical-warning` | error | an NVMe disk’s `critical_warning` is not 0: spare blocks low, too hot, reliability degraded, read-only or backup power failed |
 | `smart/nvme-media-errors` | warning | an NVMe disk counts unrecovered media errors, a count that never goes down |
 | `smart/nvme-worn-out` | warning | an NVMe disk’s `percentage_used` is 100 or more |

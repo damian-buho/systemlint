@@ -61,3 +61,31 @@ rules:
     fix: replace {subject} soon, and keep a backup of it until then
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/smartctl.8.html
     tags: [disk, stability]
+  smart/ata-attribute-failing:
+    title: A SATA disk has an attribute past its failure threshold
+    fact: smart.devices.*.ata_smart_attributes.table
+    when: {smart.devices.*: {required: [ata_smart_attributes]}}
+    expect: {not: {contains: {required: [when_failed], properties: {when_failed: {const: now}}}}}
+    severity: error
+    score: 8.0
+    message: "{subject} has a SMART attribute at or below its failure threshold now, so the disk itself says it is failing"
+    rationale: the disk’s own firmware reports an attribute that predicts failure, so the data on it may be lost without warning
+    fix:
+      - 'Back up what is on it now, then replace it. The attribute table names the failing one:'
+      - run: smartctl --attributes {subject}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/smartctl.8.html
+    tags: [disk, stability]
+  smart/ata-bad-sectors:
+    title: A SATA disk has sectors it cannot read
+    fact: smart.devices.*.ata_smart_attributes.table
+    when: {smart.devices.*: {required: [ata_smart_attributes]}}
+    expect: {not: {contains: {required: [id, raw], properties: {id: {enum: [197, 198]}, raw: {required: [value], properties: {value: {minimum: 1}}}}}}}
+    severity: warning
+    score: 6.0
+    message: "{subject} counts pending or uncorrectable sectors above 0, which it cannot read, so some data it held is already lost or unreadable"
+    rationale: the surface of the disk is failing, and unreadable sectors tend to multiply until the disk fails
+    fix:
+      - 'Check the file systems on it, restore what is damaged from backup, and plan its replacement; read the attributes “Current_Pending_Sector” (197) and “Offline_Uncorrectable” (198):'
+      - run: smartctl --attributes {subject}
+    docs: https://manpages.ubuntu.com/manpages/resolute/man8/smartctl.8.html
+    tags: [disk, stability]

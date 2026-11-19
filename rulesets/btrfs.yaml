@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: Btrfs devices that counted write, read, flush, corruption or generation errors
+topic: Files and permissions
+tags: [default]
+rules:
+  btrfs/device-errors:
+    title: A Btrfs device counted errors
+    fact: btrfs.stats.*.*
+    expect: {const: 0}
+    unit: count
+    severity: error
+    score: 8.0
+    message: "{subject} counts {got}, so the file system met I/O failures or corrupt data on that device"
+    rationale: the file system already lost or damaged data on that device, and a failing disk usually keeps failing
+    fix:
+      - 'Check every device of the file system, repair or restore what was damaged from backup, and replace a failing disk; once understood, reset the counters:'
+      - run: btrfs device stats MOUNTPOINT
+      - run: btrfs scrub start -B MOUNTPOINT
+      - run: btrfs device stats --reset MOUNTPOINT
+    docs: https://btrfs.readthedocs.io/en/latest/btrfs-device.html#device-stats
+    tags: [btrfs, disk, stability]
