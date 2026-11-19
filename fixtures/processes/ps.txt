@@ -1,0 +1,8 @@
+      1       0 root                             systemd
+    412       1 root                             sshd
+    650       1 _chrony                          chronyd
+    655     650 _chrony                          chronyd
+    700       1 www-data                         nginx
+    701     700 www-data                         nginx
+   2301    2299 alice                            tmux: server
+   2310       2 root                             irq/83-cs35l41 IRQ1 Controller

@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: processes-running
+ttl: 3600
+live: true
+read:
+  exec: [/usr/bin/ps, --no-headers, -eo, 'pid,ppid,user:32,comm']
+parse:
+  plugin: formats
+  op: words
+  with:
+    columns: [pid, ppid, user, comm]
+    rest: more
+    key: comm
+    repeat: list
+into: processes.running

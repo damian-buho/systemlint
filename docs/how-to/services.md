@@ -691,6 +691,14 @@ rule is `Not run`. `restart/replaced-code` fails an `active` service still
 running a replaced file; an `activating` one, as a oneshot `apt` upgrading its
 own library, is about to exit and is skipped.
 
+`processes.running` lists every process from `ps -eo pid,ppid,user,comm`, per
+the first word of its command name, as a list of `{pid, ppid, user, more}`
+(`more` the rest of the name, as `tmux: server`), so a rule can ask for a
+running program or the account it runs as. It records no command line, which
+may carry a secret, and no executable path. `ps` needs no privilege, but sees
+the PID namespace systemlint runs in, and `hidepid` hides other users’
+processes from a non-root run.
+
 ## Listening sockets
 
 `ports` holds, per protocol and port, the addresses a socket listens on, from

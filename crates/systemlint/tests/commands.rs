@@ -13,14 +13,14 @@ fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-// The shipped collector `id`’s parse of `fixtures/ports/<file>.txt`, diagnostics included.
+// The shipped collector `id`’s parse of the captured `fixtures/<file>.txt`, diagnostics included.
 fn parsed(id: &str, file: &str) -> (Value, usize) {
     let collector = Collector::parse(
         &std::fs::read_to_string(repository().join(format!("collectors/{id}.yaml"))).unwrap(),
     )
     .unwrap();
     let stdout =
-        std::fs::read_to_string(repository().join(format!("fixtures/ports/{file}.txt"))).unwrap();
+        std::fs::read_to_string(repository().join(format!("fixtures/{file}.txt"))).unwrap();
     let request = Request {
         protocol: PROTOCOL,
         op: collector.parse.op.clone(),
@@ -44,7 +44,7 @@ fn parsed(id: &str, file: &str) -> (Value, usize) {
 
 #[test]
 fn tcp_owners_are_keyed_by_port_with_the_first_program() {
-    let (facts, diagnostics) = parsed("ports-owners-tcp", "ss-tcp");
+    let (facts, diagnostics) = parsed("ports-owners-tcp", "ports/ss-tcp");
     assert_eq!(
         facts,
         json!({
@@ -59,10 +59,31 @@ fn tcp_owners_are_keyed_by_port_with_the_first_program() {
 
 #[test]
 fn udp_owners_are_keyed_by_port_with_the_first_program() {
-    let (facts, diagnostics) = parsed("ports-owners-udp", "ss-udp");
+    let (facts, diagnostics) = parsed("ports-owners-udp", "ports/ss-udp");
     assert_eq!(
         facts,
         json!({"5353": {"program": "avahi-daemon"}, "323": {"program": "chronyd"}})
     );
     assert_eq!(diagnostics, 0);
+}
+
+#[test]
+fn running_processes_are_listed_per_command_name() {
+    let (facts, diagnostics) = parsed("processes-running", "processes/ps");
+    assert_eq!(diagnostics, 0, "{facts}");
+    let pids: Vec<_> = facts["chronyd"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| (p["pid"].clone(), p["ppid"].clone(), p["user"].clone()))
+        .collect();
+    assert_eq!(
+        pids,
+        [
+            (json!(650), json!(1), json!("_chrony")),
+            (json!(655), json!(650), json!("_chrony"))
+        ],
+        "a name run twice keeps every process"
+    );
+    assert_eq!(facts["tmux:"][0]["more"], json!(["server"]), "{facts}");
 }
