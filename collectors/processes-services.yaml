@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: processes-services
+ttl: 3600
 live: true
 privileged: true
 read:

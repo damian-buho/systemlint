@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 id: ports-listening
+ttl: 3600
 live: true
 read:
   files: [/proc/net/tcp, /proc/net/tcp6, /proc/net/udp, /proc/net/udp6]
