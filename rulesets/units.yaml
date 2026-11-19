@@ -2,19 +2,19 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-description: Units the host is set up to run that have failed
+description: Units on disk that have failed
 topic: Services
 tags: [default]
 rules:
   units/failed:
-    title: An enabled unit has failed
+    title: A unit has failed
     fact: systemd.state.*.active
-    when: {systemd.state.*: {required: [active, enabled, masked], properties: {enabled: {const: true}, masked: {const: false}}}}
+    when: {systemd.state.*: {required: [active, masked], properties: {masked: {const: false}}}}
     expect: {not: {const: failed}}
     severity: warning
     score: 4.0
-    message: "{subject} is enabled but has failed, so what it provides is missing and systemd counts the whole host as degraded, which hides the next failure"
-    rationale: a service or mount the host was set up to run is down, and a monitor that watches for a degraded host no longer notices a new failure
+    message: "{subject} has failed, so what it provides is missing and systemd counts the whole host as degraded, which hides the next failure"
+    rationale: a service, mount or timer job the host has on disk is down, and a monitor that watches for a degraded host no longer notices a new failure
     fix:
       - 'List the failed units and see why each failed:'
       - run: systemctl --failed

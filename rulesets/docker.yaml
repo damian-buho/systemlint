@@ -23,7 +23,9 @@ rules:
   docker/logs-unbounded:
     title: Container logs grow with no size limit
     fact: docker.daemon
-    when: {runtimes.containers: {not: {propertyNames: {not: {pattern: "/dockerd$"}}}}}
+    when:
+      runtimes.containers: {not: {propertyNames: {not: {pattern: "/dockerd$"}}}}
+      systemd.units: {not: {required: [docker.service], properties: {docker.service: {required: [sections], properties: {sections: {required: [Service], properties: {Service: {required: [ExecStart], properties: {ExecStart: {contains: {pattern: "--(log-opt|log-driver|config-file)"}}}}}}}}}}}
     expect:
       anyOf:
         - {required: [log-driver], properties: {log-driver: {not: {const: json-file}}}}

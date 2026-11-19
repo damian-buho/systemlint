@@ -356,8 +356,9 @@ standard controls alone, since a host may confine with another LSM:
 `docker.daemon` is empty, and a rule on one key answers `unknown`.
 `docker/logs-unbounded` judges the whole map once a `dockerd` is on disk: it
 fails the default `json-file` driver with no `log-opts.max-size`, which
-never rotates a container’s log. A `--log-opt` on dockerd’s command line is
-not read.
+never rotates a container’s log. A `--log-opt`, `--log-driver` or
+`--config-file` on `docker.service`’s `ExecStart` skips it, since the file is
+then not the whole setting; snap Docker’s own `daemon.json` is not read.
 
 ## systemd units
 
@@ -512,10 +513,11 @@ systemd:
 Both `enabled` and `masked` come from the files, so they read the same live and
 under `--root`.
 
-`units/failed` fails an enabled, unmasked unit whose `active` is `failed`, one
-schema over the whole entry, so a unit with no `active` (`--root`, no
-manager) or no `enabled` (one only the manager knows) is skipped. A failed
-unit leaves `systemctl is-system-running` at `degraded`, which hides the next
+`units/failed` fails an unmasked unit on disk whose `active` is `failed`, enabled
+or not (a static service a timer or socket starts counts), one schema over the
+whole entry, so a unit with no `active` (`--root`, no manager) or no
+`masked` (one only the manager knows, a transient unit or a template
+instance) is skipped. A failed unit leaves `systemctl is-system-running` at `degraded`, which hides the next
 failure from a monitor; a stale snap mount whose revision snapd removed is one.
 
 ## ufw

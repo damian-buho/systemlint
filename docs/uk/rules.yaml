@@ -4460,7 +4460,7 @@ org:
               - units
               - systemd
               - stability
-            title: An enabled unit has failed
+            title: A unit has failed
           - id: unused-services/apport
             ruleset: unused-services
             score: 1.0
