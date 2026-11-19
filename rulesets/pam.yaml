@@ -30,6 +30,7 @@ rules:
     severity: error
     score: 9.0
     message: "{subject} lets pam_permit, which always succeeds, settle its auth stack, so anyone who reaches a service using it logs in without a password"
+    rationale: anyone who can reach the service logs in as any user without knowing a password
     fix: remove the “pam_permit” auth line from {subject}, or make it “required” behind a module that checks a credential
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_permit.8.html
     tags: [auth, pam]
@@ -47,6 +48,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} passes nullok to pam_unix, so an account whose password is empty logs in by pressing Enter"
+    rationale: anyone who knows a username with no password set can log in by pressing Enter
     fix: remove “nullok” from the “pam_unix” auth line in {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
     tags: [auth, pam]
@@ -59,6 +61,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} checks passwords with pam_unix but never calls pam_faillock, so an attacker may guess passwords without limit"
+    rationale: an attacker can try thousands of passwords against an account and is never shut out
     fix:
       - 'On Debian and Ubuntu, never edit the file itself, since “pam-auth-update” rewrites it; write “/usr/share/pam-configs/faillock” with these lines:'
       - lines: ["Name: Lock out an account after failed logins", "Default: yes", "Priority: 0", "Auth-Type: Primary", "Auth:", "        [default=die] pam_faillock.so authfail"]
@@ -85,6 +88,7 @@ rules:
     severity: warning
     score: 3.0
     message: "{subject} passes remember= to pam_unix, which keeps old password hashes in /etc/security/opasswd in a format pam_pwhistory has replaced"
+    rationale: old password hashes pile up in a file in a format the newer history module no longer reads or trims
     fix:
       - 'Remove “remember=” from the “pam_unix” lines in {subject}.'
       - 'To keep a password history, set “remember=” on the “pam_pwhistory” line instead.'
@@ -105,6 +109,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} calls pam_unix to set passwords without sha512 or yescrypt, so the scheme of each new hash comes from ENCRYPT_METHOD in /etc/login.defs"
+    rationale: a new password may be stored with a weak hash that is cheap to crack once the shadow file leaks
     fix:
       - 'Add “yescrypt”, or “sha512”, to the “pam_unix” password line of its profile in “/usr/share/pam-configs”.'
       - 'Apply the profiles:'
@@ -119,6 +124,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} never calls pam_unix, so local accounts are not checked against /etc/passwd and /etc/shadow in this stack"
+    rationale: local users cannot be checked against the system’s own password files in this stack, so logins fail or fall to some other source
     fix: enable the Unix authentication profile with “pam-auth-update --enable unix”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_unix.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.2.1]
@@ -130,6 +136,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} never calls pam_pwquality, so a new password is not checked against a dictionary or a minimum length"
+    rationale: a user can set a password like “1234” or “password” because nothing checks it
     fix: install libpam-pwquality, which adds “pam_pwquality” to {subject} through “pam-auth-update”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
     references:
@@ -142,6 +149,7 @@ rules:
     severity: info
     score: 1.0
     message: "no pam_pwquality.so is under /usr/lib or /lib, so no PAM stack can check a new password’s strength"
+    rationale: no login service can reject a weak new password because the checking module is not on the host
     fix: install libpam-pwquality (“apt install libpam-pwquality” on Ubuntu)
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
     tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-100600, '!default']
@@ -153,6 +161,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} never calls pam_pwhistory, so a user may set a password they used before"
+    rationale: a user forced to change a leaked password can simply set it back to the same one
     fix:
       - 'Add a “pam_pwhistory” profile under “/usr/share/pam-configs”.'
       - 'Turn it on:'
@@ -174,6 +183,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has no required pam_wheel line with use_uid and group=, so every user may try root’s password through su"
+    rationale: any local user who steals or guesses root’s password can become root with su
     fix: add “auth required pam_wheel.so use_uid group=<an empty group>” to {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_wheel.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.2.7]
@@ -185,6 +195,7 @@ rules:
     severity: info
     score: 2.0
     message: "/etc/security/faillock.conf sets deny to {got}, so an account takes more than ${faillock-deny} wrong passwords, or with 0 any number, before it locks"
+    rationale: an attacker gets many more password guesses per account before it locks, or never gets locked out at all
     fix: set “deny = ${faillock-deny}” or less in “/etc/security/faillock.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.1]
@@ -196,6 +207,7 @@ rules:
     severity: info
     score: 2.0
     message: "/etc/security/faillock.conf leaves unlock_time below ${faillock-unlock-time} seconds (unset is 600), so a password guesser resumes soon after each lockout"
+    rationale: a locked account reopens within minutes, so a guesser only pauses briefly before trying again
     fix: set “unlock_time = ${faillock-unlock-time}” or more, or “unlock_time = 0” to keep accounts locked until an administrator runs “faillock --reset”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.2]
@@ -211,6 +223,7 @@ rules:
     severity: info
     score: 2.0
     message: "/etc/security/faillock.conf sets neither even_deny_root nor a root_unlock_time of ${faillock-root-unlock-time} seconds or more, so root’s password may be guessed without a lockout"
+    rationale: an attacker can guess root’s password for as long as they like without ever locking the account
     fix: add “even_deny_root” with “root_unlock_time = ${faillock-root-unlock-time}” or more to “/etc/security/faillock.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/faillock.conf.5.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.1.3, '!default']
@@ -222,6 +235,7 @@ rules:
     severity: info
     score: 2.0
     message: "/etc/security/pwhistory.conf keeps fewer than ${pwhistory-remember} old passwords (unset is 10), so a user may cycle back to an old one"
+    rationale: a user cycles through a few new passwords and lands back on a leaked old one
     fix: set “remember = ${pwhistory-remember}” or more in “/etc/security/pwhistory.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwhistory.conf.5.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.3.1, '!default']
@@ -235,6 +249,7 @@ rules:
     severity: info
     score: 2.0
     message: "neither /etc/security/pwhistory.conf nor the pam_pwhistory line sets enforce_for_root, so root changing a password may reuse an old one"
+    rationale: root can set a password back to one that was already leaked or shared
     fix: add “enforce_for_root” to “/etc/security/pwhistory.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwhistory.8.html
     tags: [auth, pam, cis-ubuntu-26.04:5.3.3.3.2, '!default']
@@ -247,6 +262,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} calls pam_pwhistory without use_authtok, so it prompts for the new password instead of taking the one pam_pwquality checked"
+    rationale: the history module asks for the new password a second time and may check a different one than the one the strength check approved
     fix:
       - 'Add “use_authtok” to the “pam_pwhistory” line of its profile in “/usr/share/pam-configs”.'
       - 'Apply the profiles:'
@@ -261,6 +277,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} calls pam_unix to set passwords without use_authtok, so it may prompt for a new password the modules before it never checked"
+    rationale: a new password typed again at the pam_unix prompt can skip the strength and history checks that ran before it
     fix:
       - 'Add “use_authtok” to the “pam_unix” password line of its profile in “/usr/share/pam-configs”.'
       - 'Apply the profiles:'
@@ -280,6 +297,7 @@ rules:
     severity: info
     score: 1.0
     message: "/etc/security/faillock.conf does not set deny 1 to ${stig-faillock-deny}, unlock_time 0 and fail_interval ${stig-faillock-fail-interval} or more, as the STIG asks"
+    rationale: a locked account reopens by itself, so a patient attacker keeps guessing without an administrator ever noticing
     fix:
       - 'Set these lines in “/etc/security/faillock.conf”:'
       - lines: ['deny = ${stig-faillock-deny}', 'fail_interval = ${stig-faillock-fail-interval}', 'unlock_time = 0']
@@ -293,6 +311,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has no auth line calling pam_faildelay with delay=${stig-faildelay} or more microseconds, so a password guesser may retry at once"
+    rationale: an attacker gets an instant answer to each wrong password and can guess far faster
     fix: add “auth required pam_faildelay.so delay=${stig-faildelay}” to {subject} through a profile in “/usr/share/pam-configs”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_faildelay.8.html
     tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-300017, '!default']
@@ -303,6 +322,7 @@ rules:
     severity: info
     score: 1.0
     message: "no limits file sets * hard maxlogins ${stig-maxlogins} or less, so each account may log in any number of times at once"
+    rationale: one stolen account can hold any number of sessions at once, so a runaway or hostile login can exhaust the machine
     fix: add “* hard maxlogins ${stig-maxlogins}” to “/etc/security/limits.d/50-maxlogins.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/limits.conf.5.html
     tags: [auth, pam, stig-ubuntu-26.04:UBTU-24-200000, '!default']

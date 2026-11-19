@@ -15,6 +15,7 @@ rules:
     severity: error
     score: 9.5
     message: "{subject} is writable by every user, who can then act as root through it"
+    rationale: any local user can change the file and so run their own commands as root
     fix: run “chmod o-w” on the file
     remedy: {chmod: o-w}
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
@@ -30,6 +31,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} is writable by its group, whose every member can then act as root through it"
+    rationale: any member of that group can change the file and so run their own commands as root
     fix: run “chmod g-w” on the file, or check that only administrators are in its group
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
     references:
@@ -43,6 +45,7 @@ rules:
     severity: error
     score: 8.0
     message: "{subject} is owned by uid {got}, not root, so that user can change it"
+    rationale: that user can rewrite the file and take over whatever root runs from it
     fix: run “chown root” on the file
     remedy: {chown: 0}
     docs: https://man7.org/linux/man-pages/man7/inode.7.html
@@ -57,6 +60,7 @@ rules:
     severity: error
     score: 8.5
     message: "{subject} has mode {got}; password hashes need 0640 or stricter, readable by root and the shadow group alone"
+    rationale: a user who can read the password hashes can crack them offline and log in as anyone
     fix: run “chmod 0640” on the file
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
@@ -68,6 +72,7 @@ rules:
     severity: error
     score: 8.5
     message: "{subject} has mode {got}; a private host key needs 0600, or 0640 for an ssh_keys group, or any user can impersonate this host"
+    rationale: a user who reads the private key can pose as this server and capture the passwords of people who log in
     fix: run “chmod 0600” on the key
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://man.openbsd.org/sshd#FILES
@@ -80,6 +85,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} has mode {got}, so every user reads the logins and passwords APT uses for private repositories and proxies"
+    rationale: any local user can read the logins and passwords for private package repositories and proxies
     fix: run “chmod 0640” on the file, or “chmod 0600”
     remedy: {chmod: o-r}
     docs: https://manpages.debian.org/unstable/apt/apt_auth.conf.5.en.html
@@ -92,6 +98,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}, beyond 0644, so someone other than root may rewrite the accounts it lists, or it carries an execute or special bit no database needs"
+    rationale: a user who can rewrite the account list can add an account with root’s rights or unlock one without a password
     fix: run “chmod 0644” on the file
     remedy: {chmod: "u-xs,g-wxs,o-wxt"}
     docs: https://manpages.debian.org/unstable/manpages/passwd.5.en.html
@@ -104,6 +111,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has mode {got}; the benchmark asks 0600, so a GRUB password hash in it reaches no other user"
+    rationale: any local user can read the boot password hash and crack it offline to edit the boot menu
     fix: run “chmod 0600” on the file, and keep it so across “update-grub” with a password set in “/etc/grub.d”
     remedy: {chmod: "g-rwxs,o-rwxt"}
     docs: https://www.gnu.org/software/grub/manual/grub/html_node/Authentication-and-authorisation.html
@@ -116,6 +124,7 @@ rules:
     severity: info
     score: 2.0
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so other users cannot read what is watched and plan around it"
+    rationale: any local user can read what the audit system watches and choose actions that go unrecorded
     fix: run “chmod 0640” on the file
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
@@ -128,6 +137,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the benchmark asks group root, so no other group’s change of mode can open it"
+    rationale: a member of another group could be given access to the account list when its mode changes, and rewrite who may log in
     fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.debian.org/unstable/manpages/passwd.5.en.html
@@ -141,6 +151,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} belongs to gid {got}, so that group’s members can read the password hashes its mode lets the group read"
+    rationale: every member of that group can read the password hashes and crack them offline
     fix: run “chgrp shadow” on the file
     docs: https://manpages.debian.org/unstable/passwd/shadow.5.en.html
     tags: [files, cis-ubuntu-26.04:7.1.5, cis-ubuntu-26.04:7.1.6, cis-ubuntu-26.04:7.1.7, cis-ubuntu-26.04:7.1.8, dev-sec-linux-baseline:os-02]
@@ -151,6 +162,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the benchmark asks group root, so no other group’s change of mode can let it rewrite what is audited"
+    rationale: members of another group could rewrite what the audit system records, and cover their tracks
     fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
@@ -163,6 +175,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}, beyond 0755, so someone other than root may swap the tool that reads or changes the audit trail, or it runs with a set-ID or sticky bit it does not need"
+    rationale: a user who can replace an audit tool can hide their own actions, or run their own code with the tool’s rights
     fix: run “chmod 0755” on the file
     remedy: {chmod: "ugo-st,go-w"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditctl.8.html
@@ -175,6 +188,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not root, so the members of that group get the group’s access to a tool that reads or changes the audit trail"
+    rationale: members of that group can tamper with the tools that read or change the audit trail and so erase evidence
     fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/auditctl.8.html
@@ -187,6 +201,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts, so those users get the group’s access to code every program loading it runs"
+    rationale: any member of that group can modify code that every program loading the library runs, root’s programs included
     fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
@@ -199,6 +214,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not root, so the members of that group get the group’s access to a directory programs load their libraries from"
+    rationale: members of that group can drop in a replacement library that programs, root’s included, then load
     fix: run “chgrp 0” on the directory
     remedy: {chgrp: 0}
     docs: https://man7.org/linux/man-pages/man8/ld.so.8.html
@@ -210,6 +226,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts, so those users get the group’s access to a command root and every user run"
+    rationale: any member of that group can change a command that root and every user run, and so run their code as root
     fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/chgrp.1.html

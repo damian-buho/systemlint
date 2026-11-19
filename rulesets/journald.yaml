@@ -20,6 +20,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is enabled or running, so any host that reaches its port can write entries into this host’s journal, flooding the disk or forging records"
+    rationale: any host that reaches the port can fill the disk with junk or write forged records that hide a real attack
     fix:
       - 'Unless this host collects other hosts’ logs, stop the service and keep it from starting:'
       - run: 'systemctl mask --now {subject}'
@@ -35,6 +36,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is {got}, so programs that log to the journal or to syslog lose what they write"
+    rationale: messages from services and from the system itself vanish, so an intrusion or a crash leaves no trace
     fix:
       - 'Let the service start again, and start it:'
       - run: 'systemctl unmask {subject}'
@@ -57,6 +59,7 @@ rules:
     severity: info
     score: 1.0
     message: "journald.conf and its drop-ins leave ForwardToSyslog off while rsyslog is installed; the benchmark asks rsyslog to receive every entry"
+    rationale: entries never reach rsyslog, so a remote log server or a syslog file misses everything the journal holds
     fix:
       - 'Write these lines to “/etc/systemd/journald.conf.d/60-journald.conf”:'
       - lines: ['[Journal]', 'ForwardToSyslog=yes']
@@ -74,6 +77,7 @@ rules:
     severity: info
     score: 1.0
     message: "journald.conf and its drop-ins do not set Storage=persistent, so the journal stays in memory, lost at reboot, unless /var/log/journal happens to exist"
+    rationale: a reboot, which an attacker can trigger, erases the logs that show what happened before it
     fix:
       - 'Write these lines to “/etc/systemd/journald.conf.d/60-journald.conf”:'
       - lines: ['[Journal]', 'Storage=persistent']
@@ -92,6 +96,7 @@ rules:
     severity: info
     score: 1.0
     message: "journald.conf or a drop-in turns Compress off, so large journal entries fill the disk sooner"
+    rationale: large entries take more disk space, so logs fill the disk sooner and the oldest records are dropped
     fix:
       - 'Remove the “Compress” line under “[Journal]” in the journald files, or set “Compress=yes” there.'
       - 'Restart journald:'
@@ -106,6 +111,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the STIG asks 2750 or stricter, so other users cannot list the journal"
+    rationale: other users can list the journal directory and see which machines and services have logs
     fix: run “chmod 2750” on the directory, or set the mode through a “tmpfiles.d” override of “systemd.conf”
     remedy: {chmod: "u-s,g-w,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
@@ -118,6 +124,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the STIG asks 0640 or stricter"
+    rationale: any user can read the journal and see other users’ commands, addresses and errors that help plan an attack
     fix: run “chmod 0640” on the file
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
@@ -129,6 +136,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, so that user can rewrite or truncate the journal"
+    rationale: that user can edit or empty the journal and erase the record of what they did
     fix: run “chown root” on the path
     remedy: {chown: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
@@ -140,6 +148,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, not systemd-journal ({same})"
+    rationale: the wrong group’s members can read, or write to, the journal, and the right group may lose its access
     fix: run “chgrp systemd-journal” on the path
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
     tags: [journald, logging, stig-ubuntu-26.04:UBTU-24-700060, stig-ubuntu-26.04:UBTU-24-700070, '!default']
@@ -150,6 +159,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the STIG asks 0740, so only root and its group run it"
+    rationale: every user can run journalctl and read logs that hold other people’s activity
     fix:
       - 'Let only root and its group run it:'
       - run: 'chmod 0740 {subject}'
@@ -165,6 +175,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is owned by uid {got}, so that user can replace it"
+    rationale: that user can replace journalctl with a program of their own that runs with the rights of whoever starts it
     fix: run “chown root” on the file
     remedy: {chown: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/journalctl.1.html
@@ -176,6 +187,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the STIG asks group root"
+    rationale: members of another group get access to the log-reading tool and, through it, to the logs
     fix: run “chgrp 0” on the file
     remedy: {chgrp: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/journalctl.1.html

@@ -19,6 +19,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} still fetches suite {got}, not this host’s release, so its packages stop following the host"
+    rationale: the host stops getting new package versions and security fixes from that source, and its old packages can clash with the rest of the system
     suggest: {fact: apt.sources.*.suggested-suites, otherwise: the host’s VERSION_CODENAME}
     fix: set the suite to {suggested}, or waive it when the vendor publishes no newer suite
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
@@ -31,6 +32,7 @@ rules:
     severity: error
     score: 7.5
     message: "{subject} fetches {got}, built for another release than this host’s"
+    rationale: the source serves packages built for a different release, which can break the system or leave it unpatched
     suggest: {fact: apt.sources.*.suggested-uris, otherwise: the vendor’s path for this release}
     fix: point the source at {suggested}, or waive it when the vendor publishes no build for this release
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
@@ -43,6 +45,7 @@ rules:
     severity: warning
     score: 4.0
     message: "{subject} pins a version in its URI {got}, which no upgrade moves"
+    rationale: the source stays on one old version forever, so its fixes never arrive and nobody notices
     fix: point the source at the vendor’s current release path, and review it at every upgrade
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
@@ -54,6 +57,7 @@ rules:
     severity: warning
     score: 5.5
     message: "{subject} has no Signed-By, so any key in the shared keyrings can sign it"
+    rationale: a key stolen from any other repository could be used to publish a package that this host installs as trusted
     fix: download the vendor key to “/etc/apt/keyrings”, and name it in the source’s “Signed-By”
     docs: https://wiki.debian.org/DebianRepository/UseThirdParty
     tags: [apt]
@@ -65,6 +69,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} trusts {got}, a keyring apt also trusts for every source without Signed-By"
+    rationale: a key added for one vendor lets that vendor, or anyone who steals its key, sign packages for every other source on the host
     fix: move the key to “/etc/apt/keyrings”, and name it in the source’s “Signed-By”
     docs: https://wiki.debian.org/DebianRepository/UseThirdParty
     tags: [apt]
@@ -76,6 +81,7 @@ rules:
     severity: warning
     score: 6.0
     message: "{subject} fetches over {got}, which shows every package name to the network and lets it withhold updates"
+    rationale: anyone on the network path can read which packages are installed, hold back updates, or swap in a different package
     fix: switch the source to “https://”
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
@@ -87,6 +93,7 @@ rules:
     severity: error
     score: 9.5
     message: "{subject} sets {got}, which switches off apt’s signature checks"
+    rationale: anyone who can intercept the connection can hand the host any package and apt installs it as root without complaint
     fix: remove {got} from the source, and give it a “Signed-By” key
     remedy: {disable-line: apt-list}
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
@@ -99,6 +106,7 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} lists nothing that {got} does not list already"
+    rationale: the same repository is fetched twice and a later edit to one entry leaves the other behind, so the host mixes old and new settings
     fix:
       - Remove this entry.
       - 'Then refresh the package lists:'
@@ -114,6 +122,7 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} lists some of the same suites and components as {got}"
+    rationale: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour
     fix:
       - List each suite and component in one entry only.
       - 'Then refresh the package lists:'
@@ -128,6 +137,7 @@ rules:
     severity: error
     score: 8.5
     message: "{subject} and {got} name one repository with different Signed-By keys, so apt refuses to update"
+    rationale: updates from that repository stop working, so the host quietly stops receiving its packages
     fix: give the entries the same “Signed-By”, or remove one of them
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
@@ -139,6 +149,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} has an expired Release file {got}, so apt installs nothing new from it until an update succeeds"
+    rationale: the host cannot install or update anything from that source, and its fixes stop arriving
     fix: run “sudo apt update”, and fix the error it reports for the source
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt]
@@ -160,6 +171,7 @@ rules:
     severity: warning
     score: 6.5
     message: "No enabled apt source fetches a -security suite, so this release’s security fixes never reach the host"
+    rationale: known vulnerabilities in installed packages stay open because their fixes are never downloaded
     fix: add the release’s security suite, such as “noble-security” from “security.ubuntu.com” or “trixie-security” from “security.debian.org”
     docs: https://wiki.debian.org/SourcesList
     references:
@@ -172,6 +184,7 @@ rules:
     severity: error
     score: 9.5
     message: "APT::Get::AllowUnauthenticated is on, so apt-get installs a package it could not verify, from any mirror or attacker in the path, without asking"
+    rationale: a mirror or anyone on the network can have the host install a forged package as root
     fix: remove “APT::Get::AllowUnauthenticated” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"false"”
     docs: https://manpages.debian.org/unstable/apt/apt-get.8.en.html
     tags: [apt, stig-ubuntu-26.04:UBTU-24-300001]
@@ -182,6 +195,7 @@ rules:
     severity: error
     score: 9.5
     message: "Acquire::AllowInsecureRepositories is on, so apt update accepts package lists with no valid signature, and a mirror or attacker in the path chooses what gets installed"
+    rationale: a forged package list from a mirror or anyone on the network path gets accepted and its packages installed
     fix: remove “Acquire::AllowInsecureRepositories” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"0"”
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.12]
@@ -192,6 +206,7 @@ rules:
     severity: error
     score: 7.5
     message: "Acquire::AllowWeakRepositories is on, so apt update accepts package lists signed with a broken hash or key, which an attacker can forge"
+    rationale: an attacker can forge a package list signed with a broken hash or key and have the host install their packages
     fix: remove “Acquire::AllowWeakRepositories” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"0"”
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.13]
@@ -202,6 +217,7 @@ rules:
     severity: error
     score: 8.0
     message: "Acquire::AllowDowngradeToInsecureRepositories is on, so an attacker in the path who strips a signed repository’s signature has apt read it unsigned"
+    rationale: an attacker on the network path can remove a repository’s signature and have the host install their packages unchecked
     fix: remove “Acquire::AllowDowngradeToInsecureRepositories” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"0"”
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.14]
@@ -212,6 +228,7 @@ rules:
     severity: warning
     score: 5.0
     message: "Acquire::Check-Date is off, so apt stops checking a Release file’s date, and a mirror can serve metadata held back from updates without apt noticing"
+    rationale: a mirror can replay an old package list, keeping the host on versions with known holes while apt reports everything up to date
     fix: remove “Acquire::Check-Date” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"true"”
     docs: https://manpages.debian.org/unstable/apt/apt.conf.5.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.15]
@@ -225,6 +242,7 @@ rules:
     severity: info
     score: 2.0
     message: "APT::Install-Recommends or APT::Install-Suggests is on, so every install pulls in packages nobody asked for, each one more to patch"
+    rationale: every install brings along extra packages nobody asked for, each adding code that needs patching and can hold a vulnerability
     remedy: {drop-in: {into: apt, name: skip-recommends-and-suggests, lines: ['APT::Install-Recommends "0";', 'APT::Install-Suggests "0";']}}
     docs: https://manpages.debian.org/unstable/apt/apt.conf.5.en.html
     tags: [apt, cis-ubuntu-26.04:1.2.1.2]

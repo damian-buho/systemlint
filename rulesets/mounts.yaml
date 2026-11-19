@@ -15,6 +15,7 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} is mounted without nosuid, so a set-user-ID file left in this directory every user writes runs with its owner’s rights"
+    rationale: anyone can leave a program that runs with its owner’s rights, root’s included, in a directory every user can write
     fix:
       - 'Add “nosuid” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
       - 'Apply it now, without a reboot:'
@@ -32,6 +33,7 @@ rules:
     severity: warning
     score: 4.5
     message: "{subject} is mounted without nodev, so a device file unpacked into this directory every user writes opens the device it names"
+    rationale: anyone can create a device file in a directory every user can write and read or overwrite the disk or memory it names
     fix:
       - 'Add “nodev” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
       - 'Apply it now, without a reboot:'
@@ -49,6 +51,7 @@ rules:
     severity: warning
     score: 3.5
     message: "{subject} is mounted without noexec, so a program anyone drops into this directory every user writes runs straight from it"
+    rationale: any user can place a program in a directory every user can write and run it from there
     fix:
       - 'Add “noexec” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
       - 'Apply it now, without a reboot:'
@@ -103,6 +106,7 @@ rules:
     severity: warning
     score: 4.5
     message: "/etc/fstab mounts {subject} without nosuid, so a set-user-ID file left in this directory every user writes runs with its owner’s rights"
+    rationale: after the next boot anyone can leave a program that runs with its owner’s rights, root’s included, in a directory every user can write
     fix: add “nosuid” to the options of {subject} in “/etc/fstab”
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     references:
@@ -117,6 +121,7 @@ rules:
     severity: warning
     score: 4.5
     message: "/etc/fstab mounts {subject} without nodev, so a device file unpacked into this directory every user writes opens the device it names"
+    rationale: after the next boot anyone can create a device file in a directory every user can write and read or overwrite the disk or memory it names
     fix: add “nodev” to the options of {subject} in “/etc/fstab”
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     references:
@@ -131,6 +136,7 @@ rules:
     severity: warning
     score: 3.5
     message: "/etc/fstab mounts {subject} without noexec, so a program anyone drops into this directory every user writes runs straight from it"
+    rationale: after the next boot any user can place a program in a directory every user can write and run it from there
     fix: add “noexec” to the options of {subject} in “/etc/fstab”
     docs: https://man7.org/linux/man-pages/man5/fstab.5.html
     references:
@@ -144,6 +150,7 @@ rules:
     severity: info
     score: 1.0
     message: "/tmp is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    rationale: a user who fills /tmp can stop the whole system from writing files, and /tmp cannot be locked against programs and device files
     fix:
       - 'Give “/tmp” its own partition, logical volume or tmpfs.'
       - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/tmp”.'
@@ -157,6 +164,7 @@ rules:
     severity: info
     score: 1.0
     message: "/dev/shm is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    rationale: a user who fills /dev/shm can stop the whole system from writing files, and it cannot be locked against programs and device files
     fix:
       - 'Give “/dev/shm” its own partition, logical volume or tmpfs.'
       - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/dev/shm”.'
@@ -170,6 +178,7 @@ rules:
     severity: info
     score: 1.0
     message: "/home is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    rationale: one user’s huge files can fill the disk for everyone, and /home cannot be locked against set-user-ID programs and device files
     fix:
       - 'Give “/home” its own partition, logical volume or tmpfs.'
       - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/home”.'
@@ -183,6 +192,7 @@ rules:
     severity: info
     score: 1.0
     message: "/var is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    rationale: growing logs, caches or spools can fill the disk the system itself runs from and bring services down
     fix:
       - 'Give “/var” its own partition, logical volume or tmpfs.'
       - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/var”.'
@@ -196,6 +206,7 @@ rules:
     severity: info
     score: 1.0
     message: "/var/tmp is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    rationale: a user who fills /var/tmp can stop the whole system from writing files, and it cannot be locked against programs and device files
     fix:
       - 'Give “/var/tmp” its own partition, logical volume or tmpfs.'
       - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/var/tmp”.'
@@ -209,6 +220,7 @@ rules:
     severity: info
     score: 1.0
     message: "/var/log is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    rationale: a flood of log lines can fill the disk the system runs from, and the logs an attacker would erase sit with everything else
     fix:
       - 'Give “/var/log” its own partition, logical volume or tmpfs.'
       - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/var/log”.'
@@ -222,6 +234,7 @@ rules:
     severity: info
     score: 1.0
     message: "/var/log/audit is no mount of its own, so filling it fills the file system it shares, and its mount options cannot differ"
+    rationale: a flood of audit records can fill the disk the system runs from, and once it is full the system halts or stops recording
     fix:
       - 'Give “/var/log/audit” its own partition, logical volume or tmpfs.'
       - 'Mount it at boot from a line in “/etc/fstab” or a “.mount” unit for “/var/log/audit”.'
@@ -236,6 +249,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is mounted without nodev, so a device file on this data mount, unpacked from an archive or an image, gives raw access to the disk or memory it names"
+    rationale: a device file smuggled in on this disk, for instance inside an archive or an image, lets a user read or overwrite the disk or memory it names
     fix:
       - 'Add “nodev” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
       - 'Apply it now, without a reboot:'
@@ -251,6 +265,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is mounted without nosuid, so a set-user-ID program on this data mount runs as its owner, root included, though no package installed it"
+    rationale: a program with the set-user-ID bit placed on this disk runs with its owner’s rights, root’s included
     fix:
       - 'Add “nosuid” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
       - 'Apply it now, without a reboot:'
@@ -266,6 +281,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} is mounted without noexec; the benchmark asks it on this data mount"
+    rationale: a program an attacker writes to this data disk can be run straight from it
     fix:
       - 'Add “noexec” to the options of {subject} where it is mounted from: its line in “/etc/fstab”, or the “Options=” line of its “.mount” unit.'
       - 'Apply it now, without a reboot:'
@@ -280,6 +296,7 @@ rules:
     severity: info
     score: 1.0
     message: "/proc is mounted without hidepid, so every user reads every other user’s processes and their command lines, a password passed as an argument included"
+    rationale: any user can see what every other user runs and read command lines, so a password typed as an argument leaks
     fix:
       - 'Add “hidepid=invisible,gid=<group>” to the options of “/proc” in “/etc/fstab”, where “<group>” is a group polkit and your monitoring run in.'
       - 'Apply it now, without a reboot:'

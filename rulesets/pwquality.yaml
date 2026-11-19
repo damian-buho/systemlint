@@ -22,6 +22,7 @@ rules:
     severity: info
     score: 2.0
     message: "pwquality.conf leaves minlen unset (8) or below ${pwquality-minlen}, so a new password that short is accepted"
+    rationale: short passwords are accepted and fall quickly to guessing
     fix: set “minlen = ${pwquality-minlen}” in “/etc/security/pwquality.conf.d/50-pwlength.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     references:
@@ -35,6 +36,7 @@ rules:
     severity: warning
     score: 3.0
     message: "pwquality.conf leaves minlen unset (8) or below ${pwquality-single-factor-minlen}, so a password that alone guards a login may be short enough to guess offline from its hash"
+    rationale: a password that is the only thing guarding a login can be short enough to crack from its stolen hash
     fix: set “minlen = ${pwquality-single-factor-minlen}” in “/etc/security/pwquality.conf.d/50-pwlength.conf”
     docs: https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver
     references:
@@ -53,6 +55,7 @@ rules:
     severity: warning
     score: 3.0
     message: "pwquality.conf sets {field} to {got}, a positive credit, so each such character counts as an extra one and a password shorter than minlen is accepted"
+    rationale: a short password padded with a few digits or symbols counts as long enough and is easy to crack
     fix: set “{field} = 0” in “/etc/security/pwquality.conf”, or a negative value to require that class
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.3]
@@ -70,6 +73,7 @@ rules:
     severity: info
     score: 2.0
     message: "pwquality.conf sets {field} to {got}, a composition rule, which steers people to predictable patterns such as a capital first and a digit and a symbol last"
+    rationale: people follow the rule with a predictable pattern like Password1!, which attackers try first
     fix:
       - 'Remove “{field}” from “/etc/security/pwquality.conf” and from every file in “/etc/security/pwquality.conf.d/”.'
       - 'Leave password strength to “minlen” and “dictcheck”.'
@@ -86,6 +90,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves ucredit unset (0) or above -1, so a new password needs no uppercase letter"
+    rationale: a password made only of lowercase letters and digits is accepted, and it has far fewer combinations to guess
     fix: set “ucredit = -1” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400260, '!default']
@@ -98,6 +103,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves lcredit unset (0) or above -1, so a new password needs no lowercase letter"
+    rationale: a password with no lowercase letter is accepted, which shrinks the number of combinations an attacker must guess
     fix: set “lcredit = -1” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400270, '!default']
@@ -110,6 +116,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves dcredit unset (0) or above -1, so a new password needs no digit"
+    rationale: a password with no digit is accepted, which shrinks the number of combinations an attacker must guess
     fix: set “dcredit = -1” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400280, '!default']
@@ -122,6 +129,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves ocredit unset (0) or above -1, so a new password needs no special character"
+    rationale: a password with no symbol is accepted, which shrinks the number of combinations an attacker must guess
     fix: set “ocredit = -1” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400330, '!default']
@@ -134,6 +142,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves difok unset (1) or below ${pwquality-difok}, so a new password may differ from the old one in a single character"
+    rationale: a user can change a leaked password by one letter and an attacker who knew the old one guesses the new one at once
     fix: set “difok = ${pwquality-difok}” in “/etc/security/pwquality.conf.d/50-pwdifok.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.1, '!default']
@@ -145,6 +154,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves difok unset (1) or below ${pwquality-stig-difok}, so a new password may keep most characters of the old one"
+    rationale: a user can keep most of a leaked password and an attacker who knew the old one guesses the new one quickly
     fix: set “difok = ${pwquality-stig-difok}” in “/etc/security/pwquality.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, stig-ubuntu-26.04:UBTU-24-400290, '!default']
@@ -156,6 +166,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves maxrepeat unset or outside 1 to ${pwquality-maxrepeat}, so a new password may run one character many times over"
+    rationale: passwords like “aaaaaaaa1” are accepted, and attackers try them early
     fix: set “maxrepeat = ${pwquality-maxrepeat}” in “/etc/security/pwquality.conf.d/50-pwrepeat.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.4, '!default']
@@ -167,6 +178,7 @@ rules:
     severity: info
     score: 1.0
     message: "pwquality.conf leaves maxsequence unset or outside 1 to ${pwquality-maxsequence}, so a new password may hold a run such as 12345 or abcde"
+    rationale: passwords like “abcde123” are accepted, and attackers try such runs early
     fix: set “maxsequence = ${pwquality-maxsequence}” in “/etc/security/pwquality.conf.d/50-pwmaxsequence.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.5, '!default']
@@ -182,6 +194,7 @@ rules:
     severity: warning
     score: 4.0
     message: "pwquality.conf or the pam_pwquality line of /etc/pam.d/common-password sets dictcheck to 0, so a new password that is a dictionary word is accepted"
+    rationale: a common word or a leaked password is accepted and falls to a dictionary attack in seconds
     fix:
       - 'Remove “dictcheck = 0” from “/etc/security/pwquality.conf” and from every file in “/etc/security/pwquality.conf.d/”.'
       - 'Remove “dictcheck=0” from the “pam_pwquality” line under “/etc/pam.d/”.'
@@ -201,6 +214,7 @@ rules:
     severity: warning
     score: 4.0
     message: "pwquality.conf or the pam_pwquality line of /etc/pam.d/common-password sets enforcing to 0, so pam_pwquality prints its objection and accepts the weak password anyway"
+    rationale: users see the warning, set the weak password anyway, and the check protects nothing
     fix:
       - 'Remove “enforcing = 0” from “/etc/security/pwquality.conf” and from every file in “/etc/security/pwquality.conf.d/”.'
       - 'Remove “enforcing=0” from the “pam_pwquality” line under “/etc/pam.d/”.'
@@ -215,6 +229,7 @@ rules:
     severity: info
     score: 2.0
     message: "neither pwquality.conf nor the pam_pwquality line sets enforce_for_root, so root changing a password is only warned about a weak one"
+    rationale: root can set a weak password for itself, and root’s password is the one worth most to an attacker
     fix: add “enforce_for_root” to “/etc/security/pwquality.conf.d/50-pwroot.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.8, '!default']
