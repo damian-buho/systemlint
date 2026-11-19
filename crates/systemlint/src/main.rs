@@ -126,7 +126,7 @@ enum Command {
         format: Option<FactsFormat>,
     },
     /// Check a saved facts document, or facts collected now
-    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint check\n  systemlint check host.facts.yaml --tags sshd,apt\n  systemlint check --root rootfs --format sarif -o systemlint.sarif")]
+    #[command(help_template = TEMPLATE, before_help = "Examples:\n  systemlint check\n  systemlint check --all\n  systemlint check host.facts.yaml --tags sshd,apt\n  systemlint check --root rootfs --format sarif -o systemlint.sarif")]
     #[command(
         after_help = "Exit codes: 0 clean, 1 failures at --fail-on, 2 bad arguments, 4 a plugin or collector refused, 5 config or rules, 6 unreadable facts or --root, 7 --output can’t be written, 70 no random hash key.\nDocs: https://kiota.ch/damian-buho/systemlint/src/branch/main/docs/how-to/rules.md#check-output-and-exit-codes"
     )]
@@ -136,6 +136,9 @@ enum Command {
         /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, a standard-only rule by its ID or a standard tag (cis-*:*), !x removes [default: check.tags, else default]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
+        /// Run every rule, standard-only ones included, as --tags all does
+        #[arg(long, conflicts_with = "tags")]
+        all: bool,
         /// Settle a conflict for the side holding a tag GLOB matches, comma-separated or repeated (cis-ubuntu-26.04:*) [default: check.prefer]
         #[arg(long, value_name = "GLOB", value_delimiter = ',')]
         prefer: Vec<String>,
@@ -343,6 +346,7 @@ fn main() -> ExitCode {
         Command::Check {
             input,
             tags,
+            all,
             prefer,
             fail_on,
             vars,
@@ -351,7 +355,15 @@ fn main() -> ExitCode {
         } => ExitCode::from(lint(
             &config,
             &input,
-            &Selection { tags, prefer, vars },
+            &Selection {
+                tags: if all {
+                    vec![rules::ALL.to_owned()]
+                } else {
+                    tags
+                },
+                prefer,
+                vars,
+            },
             fail_on,
             &Look {
                 verbose: cli.verbose,

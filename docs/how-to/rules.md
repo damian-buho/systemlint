@@ -353,7 +353,7 @@ ruleset carries it, an opinionated one (performance, a latency profile) does
 not. A selector matching nothing is an error.
 
 `--tags performance` replaces the default, `--tags default,performance` extends
-it, `--tags all` (or `'*'`) runs every rule, the standard-only ones included,
+it, `--all` (`--tags all`, or `'*'`, and not with `--tags`) runs every rule, the standard-only ones included,
 and `check.tags` sets a site’s own default. No ruleset, rule ID or tag may be
 named `all`.
 

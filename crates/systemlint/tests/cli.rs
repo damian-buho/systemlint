@@ -885,6 +885,10 @@ fn a_run_without_tags_counts_the_rules_the_default_left_out_in_the_summary() {
     let (code, text) = report(&["check", "--tags", "performance", &facts]);
     assert_eq!(code, 1, "{text}");
     assert!(!text.contains("Not selected"), "{text}");
+    let (code, text) = report(&["check", "--all", &facts]);
+    assert_eq!(code, 1, "--all selects the non-default ruleset: {text}");
+    let (code, text) = report(&["check", "--all", "--tags", "performance", &facts]);
+    assert_eq!(code, 2, "--all and --tags exclude each other: {text}");
     let (_, quiet) = report(&["--quiet", "check", &facts]);
     assert!(!quiet.contains("Not selected"), "{quiet}");
 }
