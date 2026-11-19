@@ -16,6 +16,7 @@ rules:
     severity: info
     score: 3.0
     message: "no auditd program is in /usr/sbin, /sbin or /usr/local/sbin, so no audit record is kept on disk"
+    rationale: no audit trail is written, so after a break-in nobody can tell what the intruder did
     fix:
       - 'Install auditd, on Ubuntu with:'
       - run: apt install auditd audispd-plugins
@@ -30,6 +31,7 @@ rules:
     severity: info
     score: 2.0
     message: "the running kernel was booted without audit=1, so whatever starts before auditd.service leaves no audit record"
+    rationale: whatever runs in the first seconds of boot, before the audit daemon starts, leaves no trace, which is where an early-boot tamper would hide
     fix:
       - Append “audit=1” to “GRUB_CMDLINE_LINUX” in a file ending in “.cfg” under “/etc/default/grub.d/”, keeping the value it extends.
       - 'Then run:'
@@ -47,6 +49,7 @@ rules:
     severity: info
     score: 2.0
     message: "audit_backlog_limit on the running kernel’s command line is unset (64) or below ${audit-backlog-limit}, so records queued before auditd reads them can be lost"
+    rationale: a burst of events during boot overflows the tiny queue and the surplus is dropped, so some early activity is never recorded
     fix:
       - Append “audit_backlog_limit=${audit-backlog-limit}” to “GRUB_CMDLINE_LINUX” in a file ending in “.cfg” under “/etc/default/grub.d/”, keeping the value it extends.
       - 'Then run:'
@@ -63,6 +66,7 @@ rules:
     severity: info
     score: 3.0
     message: "auditd.service is not enabled, so after the next boot no audit record is written"
+    rationale: after the next reboot nothing writes audit records, so an attacker works unrecorded
     fix:
       - 'Let the service start again:'
       - run: systemctl unmask auditd.service
@@ -79,6 +83,7 @@ rules:
     severity: info
     score: 3.0
     message: "auditd.service is {got}, so the kernel’s audit records go nowhere they are kept"
+    rationale: right now nothing keeps audit records, so anything done on the host is lost to whoever must find out what happened
     fix:
       - 'Start the service:'
       - run: systemctl start auditd.service
@@ -96,6 +101,7 @@ rules:
     severity: info
     score: 3.0
     message: "auditctl -l lists no rule, so auditd runs and records only what the kernel logs on its own"
+    rationale: only a few default kernel events are recorded, so file changes, logins and commands are never captured
     fix:
       - Add the rules you need to a file ending in “.rules” under “/etc/audit/rules.d/”.
       - 'Then load them:'
@@ -115,6 +121,7 @@ rules:
     severity: info
     score: 2.0
     message: "max_log_file_action in /etc/audit/auditd.conf is not keep_logs (unset means rotate), so auditd deletes the oldest log once num_logs are full"
+    rationale: old audit logs are erased as new ones arrive, so the record of an old break-in disappears after a few rotations
     fix:
       - 'Set this line in “/etc/audit/auditd.conf”:'
       - lines: ["max_log_file_action = keep_logs"]
@@ -137,6 +144,7 @@ rules:
     severity: info
     score: 2.0
     message: "disk_full_action in /etc/audit/auditd.conf is not halt or single, or disk_error_action is not syslog, single or halt (unset means suspend), so the host keeps running with no audit record written"
+    rationale: when the disk fills the host keeps running unrecorded, so an attacker can fill it on purpose and then act without leaving a trace
     fix:
       - 'Set these lines in “/etc/audit/auditd.conf”:'
       - lines: ["disk_full_action = single", "disk_error_action = single"]
@@ -158,6 +166,7 @@ rules:
     severity: info
     score: 2.0
     message: "space_left_action in /etc/audit/auditd.conf is not email, exec, single or halt, or admin_space_left_action is not single or halt, so nobody hears of a filling audit disk before records are lost"
+    rationale: the disk can fill with audit data without anyone being told, after which records are lost until someone notices
     fix:
       - 'Set these lines in “/etc/audit/auditd.conf”:'
       - lines: ["space_left_action = email", "action_mail_acct = root", "admin_space_left_action = single"]
@@ -173,6 +182,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} has mode {got}; audit records hold the commands and files of every user, so they need 0640 or stricter"
+    rationale: any local user can read the commands, file names and logins of every other user
     fix:
       - 'Limit the file to its owner and group:'
       - run: chmod 0640 {subject}
@@ -188,6 +198,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} is owned by uid {got}, so that user can rewrite or truncate the audit records"
+    rationale: that user can edit or empty the audit log and erase the evidence of what they did
     fix: run “chown root” on the file
     remedy: {chown: 0}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
@@ -200,6 +211,7 @@ rules:
     severity: warning
     score: 5.0
     message: "{subject} has mode {got}; other users can list the audit logs, or its group can replace them, so it needs 0750 or stricter"
+    rationale: other users can see which logs exist, or the owning group can swap them for forged ones
     fix: run “chmod 0750” on the directory
     remedy: {chmod: "g-w,o-rwx"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
@@ -212,6 +224,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} has mode {got}; the STIG asks 0600, readable by root alone"
+    rationale: members of the log’s group can read every user’s commands and file names
     fix:
       - 'Limit the file to root:'
       - run: chmod 0600 {subject}
@@ -228,6 +241,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}; the STIG asks group root"
+    rationale: members of a group other than root can read the audit records, which hold every user’s commands and file names
     fix:
       - 'Give the file to group root:'
       - run: chgrp 0 {subject}
@@ -244,6 +258,7 @@ rules:
     severity: info
     score: 1.0
     message: "the au-remote plugin is not active, or audisp-remote.conf names no remote_server, so whoever takes root here can erase the only copy of the audit trail"
+    rationale: an attacker who gets root can erase the only copy of the audit trail and cover the break-in
     fix:
       - Install audispd-plugins.
       - 'Set this line in “/etc/audit/plugins.d/au-remote.conf”:'
@@ -267,6 +282,7 @@ rules:
     severity: info
     score: 1.0
     message: "auditd.conf does not set space_left_action = email with space_left at 25% or more, as the STIG asks"
+    rationale: nobody is mailed while there is still room, so the audit disk fills unnoticed and records are lost
     fix:
       - 'Set these lines in “/etc/audit/auditd.conf”:'
       - lines: ["space_left = 25%", "space_left_action = email"]
@@ -282,6 +298,7 @@ rules:
     severity: info
     score: 1.0
     message: "action_mail_acct in /etc/audit/auditd.conf is not root, where the STIG asks root"
+    rationale: disk-space warnings go to an address nobody watches, so a filling audit disk goes unnoticed
     fix: set “action_mail_acct = root” in “/etc/audit/auditd.conf”, and forward root’s mail to the administrators
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/auditd.conf.5.html
     tags: [audit, stig-ubuntu-26.04:UBTU-24-900980, '!default']
@@ -293,6 +310,7 @@ rules:
     severity: info
     score: 1.0
     message: "max_log_file in /etc/audit/auditd.conf is below ${audit-max-log-file} MB, so each audit log holds less than the site asks before it rotates"
+    rationale: logs rotate in small pieces, so a busy host reaches its log count quickly and discards history sooner
     fix:
       - 'Set this line, or a larger number, in “/etc/audit/auditd.conf”:'
       - lines: ["max_log_file = ${audit-max-log-file}"]
@@ -308,6 +326,7 @@ rules:
     severity: info
     score: 1.0
     message: "log_group in /etc/audit/auditd.conf is not root or adm, so that group reads every audit record"
+    rationale: every member of that group can read the commands and file names of all users
     fix:
       - 'Set this line, or “log_group = root”, in “/etc/audit/auditd.conf”:'
       - lines: ["log_group = adm"]
@@ -323,6 +342,7 @@ rules:
     severity: info
     score: 1.0
     message: "{subject} belongs to gid {got}, neither root nor adm ({same}), so that group reads every audit record"
+    rationale: every member of that group can read the commands and file names of all users
     fix:
       - 'Give the file to group adm:'
       - run: chgrp adm {subject}
