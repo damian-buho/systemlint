@@ -10,6 +10,7 @@ read:
   order: drop-in
   exec: [/usr/sbin/sysctl, -a]
   prefer: exec
+  unset-is-default: true
 parse:
   - {plugin: formats, op: kv, with: {comments: ["#", ";"], repeat: last, swap: /., strip: "-"}}
   - {nest: "."}

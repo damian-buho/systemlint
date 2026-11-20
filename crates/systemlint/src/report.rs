@@ -241,12 +241,17 @@ fn level_word(severity: Option<Severity>) -> (&'static str, &'static str) {
     }
 }
 
-/// The skip reason of the collector an `unknown` check waited on, when that collector was skipped.
+/// Why an `unknown` check was not run: its collector skipped, or a fact absent where the collector read only files that leave defaults unset.
 fn skip_reason<'a>(document: &'a Value, check: &Check) -> Option<&'a str> {
     let outcome = &document["collectors"][check.collector.as_deref()?];
-    outcome["reason"]
+    let reason = match outcome["status"].as_str() {
+        Some("skipped") => &outcome["reason"],
+        Some("ok") if check.value.is_none() => &outcome["unset"],
+        _ => &Value::Null,
+    };
+    reason
         .as_str()
-        .filter(|_| check.outcome == Outcome::Unknown && outcome["status"] == "skipped")
+        .filter(|_| check.outcome == Outcome::Unknown)
 }
 
 /// Why the collector an `unknown` check waited on failed, when it did.

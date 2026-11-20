@@ -266,6 +266,32 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
 }
 
 #[test]
+fn a_key_files_leave_unset_is_not_run_where_a_set_one_still_judges() {
+    let mut document = facts("root");
+    document["sysctl"] = json!({"settings": {"kernel": {"set": 1, "odd": "x"}}});
+    document["collectors"]["sysctl"] =
+        json!({"status": "ok", "into": "sysctl.settings", "unset": "read the files alone"});
+    let rules = ["set", "unset", "odd"].map(|key| {
+        let yaml = format!("fact: sysctl.settings.kernel.{key}\nexpect: {{x-cel: \"self > 0\"}}\n");
+        compile(
+            &format!("kernel/{key}"),
+            systemlint::yaml::from_str(&yaml).unwrap(),
+        )
+        .unwrap()
+    });
+    let checks = lint(&document, &rules, &[], "2026-11-20");
+    let text = lint_human(&document, &checks, 0, false, false, false);
+    assert!(
+        text.contains("Not run (sysctl): read the files alone\n  kernel/unset\n"),
+        "{text}"
+    );
+    assert!(
+        text.ends_with("Passed            1\nUnknown           1\nNot run           1, they need root, an opt-in flag or fresher facts\n"),
+        "a present value the rule can’t decide stays unknown: {text}"
+    );
+}
+
+#[test]
 fn an_opt_in_left_off_prints_no_block_and_still_counts() {
     let mut document = facts("root");
     document["collectors"]["env-image"] = json!({"status": "skipped", "opt-in": true, "reason": "reads an image config, and no --image-config was given", "into": "env.image"});

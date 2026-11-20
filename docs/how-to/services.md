@@ -45,7 +45,9 @@ facts yet.
 
 `sysctl.settings` holds what `sysctl -a` printed when it ran and exited 0
 (`read.prefer: exec`), else the configuration (under `--root`, or with no
-`sysctl` binary or a failing one). It nests each key by its dots, so
+`sysctl` binary or a failing one). Under `--root` a key no file sets takes
+the kernel default, which only a live run reads, so its rules print as
+`Not run` (`read.unset-is-default`). It nests each key by its dots, so
 `net.ipv4.ip_forward` is the fact `sysctl.settings.net.ipv4.ip_forward`, and a
 rule can bind every interface with `sysctl.settings.net.ipv4.conf.*.rp_filter`.
 An interface name holding a dot shows it as `/` (`eth0/100`), as `sysctl`

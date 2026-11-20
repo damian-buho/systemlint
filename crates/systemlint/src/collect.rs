@@ -321,6 +321,20 @@ pub fn collect_reporting(
                         .map_err(Failure::from)
                 });
             record(&mut outcomes, collector, plugin, placed, options.privileged);
+            if !options.live
+                && collector.read.unset_is_default
+                && let Some(ok) = outcomes
+                    .get_mut(&collector.id)
+                    .filter(|o| o["status"] == "ok")
+            {
+                log::debug!(
+                    "collector {}: the files answer alone, an unset key is not run",
+                    collector.id
+                );
+                ok["unset"] = json!(
+                    "read the files alone, and a key they leave unset takes a default only a live run reads"
+                );
+            }
         }
     });
     for collector in collectors {

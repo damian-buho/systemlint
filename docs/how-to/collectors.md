@@ -50,6 +50,7 @@ into: apt.sources
 | `read.http` | URLs the core sends one GET to, or maps `{url, username, password-file, ca-file, body: json}` |
 | `read.order` | the order `files` reach the plugin: `path` [default], or `drop-in`, as systemd reads a conf directory set: per filename the match of the earliest glob in `files` hides the others, in name order, then each path with no wildcard in listed order |
 | `read.prefer` | `exec`: the command alone when it exited 0, else the files alone (under `--root`, with the program absent or failing); needs both `exec` and `files` |
+| `read.unset-is-default` | `true`: the files hold only what overrides a default the command alone reports, so under `--root` a rule over a key they leave unset prints as `Not run`, never `Unknown` (`sysctl`); needs `read.prefer` |
 | `privileged` | `true` when only root can read its sources, such as `/proc/1/environ` or a 0600 file under `/etc/default`; skipped when systemlint runs unprivileged |
 | `parse` | the plugin op, or a list of [steps](#steps) holding exactly one op |
 | `parse.plugin` | the plugin name, `apt` for `systemlint-apt` |

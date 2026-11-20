@@ -147,6 +147,13 @@ fn invalid_collectors_are_refused_with_the_reason() {
             "give both read.exec and read.files",
         ),
         (
+            GOOD.replace(
+                "files: [/etc/os-release]",
+                "files: [/etc/os-release]\n  exec: [/bin/true]\n  unset-is-default: true",
+            ),
+            "set read.prefer exec",
+        ),
+        (
             GOOD.replace("into: os.release", "into: meta.x"),
             "reserved meta",
         ),

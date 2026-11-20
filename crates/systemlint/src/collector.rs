@@ -92,6 +92,9 @@ pub struct Read {
     pub order: Order,
     #[serde(default)]
     pub prefer: Option<Prefer>,
+    /// A key the files leave unset takes a default only the command reports, so under `--root` its rules are not run.
+    #[serde(default, rename = "unset-is-default")]
+    pub unset_is_default: bool,
 }
 
 /// `read.exec-from`: one command per entry of the map at `each` that `keep` admits, `{key}` in `argv` replaced by the entry’s key.
@@ -551,6 +554,9 @@ impl Collector {
         }
         if self.read.prefer.is_some() && (self.read.exec.is_none() || self.read.files.is_empty()) {
             return Err("read.prefer exec chooses between a command and files; give both read.exec and read.files".to_owned());
+        }
+        if self.read.unset_is_default && self.read.prefer.is_none() {
+            return Err("read.unset-is-default names the command a default comes from; set read.prefer exec".to_owned());
         }
         let from = self.read.exec_from.as_ref();
         for (field, argv) in [
