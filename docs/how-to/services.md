@@ -727,8 +727,8 @@ unprivileged they are `Not run`, and `Not run` where `ss` is not installed):
 
 ```yaml
 ports-owners:
-  tcp: {"22": {program: sshd, pid: 812}}
-  udp: {"5353": {program: avahi-daemon, pid: 640}}
+  tcp: {"22": {program: sshd, pid: "812"}}
+  udp: {"5353": {program: avahi-daemon, pid: "640"}}
 ```
 
 - One fact per port, the first program `ss` lists: IPv4 and IPv6 sockets of a

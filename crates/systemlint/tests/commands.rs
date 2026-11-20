@@ -48,9 +48,9 @@ fn tcp_owners_are_keyed_by_port_with_the_first_program() {
     assert_eq!(
         facts,
         json!({
-            "22": {"program": "sshd"},
-            "53": {"program": "systemd-resolve"},
-            "80": {"program": "nginx"},
+            "22": {"program": "sshd", "pid": "801"},
+            "53": {"program": "systemd-resolve", "pid": "612"},
+            "80": {"program": "nginx", "pid": "905"},
         }),
         "IPv4 and IPv6 of one service are one fact; a socket without a process is left out"
     );
@@ -62,7 +62,7 @@ fn udp_owners_are_keyed_by_port_with_the_first_program() {
     let (facts, diagnostics) = parsed("ports-owners-udp", "ports/ss-udp");
     assert_eq!(
         facts,
-        json!({"5353": {"program": "avahi-daemon"}, "323": {"program": "chronyd"}})
+        json!({"5353": {"program": "avahi-daemon", "pid": "700"}, "323": {"program": "chronyd", "pid": "650"}})
     );
     assert_eq!(diagnostics, 0);
 }
