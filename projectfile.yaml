@@ -25,7 +25,7 @@ identity:
       Systemlint збирає факти про хост, кореневу файлову систему чи образ контейнера, а потім оцінює їх декларативними правилами. Збирання й оцінювання — окремі кроки, тож один збережений документ фактів слугує будь-якій кількості політик.
 
       Ядро читає кожен файл і виконує кожну команду; кожен плагін — окремий статичний бінарний файл, який лише перетворює ці байти на факти. Написаний на Rust.
-  visibility: private
+  visibility: public
   version: 0.3.0
   released: "2026-11-13"
 kind: SoftwareSourceCode
@@ -49,6 +49,60 @@ links:
     priority: 10
     type: source-code
     url: https://kiota.ch/damian-buho/systemlint
+  - label:
+      en: Repository on Codeberg
+      es: Repositorio en Codeberg
+      uk: Репозиторій на Codeberg
+    priority: 90
+    tags:
+      - public
+      - badges
+      - badges-gitea
+    type: source-code
+    url: https://codeberg.org/damian-buho/systemlint
+  - label:
+      en: Issues on Codeberg
+      es: Incidencias en Codeberg
+      uk: Задачі на Codeberg
+    priority: 90
+    tags:
+      - support
+      - readme
+    type: bugs
+    url: https://codeberg.org/damian-buho/systemlint/issues
+  - label:
+      en: Repository on GitHub
+      es: Repositorio en GitHub
+      uk: Репозиторій на GitHub
+    priority: 80
+    tags:
+      - public
+      - badges
+      - badges-github
+    type: source-code
+    url: https://github.com/damian-buho/systemlint
+  - label:
+      en: Issues on GitHub
+      es: Incidencias en GitHub
+      uk: Задачі на GitHub
+    priority: 80
+    tags:
+      - support
+      - readme
+    type: bugs
+    url: https://github.com/damian-buho/systemlint/issues
+  - label:
+      en: Packages on GHCR
+      es: Paquetes en GHCR
+      uk: Пакунки на GHCR
+    type: package-registry
+    url: https://github.com/damian-buho/systemlint/pkgs/container/systemlint
+  - label:
+      en: Packages on Docker Hub
+      es: Paquetes en Docker Hub
+      uk: Пакунки на Docker Hub
+    type: package-registry
+    url: https://hub.docker.com/r/damianbuho/systemlint
 org:
   projectfile:
     images:
@@ -176,16 +230,27 @@ repositories:
     role: origin
     type: git
     url: ssh://git@kiota.ch/damian-buho/systemlint.git
+  - role: mirror
+    type: git
+    url: git@codeberg.org:damian-buho/systemlint.git
+  - role: mirror
+    type: git
+    url: git@github.com:damian-buho/systemlint.git
 includes:
   - .makefile/b19/ci.yaml
   - .makefile/b19/images/rust.yaml
   - .makefile/b19/images/ubuntu.yaml
   - .makefile/b19/traits/image/attested.yaml
+  - .makefile/b19/traits/image/sbom.yaml
   - .makefile/b19/traits/image/signed.yaml
+  - .makefile/container/traits/image/malware-scan.yaml
   - .makefile/library/languages/rust.yaml
   - .makefile/library/traits/binary.yaml
   - .makefile/core/traits/release.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/codeberg-release.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/github.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/registry/dockerhub.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/has-rules.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/personal-image.yaml
 technologies:

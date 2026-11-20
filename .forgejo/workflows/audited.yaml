@@ -110,6 +110,7 @@ jobs:
           check: images
           images: |-
             ${{ vars.D9T_GO_TOOLS_IMAGE || format('{0}/d9t/go-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-cosign,auto-grype,auto-osv-scanner,auto-trivy -
+            ${{ vars.D9T_MISC_TOOLS_IMAGE || format('{0}/d9t/misc-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-clamav -
             ${{ vars.D9T_RUST_TOOLS_IMAGE || format('{0}/d9t/rust-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-cargo-audit,auto-cargo-machete,auto-cargo-shear -
   signing-is-ready:
     runs-on: docker
@@ -170,6 +171,16 @@ jobs:
           version: ${{ env.M6E_TAG }}
           run: auto-cargo-shear
           mounts: /app/data/ci-cache/cargo-git:/app/.cargo/git:rw /app/data/ci-cache/cargo-registry:/app/.cargo/registry:rw
+      - name: clamav-scan-source
+        if: vars.CI_SKIP_SOURCE_IS_SECURE != 'true' && vars.CI_SKIP_CLAMAV_SCAN_SOURCE != 'true'
+        uses: projectfile/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1
+        with:
+          image: ${{ vars.D9T_MISC_TOOLS_IMAGE || format('{0}/d9t/misc-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          version: ${{ env.M6E_TAG }}
+          run: auto-clamav fs
+          env: |-
+            M6E_SHARED_CACHE=Y
+          mounts: /app/data/ci-cache/clamav-db:/app/.cache/clamav:rw
       - name: grype-scan-source
         if: (!cancelled()) && vars.CI_SKIP_SOURCE_IS_SECURE != 'true' && vars.CI_SKIP_GRYPE_SCAN_SOURCE != 'true'
         uses: projectfile/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1

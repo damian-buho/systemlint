@@ -8,6 +8,12 @@ pf-cli-managed: yes
 
 # Building
 
+Clone the repository with its submodules:
+
+```sh
+git clone --recurse-submodules https://codeberg.org/damian-buho/systemlint systemlint && cd systemlint
+```
+
 Build the container image locally:
 
 ```sh

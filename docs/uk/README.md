@@ -14,9 +14,11 @@ Systemlint збирає факти про хост, кореневу файло�
 
 Ядро читає кожен файл і виконує кожну команду; кожен плагін — окремий статичний бінарний файл, який лише перетворює ці байти на факти. Написаний на Rust.
 
-[![Stand with Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://damian-buho.github.io/support-ukraine/) [![Projectfile inside](https://badges.kiota.ch/static/v1?label=projectfile&message=inside&labelColor=0d0d0d&color=8c6723&style=flat-square)](https://projectfile.org) [![License](https://badges.kiota.ch/static/v1?label=license&message=AGPL-3.0-only&color=1e5913&style=flat-square)](../../LICENSE) [![Cosign](https://badges.kiota.ch/static/v1?label=cosign&message=enabled&color=1e5913&style=flat-square)](https://docs.sigstore.dev/cosign/verifying/verify/)
+[![Stand with Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://damian-buho.github.io/support-ukraine/) [![Projectfile inside](https://badges.kiota.ch/static/v1?label=projectfile&message=inside&labelColor=0d0d0d&color=8c6723&style=flat-square)](https://projectfile.org) [![License](https://badges.kiota.ch/static/v1?label=license&message=AGPL-3.0-only&color=1e5913&style=flat-square)](../../LICENSE) [![Cosign](https://badges.kiota.ch/static/v1?label=cosign&message=enabled&color=1e5913&style=flat-square)](https://docs.sigstore.dev/cosign/verifying/verify/) ![ClamAV scanned](https://badges.kiota.ch/static/v1?label=clamav&message=scanned&color=1877aa&style=flat-square) [![PRs welcome](https://badges.kiota.ch/static/v1?label=PRs&message=welcome&color=1e5913&style=flat-square)](CONTRIBUTING.md) [![REUSE compliance](https://api.reuse.software/badge/codeberg.org/damian-buho/systemlint)](https://api.reuse.software/info/codeberg.org/damian-buho/systemlint)
 
-![Project status](https://badges.kiota.ch/static/v1?label=status&message=maintained&color=1d63ed&style=flat-square) [![Last commit on kiota.ch](https://badges.kiota.ch/gitea/last-commit/damian-buho/systemlint?gitea_url=https://kiota.ch&label=last%20commit%20on%20kiota.ch&style=flat-square)](https://kiota.ch/damian-buho/systemlint)
+![Project status](https://badges.kiota.ch/static/v1?label=status&message=maintained&color=1d63ed&style=flat-square) [![Last commit on kiota.ch](https://badges.kiota.ch/gitea/last-commit/damian-buho/systemlint?gitea_url=https://kiota.ch&label=last%20commit%20on%20kiota.ch&style=flat-square)](https://kiota.ch/damian-buho/systemlint) [![Last commit on Codeberg](https://badges.kiota.ch/gitea/last-commit/damian-buho/systemlint?gitea_url=https://codeberg.org&label=last%20commit%20on%20Codeberg&style=flat-square)](https://codeberg.org/damian-buho/systemlint) [![Last commit on GitHub](https://badges.kiota.ch/github/last-commit/damian-buho/systemlint?label=last%20commit%20on%20GitHub&style=flat-square)](https://github.com/damian-buho/systemlint)
+
+[![Publish pipeline on GitHub](https://github.com/damian-buho/systemlint/actions/workflows/published.yaml/badge.svg?style=flat-square)](https://github.com/damian-buho/systemlint/actions) [![Vulnerability audit on GitHub](https://github.com/damian-buho/systemlint/actions/workflows/audited.yaml/badge.svg?style=flat-square)](https://github.com/damian-buho/systemlint/actions) [![Dependency freshness on GitHub](https://github.com/damian-buho/systemlint/actions/workflows/check-outdated.yaml/badge.svg?style=flat-square)](https://github.com/damian-buho/systemlint/actions) [![Analysis sweep on GitHub](https://github.com/damian-buho/systemlint/actions/workflows/analyzed.yaml/badge.svg?style=flat-square)](https://github.com/damian-buho/systemlint/actions)
 
 [![Publish pipeline on kiota.ch](https://kiota.ch/damian-buho/systemlint/badges/workflows/published.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/systemlint/actions) [![Vulnerability audit on kiota.ch](https://kiota.ch/damian-buho/systemlint/badges/workflows/audited.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/systemlint/actions) [![Dependency freshness on kiota.ch](https://kiota.ch/damian-buho/systemlint/badges/workflows/check-outdated.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/systemlint/actions) [![Analysis sweep on kiota.ch](https://kiota.ch/damian-buho/systemlint/badges/workflows/analyzed.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/systemlint/actions)
 
@@ -33,12 +35,8 @@ Systemlint збирає факти про хост, кореневу файло�
 ## Що надає цей проєкт
 
 - **Виконуваний файл** `systemlint` — команда `systemlint`
-- **Образ контейнера** `kiota.ch/damian-buho/systemlint:latest`
-
-## Підтримувані платформи
-
-- `linux/amd64`
-- `linux/arm64`
+- **Образ контейнера** `ghcr.io/damian-buho/systemlint:latest`
+- **Образ контейнера** `damianbuho/systemlint:latest`
 
 ## Встановлення
 
@@ -46,17 +44,34 @@ Systemlint збирає факти про хост, кореневу файло�
 
 Завантажте опублікований образ контейнера:
 
+#### Завантажити з GHCR — linux/amd64, linux/arm64
+
 ```sh
-docker pull kiota.ch/damian-buho/systemlint:latest
+docker pull ghcr.io/damian-buho/systemlint:latest
+```
+
+#### Завантажити з DockerHub — linux/amd64
+
+```sh
+docker pull damianbuho/systemlint:latest
 ```
 
 Стабільні випуски також публікують теґи `X.Y.Z`, `X.Y` і `X` — завантажте той рівень точності, який хочете зафіксувати.
+
+Якщо наведені вище реєстри недоступні, завантажте з джерела:
+
+#### Завантажити з Kiota — linux/amd64
+
+```sh
+docker pull kiota.ch/damian-buho/systemlint:latest
+```
 
 ### Готовий архів
 
 Завантажте архів для своєї архітектури й розпакуйте його в `/usr/local`:
 
 ```sh
+curl --fail --location https://github.com/damian-buho/systemlint/releases/latest/download/systemlint-linux-$(uname -m).tar.gz | sudo tar --extract --gzip --directory /usr/local
 systemlint --version
 ```
 
@@ -66,14 +81,20 @@ systemlint --version
 
 Перевірте образ контейнера зі збереженими власниками й правами (Docker 28 або новіший), у форматі SARIF:
 
-```sh
-docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest check --root /subject --format sarif > systemlint.sarif
-```
-
 Перевірте хост, на якому запускаєте, лише для читання, від root і лише з можливістю читати будь-який файл:
 
+### З GHCR
+
 ```sh
-docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint kiota.ch/damian-buho/systemlint:latest check --root /host
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint ghcr.io/damian-buho/systemlint:latest check --root /subject --format sarif > systemlint.sarif
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint ghcr.io/damian-buho/systemlint:latest check --root /host
+```
+
+### З DockerHub
+
+```sh
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --mount type=image,source=ubuntu:26.04,target=/subject --entrypoint systemlint damianbuho/systemlint:latest check --root /subject --format sarif > systemlint.sarif
+docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEARCH --user 0 --volume /:/host:ro --entrypoint systemlint damianbuho/systemlint:latest check --root /host
 ```
 
 ## Збирання
@@ -107,6 +128,8 @@ docker run --rm --network none --read-only --cap-drop ALL --cap-add DAC_READ_SEA
 
 ## Посилання
 
+- [Задачі на Codeberg](https://codeberg.org/damian-buho/systemlint/issues)
+- [Задачі на GitHub](https://github.com/damian-buho/systemlint/issues)
 - [Специфікація Projectfile](https://projectfile.org)
 
 ## Ліцензія

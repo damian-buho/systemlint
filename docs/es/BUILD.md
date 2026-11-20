@@ -10,6 +10,12 @@ pf-cli-managed: yes
 
 # Compilación
 
+Clona el repositorio con sus submódulos:
+
+```sh
+git clone --recurse-submodules https://codeberg.org/damian-buho/systemlint systemlint && cd systemlint
+```
+
 Construye la imagen de contenedor en local:
 
 ```sh

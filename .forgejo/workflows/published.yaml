@@ -329,7 +329,7 @@ jobs:
     if: ${{ !cancelled() && needs.binaries-are-built.result == 'success' && needs.container-is-verified.result == 'success' && needs.documentation-passes-lint.result == 'success' && (needs.image-has-sbom.result == 'success' || (needs.image-has-sbom.result == 'skipped' && !(needs.release-tag.outputs.tag != ''))) && needs.image-is-built.result == 'success' && needs.image-is-secure.result == 'success' && needs.projectfile-is-ok.result == 'success' && needs.release-tag.result == 'success' && needs.runner-is-ready.result == 'success' && needs.signing-is-ready.result == 'success' && needs.source-is-compliant.result == 'success' && needs.source-is-secure.result == 'success' && needs.source-is-tested.result == 'success' && needs.source-passes-lint.result == 'success' && ((startsWith(github.ref, 'refs/heads/')) || (needs.release-tag.outputs.tag != '')) }}
     strategy:
       matrix:
-        M6E_PUBLISH_SINK: ["kiota"]
+        M6E_PUBLISH_SINK: ["kiota", "dockerhub"]
     env:
       COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
       COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
@@ -399,6 +399,7 @@ jobs:
           # each registry wants. Credentials key on the SINK name.
           refs: |
             kiota kiota.ch/damian-buho/systemlint:latest
+            dockerhub docker.io/damianbuho/systemlint:latest
           # This CELL's destination, off the publish axis: the job runs one cell per
           # place the archive goes, so a registry refusing a push fails only its own.
           sink: ${{ matrix.M6E_PUBLISH_SINK }}
@@ -446,6 +447,18 @@ jobs:
         if: (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_IMAGE_IS_BUILT != 'true' && vars.CI_SKIP_CONTAINER_BUILD != 'true'
         with:
           name: image-${{ matrix.M6E_ARCH }}-${{ github.run_id }}
+      - name: clamav-scan-tar
+        if: (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_IMAGE_IS_SECURE != 'true' && vars.CI_SKIP_CLAMAV_SCAN_TAR != 'true'
+        uses: projectfile/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1
+        with:
+          image: ${{ vars.D9T_MISC_TOOLS_IMAGE || format('{0}/d9t/misc-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          version: ${{ env.M6E_TAG }}
+          run: auto-clamav tar
+          env: |-
+            M6E_ARCH=${{ matrix.M6E_ARCH }}
+            M6E_IMAGE_ARCHIVE=image-${{ matrix.M6E_ARCH }}-${{ github.run_id }}.tar
+            M6E_SHARED_CACHE=Y
+          mounts: /app/data/ci-cache/clamav-db:/app/.cache/clamav:rw
       - name: grype-scan-tar
         if: (!cancelled()) && (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_IMAGE_IS_SECURE != 'true' && vars.CI_SKIP_GRYPE_SCAN_TAR != 'true'
         uses: projectfile/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1
@@ -544,8 +557,19 @@ jobs:
     runs-on: docker
     needs: ["binaries-are-built", "image-is-published", "release-tag"]
     if: ${{ !cancelled() && needs.binaries-are-built.result == 'success' && needs.image-is-published.result == 'success' && needs.release-tag.result == 'success' && (needs.release-tag.outputs.tag != '') }}
+    strategy:
+      matrix:
+        M6E_PUBLISH_SINK: ["kiota", "codeberg"]
+        include:
+          - M6E_PUBLISH_SINK: "kiota"
+            M6E_RELEASE_REPO: "damian-buho/systemlint"
+            M6E_RELEASE_URL: "https://kiota.ch"
+          - M6E_PUBLISH_SINK: "codeberg"
+            M6E_RELEASE_REPO: "damian-buho/systemlint"
+            M6E_RELEASE_URL: "https://codeberg.org"
     env:
       RELEASE_TARGET: main
+      CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -553,17 +577,17 @@ jobs:
           submodules: true
           persist-credentials: false
       - uses: forgejo/download-artifact@d8d0a99033603453ad2255e58720b460a0555e1e # v4
-        if: vars.CI_SKIP_BINARIES_ARE_BUILT != 'true' && vars.CI_SKIP_BUILD_BINARIES != 'true'
+        if: (vars.CI_ONLY_M6E_PUBLISH_SINK == '' || contains(format(',{0},', vars.CI_ONLY_M6E_PUBLISH_SINK), format(',{0},', matrix.M6E_PUBLISH_SINK))) && vars.CI_SKIP_BINARIES_ARE_BUILT != 'true' && vars.CI_SKIP_BUILD_BINARIES != 'true'
         with:
           name: build-binaries-amd64-linux-${{ github.run_id }}
           path: dist
       - uses: forgejo/download-artifact@d8d0a99033603453ad2255e58720b460a0555e1e # v4
-        if: vars.CI_SKIP_BINARIES_ARE_BUILT != 'true' && vars.CI_SKIP_BUILD_BINARIES != 'true'
+        if: (vars.CI_ONLY_M6E_PUBLISH_SINK == '' || contains(format(',{0},', vars.CI_ONLY_M6E_PUBLISH_SINK), format(',{0},', matrix.M6E_PUBLISH_SINK))) && vars.CI_SKIP_BINARIES_ARE_BUILT != 'true' && vars.CI_SKIP_BUILD_BINARIES != 'true'
         with:
           name: build-binaries-arm64-linux-${{ github.run_id }}
           path: dist
       - name: forgejo-release
-        if: vars.CI_SKIP_RELEASE_IS_PUBLISHED != 'true' && vars.CI_SKIP_FORGEJO_RELEASE != 'true'
+        if: (vars.CI_ONLY_M6E_PUBLISH_SINK == '' || contains(format(',{0},', vars.CI_ONLY_M6E_PUBLISH_SINK), format(',{0},', matrix.M6E_PUBLISH_SINK))) && vars.CI_SKIP_RELEASE_IS_PUBLISHED != 'true' && vars.CI_SKIP_FORGEJO_RELEASE != 'true'
         uses: projectfile/actions/forgejo-release@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1
         with:
           version: ${{ needs.release-tag.outputs.tag || github.ref_name }}
@@ -571,6 +595,14 @@ jobs:
           # kind=binary entry). The action suffixes it per cell (→ <path>-<os>-<uname -m>)
           # to find the binary the build→consumer download edge restored to the workspace.
           release-asset-path: dist/systemlint
+          # WHERE this cell attaches, off the publish axis. A forge granting no build
+          # minutes still gets the same binaries: they are pushed from the forge that
+          # has runners. The repo is its own field because the name differs per forge.
+          server-url: ${{ matrix.M6E_RELEASE_URL }}
+          repo: ${{ matrix.M6E_RELEASE_REPO }}
+          # Selects the destination's own token (<SINK>_TOKEN), so two forges never
+          # share one credential.
+          sink: ${{ matrix.M6E_PUBLISH_SINK }}
   release-notes-are-published:
     runs-on: docker
     needs: ["release-is-published", "release-tag"]
@@ -650,7 +682,7 @@ jobs:
             ${{ vars.B19_UBUNTU_BASE_IMAGE || format('{0}/b19/ubuntu:{1}{2}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.M6E_BASE_IMAGE_VARIANT_PREFIX, vars.B19_UBUNTU_SERIES || 'resolute') }} - - -
             ${{ vars.D9T_GO_TOOLS_IMAGE || format('{0}/d9t/go-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-cosign,auto-grype,auto-osv-scanner,auto-syft,auto-trivy -
             ${{ vars.D9T_JS_TOOLS_IMAGE || format('{0}/d9t/js-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-jsonlint,auto-markdownlint,auto-textlint -
-            ${{ vars.D9T_MISC_TOOLS_IMAGE || format('{0}/d9t/misc-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-i18n,auto-shellcheck -
+            ${{ vars.D9T_MISC_TOOLS_IMAGE || format('{0}/d9t/misc-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-clamav,auto-i18n,auto-shellcheck -
             ${{ vars.D9T_PYTHON_TOOLS_IMAGE || format('{0}/d9t/python-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-yamllint,reuse -
             ${{ vars.D9T_RUST_TOOLS_IMAGE || format('{0}/d9t/rust-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-cargo-audit,auto-cargo-machete,auto-cargo-nextest,auto-cargo-shear,auto-dotenv-linter,auto-zizmor,cargo -
             ${{ vars.D9T_R_TOOLS_IMAGE || format('{0}/d9t/r-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }} ${{ env.M6E_TAG }} auto-cffr-validate -
@@ -743,6 +775,16 @@ jobs:
           version: ${{ env.M6E_TAG }}
           run: auto-cargo-shear
           mounts: /app/data/ci-cache/cargo-git:/app/.cargo/git:rw /app/data/ci-cache/cargo-registry:/app/.cargo/registry:rw
+      - name: clamav-scan-source
+        if: vars.CI_SKIP_SOURCE_IS_SECURE != 'true' && vars.CI_SKIP_CLAMAV_SCAN_SOURCE != 'true'
+        uses: projectfile/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1
+        with:
+          image: ${{ vars.D9T_MISC_TOOLS_IMAGE || format('{0}/d9t/misc-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          version: ${{ env.M6E_TAG }}
+          run: auto-clamav fs
+          env: |-
+            M6E_SHARED_CACHE=Y
+          mounts: /app/data/ci-cache/clamav-db:/app/.cache/clamav:rw
       - name: grype-scan-source
         if: (!cancelled()) && vars.CI_SKIP_SOURCE_IS_SECURE != 'true' && vars.CI_SKIP_GRYPE_SCAN_SOURCE != 'true'
         uses: projectfile/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1

@@ -11,6 +11,13 @@ pf-cli-managed: yes
 Thanks for using **Systemlint**!
 This document explains where to get help and how to ask effective questions.
 
+## Before You Ask
+
+Please check these first — your question may already be answered:
+
+- [Issues on Codeberg](https://codeberg.org/damian-buho/systemlint/issues)
+- [Issues on GitHub](https://github.com/damian-buho/systemlint/issues)
+
 ## Where to Ask
 
 - **Report a security vulnerability** — [SECURITY.md](SECURITY.md)

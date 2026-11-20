@@ -10,6 +10,12 @@ pf-cli-managed: yes
 
 # Збирання
 
+Клонуйте репозиторій разом із підмодулями:
+
+```sh
+git clone --recurse-submodules https://codeberg.org/damian-buho/systemlint systemlint && cd systemlint
+```
+
 Зберіть образ контейнера локально:
 
 ```sh
