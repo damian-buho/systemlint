@@ -1352,7 +1352,12 @@ fn failure(
                     .remedy
                     .as_ref()
                     .filter(|r| {
-                        matches!(r, crate::fix::Remedy::DropIn(_) | crate::fix::Remedy::Mask)
+                        matches!(
+                            r,
+                            crate::fix::Remedy::DropIn(_)
+                                | crate::fix::Remedy::Mask
+                                | crate::fix::Remedy::SetKey(_)
+                        )
                     })
                     .map(|_| bound.last().unwrap_or(&EMPTY))
             }))
@@ -1362,7 +1367,12 @@ fn failure(
                         .subject_value(document, bound, 1)
                         .is_some_and(|v| v.get("line-sha256").is_some())
             })
-            .map(|(r, path)| r.command(path)),
+            .map(|(r, path)| match r {
+                crate::fix::Remedy::SetKey(set) => {
+                    crate::fix::Remedy::SetKey(set.read_from(Some(value))).command(path)
+                }
+                r => r.command(path),
+            }),
         text: rule.spec.message.clone(),
         variables: if rule.spec.message.is_some() {
             variables

@@ -32,6 +32,92 @@ pub enum Remedy {
     DropIn(DropIn),
     /// Masks the subject unit through `systemctl mask`, `--now` on the live host, `--root` otherwise.
     Mask,
+    /// Sets one key of a file with no drop-in directory to a value the core lists.
+    #[serde(rename = "set-key")]
+    SetKey(SetKey),
+}
+
+/// A key of a whitespace-separated file the last line of wins, set to `value` on every line naming it, or on a new one.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct SetKey {
+    pub file: KeyFile,
+    pub key: String,
+    pub value: String,
+    /// The value the lint read, none when no line set it, which the file must still hold.
+    #[serde(skip)]
+    pub was: Option<String>,
+}
+
+/// A file a `set-key` may change, each with the keys and values it may write.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub enum KeyFile {
+    /// `/etc/login.defs`, for the keys in [`LOGIN_DEFS`].
+    LoginDefs,
+}
+
+/// The login.defs keys a `set-key` may write, each with the values that only take something away.
+const LOGIN_DEFS: &[(&str, &[&str])] = &[
+    ("UMASK", &["027", "077"]),
+    ("ENCRYPT_METHOD", &["SHA512", "YESCRYPT"]),
+];
+
+impl KeyFile {
+    /// Its directory and name.
+    fn place(self) -> (&'static str, &'static str) {
+        match self {
+            Self::LoginDefs => ("/etc", "login.defs"),
+        }
+    }
+
+    /// Its path.
+    pub fn path(self) -> String {
+        let (dir, name) = self.place();
+        format!("{dir}/{name}")
+    }
+}
+
+impl SetKey {
+    /// It holding the value of its key in `fact`, the map the lint judged, as the value the file must still hold.
+    pub fn read_from(&self, fact: Option<&serde_json::Value>) -> Self {
+        let was = fact
+            .and_then(|v| v.get(&self.key))
+            .map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_owned));
+        log::debug!("set-key {}: the lint read {was:?}", self.key);
+        Self {
+            was,
+            ..self.clone()
+        }
+    }
+
+    /// The value a live line of `text` sets its key to, the last one winning, none when no line does.
+    pub fn current<'a>(&self, text: &'a str) -> Option<&'a str> {
+        text.lines().rev().find_map(|l| {
+            let mut words = l.split_whitespace();
+            (words.next() == Some(self.key.as_str())).then(|| words.next().unwrap_or_default())
+        })
+    }
+
+    /// `text` with every live line of its key set to its value, or that line added when none is.
+    pub fn applied(&self, text: &str) -> String {
+        let line = format!("{} {}", self.key, self.value);
+        let named = |l: &str| l.split_whitespace().next() == Some(self.key.as_str());
+        let mut out: String = text
+            .split_inclusive('\n')
+            .map(|l| match named(l) {
+                true => format!("{line}\n"),
+                false => l.to_owned(),
+            })
+            .collect();
+        if self.current(text).is_none() {
+            if !out.is_empty() && !out.ends_with('\n') {
+                out.push('\n');
+            }
+            out += &format!("{line}\n");
+        }
+        out
+    }
 }
 
 /// Where a mask link goes.
@@ -415,6 +501,20 @@ impl Remedy {
                 }
             }
             Self::Mask => Ok(()),
+            Self::SetKey(set) => {
+                let listed = match set.file {
+                    KeyFile::LoginDefs => LOGIN_DEFS,
+                };
+                match listed.iter().find(|(k, _)| *k == set.key) {
+                    Some((_, values)) if values.contains(&set.value.as_str()) => Ok(()),
+                    _ => Err(format!(
+                        "remedy set-key {} {}: not a key and value that only take something away in {}",
+                        set.key,
+                        set.value,
+                        set.file.path()
+                    )),
+                }
+            }
         }
     }
 
@@ -449,6 +549,21 @@ impl Remedy {
                 Some(unit) => format!("systemctl mask --now {}", quote(unit)),
                 None => format!("# no unit named in {}", quote(subject)),
             },
+            Self::SetKey(set) => {
+                let path = match subject.starts_with('/') {
+                    true => subject.to_owned(),
+                    false => set.file.path(),
+                };
+                let line = format!("{} {}", set.key, set.value);
+                match set.was {
+                    Some(_) => format!(
+                        "sed --in-place {} {}",
+                        quote(&format!("s/^{}[[:space:]].*/{line}/", set.key)),
+                        quote(&path)
+                    ),
+                    None => format!("echo {} >> {}", quote(&line), quote(&path)),
+                }
+            }
         }
     }
 }
@@ -567,10 +682,14 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> P
                 }
                 Remedy::DropIn(drop) => (drop.path(), None),
                 Remedy::Mask => (format!("{UNITS}/{}", unit_of(&subject)?), None),
+                Remedy::SetKey(set) => (set.file.path(), None),
                 _ => (subject.clone(), None),
             };
             let remedy = match remedy {
                 Remedy::DropIn(drop) => Remedy::DropIn(drop.for_subject(&subject)?),
+                Remedy::SetKey(set) => {
+                    Remedy::SetKey(set.read_from(rule.subject_value(document, &c.subject, 0)))
+                }
                 other => (*other).clone(),
             };
             Some(Change {
@@ -641,6 +760,7 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
         Remedy::DisableLine(_) => return disable(root, change),
         Remedy::DropIn(drop) => return drop_in(root, drop),
         Remedy::Mask => return mask(root, change),
+        Remedy::SetKey(set) => return set_key(root, set),
         _ => {}
     }
     let file = root.open_for_change(&change.path).map_err(|e| {
@@ -690,7 +810,55 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
         Remedy::DisableLine(_) => disable(root, change),
         Remedy::DropIn(drop) => drop_in(root, drop),
         Remedy::Mask => mask(root, change),
+        Remedy::SetKey(set) => set_key(root, set),
     }
+}
+
+/// Sets `set`’s key in its file, refusing when the file no longer holds the value the lint read.
+fn set_key(root: &Root, set: &SetKey) -> Result<Applied, std::io::Error> {
+    let path = set.file.path();
+    let file = root.open_for_change(&path)?;
+    let meta = file.metadata()?;
+    if !meta.is_file() || meta.len() > crate::runner::OUTPUT_CAP {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "not a regular file systemlint rewrites",
+        ));
+    }
+    let mut held = String::new();
+    file.take(crate::runner::OUTPUT_CAP)
+        .read_to_string(&mut held)?;
+    let current = set.current(&held);
+    log::debug!(
+        "{path}: {} is {current:?}, the lint read {:?}, wanted {}",
+        set.key,
+        set.was,
+        set.value
+    );
+    let shown = |v: Option<&str>| format!("{} {}", set.key, v.unwrap_or("unset"));
+    if current == Some(set.value.as_str()) {
+        return Ok(None);
+    }
+    if current != set.was.as_deref() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "{} changed since the lint, so lint again before fixing",
+                set.key
+            ),
+        ));
+    }
+    let (dir, name) = set.file.place();
+    let check = |_: &std::path::Path| Ok(());
+    root.replace(
+        dir,
+        name,
+        &set.applied(&held),
+        meta.mode() & 0o7777,
+        &held,
+        &check,
+    )?;
+    Ok(Some((shown(current), shown(Some(&set.value)))))
 }
 
 /// Masks the unit `change` names through systemctl, stopping it too on the live root.

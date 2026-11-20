@@ -404,7 +404,7 @@ standards:
 ## Remedies
 
 A rule may name one remedy beside its prose `fix`, which `systemlint fix`
-applies to each failing subject that is an absolute path, or for `mask` a unit:
+applies to each failing subject that is an absolute path, for `mask` a unit, and for `set-key` its one file:
 
 ```yaml
 files/world-writable:
@@ -420,6 +420,7 @@ files/world-writable:
 | `disable-line` | `authorized-keys` or `apt-list` (one-line sources, never a deb822 paragraph): comments out the subject line, named `path:line`, of a syntax where every line grants access |
 | `drop-in` | `{into, name, lines}`: writes `/etc/modprobe.d` (`into: modprobe`, only `install <module> /bin/false` or `/bin/true` and `blacklist <module>`) or `/etc/apt/apt.conf.d` (`into: apt`, only `APT::Install-Recommends` and `APT::Install-Suggests` set to `"0"` or `"false"`) or `/etc/sysctl.d` (`into: sysctl`, only `key = value` at a hardened value the core lists, such as `net.ipv4.conf.<interface>.send_redirects = 0`, which `fix` then loads with `sysctl --load` on the live host) or `/etc/sudoers.d` (`into: sudoers`, only `Defaults use_pty` and `Defaults logfile="/var/log/sudo.log"`, mode 0440, written only once `visudo --check` passes it) as `60-systemlint-<name>.conf` in modprobe, `99-systemlint-<name>.conf` in apt and sysctl and `99-systemlint-<name>` in sudoers, which skips a name holding a dot, all letting the last file read win; a line’s `{subject}` takes the failing subject, an interface name of letters, digits, `_` and `-`, and the lines every failing subject asks of one file are written together, `name` lowercase letters, digits and `-` up to 64, 1 to 16 lines; a new file appears whole through a temporary sibling renamed without replacing, a file holding only lines its directory admits gets the missing ones added, swapped in whole and swapped back if it changed meanwhile, one holding anything else is refused, and deleting the file undoes it; `unload: true` (modprobe only) then runs `modprobe -r` on every module its lines name that `/proc/modules` lists, on the live host only, failing when modprobe refuses one still in use; a rule with no `fix` shows that file, its lines and the unload as its fix steps |
 | `mask` | the subject is a systemd unit (`.service`, `.socket`, `.timer`, `.path`, `.target`, `.mount`, `.automount`, `.swap`): runs `systemctl mask --now` on the live host, which links it to `/dev/null` and stops it, or `systemctl --root=DIR mask` under `--root`; systemctl refuses a unit file of the admin’s own in `/etc/systemd/system`, and `systemctl unmask` undoes it |
+| `set-key` | `{file, key, value}`: `file: login-defs` (`/etc/login.defs`, which has no drop-in directory), only `UMASK` at `027` or `077` and `ENCRYPT_METHOD` at `SHA512` or `YESCRYPT`; sets every line naming the key, comments left alone, or adds one when none does, keeping the file’s mode, and refuses when the key no longer holds the value the lint read |
 
 A remedy only takes access away, so a ruleset from an untrusted
 `.systemlint.yaml` can never hand a file to a user. A line is changed only

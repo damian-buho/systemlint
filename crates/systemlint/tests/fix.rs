@@ -768,3 +768,91 @@ fn a_subject_drop_in_writes_every_failing_subject_into_one_file() {
         "a subject with a blank is left out, a repeated line written once"
     );
 }
+
+#[test]
+fn a_set_key_writes_only_a_listed_value_and_only_over_what_the_lint_read() {
+    let ok = |key: &str, value: &str| {
+        drop_in(&format!(
+            "set-key: {{file: login-defs, key: {key}, value: '{value}'}}"
+        ))
+        .validate()
+    };
+    for (key, value) in [
+        ("UMASK", "027"),
+        ("UMASK", "077"),
+        ("ENCRYPT_METHOD", "SHA512"),
+        ("ENCRYPT_METHOD", "YESCRYPT"),
+    ] {
+        assert!(ok(key, value).is_ok(), "{key} {value}");
+    }
+    for (key, value) in [
+        ("UMASK", "022"),
+        ("UMASK", "27"),
+        ("ENCRYPT_METHOD", "MD5"),
+        ("PASS_MAX_DAYS", "1"),
+        ("umask", "027"),
+    ] {
+        assert!(ok(key, value).is_err(), "{key} {value}");
+    }
+    let yaml = "fact: auth.login-defs\nexpect: {required: [UMASK], properties: {UMASK: {pattern: '^0[0-7]?[2367]7$'}}}\nremedy: {set-key: {file: login-defs, key: UMASK, value: '027'}}\n";
+    let rule = compile("t/umask", systemlint::yaml::from_str(yaml).unwrap()).unwrap();
+    let dir = base("set-key");
+    std::fs::create_dir_all(dir.join("etc")).unwrap();
+    let defs = dir.join("etc/login.defs");
+    let root = Root::open(&dir).unwrap();
+    let planned = |umask: Value| {
+        let document = json!({"auth": {"login-defs": umask}});
+        let checks = lint(&document, std::slice::from_ref(&rule), &[], "2026-11-20");
+        plan(&checks, std::slice::from_ref(&rule), &document).changes
+    };
+    let change = planned(json!({"UMASK": "022"})).remove(0);
+    assert_eq!(change.path, "/etc/login.defs");
+    assert_eq!(
+        change.remedy.command(&change.path),
+        "sed --in-place 's/^UMASK[[:space:]].*/UMASK 027/' /etc/login.defs"
+    );
+    std::fs::write(
+        &defs,
+        "# UMASK 022\nUMASK\t022\nMAIL_DIR /var/mail\nUMASK 022\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&defs, std::fs::Permissions::from_mode(0o640)).unwrap();
+    assert_eq!(
+        apply(&root, &change).unwrap(),
+        Some(("UMASK 022".into(), "UMASK 027".into()))
+    );
+    assert_eq!(
+        std::fs::read_to_string(&defs).unwrap(),
+        "# UMASK 022\nUMASK 027\nMAIL_DIR /var/mail\nUMASK 027\n"
+    );
+    assert_eq!(
+        std::fs::metadata(&defs).unwrap().permissions().mode() & 0o777,
+        0o640
+    );
+    assert_eq!(
+        apply(&root, &change).unwrap(),
+        None,
+        "a re-run changes nothing"
+    );
+    std::fs::write(&defs, "UMASK 002\n").unwrap();
+    let error = apply(&root, &change).unwrap_err();
+    assert!(
+        error.to_string().contains("changed since the lint"),
+        "{error}"
+    );
+    assert_eq!(std::fs::read_to_string(&defs).unwrap(), "UMASK 002\n");
+    let absent = planned(json!({})).remove(0);
+    assert_eq!(
+        absent.remedy.command(&absent.path),
+        "echo 'UMASK 027' >> /etc/login.defs"
+    );
+    std::fs::write(&defs, "MAIL_DIR /var/mail").unwrap();
+    assert_eq!(
+        apply(&root, &absent).unwrap(),
+        Some(("UMASK unset".into(), "UMASK 027".into()))
+    );
+    assert_eq!(
+        std::fs::read_to_string(&defs).unwrap(),
+        "MAIL_DIR /var/mail\nUMASK 027\n"
+    );
+}
