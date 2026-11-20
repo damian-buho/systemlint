@@ -66,6 +66,9 @@ impl From<Failure> for String {
     }
 }
 
+/// Checks a file written in a root before it takes its name, given a host path that reaches it through the open directory.
+pub type Check<'a> = &'a dyn Fn(&Path) -> io::Result<()>;
+
 /// A directory every path is resolved inside, `/` on a live host.
 #[derive(Debug)]
 pub struct Root {
@@ -405,8 +408,15 @@ impl Root {
     }
 
     /// `text` as the new file `name` in the directory `dir`, through a temporary sibling renamed without replacing, so it appears whole or not at all and never over another file.
-    pub fn write_new(&self, dir: &str, name: &str, text: &str, mode: u32) -> io::Result<()> {
-        self.swap_in(dir, name, text, mode, None)
+    pub fn write_new(
+        &self,
+        dir: &str,
+        name: &str,
+        text: &str,
+        mode: u32,
+        check: Check,
+    ) -> io::Result<()> {
+        self.swap_in(dir, name, (text, mode), None, check)
     }
 
     /// `text` over the file `name` in `dir`, swapped in whole, and swapped back when that file no longer held `held`.
@@ -417,18 +427,19 @@ impl Root {
         text: &str,
         mode: u32,
         held: &str,
+        check: Check,
     ) -> io::Result<()> {
-        self.swap_in(dir, name, text, mode, Some(held))
+        self.swap_in(dir, name, (text, mode), Some(held), check)
     }
 
-    /// Writes a temporary sibling, then renames it to `name` without replacing, or with `held` exchanges the two and checks the old one.
+    /// Writes `text` at `mode` as a temporary sibling `check` passes, then renames it to `name` without replacing, or with `held` exchanges the two and checks the old one.
     fn swap_in(
         &self,
         dir: &str,
         name: &str,
-        text: &str,
-        mode: u32,
+        (text, mode): (&str, u32),
         held: Option<&str>,
+        check: Check,
     ) -> io::Result<()> {
         let parent = self.open_at(dir, OFlags::PATH | OFlags::DIRECTORY | OFlags::NOFOLLOW)?;
         let temporary = format!(".{name}.{}.tmp", std::process::id());
@@ -448,6 +459,11 @@ impl Root {
             let mut file = File::from(fd);
             io::Write::write_all(&mut file, text.as_bytes())?;
             file.sync_all()?;
+            let fd = std::os::fd::AsRawFd::as_raw_fd(&parent);
+            check(Path::new(&format!(
+                "/proc/{}/fd/{fd}/{temporary}",
+                std::process::id()
+            )))?;
             let Some(held) = held else {
                 return rename(rustix::fs::RenameFlags::NOREPLACE);
             };

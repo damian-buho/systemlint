@@ -640,6 +640,63 @@ fn a_sysctl_drop_in_writes_only_a_listed_key_at_a_hardened_value() {
 }
 
 #[test]
+fn a_sudoers_drop_in_takes_a_dotless_0440_file_that_visudo_passed() {
+    let ok = |line: &str| {
+        drop_in(&format!(
+            "drop-in: {{into: sudoers, name: x, lines: ['{line}']}}"
+        ))
+        .validate()
+    };
+    assert!(ok("Defaults use_pty").is_ok());
+    assert!(ok("Defaults logfile=\"/var/log/sudo.log\"").is_ok());
+    for refused in [
+        "Defaults !authenticate",
+        "Defaults use_pty ",
+        "Defaults logfile=/tmp/x",
+        "ALL ALL=(ALL) NOPASSWD: ALL",
+    ] {
+        assert!(ok(refused).is_err(), "{refused}");
+    }
+    let dir = base("sudoers");
+    std::fs::create_dir_all(dir.join("etc/sudoers.d")).unwrap();
+    let root = Root::open(&dir).unwrap();
+    let Remedy::DropIn(drop) =
+        drop_in("drop-in: {into: sudoers, name: use-pty, lines: [Defaults use_pty]}")
+    else {
+        unreachable!()
+    };
+    assert_eq!(drop.path(), "/etc/sudoers.d/99-systemlint-use-pty");
+    let change = Change {
+        rule: "test/rule".into(),
+        path: drop.path(),
+        line: None,
+        remedy: Remedy::DropIn(drop),
+    };
+    let written = dir.join("etc/sudoers.d/99-systemlint-use-pty");
+    match Path::new("/usr/sbin/visudo").exists() {
+        true => {
+            assert_eq!(
+                apply(&root, &change).unwrap(),
+                Some(("absent".into(), "written".into()))
+            );
+            assert_eq!(
+                std::fs::read_to_string(&written).unwrap(),
+                "Defaults use_pty\n"
+            );
+            assert_eq!(
+                std::fs::metadata(&written).unwrap().permissions().mode() & 0o777,
+                0o440
+            );
+        }
+        false => {
+            let error = apply(&root, &change).unwrap_err();
+            assert!(error.to_string().contains("visudo"), "{error}");
+            assert!(!written.exists());
+        }
+    }
+}
+
+#[test]
 fn a_mask_names_only_a_unit_systemd_could_name() {
     let long = |n: usize| format!("{}.service", "a".repeat(n - ".service".len()));
     for named in [

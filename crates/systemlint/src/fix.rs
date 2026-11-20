@@ -89,7 +89,15 @@ pub enum Directory {
     Apt,
     /// `/etc/sysctl.d`, for the kernel settings in [`SYSCTL`] at their hardened values, loaded at once on the live host.
     Sysctl,
+    /// `/etc/sudoers.d`, for the Defaults in [`SUDOERS_LINES`], each file passing `visudo --check` before it takes its name.
+    Sudoers,
 }
+
+/// The sudo Defaults a drop-in may write, each adding a safeguard.
+const SUDOERS_LINES: [&str; 2] = ["Defaults use_pty", "Defaults logfile=\"/var/log/sudo.log\""];
+
+/// The visudo that checks a sudoers drop-in before it takes its name.
+const VISUDO: &str = "/usr/sbin/visudo";
 
 /// The sysctl program that loads a drop-in into the running kernel.
 const SYSCTL_PROGRAM: &str = "/usr/sbin/sysctl";
@@ -146,6 +154,23 @@ impl Directory {
             Self::Modprobe => "/etc/modprobe.d",
             Self::Apt => "/etc/apt/apt.conf.d",
             Self::Sysctl => "/etc/sysctl.d",
+            Self::Sudoers => "/etc/sudoers.d",
+        }
+    }
+
+    /// The name suffix of its drop-ins: sudo skips a name holding a dot.
+    fn suffix(self) -> &'static str {
+        match self {
+            Self::Sudoers => "",
+            _ => ".conf",
+        }
+    }
+
+    /// The mode of its drop-ins, 0440 for sudoers as visudo makes them.
+    fn mode(self) -> u32 {
+        match self {
+            Self::Sudoers => 0o440,
+            _ => 0o644,
         }
     }
 
@@ -153,7 +178,7 @@ impl Directory {
     fn order(self) -> u8 {
         match self {
             Self::Modprobe => 60,
-            Self::Apt | Self::Sysctl => 99,
+            Self::Apt | Self::Sysctl | Self::Sudoers => 99,
         }
     }
 
@@ -175,6 +200,7 @@ impl Directory {
             ) => module(m),
             (Self::Modprobe, ["blacklist", m]) => module(m),
             (Self::Apt, _) => APT_LINES.contains(&line),
+            (Self::Sudoers, _) => SUDOERS_LINES.contains(&line),
             (Self::Sysctl, [key, "=", value]) => SYSCTL
                 .iter()
                 .any(|(k, values)| values.contains(value) && same_key(k, key)),
@@ -235,13 +261,22 @@ impl DropIn {
         (self.into == Directory::Sysctl).then(|| format!("sysctl --load={}", self.path()))
     }
 
+    /// The command that checks it, a sudoers drop-in’s only.
+    fn checking(&self) -> Option<String> {
+        (self.into == Directory::Sudoers).then(|| {
+            let path = quote(&self.path());
+            format!("chmod 0440 {path} && visudo --check --file={path}")
+        })
+    }
+
     /// The file it writes.
     pub fn path(&self) -> String {
         format!(
-            "{}/{}-systemlint-{}.conf",
+            "{}/{}-systemlint-{}{}",
             self.into.path(),
             self.into.order(),
-            self.name
+            self.name,
+            self.into.suffix()
         )
     }
 
@@ -287,6 +322,12 @@ impl DropIn {
             format!("Write {these} to “{}”:", self.path())
         };
         let mut steps = vec![Step::Say(what), Step::Show(Shown::Lines(lines))];
+        if let Some(command) = self.checking() {
+            steps.push(Step::Say(
+                "Make it read-only, as sudo expects, and check it:".to_owned(),
+            ));
+            steps.push(Step::Show(Shown::Run(command)));
+        }
         if let Some(command) = self.loading() {
             steps.push(Step::Say("Load it into the running kernel:".to_owned()));
             steps.push(Step::Show(Shown::Run(command)));
@@ -395,7 +436,11 @@ impl Remedy {
                     lines.join(" "),
                     quote(&drop.path())
                 );
-                match drop.unloading().or_else(|| drop.loading()) {
+                match drop
+                    .unloading()
+                    .or_else(|| drop.loading())
+                    .or_else(|| drop.checking())
+                {
                     Some(command) => format!("{written} && {command}"),
                     None => written,
                 }
@@ -758,7 +803,8 @@ fn write(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
     let path = drop.path();
     let text = drop.text();
     let name = path.rsplit('/').next().unwrap_or_default();
-    match root.write_new(drop.into.path(), name, &text, 0o644) {
+    let check = |path: &std::path::Path| checked(drop, path);
+    match root.write_new(drop.into.path(), name, &text, drop.into.mode(), &check) {
         Ok(()) => {
             log::debug!("{path}: written, {} lines", drop.lines.len());
             Ok(Some(("absent".to_owned(), "written".to_owned())))
@@ -792,7 +838,14 @@ fn write(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
             let merged: String = missing
                 .iter()
                 .fold(held.clone(), |t, l| format!("{t}{l}\n"));
-            root.replace(drop.into.path(), name, &merged, 0o644, &held)?;
+            root.replace(
+                drop.into.path(),
+                name,
+                &merged,
+                drop.into.mode(),
+                &held,
+                &check,
+            )?;
             let count = |n: usize| format!("{n} line{}", if n == 1 { "" } else { "s" });
             Ok(Some((
                 count(lines.len()),
@@ -801,6 +854,31 @@ fn write(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
         }
         Err(e) => Err(e),
     }
+}
+
+/// Passes a sudoers drop-in at `path` through `visudo --check`, and any other at once.
+fn checked(drop: &DropIn, path: &std::path::Path) -> Result<(), std::io::Error> {
+    if drop.into != Directory::Sudoers {
+        return Ok(());
+    }
+    let file = format!("--file={}", path.display());
+    let output = crate::runner::run(
+        std::path::Path::new(VISUDO),
+        &["--check", file.as_str()],
+        None,
+        UNLOAD_TIMEOUT,
+        crate::runner::OUTPUT_CAP,
+        None,
+    )
+    .map_err(|e| std::io::Error::other(format!("visudo {e}")))?;
+    log::debug!("visudo --check {file}: exit {}", output.code());
+    if output.code() != 0 {
+        let answer = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        return Err(std::io::Error::other(format!(
+            "visudo refused it, so systemlint writes nothing: “{answer}”"
+        )));
+    }
+    Ok(())
 }
 
 /// The `modules` that `/proc/modules` text lists, either spelling (`usb-storage`, `usb_storage`) matching kmod’s.

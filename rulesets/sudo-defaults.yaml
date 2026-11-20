@@ -42,7 +42,7 @@ rules:
     score: 3.5
     message: "{subject}’s sudo Defaults do not set use_pty, so where the build does not default to it, a program run with sudo shares the caller’s terminal and can push keystrokes into it after sudo returns"
     rationale: a program started through sudo can push keystrokes into the user’s terminal after sudo has returned, and run commands as that user
-    fix: add “Defaults use_pty” to “/etc/sudoers” with visudo
+    remedy: {drop-in: {into: sudoers, name: use-pty, lines: [Defaults use_pty]}}
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.2]
   sudo-defaults/logfile:
@@ -54,7 +54,7 @@ rules:
     score: 1.5
     message: "{subject}’s sudo Defaults set no logfile, so sudo logs only to syslog"
     rationale: the record of who ran what through sudo lives only in the system log, where a user who gains access can erase or alter it
-    fix: add “Defaults logfile="/var/log/sudo.log"” to “/etc/sudoers” with visudo
+    remedy: {drop-in: {into: sudoers, name: logfile, lines: ['Defaults logfile="/var/log/sudo.log"']}}
     docs: https://www.sudo.ws/docs/man/sudoers.man/
     tags: [sudo, cis-ubuntu-26.04:5.2.3, '!default']
   sudo-defaults/timestamp-timeout:
