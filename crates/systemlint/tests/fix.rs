@@ -6,7 +6,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
-use systemlint::fix::{Change, Lines, Remedy, apply, cleared, line_sha256, plan};
+use systemlint::fix::{Change, Lines, Remedy, apply, cleared, line_sha256, plan, unit_of};
 use systemlint::judge::{compile, lint};
 use systemlint::source::Root;
 
@@ -624,6 +624,79 @@ fn a_sysctl_drop_in_writes_only_a_listed_key_at_a_hardened_value() {
     ] {
         assert!(ok(refused).is_err(), "{refused}");
     }
+}
+
+#[test]
+fn a_mask_names_only_a_unit_systemd_could_name() {
+    let long = |n: usize| format!("{}.service", "a".repeat(n - ".service".len()));
+    for named in [
+        "avahi-daemon.service",
+        "getty@tty1.service",
+        "update-notifier-motd.timer",
+        "/etc/systemd/system/cups.socket",
+        &long(255),
+    ] {
+        assert!(unit_of(named).is_some(), "{named}");
+    }
+    for refused in [
+        ".service",
+        "-x.service",
+        ".x.service",
+        "a b.service",
+        "x.conf",
+        "x",
+        "",
+        "/etc/systemd/system/",
+        &long(256),
+    ] {
+        assert_eq!(unit_of(refused), None, "{refused}");
+    }
+}
+
+#[test]
+fn applying_a_mask_links_the_unit_once_and_leaves_a_unit_file_of_its_own() {
+    let dir = base("mask");
+    std::fs::create_dir_all(dir.join("etc/systemd/system")).unwrap();
+    let yaml =
+        "fact: systemd.state.*\nexpect: {properties: {masked: {const: true}}}\nremedy: mask\n";
+    let rule = compile("t/mask", systemlint::yaml::from_str(yaml).unwrap()).unwrap();
+    let document = json!({"systemd": {"state": {"cups.socket": {"masked": false}, "own.service": {"masked": false}, "a b.service": {"masked": false}, "off.service": {"masked": true}}}});
+    let checks = lint(&document, std::slice::from_ref(&rule), &[], "2026-11-20");
+    let planned = plan(&checks, &[rule], &document).changes;
+    let paths: Vec<&str> = planned.iter().map(|c| c.path.as_str()).collect();
+    assert_eq!(
+        paths,
+        [
+            "/etc/systemd/system/cups.socket",
+            "/etc/systemd/system/own.service"
+        ],
+        "a unit name with a blank is left out"
+    );
+    assert_eq!(
+        planned[0].remedy.command(&planned[0].path),
+        "systemctl mask --now cups.socket"
+    );
+    let root = Root::open(&dir).unwrap();
+    assert_eq!(
+        apply(&root, &planned[0]).unwrap(),
+        Some(("unmasked".into(), "masked".into()))
+    );
+    assert_eq!(
+        std::fs::read_link(dir.join("etc/systemd/system/cups.socket")).unwrap(),
+        Path::new("/dev/null")
+    );
+    assert_eq!(
+        apply(&root, &planned[0]).unwrap(),
+        None,
+        "a re-run changes nothing"
+    );
+    std::fs::write(dir.join("etc/systemd/system/own.service"), "[Service]\n").unwrap();
+    let error = apply(&root, &planned[1]).unwrap_err();
+    assert!(error.to_string().contains("of its own"), "{error}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("etc/systemd/system/own.service")).unwrap(),
+        "[Service]\n"
+    );
 }
 
 #[test]

@@ -1351,7 +1351,9 @@ fn failure(
                 rule.spec
                     .remedy
                     .as_ref()
-                    .filter(|r| matches!(r, crate::fix::Remedy::DropIn(_)))
+                    .filter(|r| {
+                        matches!(r, crate::fix::Remedy::DropIn(_) | crate::fix::Remedy::Mask)
+                    })
                     .map(|_| bound.last().unwrap_or(&EMPTY))
             }))
             .filter(|(r, _)| {

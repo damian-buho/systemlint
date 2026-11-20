@@ -436,6 +436,13 @@ impl Root {
         written
     }
 
+    /// The new symbolic link `name` in the directory `dir` pointing at `target`, never over another file.
+    pub fn symlink_new(&self, dir: &str, name: &str, target: &str) -> io::Result<()> {
+        let parent = self.open_at(dir, OFlags::PATH | OFlags::DIRECTORY | OFlags::NOFOLLOW)?;
+        log::debug!("link {dir}/{name} to {target}");
+        rustix::fs::symlinkat(target, &parent, name).map_err(io::Error::from)
+    }
+
     /// The metadata of `path` itself, a final symlink not followed.
     pub fn stat(&self, path: &str) -> io::Result<Stat> {
         let fd = self.open_at(path, OFlags::PATH | OFlags::NOFOLLOW)?;

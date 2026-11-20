@@ -20,7 +20,8 @@ rules:
     score: 2.0
     message: "{subject} is enabled or running: the automounter mounts removable media and network shares on access, a service to leave off unless this host offers it"
     rationale: a removable drive or network share is mounted the moment someone touches its path, including a hostile one
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/automount.8.html
     tags: [services, cis-ubuntu-26.04:2.1.1]
   unused-services/avahi:
@@ -32,7 +33,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: the Avahi mDNS daemon announces this host and its services to the local network, a service to leave off unless this host offers it"
     rationale: any machine on the network learns what this host is and which services it runs, and can feed it forged announcements
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/avahi-daemon.8.html
     tags: [services, cis-ubuntu-26.04:2.1.2]
   unused-services/dhcp-server:
@@ -44,7 +46,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: a Kea DHCP server hands out addresses and routes to any host on the network, a service to leave off unless this host offers it"
     rationale: a misconfigured or compromised server can hand every host on the network a wrong address or gateway and redirect their traffic
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://kea.readthedocs.io/
     tags: [services, cis-ubuntu-26.04:2.1.3]
   unused-services/dns-server:
@@ -56,7 +59,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: the BIND DNS server answers DNS queries from the network, a service to leave off unless this host offers it"
     rationale: a flaw in the name server can be attacked by anyone on the network, and it can be abused to amplify floods at other targets
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/named.8.html
     tags: [services, cis-ubuntu-26.04:2.1.4]
   unused-services/dnsmasq:
@@ -68,7 +72,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: dnsmasq serves DNS and DHCP to the network, a service to leave off unless this host offers it"
     rationale: a flaw in this small network server can be attacked by anyone on the network, and it can poison the names that hosts use
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/dnsmasq.8.html
     tags: [services, cis-ubuntu-26.04:2.1.5]
   unused-services/ftp-server:
@@ -80,7 +85,8 @@ rules:
     score: 3.0
     message: "{subject} is enabled or running: the vsftpd FTP server serves files over FTP, a service to leave off unless this host offers it"
     rationale: anyone on the network can try passwords against a service that sends them in clear text and exposes files
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/vsftpd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.6]
   unused-services/ldap-server:
@@ -92,7 +98,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: the slapd LDAP server serves a directory to the network, a service to leave off unless this host offers it"
     rationale: anyone on the network can query or attack the directory of users and passwords
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/slapd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.7]
   unused-services/mail-access-server:
@@ -104,7 +111,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: the Dovecot IMAP and POP3 server serves mailboxes to the network, a service to leave off unless this host offers it"
     rationale: anyone on the network can try passwords against mailboxes or exploit a flaw in the mail server
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://doc.dovecot.org/
     tags: [services, cis-ubuntu-26.04:2.1.8]
   unused-services/nfs-server:
@@ -116,7 +124,8 @@ rules:
     score: 3.0
     message: "{subject} is enabled or running: the NFS server exports file systems to the network, a service to leave off unless this host offers it"
     rationale: other machines can mount the exported directories and read or change files if an export is too open
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/nfsd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.9, stig-ubuntu-26.04:UBTU-24-100050]
   unused-services/print-server:
@@ -128,7 +137,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: the CUPS print server takes print jobs and serves its web interface, a service to leave off unless this host offers it"
     rationale: anyone on the network can send jobs or reach the web interface, and past flaws here have given remote code execution
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/cupsd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.11]
   unused-services/rpcbind:
@@ -140,7 +150,8 @@ rules:
     score: 3.0
     message: "{subject} is enabled or running: rpcbind maps RPC programs to ports for any host that asks, a service to leave off unless this host offers it"
     rationale: any host can ask which RPC services run here, and the service has been used to amplify floods at other targets
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/rpcbind.8.html
     tags: [services, cis-ubuntu-26.04:2.1.12]
   unused-services/rsync:
@@ -152,7 +163,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: the rsync daemon serves files over the rsync protocol, a service to leave off unless this host offers it"
     rationale: anyone on the network can read or overwrite files shared over this daemon when a module is too open
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/rsyncd.conf.5.html
     tags: [services, cis-ubuntu-26.04:2.1.13]
   unused-services/samba:
@@ -164,7 +176,8 @@ rules:
     score: 3.0
     message: "{subject} is enabled or running: the Samba file server shares files over SMB, a service to leave off unless this host offers it"
     rationale: anyone on the network can try to read shared files or exploit a flaw in the file server
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/smbd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.14]
   unused-services/snmp:
@@ -176,7 +189,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: the SNMP daemon answers SNMP queries about this host, a service to leave off unless this host offers it"
     rationale: anyone who guesses the community string can read details of the host’s network, processes and software, or change settings
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/snmpd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.15]
   unused-services/telnet-server:
@@ -188,7 +202,8 @@ rules:
     score: 3.0
     message: "{subject} is enabled or running: inetutils-inetd starts the telnet server and other inetd services, a service to leave off unless this host offers it"
     rationale: anyone on the network can log in over telnet, where passwords and sessions travel unencrypted
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/inetutils-inetd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.16]
   unused-services/web-proxy:
@@ -200,7 +215,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: the Squid proxy relays web traffic for its clients, a service to leave off unless this host offers it"
     rationale: outsiders can use the proxy to hide their traffic behind this host or reach internal networks through it
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/squid.8.html
     tags: [services, cis-ubuntu-26.04:2.1.18]
   unused-services/web-server:
@@ -212,7 +228,8 @@ rules:
     score: 2.5
     message: "{subject} is enabled or running: a web server serves HTTP to the network, a service to leave off unless this host offers it"
     rationale: anyone on the network can reach the web server and attack its code or any application running on it
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://httpd.apache.org/docs/current/misc/security_tips.html
     tags: [services, cis-ubuntu-26.04:2.1.19]
   unused-services/xinetd:
@@ -224,7 +241,8 @@ rules:
     score: 3.0
     message: "{subject} is enabled or running: xinetd starts network services on demand, a service to leave off unless this host offers it"
     rationale: every service it starts on demand is another door open to the network, often an old unencrypted one
-    fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
+    fix: run “systemctl mask --now” on the unit, or remove its package, unless this host serves it on purpose
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/xinetd.8.html
     tags: [services, cis-ubuntu-26.04:2.1.20]
   unused-services/apport:
@@ -267,6 +285,7 @@ rules:
     score: 2.0
     message: "{subject} is enabled or running, so a device within radio range talks to its stack, where pairing and parser flaws are reachable"
     rationale: an attacker standing nearby can pair with the host or exploit a flaw in the Bluetooth stack without any network access
-    fix: run “systemctl mask --now {subject}”, or “apt purge bluez”, unless this host uses Bluetooth devices
+    fix: run “systemctl mask --now” on the unit, or “apt purge bluez”, unless this host uses Bluetooth devices
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/bluetoothd.8.html
     tags: [services, cis-ubuntu-26.04:3.1.3]

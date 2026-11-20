@@ -60,7 +60,8 @@ rules:
     score: 1.0
     message: "{subject} is enabled or running: it writes the pending and security update counts into the message of the day every user reads at login"
     rationale: every user who logs in is told which updates are pending, which reveals unpatched flaws an attacker can use
-    fix: run “systemctl mask --now {subject}”
+    fix: run “systemctl mask --now” on the unit
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_motd.8.html
     tags: ['!default', banner, cis-ubuntu-26.04:1.6.11]
   banner/update-notifier-timer:
@@ -72,7 +73,8 @@ rules:
     score: 1.0
     message: "{subject} is enabled or running: it starts update-notifier-motd.service again on a schedule, which writes the update counts into the message of the day"
     rationale: every user who logs in is told which updates are pending, which reveals unpatched flaws an attacker can use
-    fix: run “systemctl mask --now {subject}”
+    fix: run “systemctl mask --now” on the unit
+    remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_motd.8.html
     tags: ['!default', banner, cis-ubuntu-26.04:1.6.12]
   banner/stig-issue-empty:
