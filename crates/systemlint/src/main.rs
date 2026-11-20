@@ -22,6 +22,30 @@ use systemlint::source::Root;
 use systemlint::{collector, crash, document, progress, rules, runner, targets, trail};
 use systemlint_protocol::{OpSpec, VERSION};
 
+/// Prints on stderr unless a Ctrl-C arrived, which leaves the words and the exit to [`on_interrupt`].
+macro_rules! eprintln {
+    ($($arg:tt)*) => {{
+        settle();
+        std::eprintln!($($arg)*)
+    }};
+}
+
+/// Set inside the SIGINT handler itself, before any later input such as a closed stdin is read.
+static INTERRUPTED: std::sync::OnceLock<std::sync::Arc<std::sync::atomic::AtomicBool>> =
+    std::sync::OnceLock::new();
+
+/// Parks this thread for good once a Ctrl-C arrived, so the interrupt thread alone speaks and exits.
+fn settle() {
+    let caught = INTERRUPTED
+        .get()
+        .is_some_and(|f| f.load(std::sync::atomic::Ordering::SeqCst));
+    if caught {
+        loop {
+            std::thread::park();
+        }
+    }
+}
+
 /// Exit code when `check` finds failures at `--fail-on`, or a `facts` collector failed.
 const EXIT_FAIL: u8 = 1;
 
@@ -297,11 +321,16 @@ const EXIT_INTERRUPTED: i32 = 130;
 fn on_interrupt() {
     let mut signals = match signal_hook::iterator::Signals::new([signal_hook::consts::SIGINT]) {
         Ok(signals) => signals,
-        Err(error) => return eprintln!("Ctrl-C leaves plugins running: {error}"),
+        Err(error) => return std::eprintln!("Ctrl-C leaves plugins running: {error}"),
     };
+    let flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    match signal_hook::flag::register(signal_hook::consts::SIGINT, flag.clone()) {
+        Ok(_) => drop(INTERRUPTED.set(flag)),
+        Err(error) => log::debug!("SIGINT flag not registered: {error}"),
+    }
     std::thread::spawn(move || {
         if let Some(signal) = signals.forever().next() {
-            eprintln!("Interrupted, stopping plugins…");
+            std::eprintln!("Interrupted, stopping plugins…");
             let stopped = runner::stop_children();
             log::debug!("signal {signal} stopped {stopped} children");
             std::process::exit(EXIT_INTERRUPTED);
@@ -310,6 +339,13 @@ fn on_interrupt() {
 }
 
 fn main() -> ExitCode {
+    let code = run();
+    settle();
+    code
+}
+
+/// The command line’s work, its exit code returned.
+fn run() -> ExitCode {
     if let Some(code) = runner::helper() {
         return code;
     }
