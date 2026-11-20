@@ -17,3 +17,6 @@ serde-saphyr.workspace = true
 serde_json.workspace = true
 systemlint-protocol.workspace = true
 toml.workspace = true
+
+[lints]
+workspace = true

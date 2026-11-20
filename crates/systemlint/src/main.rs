@@ -293,21 +293,27 @@ struct Listed {
 /// Exit code after a Ctrl-C, the shell’s 128 plus SIGINT.
 const EXIT_INTERRUPTED: i32 = 130;
 
-/// On SIGINT: says so, kills the running plugins and exits 130, through async-signal-safe calls only.
-extern "C" fn interrupted(_: libc::c_int) {
-    const MESSAGE: &str = "Interrupted, stopping plugins…\n";
-    // SAFETY: write, kill and _exit are async-signal-safe, and MESSAGE is static.
-    unsafe { libc::write(libc::STDERR_FILENO, MESSAGE.as_ptr().cast(), MESSAGE.len()) };
-    runner::stop_children();
-    // SAFETY: _exit skips the destructors and buffers a handler must not run.
-    unsafe { libc::_exit(EXIT_INTERRUPTED) };
+/// Waits on its own thread for SIGINT, then says so, kills the running plugins and exits 130.
+fn on_interrupt() {
+    let mut signals = match signal_hook::iterator::Signals::new([signal_hook::consts::SIGINT]) {
+        Ok(signals) => signals,
+        Err(error) => return eprintln!("Ctrl-C leaves plugins running: {error}"),
+    };
+    std::thread::spawn(move || {
+        if let Some(signal) = signals.forever().next() {
+            eprintln!("Interrupted, stopping plugins…");
+            let stopped = runner::stop_children();
+            log::debug!("signal {signal} stopped {stopped} children");
+            std::process::exit(EXIT_INTERRUPTED);
+        }
+    });
 }
 
 fn main() -> ExitCode {
-    // SAFETY: restores the default SIGPIPE action Rust’s runtime set to ignore, before any thread starts, so a closed pipe ends the run silently.
-    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
-    // SAFETY: installs a handler that only calls async-signal-safe functions, before any thread starts.
-    unsafe { libc::signal(libc::SIGINT, interrupted as *const () as libc::sighandler_t) };
+    if let Some(code) = runner::helper() {
+        return code;
+    }
+    on_interrupt();
     crash::install();
     let cli = Cli::parse();
     let Some(command) = cli.command else {
@@ -1177,7 +1183,12 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
         let mut failed = 0;
         for change in &changes {
             match systemlint::fix::apply(&opened, change) {
-                Ok(Some((before, after))) => println!("{}: {before} → {after}", shown(change)),
+                Ok(Some((before, after))) => {
+                    let line = format!("{}: {before} → {after}\n", shown(change));
+                    if let Err(error) = document::write(Path::new("-"), &line, 0) {
+                        log::debug!("{error}");
+                    }
+                }
                 Ok(None) => log::debug!("{} already satisfies {}", change.path, change.rule),
                 Err(error) => {
                     failed += 1;
@@ -1230,8 +1241,14 @@ fn rule_pages(format: PagesFormat, lang: &str, output: Option<&Path>) -> u8 {
     match (format, output) {
         (PagesFormat::Markdown, Some(dir)) => match systemlint::pages::write_all(dir, &library) {
             Ok(count) => {
-                println!("{count} pages written to {}", dir.display());
-                0
+                let line = format!("{count} pages written to {}\n", dir.display());
+                document::write(Path::new("-"), &line, 0).map_or_else(
+                    |error| {
+                        eprintln!("{error}");
+                        EXIT_OUTPUT
+                    },
+                    |()| 0,
+                )
             }
             Err(error) => {
                 eprintln!("{error}");
@@ -1240,10 +1257,13 @@ fn rule_pages(format: PagesFormat, lang: &str, output: Option<&Path>) -> u8 {
         },
         (PagesFormat::Markdown, None) => 2,
         (PagesFormat::Yaml, _) => match systemlint::pages::catalog(&library) {
-            Ok(text) => {
-                print!("{text}");
-                0
-            }
+            Ok(text) => document::write(Path::new("-"), &text, 0).map_or_else(
+                |error| {
+                    eprintln!("{error}");
+                    EXIT_OUTPUT
+                },
+                |()| 0,
+            ),
             Err(error) => {
                 eprintln!("{error}");
                 EXIT_INTERNAL

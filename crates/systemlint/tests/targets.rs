@@ -95,16 +95,17 @@ fn a_process_root_reads_proc_self_as_the_container_init() {
 }
 
 #[test]
-fn a_command_inside_exits_as_it_did_through_the_middle_process() {
+fn a_command_inside_exits_as_it_did_through_the_helper() {
     let status = std::fs::read_to_string("/proc/self/status").unwrap();
-    let inside = Inside::of(std::process::id(), &status).unwrap();
+    let mut inside = Inside::of(std::process::id(), &status).unwrap();
+    inside.helper = env!("CARGO_BIN_EXE_systemlint").into();
     assert_eq!(
         inside.namespaces, 0,
         "this process shares its own namespaces"
     );
     assert_eq!(Some(inside.bounding), bounding(&status));
     let first = Path::new("/bin/true");
-    // A first wait installs wait-timeout’s SIGCHLD handler, which the middle process inherits.
+    // A first wait installs wait-timeout’s SIGCHLD handler before the helper runs.
     run(first, &[], None, Duration::from_secs(600), OUTPUT_CAP, None).unwrap();
     let output = run(
         Path::new("/bin/sh"),
@@ -178,6 +179,7 @@ fn a_command_whose_apparmor_label_cannot_be_applied_does_not_run() {
     let status = std::fs::read_to_string("/proc/self/status").unwrap();
     let mut inside = Inside::of(std::process::id(), &status).unwrap();
     inside.apparmor = Some("systemlint-no-such-profile".to_owned());
+    inside.helper = env!("CARGO_BIN_EXE_systemlint").into();
     let ran = run(
         Path::new("/bin/true"),
         &[],

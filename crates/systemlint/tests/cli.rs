@@ -275,59 +275,52 @@ fn an_output_into_proc_exits_7_naming_the_file_system() {
     assert!(stderr.starts_with("Can’t write report.txt into /proc: it is on proc, a kernel file system that holds no ordinary files. Pick a directory on a regular file system."), "{stderr}");
 }
 
+/// Names the variable holding the core’s arguments, `\u{1f}`-separated, that [`launch_with_no_random`] runs.
+const NO_RANDOM: &str = "SYSTEMLINT_TEST_NO_RANDOM";
+
+/// A launcher, inert unless [`NO_RANDOM`] is set: denies `getrandom` with `EPERM` through seccomp, then becomes the core.
+#[test]
+fn launch_with_no_random() {
+    use seccompiler::{BpfProgram, SeccompAction, SeccompFilter};
+    use std::os::unix::process::CommandExt;
+    let Ok(args) = std::env::var(NO_RANDOM) else {
+        return;
+    };
+    let filter = SeccompFilter::new(
+        [(libc::SYS_getrandom, vec![])].into(),
+        SeccompAction::Allow,
+        SeccompAction::Errno(libc::EPERM as u32),
+        std::env::consts::ARCH.try_into().unwrap(),
+    )
+    .unwrap();
+    let program: BpfProgram = filter.try_into().unwrap();
+    seccompiler::apply_filter(&program).unwrap();
+    let error = core()
+        .args(args.split('\u{1f}'))
+        .env_remove(NO_RANDOM)
+        .exec();
+    panic!("can’t become the core: {error}");
+}
+
 #[test]
 fn no_random_hash_key_exits_70() {
-    use std::os::unix::process::CommandExt;
     let dir = base("no-random");
     let config = dir.join("config.yaml");
     std::fs::write(&config, "").unwrap();
-    let mut command = core();
-    command
-        .arg("--config")
-        .arg(&config)
-        .args(["--quiet", "facts", "--root"])
-        .arg(&dir)
-        .env("LC_ALL", "C");
-    // SAFETY: the closure only calls prctl on a stack filter between fork and exec.
-    unsafe {
-        command.pre_exec(|| {
-            let insn = |code: u32, jf: u8, k: u32| libc::sock_filter {
-                code: code as u16,
-                jt: 0,
-                jf,
-                k,
-            };
-            let filter = [
-                insn(libc::BPF_LD | libc::BPF_W | libc::BPF_ABS, 0, 0),
-                insn(
-                    libc::BPF_JMP | libc::BPF_JEQ | libc::BPF_K,
-                    1,
-                    libc::SYS_getrandom as u32,
-                ),
-                insn(
-                    libc::BPF_RET | libc::BPF_K,
-                    0,
-                    libc::SECCOMP_RET_ERRNO | libc::EPERM as u32,
-                ),
-                insn(libc::BPF_RET | libc::BPF_K, 0, libc::SECCOMP_RET_ALLOW),
-            ];
-            let program = libc::sock_fprog {
-                len: filter.len() as u16,
-                filter: filter.as_ptr().cast_mut(),
-            };
-            if libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0
-                || libc::prctl(
-                    libc::PR_SET_SECCOMP,
-                    libc::SECCOMP_MODE_FILTER,
-                    &raw const program,
-                ) != 0
-            {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        })
-    };
-    let out = command.output().unwrap();
+    let args = [
+        "--config",
+        &config.display().to_string(),
+        "--quiet",
+        "facts",
+        "--root",
+        &dir.display().to_string(),
+    ]
+    .join("\u{1f}");
+    let out = Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "launch_with_no_random", "--nocapture"])
+        .env(NO_RANDOM, args)
+        .output()
+        .unwrap();
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert_eq!(out.status.code(), Some(70), "{stderr}");
     assert!(stderr.contains("can’t draw a random hash key"), "{stderr}");
@@ -782,10 +775,11 @@ fn ctrl_c_says_so_and_exits_130() {
         assert!(polls < 6000, "the SIGINT handler was never installed");
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    assert_eq!(
-        unsafe { libc::kill(i32::try_from(child.id()).unwrap(), libc::SIGINT) },
-        0
-    );
+    rustix::process::kill_process(
+        rustix::process::Pid::from_child(&child),
+        rustix::process::Signal::INT,
+    )
+    .unwrap();
     let out = child.wait_with_output().unwrap();
     assert_eq!(out.status.code(), Some(130), "{:?}", out.status);
     assert_eq!(

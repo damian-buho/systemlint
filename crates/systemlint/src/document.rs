@@ -33,10 +33,14 @@ pub fn write(path: &Path, text: &str, mode: u32) -> Result<(), String> {
     if path == Path::new("-") {
         log::debug!("writing {} bytes to stdout", text.len());
         let mut out = std::io::stdout().lock();
-        return out
-            .write_all(text.as_bytes())
-            .and_then(|()| out.flush())
-            .map_err(|e| format!("can’t write to stdout: {e}"));
+        let written = out.write_all(text.as_bytes()).and_then(|()| out.flush());
+        if let Err(e) = &written
+            && e.kind() == std::io::ErrorKind::BrokenPipe
+        {
+            log::debug!("stdout closed, ending on SIGPIPE: {e}");
+            let _ = signal_hook::low_level::emulate_default_handler(signal_hook::consts::SIGPIPE);
+        }
+        return written.map_err(|e| format!("can’t write to stdout: {e}"));
     }
     let name = path
         .file_name()

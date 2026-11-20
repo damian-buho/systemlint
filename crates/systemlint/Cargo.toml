@@ -27,6 +27,7 @@ serde.workspace = true
 serde-saphyr.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+signal-hook.workspace = true
 systemlint-formats.workspace = true
 systemlint-protocol.workspace = true
 url.workspace = true
@@ -35,9 +36,13 @@ x509-parser.workspace = true
 
 [dev-dependencies]
 rcgen.workspace = true
+seccompiler.workspace = true
 systemlint-apt.workspace = true
 systemlint-env.workspace = true
 systemlint-firewall.workspace = true
 systemlint-proc.workspace = true
 systemlint-sshd.workspace = true
 systemlint-systemd.workspace = true
+
+[lints]
+workspace = true
