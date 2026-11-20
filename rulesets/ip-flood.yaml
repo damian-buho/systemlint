@@ -42,7 +42,7 @@ rules:
     rationale: a flood of malformed ICMP error messages fills the log with warnings, which can hide real events or fill the disk
     remedy: {drop-in: {into: sysctl, name: ip-flood-bogus-icmp-errors, lines: ["net.ipv4.icmp_ignore_bogus_error_responses = 1"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-flood, sysctl, cis-ubuntu-26.04:3.3.1.6, dev-sec-linux-baseline:sysctl-03]
+    tags: [ip-flood, sysctl, cis-ubuntu-26.04:3.3.1.6, dev-sec-linux-baseline:sysctl-03, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
   ip-flood/icmp-ratemask:
     title: The ICMP rate limit mask is not dev-sec’s
     fact: sysctl.settings.net.ipv4.icmp_ratemask

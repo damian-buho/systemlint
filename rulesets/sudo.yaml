@@ -19,7 +19,7 @@ rules:
       - run: apt install sudo
       - Then grant administrators through “/etc/sudoers.d” with visudo.
     docs: https://www.sudo.ws/docs/man/sudo.man/
-    tags: [sudo, cis-ubuntu-26.04:5.2.1, '!default']
+    tags: [sudo, cis-ubuntu-26.04:5.2.1, cis-controls-v8:5.4, iso-27001-2022:A5.15, iso-27001-2022:A8.2, nist-800-171-r2:3.1.6, nist-800-171-r2:3.1.7, nist-800-171-r3:03.01.06, nist-800-171-r3:03.01.07, nist-800-53:AC-2(11), nist-800-53:AC-6(2), nist-800-53:AC-6(5), '!default']
   sudo/nopasswd:
     title: An account runs sudo commands without a password
     fact: sudo.grants.*
@@ -31,7 +31,7 @@ rules:
     rationale: any program running under that account, such as an exploited browser or a malicious installer, gets root without a password
     fix: remove the “NOPASSWD” tag from the grant to {subject} in “/etc/sudoers” or “/etc/sudoers.d”, editing it with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
-    tags: [sudo, cis-ubuntu-26.04:5.2.4, stig-ubuntu-26.04:UBTU-24-300020]
+    tags: [sudo, cis-ubuntu-26.04:5.2.4, stig-ubuntu-26.04:UBTU-24-300020, cis-controls-v8:5.4, iso-27001-2022:A5.15, iso-27001-2022:A8.2, nist-800-171-r2:3.1.6, nist-800-171-r2:3.1.7, nist-800-171-r3:03.01.06, nist-800-171-r3:03.01.07, nist-800-53:AC-2(11), nist-800-53:AC-6(2), nist-800-53:AC-6(5)]
   sudo/invalid-sudoers:
     title: A sudoers file is one sudo cannot parse
     fact: sudo.check.exit-status

@@ -63,7 +63,7 @@ rules:
     rationale: an attacker who spoofs a gateway’s address can still redirect this host’s traffic to their machine
     remedy: {drop-in: {into: sysctl, name: ip-routing-ipv4-secure-redirects, lines: ["net.ipv4.conf.all.secure_redirects = 0", "net.ipv4.conf.default.secure_redirects = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.10, cis-ubuntu-26.04:3.3.1.11, dev-sec-linux-baseline:sysctl-15]
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.10, cis-ubuntu-26.04:3.3.1.11, dev-sec-linux-baseline:sysctl-15, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
   ip-routing/route-localnet:
     title: Loopback addresses are routed from the network
     fact: sysctl.settings.net.ipv4.conf.*.route_localnet
@@ -75,7 +75,7 @@ rules:
     rationale: a machine on the network can reach services meant to be open only to this host, such as a database bound to 127.0.0.1
     remedy: {drop-in: {into: sysctl, name: ip-routing-route-localnet, lines: ["net.ipv4.conf.all.route_localnet = 0", "net.ipv4.conf.default.route_localnet = 0", "net.ipv4.conf.{subject}.route_localnet = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.19]
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.19, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
   ip-routing/ipv4-ip-forward:
     title: IPv4 forwarding is on
     fact: sysctl.settings.net.ipv4.ip_forward
@@ -86,7 +86,7 @@ rules:
     rationale: a compromised or misconfigured host becomes a bridge that passes an attacker from one network to another
     fix: set “net.ipv4.ip_forward = 0”, unless this host is a router or runs containers that need it
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.1, dev-sec-linux-baseline:sysctl-01, '!default']
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.1, dev-sec-linux-baseline:sysctl-01, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
   ip-routing/ipv4-forwarding:
     title: IPv4 forwarding is on
     folds: [ip-routing/ipv4-ip-forward]
@@ -99,7 +99,7 @@ rules:
     rationale: a compromised or misconfigured host becomes a bridge that passes an attacker from one network to another
     fix: set “net.ipv4.conf.all.forwarding = 0” and “net.ipv4.conf.default.forwarding = 0”, unless this host is a router or runs containers that need it
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.2, cis-ubuntu-26.04:3.3.1.3, dev-sec-linux-baseline:sysctl-01, '!default']
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.2, cis-ubuntu-26.04:3.3.1.3, dev-sec-linux-baseline:sysctl-01, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
   ip-routing/ipv6-forwarding:
     title: IPv6 forwarding is on
     fact: sysctl.settings.net.ipv6.conf.*.forwarding
@@ -111,7 +111,7 @@ rules:
     rationale: a compromised or misconfigured host becomes a bridge that passes an attacker from one network to another
     fix: set “net.ipv6.conf.all.forwarding = 0” and “net.ipv6.conf.default.forwarding = 0”, unless this host is a router or runs containers that need it
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.1, cis-ubuntu-26.04:3.3.2.2, dev-sec-linux-baseline:sysctl-19, '!default']
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.1, cis-ubuntu-26.04:3.3.2.2, dev-sec-linux-baseline:sysctl-19, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
   ip-routing/ipv4-send-redirects:
     title: IPv4 redirects are sent
     fact: sysctl.settings.net.ipv4.conf.*.send_redirects
@@ -123,7 +123,7 @@ rules:
     rationale: a host that is not a router can be made to steer its neighbours’ traffic along paths an attacker picks
     remedy: {drop-in: {into: sysctl, name: ip-routing-ipv4-send-redirects, lines: ["net.ipv4.conf.all.send_redirects = 0", "net.ipv4.conf.default.send_redirects = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.4, cis-ubuntu-26.04:3.3.1.5, dev-sec-linux-baseline:sysctl-16]
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.4, cis-ubuntu-26.04:3.3.1.5, dev-sec-linux-baseline:sysctl-16, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
   ip-routing/ipv4-rp-filter-strict:
     title: The IPv4 reverse path filter is not strict
     fact: sysctl.settings.net.ipv4.conf.*.rp_filter
@@ -135,7 +135,7 @@ rules:
     rationale: packets with forged source addresses are accepted and can be used to spoof trusted machines or aim floods at a victim
     fix: set “net.ipv4.conf.all.rp_filter = 1” and “net.ipv4.conf.default.rp_filter = 1”, unless replies may arrive on another interface than the request left
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.12, cis-ubuntu-26.04:3.3.1.13, dev-sec-linux-baseline:sysctl-02, '!default']
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.12, cis-ubuntu-26.04:3.3.1.13, dev-sec-linux-baseline:sysctl-02, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
   ip-routing/ipv4-log-martians:
     title: Martian IPv4 packets are not logged
     fact: sysctl.settings.net.ipv4.conf.*.log_martians
@@ -147,7 +147,7 @@ rules:
     rationale: spoofed or misrouted packets arrive silently, so an attack or a broken route leaves no trace
     remedy: {drop-in: {into: sysctl, name: ip-routing-ipv4-log-martians, lines: ["net.ipv4.conf.all.log_martians = 1", "net.ipv4.conf.default.log_martians = 1"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.16, cis-ubuntu-26.04:3.3.1.17, dev-sec-linux-baseline:sysctl-17]
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.16, cis-ubuntu-26.04:3.3.1.17, dev-sec-linux-baseline:sysctl-17, cis-controls-v8:8.5, iso-27001-2022:A5.28, iso-27001-2022:A8.15, nist-800-171-r3:03.03.02, nist-800-53:AU-12, nist-800-53:AU-3, nist-800-53:AU-3(1), nist-800-53:AU-7, nist-800-53:SI-4(20), pci-dss-4:10.199999999999999, pci-dss-4:10.2.1, pci-dss-4:10.2.1.2, pci-dss-4:10.2.1.5, pci-dss-4:9.4.5]
   ip-routing/ipv6-source-route:
     title: IPv6 source routing is accepted
     fact: sysctl.settings.net.ipv6.conf.*.accept_source_route
@@ -159,7 +159,7 @@ rules:
     rationale: a sender can choose the path of a packet and bypass firewalls that trust where it appears to come from
     remedy: {drop-in: {into: sysctl, name: ip-routing-ipv6-source-route, lines: ["net.ipv6.conf.all.accept_source_route = 0", "net.ipv6.conf.default.accept_source_route = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.5, cis-ubuntu-26.04:3.3.2.6, dev-sec-linux-baseline:sysctl-13]
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.5, cis-ubuntu-26.04:3.3.2.6, dev-sec-linux-baseline:sysctl-13, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
   ip-routing/ipv6-accept-ra:
     title: IPv6 router advertisements are accepted
     fact: sysctl.settings.net.ipv6.conf.*.accept_ra
@@ -171,7 +171,7 @@ rules:
     rationale: anyone on the network can announce themselves as the router and carry all of this host’s traffic
     fix: set “net.ipv6.conf.all.accept_ra = 0” and “net.ipv6.conf.default.accept_ra = 0”, unless this host configures IPv6 from router advertisements
     docs: https://docs.kernel.org/networking/ip-sysctl.html
-    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.7, cis-ubuntu-26.04:3.3.2.8, dev-sec-linux-baseline:sysctl-25, '!default']
+    tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.7, cis-ubuntu-26.04:3.3.2.8, dev-sec-linux-baseline:sysctl-25, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
   ip-routing/arp-ignore:
     title: ARP is answered for addresses of other interfaces
     fact: sysctl.settings.net.ipv4.conf.*.arp_ignore

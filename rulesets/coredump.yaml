@@ -72,7 +72,7 @@ rules:
     rationale: every crash writes the program’s memory, with passwords and keys in it, to disk where anyone with access to that directory can read it
     fix: set “Storage=none” under “[Coredump]” in “/etc/systemd/coredump.conf.d/60-coredump.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/coredump.conf.5.html
-    tags: [coredump, cis-ubuntu-26.04:1.5.12, '!default']
+    tags: [coredump, cis-ubuntu-26.04:1.5.12, cis-controls-v8:0.0, '!default']
   coredump/process-size-max:
     title: systemd-coredump processes dumps
     fact: coredump.conf
@@ -86,4 +86,4 @@ rules:
     rationale: the service still reads each crashed program’s memory, with passwords and keys in it, and writes its stack into the logs
     fix: set “ProcessSizeMax=0” under “[Coredump]” in “/etc/systemd/coredump.conf.d/60-coredump.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/coredump.conf.5.html
-    tags: [coredump, cis-ubuntu-26.04:1.5.11, '!default']
+    tags: [coredump, cis-ubuntu-26.04:1.5.11, cis-controls-v8:0.0, '!default']

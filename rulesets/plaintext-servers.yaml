@@ -24,7 +24,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ypserv.8.html
     references:
       - {title: Lynis INSE-8316, url: "https://cisofy.com/lynis/controls/INSE-8316/"}
-    tags: [services, cis-ubuntu-26.04:2.1.10, dev-sec-linux-baseline:package-05, lynis]
+    tags: [services, cis-ubuntu-26.04:2.1.10, dev-sec-linux-baseline:package-05, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
   plaintext-servers/tftp-unit:
     title: A TFTP server is enabled or running
     fact: systemd.state.*
@@ -38,7 +38,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/in.tftpd.8.html
     references:
       - {title: Lynis INSE-8320, url: "https://cisofy.com/lynis/controls/INSE-8320/"}
-    tags: [services, cis-ubuntu-26.04:2.1.17, dev-sec-linux-baseline:package-06, lynis]
+    tags: [services, cis-ubuntu-26.04:2.1.17, dev-sec-linux-baseline:package-06, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
   plaintext-servers/login-unit:
     title: A telnet, rsh, rlogin or rexec server is enabled or running
     fact: systemd.state.*
@@ -53,7 +53,7 @@ rules:
     references:
       - {title: Lynis INSE-8304, url: "https://cisofy.com/lynis/controls/INSE-8304/"}
       - {title: Lynis INSE-8322, url: "https://cisofy.com/lynis/controls/INSE-8322/"}
-    tags: [services, cis-ubuntu-26.04:2.1.16, stig-ubuntu-26.04:UBTU-24-100030, stig-ubuntu-26.04:UBTU-24-100040, dev-sec-linux-baseline:package-02, dev-sec-linux-baseline:package-03, lynis]
+    tags: [services, cis-ubuntu-26.04:2.1.16, stig-ubuntu-26.04:UBTU-24-100030, stig-ubuntu-26.04:UBTU-24-100040, dev-sec-linux-baseline:package-02, dev-sec-linux-baseline:package-03, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
   plaintext-servers/inetd:
     title: inetd serves a plain-text or debugging service
     fact: inetd.services.*.path
@@ -81,7 +81,7 @@ rules:
     references:
       - {title: Lynis INSE-8002, url: "https://cisofy.com/lynis/controls/INSE-8002/"}
       - {title: Lynis INSE-8016, url: "https://cisofy.com/lynis/controls/INSE-8016/"}
-    tags: [services, cis-ubuntu-26.04:2.1.16, cis-ubuntu-26.04:2.1.17, stig-ubuntu-26.04:UBTU-24-100030, stig-ubuntu-26.04:UBTU-24-100040, dev-sec-linux-baseline:package-01, dev-sec-linux-baseline:package-02, dev-sec-linux-baseline:package-03, dev-sec-linux-baseline:package-06, lynis]
+    tags: [services, cis-ubuntu-26.04:2.1.16, cis-ubuntu-26.04:2.1.17, stig-ubuntu-26.04:UBTU-24-100030, stig-ubuntu-26.04:UBTU-24-100040, dev-sec-linux-baseline:package-01, dev-sec-linux-baseline:package-02, dev-sec-linux-baseline:package-03, dev-sec-linux-baseline:package-06, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
   plaintext-servers/xinetd:
     title: xinetd serves a plain-text or debugging service
     fact: xinetd.services.*
@@ -102,4 +102,4 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/xinetd.conf.5.html
     references:
       - {title: Lynis INSE-8116, url: "https://cisofy.com/lynis/controls/INSE-8116/"}
-    tags: [services, cis-ubuntu-26.04:2.1.16, cis-ubuntu-26.04:2.1.17, dev-sec-linux-baseline:package-01, lynis]
+    tags: [services, cis-ubuntu-26.04:2.1.16, cis-ubuntu-26.04:2.1.17, dev-sec-linux-baseline:package-01, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]

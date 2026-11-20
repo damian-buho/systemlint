@@ -31,7 +31,7 @@ rules:
     rationale: the clock follows whatever servers the distribution or a network’s DHCP happens to offer, so a hostile network can feed the host wrong time
     fix: set “NTP=” to the site’s time servers under “[Time]” in “/etc/systemd/timesyncd.conf.d/60-ntp.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/timesyncd.conf.5.html
-    tags: [timesync, cis-ubuntu-26.04:2.3.2.1]
+    tags: [timesync, cis-ubuntu-26.04:2.3.2.1, cis-controls-v8:8.4, iso-27001-2022:A8.17, nist-800-171-r2:3.3.7, nist-800-171-r3:03.03.07, nist-800-53:AU-12(1), nist-800-53:AU-8, pci-dss-4:10.6, pci-dss-4:10.6.1, pci-dss-4:10.6.2, pci-dss-4:10.6.3]
   timesync/timesyncd-off:
     title: systemd-timesyncd is the time daemon but is not enabled and running
     fact: systemd.state.*
@@ -48,7 +48,7 @@ rules:
       - 'Then enable and start it:'
       - run: systemctl enable --now {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-timesyncd.service.8.html
-    tags: [timesync, cis-ubuntu-26.04:2.3.2.2]
+    tags: [timesync, cis-ubuntu-26.04:2.3.2.2, cis-controls-v8:8.4, iso-27001-2022:A8.17, nist-800-171-r2:3.3.7, nist-800-171-r3:03.03.07, nist-800-53:AU-12(1), nist-800-53:AU-8, pci-dss-4:10.6, pci-dss-4:10.6.1, pci-dss-4:10.6.2, pci-dss-4:10.6.3]
   timesync/chrony-no-server:
     title: chrony names no time server
     when: &chrony
@@ -65,7 +65,7 @@ rules:
     rationale: chrony with no time source never corrects the clock, so it drifts and certificates and logs go wrong
     fix: add “server” or “pool” lines naming the site’s time servers to “/etc/chrony/sources.d/site.sources”, and the line “sourcedir /etc/chrony/sources.d” to “chrony.conf” if it has none
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/chrony.conf.5.html
-    tags: [timesync, cis-ubuntu-26.04:2.3.3.1]
+    tags: [timesync, cis-ubuntu-26.04:2.3.3.1, cis-controls-v8:8.4, iso-27001-2022:A8.17, nist-800-171-r2:3.3.7, nist-800-171-r3:03.03.07, nist-800-53:AU-12(1), nist-800-53:AU-8, pci-dss-4:10.6, pci-dss-4:10.6.1, pci-dss-4:10.6.2, pci-dss-4:10.6.3]
   timesync/chrony-off:
     title: chrony is installed but not enabled and running
     fact: systemd.state.*
@@ -78,7 +78,7 @@ rules:
     rationale: the clock keeps drifting, so timestamps in logs no longer match other hosts and expiry checks misfire
     fix: run “systemctl enable --now {subject}”, or mask it if another time daemon keeps the clock
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/chronyd.8.html
-    tags: [timesync, cis-ubuntu-26.04:2.3.3.3]
+    tags: [timesync, cis-ubuntu-26.04:2.3.3.3, cis-controls-v8:8.4, iso-27001-2022:A8.17, nist-800-171-r2:3.3.7, nist-800-171-r3:03.03.07, nist-800-53:AU-12(1), nist-800-53:AU-8, pci-dss-4:10.6, pci-dss-4:10.6.1, pci-dss-4:10.6.2, pci-dss-4:10.6.3]
   timesync/stig-chrony-missing:
     title: chrony is not the time daemon
     fact: systemd.state
