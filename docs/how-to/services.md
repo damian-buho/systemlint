@@ -384,7 +384,10 @@ holding a top-level key wins), so
 fails the default `json-file` driver with no `log-opts.max-size`, which
 never rotates a container’s log. A `--log-opt`, `--log-driver` or
 `--config-file` on `docker.service`’s `ExecStart` skips it, since the file is
-then not the whole setting.
+then not the whole setting. Its remedy sets `log-opts.max-size` to `100m`,
+keeping the driver, so a log shipper reading the json-file logs keeps working;
+containers created before the restart keep their old log options until they
+are recreated.
 
 ## systemd units
 

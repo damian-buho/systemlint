@@ -34,9 +34,6 @@ rules:
     score: 4.0
     message: "dockerd writes container logs with the json-file driver and no “max-size” in its “daemon.json”, so each container’s log grows until the disk is full"
     rationale: one chatty container fills the disk, and every service on the host then fails to write
-    fix:
-      - 'Set these keys in “/etc/docker/daemon.json”, then restart Docker; containers created afterwards are capped:'
-      - lines: ['"log-driver": "local",', '"log-opts": {"max-size": "10m", "max-file": "3"}']
-      - run: systemctl restart docker
+    remedy: {set-key: {file: docker-daemon, key: log-opts.max-size, value: 100m}}
     docs: https://docs.docker.com/engine/logging/drivers/json-file/
     tags: [docker, logs, stability]

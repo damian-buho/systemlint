@@ -55,6 +55,8 @@ pub struct SetKey {
 pub enum KeyFile {
     /// `/etc/login.defs`, for the keys in [`LOGIN_DEFS`].
     LoginDefs,
+    /// `/etc/docker/daemon.json`, a key a dotted JSON path, for the keys in [`DOCKER_DAEMON`].
+    DockerDaemon,
 }
 
 /// The login.defs keys a `set-key` may write, each with the values that only take something away.
@@ -63,11 +65,32 @@ const LOGIN_DEFS: &[(&str, &[&str])] = &[
     ("ENCRYPT_METHOD", &["SHA512", "YESCRYPT"]),
 ];
 
+/// The daemon.json keys a `set-key` may write, each with the values that only cap something.
+const DOCKER_DAEMON: &[(&str, &[&str])] = &[("log-opts.max-size", &["10m", "20m", "50m", "100m"])];
+
+/// The program that merges a key into daemon.json.
+const JQ: &str = "/usr/bin/jq";
+
+/// The daemon that checks a daemon.json before it replaces the old one.
+const DOCKERD: &str = "/usr/bin/dockerd";
+
+/// The unit restarted so dockerd reads its new daemon.json.
+const DOCKER_UNIT: &str = "docker.service";
+
 impl KeyFile {
     /// Its directory and name.
     fn place(self) -> (&'static str, &'static str) {
         match self {
             Self::LoginDefs => ("/etc", "login.defs"),
+            Self::DockerDaemon => ("/etc/docker", "daemon.json"),
+        }
+    }
+
+    /// The keys it may set, each with its admitted values.
+    fn listed(self) -> &'static [(&'static str, &'static [&'static str])] {
+        match self {
+            Self::LoginDefs => LOGIN_DEFS,
+            Self::DockerDaemon => DOCKER_DAEMON,
         }
     }
 
@@ -82,7 +105,7 @@ impl SetKey {
     /// It holding the value of its key in `fact`, the map the lint judged, as the value the file must still hold.
     pub fn read_from(&self, fact: Option<&serde_json::Value>) -> Self {
         let was = fact
-            .and_then(|v| v.get(&self.key))
+            .and_then(|v| self.key.split('.').try_fold(v, |v, k| v.get(k)))
             .map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_owned));
         log::debug!("set-key {}: the lint read {was:?}", self.key);
         Self {
@@ -92,11 +115,62 @@ impl SetKey {
     }
 
     /// The value a live line of `text` sets its key to, the last one winning, none when no line does.
-    pub fn current<'a>(&self, text: &'a str) -> Option<&'a str> {
+    pub fn current(&self, text: &str) -> Option<String> {
+        if self.file == KeyFile::DockerDaemon {
+            let read = serde_json::from_str::<serde_json::Value>(text).ok();
+            return self.read_from(read.as_ref()).was;
+        }
         text.lines().rev().find_map(|l| {
             let mut words = l.split_whitespace();
-            (words.next() == Some(self.key.as_str())).then(|| words.next().unwrap_or_default())
+            (words.next() == Some(self.key.as_str()))
+                .then(|| words.next().unwrap_or_default().to_owned())
         })
+    }
+
+    /// The jq arguments that set its key in a daemon.json read on stdin.
+    fn jq_args(&self) -> Vec<String> {
+        let path: Vec<String> = self.key.split('.').map(|k| format!("{k:?}")).collect();
+        let program = format!("setpath([{}]; $value)", path.join(","));
+        ["--arg", "value", &self.value, &program]
+            .map(str::to_owned)
+            .to_vec()
+    }
+
+    /// `text` with its key set, through jq for daemon.json, `{}` standing in for a missing file.
+    fn rewritten(&self, text: &str) -> Result<String, std::io::Error> {
+        if self.file != KeyFile::DockerDaemon {
+            return Ok(self.applied(text));
+        }
+        let input = if text.trim().is_empty() { "{}" } else { text };
+        let args = self.jq_args();
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        let output = ran(JQ, &args, Some(input.as_bytes().to_vec()))?;
+        String::from_utf8(output.stdout).map_err(std::io::Error::other)
+    }
+
+    /// Checks the new file at `path` with its owner before it replaces the old, dockerd on the live root only.
+    fn checked(&self, path: &std::path::Path, live: bool) -> Result<(), std::io::Error> {
+        log::debug!(
+            "set-key {}: check {}, live {live}",
+            self.key,
+            path.display()
+        );
+        if self.file != KeyFile::DockerDaemon || !live {
+            return Ok(());
+        }
+        let file = path.display().to_string();
+        ran(DOCKERD, &["--validate", "--config-file", &file], None)
+            .map(|_| ())
+            .map_err(|e| std::io::Error::other(format!("{e}, so systemlint writes nothing")))
+    }
+
+    /// Restarts dockerd on the live root so it reads the new daemon.json.
+    fn reload(&self, live: bool) -> Result<(), std::io::Error> {
+        log::debug!("set-key {}: reload, live {live}", self.key);
+        if self.file != KeyFile::DockerDaemon || !live {
+            return Ok(());
+        }
+        ran(SYSTEMCTL, &["restart", "--", DOCKER_UNIT], None).map(|_| ())
     }
 
     /// `text` with every live line of its key set to its value, or that line added when none is.
@@ -554,20 +628,15 @@ impl Remedy {
                 }
             }
             Self::Mask => Ok(()),
-            Self::SetKey(set) => {
-                let listed = match set.file {
-                    KeyFile::LoginDefs => LOGIN_DEFS,
-                };
-                match listed.iter().find(|(k, _)| *k == set.key) {
-                    Some((_, values)) if values.contains(&set.value.as_str()) => Ok(()),
-                    _ => Err(format!(
-                        "remedy set-key {} {}: not a key and value that only take something away in {}",
-                        set.key,
-                        set.value,
-                        set.file.path()
-                    )),
-                }
-            }
+            Self::SetKey(set) => match set.file.listed().iter().find(|(k, _)| *k == set.key) {
+                Some((_, values)) if values.contains(&set.value.as_str()) => Ok(()),
+                _ => Err(format!(
+                    "remedy set-key {} {}: not a key and value that only take something away in {}",
+                    set.key,
+                    set.value,
+                    set.file.path()
+                )),
+            },
         }
     }
 
@@ -602,6 +671,15 @@ impl Remedy {
                 Some(unit) => format!("systemctl mask --now {}", quote(unit)),
                 None => format!("# no unit named in {}", quote(subject)),
             },
+            Self::SetKey(set) if set.file == KeyFile::DockerDaemon => {
+                let path = quote(&set.file.path());
+                let new = quote(&format!("{}.new", set.file.path()));
+                let args: Vec<String> = set.jq_args().iter().map(|a| quote(a)).collect();
+                format!(
+                    "{{ cat {path} 2>/dev/null || echo '{{}}'; }} | jq {} > {new} && dockerd --validate --config-file {new} && mv {new} {path} && systemctl restart {DOCKER_UNIT}",
+                    args.join(" ")
+                )
+            }
             Self::SetKey(set) => {
                 let path = match subject.starts_with('/') {
                     true => subject.to_owned(),
@@ -886,18 +964,27 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
 /// Sets `set`’s key in its file, refusing when the file no longer holds the value the lint read.
 fn set_key(root: &Root, set: &SetKey) -> Result<Applied, std::io::Error> {
     let path = set.file.path();
-    let file = root.open_for_change(&path)?;
-    let meta = file.metadata()?;
-    if !meta.is_file() || meta.len() > crate::runner::OUTPUT_CAP {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "not a regular file systemlint rewrites",
-        ));
-    }
-    let mut held = String::new();
-    file.take(crate::runner::OUTPUT_CAP)
-        .read_to_string(&mut held)?;
-    let current = set.current(&held);
+    let held = match root.open_for_change(&path) {
+        Ok(file) => {
+            let meta = file.metadata()?;
+            if !meta.is_file() || meta.len() > crate::runner::OUTPUT_CAP {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "not a regular file systemlint rewrites",
+                ));
+            }
+            let mut held = String::new();
+            file.take(crate::runner::OUTPUT_CAP)
+                .read_to_string(&mut held)?;
+            Some((held, meta.mode() & 0o7777))
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound && set.file == KeyFile::DockerDaemon => {
+            None
+        }
+        Err(e) => return Err(e),
+    };
+    let text = held.as_ref().map_or("", |(t, _)| t.as_str());
+    let current = set.current(text);
     log::debug!(
         "{path}: {} is {current:?}, the lint read {:?}, wanted {}",
         set.key,
@@ -905,10 +992,10 @@ fn set_key(root: &Root, set: &SetKey) -> Result<Applied, std::io::Error> {
         set.value
     );
     let shown = |v: Option<&str>| format!("{} {}", set.key, v.unwrap_or("unset"));
-    if current == Some(set.value.as_str()) {
+    if current.as_deref() == Some(set.value.as_str()) {
         return Ok(None);
     }
-    if current != set.was.as_deref() {
+    if current != set.was {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             format!(
@@ -917,17 +1004,41 @@ fn set_key(root: &Root, set: &SetKey) -> Result<Applied, std::io::Error> {
             ),
         ));
     }
+    let live = root.path() == std::path::Path::new("/");
+    let rewritten = set.rewritten(text)?;
     let (dir, name) = set.file.place();
-    let check = |_: &std::path::Path| Ok(());
-    root.replace(
-        dir,
-        name,
-        &set.applied(&held),
-        meta.mode() & 0o7777,
-        &held,
-        &check,
-    )?;
-    Ok(Some((shown(current), shown(Some(&set.value)))))
+    let check = |p: &std::path::Path| set.checked(p, live);
+    match &held {
+        Some((held, mode)) => root.replace(dir, name, &rewritten, *mode, held, &check)?,
+        None => root.write_new(dir, name, &rewritten, 0o644, &check)?,
+    }
+    set.reload(live)?;
+    Ok(Some((shown(current.as_deref()), shown(Some(&set.value)))))
+}
+
+/// Runs `program` with `args`, failing with its stderr when it exits non-zero.
+fn ran(
+    program: &str,
+    args: &[&str],
+    stdin: Option<Vec<u8>>,
+) -> Result<crate::runner::Output, std::io::Error> {
+    let output = crate::runner::run(
+        std::path::Path::new(program),
+        args,
+        stdin,
+        UNLOAD_TIMEOUT,
+        crate::runner::OUTPUT_CAP,
+        None,
+    )
+    .map_err(|e| std::io::Error::other(format!("{program} {e}")))?;
+    log::debug!("{program} {}: exit {}", args.join(" "), output.code());
+    if output.code() != 0 {
+        let answer = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        return Err(std::io::Error::other(format!(
+            "{program} answered “{answer}”"
+        )));
+    }
+    Ok(output)
 }
 
 /// Masks the unit `change` names through systemctl, stopping it too on the live root.

@@ -858,6 +858,73 @@ fn a_set_key_writes_only_a_listed_value_and_only_over_what_the_lint_read() {
 }
 
 #[test]
+fn a_daemon_json_set_key_merges_through_jq_keeping_every_other_key() {
+    let ok = |value: &str| {
+        drop_in(&format!(
+            "set-key: {{file: docker-daemon, key: log-opts.max-size, value: '{value}'}}"
+        ))
+        .validate()
+    };
+    for value in ["10m", "100m"] {
+        assert!(ok(value).is_ok(), "{value}");
+    }
+    for value in ["9m", "101m", "1g", ""] {
+        assert!(ok(value).is_err(), "{value}");
+    }
+    let yaml = "fact: docker.daemon\nexpect: {required: [log-opts], properties: {log-opts: {required: [max-size]}}}\nremedy: {set-key: {file: docker-daemon, key: log-opts.max-size, value: 100m}}\n";
+    let rule = compile("t/logs", systemlint::yaml::from_str(yaml).unwrap()).unwrap();
+    let document = json!({"docker": {"daemon": {"log-opts": {"max-file": "3"}}}});
+    let checks = lint(&document, std::slice::from_ref(&rule), &[], "2026-11-20");
+    let change = plan(&checks, std::slice::from_ref(&rule), &document)
+        .changes
+        .remove(0);
+    assert_eq!(change.path, "/etc/docker/daemon.json");
+    assert_eq!(
+        change.remedy.command(&change.path),
+        "{ cat /etc/docker/daemon.json 2>/dev/null || echo '{}'; } | jq --arg value 100m 'setpath([\"log-opts\",\"max-size\"]; $value)' > /etc/docker/daemon.json.new && dockerd --validate --config-file /etc/docker/daemon.json.new && mv /etc/docker/daemon.json.new /etc/docker/daemon.json && systemctl restart docker.service"
+    );
+    if !Path::new("/usr/bin/jq").exists() {
+        assert!(apply(&Root::open(&base("daemon-json-no-jq")).unwrap(), &change).is_err());
+        return;
+    }
+    let dir = base("daemon-json");
+    std::fs::create_dir_all(dir.join("etc/docker")).unwrap();
+    let daemon = dir.join("etc/docker/daemon.json");
+    let root = Root::open(&dir).unwrap();
+    std::fs::write(&daemon, r#"{"icc": false, "log-opts": {"max-file": "3"}}"#).unwrap();
+    assert_eq!(
+        apply(&root, &change).unwrap(),
+        Some((
+            "log-opts.max-size unset".into(),
+            "log-opts.max-size 100m".into()
+        ))
+    );
+    let merged: Value = serde_json::from_str(&std::fs::read_to_string(&daemon).unwrap()).unwrap();
+    assert_eq!(
+        merged,
+        json!({"icc": false, "log-opts": {"max-file": "3", "max-size": "100m"}})
+    );
+    assert_eq!(
+        apply(&root, &change).unwrap(),
+        None,
+        "a re-run changes nothing"
+    );
+    std::fs::write(&daemon, r#"{"log-opts": {"max-size": "1g"}}"#).unwrap();
+    let error = apply(&root, &change).unwrap_err();
+    assert!(
+        error.to_string().contains("changed since the lint"),
+        "{error}"
+    );
+    std::fs::remove_file(&daemon).unwrap();
+    assert!(
+        apply(&root, &change).is_ok(),
+        "a missing file starts from {{}}"
+    );
+    let created: Value = serde_json::from_str(&std::fs::read_to_string(&daemon).unwrap()).unwrap();
+    assert_eq!(created, json!({"log-opts": {"max-size": "100m"}}));
+}
+
+#[test]
 fn a_reserved_ports_drop_in_writes_one_line_of_the_reserved_ports_and_every_failing_one() {
     const LINE: &str = "net.ipv4.ip_local_reserved_ports = {facts.sysctl.settings.net.ipv4.ip_local_reserved_ports},{subject}";
     let ok = |line: &str| {
