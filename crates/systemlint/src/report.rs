@@ -721,12 +721,13 @@ fn wrap(items: &[String], on: bool) -> String {
     wrap_at(items, on, WIDTH)
 }
 
-/// `items` joined by commas into lines of at most `limit` columns, each indented by two spaces.
+/// `items` joined by commas into lines of at most `limit` columns, a line’s trailing comma included, each indented by two spaces.
 fn wrap_at(items: &[String], on: bool, limit: usize) -> String {
     let (mut out, mut width) = (String::new(), 0);
-    for item in items {
+    for (index, item) in items.iter().enumerate() {
+        let comma = usize::from(index + 1 < items.len());
         let length = item.chars().count();
-        if width > 0 && width + 2 + length > limit {
+        if width > 0 && width + 2 + length + comma > limit {
             out.push_str(",\n");
             width = 0;
         } else if width > 0 {
@@ -905,7 +906,7 @@ fn not_run_rows(document: &Value, checks: &[Check], on: bool) -> String {
             numbers::count(rules.len() as u64)
         );
         let names: Vec<String> = rules.iter().map(|r| (*r).to_owned()).collect();
-        out += &wrap_at(&names, on, WIDTH - 3)
+        out += &wrap_at(&names, on, WIDTH - 2)
             .lines()
             .map(|l| format!("  {l}\n"))
             .collect::<String>();

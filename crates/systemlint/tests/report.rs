@@ -766,6 +766,34 @@ fn rationale_and_references_reach_every_format_and_the_human_references_only_und
 }
 
 #[test]
+fn a_wrapped_line_that_fills_80_columns_before_its_comma_breaks_earlier() {
+    let mut document = facts("root");
+    document["collectors"]["env-processes"] =
+        json!({"status": "skipped", "reason": "needs root", "into": "env.processes"});
+    let ids = [
+        format!("env/{}", "a".repeat(66)),
+        "env/bb".to_owned(),
+        "env/cc".to_owned(),
+    ];
+    let rules: Vec<_> = ids
+        .iter()
+        .map(|id| {
+            compile(
+                id,
+                systemlint::yaml::from_str("fact: env.*.*.vars\nexpect: {type: object}\n").unwrap(),
+            )
+            .unwrap()
+        })
+        .collect();
+    let checks = lint(&document, &rules, &[], "2026-11-20");
+    for verbose in [true, false] {
+        let text = lint_human(&document, &checks, 0, verbose, verbose, false);
+        assert!(text.lines().all(|l| l.chars().count() <= 80), "{text}");
+        assert!(text.contains(&format!("{},\n", ids[0])), "{text}");
+    }
+}
+
+#[test]
 fn human_wraps_a_long_not_run_list_within_80_columns() {
     let mut document = facts("root");
     document["collectors"]["env-processes"] =
