@@ -1631,10 +1631,15 @@ fn contradict(checks: &mut [Check], rules: &[Rule]) {
         };
         let names: Vec<String> = side.iter().map(|r| named(r)).collect();
         let standard = |r: &Rule| {
+            let theirs = |t: &String| {
+                side.iter()
+                    .any(|o| o.id != r.id && o.spec.family.contains(t))
+            };
             r.spec
-                .tags
+                .family
                 .iter()
-                .find_map(|t| t.split_once(':').map(|(s, _)| format!("--prefer '{s}:*'")))
+                .find(|t| !theirs(t))
+                .map(|t| format!("--prefer {t}"))
         };
         let keep: Vec<String> = match side.iter().map(|r| standard(r)).collect::<Option<Vec<_>>>() {
             Some(globs) if globs.iter().collect::<BTreeSet<_>>().len() == globs.len() => globs,

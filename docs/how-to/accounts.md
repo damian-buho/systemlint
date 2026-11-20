@@ -121,7 +121,7 @@ fails an account with a usable hash whose `max-days` is set below 99999,
 shadow’s “never”; an empty field passes. It and `accounts/password-max-days`
 name each other in `conflicts`: a run selecting both answers `conflict` on
 both and fails on neither, and `--prefer 'nist-sp-800-63b-4:*'` or
-`--prefer 'cis-ubuntu-26.04:*'` keeps the standard you follow, see
+`--prefer cis` keeps the standard you follow, see
 [conflicting standards](rule-book.md#conflicting-standards).
 
 The two `unique` rules fail every account or group holding the shared value

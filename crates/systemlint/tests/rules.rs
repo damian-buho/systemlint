@@ -676,3 +676,61 @@ fn the_built_in_catalog_holds_every_shipped_ruleset_file() {
     assert_eq!(built, files);
     assert!(Library::shipped().unwrap().definitions.len() > 1);
 }
+
+#[test]
+fn a_standard_brings_its_mapped_tags_which_select_and_prefer_like_its_controls() {
+    let map = "standards: {cis-ubuntu-26.04: [cis, ubuntu, ubuntu-26.04]}\nrules: {}\n";
+    let set = "tags: [default]\nrules:\n  m/cis: {fact: a, expect: {}, tags: ['cis-ubuntu-26.04:1.1', '!default'], conflicts: [m/nist]}\n  m/nist: {fact: a, expect: {}, tags: ['nist-x:2', '!default'], conflicts: [m/cis]}\n  m/plain: {fact: a, expect: {}, tags: [ubuntu-like]}\n";
+    let library = library(&[("standards", map), ("m", set)]);
+    assert_eq!(
+        library.definitions["m/cis"].tags,
+        ["cis-ubuntu-26.04:1.1", "cis", "ubuntu", "ubuntu-26.04"]
+    );
+    assert_eq!(library.definitions["m/nist"].tags, ["nist-x:2", "nist-x"]);
+    let picked = |s: &str| {
+        library
+            .select(&[s.to_owned()])
+            .map(|p| p.keys().cloned().collect::<Vec<_>>())
+            .unwrap_or_default()
+    };
+    assert_eq!(
+        picked("cis"),
+        ["m/cis"],
+        "a mapped tag picks a standard-only rule"
+    );
+    assert_eq!(picked("ubuntu-26.04"), ["m/cis"]);
+    assert_eq!(
+        picked("nist-x"),
+        ["m/nist"],
+        "an unmapped standard brings its own name"
+    );
+    assert!(picked("ubuntu-*").contains(&"m/cis".to_owned()));
+    let mut both = library
+        .select(&["m/cis".to_owned(), "m/nist".to_owned()])
+        .unwrap();
+    systemlint::rules::prefer(&mut both, &["cis".to_owned()]);
+    assert_eq!(both.keys().collect::<Vec<_>>(), ["m/cis"]);
+    let clash = BTreeMap::from([
+        (
+            "a".to_owned(),
+            systemlint::yaml::from_str::<Ruleset>("standards: {s: [x]}\nrules: {}\n").unwrap(),
+        ),
+        (
+            "b".to_owned(),
+            systemlint::yaml::from_str::<Ruleset>("standards: {s: [y]}\nrules: {}\n").unwrap(),
+        ),
+    ]);
+    assert_eq!(
+        Library::new(clash).unwrap_err(),
+        "ruleset b: standard s brings [\"y\"], but ruleset a gives it [\"x\"]"
+    );
+    let colon = BTreeMap::from([(
+        "a".to_owned(),
+        systemlint::yaml::from_str::<Ruleset>("standards: {s: ['x:1']}\nrules: {}\n").unwrap(),
+    )]);
+    assert!(
+        Library::new(colon)
+            .unwrap_err()
+            .contains("takes plain tags")
+    );
+}

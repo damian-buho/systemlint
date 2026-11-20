@@ -133,13 +133,13 @@ enum Command {
     Check {
         #[command(flatten)]
         input: Input,
-        /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, a standard-only rule by its ID or a standard tag (cis-*:*), !x removes [default: check.tags, else default]
+        /// Rules to run, comma-separated: rulesets, rule IDs and tags, globs allowed, a standard-only rule by its ID or a standard tag (cis, nist, cis-*:5.*), !x removes [default: check.tags, else default]
         #[arg(long, value_name = "LIST", value_delimiter = ',')]
         tags: Vec<String>,
         /// Run every rule, standard-only ones included, as --tags all does
         #[arg(long, conflicts_with = "tags")]
         all: bool,
-        /// Settle a conflict for the side holding a tag GLOB matches, comma-separated or repeated (cis-ubuntu-26.04:*) [default: check.prefer]
+        /// Settle a conflict for the side holding a tag GLOB matches, comma-separated or repeated (cis, nist) [default: check.prefer]
         #[arg(long, value_name = "GLOB", value_delimiter = ',')]
         prefer: Vec<String>,
         /// Exit 1 on a failure at error, warning, info, advice, a score from 0.1 to 9.9, or never [default: check.fail-on, else error]
@@ -168,7 +168,7 @@ enum Command {
         /// Fix every rule, standard-only ones included, as --tags all does
         #[arg(long, conflicts_with = "tags")]
         all: bool,
-        /// Settle a conflict for the side holding a tag GLOB matches, comma-separated or repeated (cis-ubuntu-26.04:*) [default: check.prefer]
+        /// Settle a conflict for the side holding a tag GLOB matches, comma-separated or repeated (cis, nist) [default: check.prefer]
         #[arg(long, value_name = "GLOB", value_delimiter = ',')]
         prefer: Vec<String>,
         #[command(flatten)]

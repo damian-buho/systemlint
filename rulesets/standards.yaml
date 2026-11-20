@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: The plain tags each standard’s control tags bring, so “--tags cis” or “--prefer nist” names a standard
+standards:
+  cis-ubuntu-26.04: [cis, ubuntu, ubuntu-26.04]
+  stig-ubuntu-26.04: [stig, ubuntu, ubuntu-26.04]
+  nist-sp-800-63b-4: [nist]
+  dev-sec-linux-baseline: [dev-sec]
+  dev-sec-ssh-baseline: [dev-sec]
+rules: {}

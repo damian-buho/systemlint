@@ -348,10 +348,11 @@ already brought it, in any order. A ruleset a selector matches by one of its
 overrides to the rules picked, bringing no other rule, so a `site` ruleset tagged
 `default` changes a bare `check`; a named ruleset beats one its tags select, and
 of two its tags select the first by name wins. A rule a `default` ruleset leaves out with `'!default'`,
-one a standard alone asks for, is picked only by its exact ID or by a tag
-holding `:` (a standard’s control, `cis-ubuntu-26.04:*`), never by a ruleset
-name, a plain tag or an ID glob: `kernel-modules/*` is the default rules of
-`kernel-modules`, `kernel-modules/*,cis-*:*` adds the CIS ones, so `fix` never
+one a standard alone asks for, is picked only by its exact ID or by a
+standard’s tag: a control (`cis-ubuntu-26.04:5.2.*`) or a tag its standard
+brings (`cis`), never by a ruleset name, another tag or an ID glob:
+`kernel-modules/*` is the default rules of `kernel-modules`,
+`kernel-modules/*,cis` adds the CIS ones, so `fix` never
 changes what a default `check` did not show. `!x` removes everything `x`
 matches, those rules included; `off` rules drop out. With no
 selector, or only `!` ones, the rules tagged `default` run: every shipped
@@ -383,7 +384,20 @@ Not selected      12, run them by naming their ruleset in --tags
 systemlint check facts.yaml --tags 'default,performance'
 systemlint check facts.yaml --tags 'strict,!experimental'
 systemlint check facts.yaml --tags 'cis-ubuntu-26.04:5.2.*'
-systemlint check facts.yaml --tags all --prefer 'cis-ubuntu-26.04:*'
+systemlint check facts.yaml --tags all --prefer cis
+```
+
+A ruleset’s `standards` map gives each standard the plain tags its control
+tags bring, so every rule tagged `cis-ubuntu-26.04:5.2.1` also carries `cis`,
+`ubuntu` and `ubuntu-26.04`, and `--tags cis` or `--prefer nist` names a
+standard; a standard the map leaves out brings its own name. The shipped
+`standards` ruleset holds the map, and two rulesets giving one standard
+different tags fail the load:
+
+```yaml
+standards:
+  cis-ubuntu-26.04: [cis, ubuntu, ubuntu-26.04]
+  nist-sp-800-63b-4: [nist]
 ```
 
 ## Remedies
@@ -451,7 +465,7 @@ run did not ask for (`--image-config`, `--network`, `--containers`), which only 
 `Not read` block per path a collector could not read (still `unknown` in the
 counts and every machine format), an `Unknown` block per collector error with
 the rules it left undecided wrapped under it,
-one `Conflict` block per set of selected rules declaring `conflicts` on each other, naming each with its control tags and the `--prefer 'STANDARD:*'` that keeps each (`--tags '!ID'` when a side has no control tag of its own standard) (their checks answer `conflict` in every format, `kind: review` in SARIF, and never fail the run),
+one `Conflict` block per set of selected rules declaring `conflicts` on each other, naming each with its control tags and the `--prefer TAG` that keeps each, the first tag its standard brings that the other side lacks (`--tags '!ID'` when a side has none), then each rule’s rationale (their checks answer `conflict` in every format, `kind: review` in SARIF, and never fail the run),
 `Unknown`, `Manual` (with the `Rationale:` procedure) and `Waived` blocks, then the failures, worst first: errors,
 then warnings, info and advice, each level highest score first. A failure
 lists a `Run:` command under each subject with a remedy, up to two, then from
@@ -483,12 +497,14 @@ Nothing to check  21, the host has nothing these rules judge
 Not applicable to this host: gdm, nftables, tls.
 ```
 
-A failure block opens with the level, the highest score of the rule, its ID and tags,
-then the `title` on its own line, lists each subject on its own dash line with the value it failed on, then a `Rationale:` line, and
+A failure block opens with the level, the highest score of the rule and its ID,
+then the `title` on its own line, a `Tags:` line of its tags but the control
+tags, lists each subject on its own dash line with the value it failed on, then a `Rationale:` line, and
 ends with one `Fix:` line, or a fix under each subject when they differ. A rule
 with a remedy puts its command under each subject as a `Run:` line with no full
 stop, so it pastes into a shell, in place of the `Fix:` line, and closes with the `systemlint fix --tags`
-call that makes every change; `-v` adds a `See:` line per reference.
+call that makes every change; `-v` adds a `Controls:` line naming its control
+tags and a `See:` line per reference.
 Failures that name each other, the two sides of `apt/overlap`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
 or level, score, rule, subject, message, fix, the message without the subject

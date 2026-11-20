@@ -236,6 +236,9 @@ pub struct Spec {
     /// The `when` of every ruleset that defines or brings the rule, by ruleset name.
     #[serde(skip)]
     pub applies: Vec<(String, When)>,
+    /// The tags the `standards` map gives the standards of its control tags, `cis` before `ubuntu`.
+    #[serde(skip)]
+    pub family: Vec<String>,
 }
 
 impl Spec {
@@ -268,6 +271,9 @@ pub struct Ruleset {
     pub when: Option<When>,
     #[serde(default)]
     pub vars: BTreeMap<String, crate::vars::Var>,
+    /// The tags each standard’s control tags bring, by standard: `cis-ubuntu-26.04: [cis, ubuntu, ubuntu-26.04]`.
+    #[serde(default)]
+    pub standards: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     pub rules: Map<String, Value>,
 }
@@ -279,6 +285,8 @@ pub struct Library {
     pub definitions: BTreeMap<String, Spec>,
     /// The ruleset that defines each rule, by rule ID.
     pub owners: BTreeMap<String, String>,
+    /// Every tag a standard brings, which selects its standard-only rules like a control tag.
+    pub standard_tags: BTreeSet<String>,
 }
 
 /// What a selection runs, and how many rules it left out per defining ruleset.
@@ -378,6 +386,59 @@ fn entry(raw: &Value) -> Result<Spec, String> {
     }
 }
 
+/// Every ruleset’s `standards` merged, refusing a standard two rulesets give different tags.
+fn standards(
+    rulesets: &BTreeMap<String, Ruleset>,
+) -> Result<BTreeMap<String, Vec<String>>, String> {
+    let mut merged: BTreeMap<String, (Vec<String>, &str)> = BTreeMap::new();
+    for (name, ruleset) in rulesets {
+        for (standard, tags) in &ruleset.standards {
+            if standard.contains(':')
+                || tags
+                    .iter()
+                    .any(|t| t.contains(':') || t.starts_with('!') || t == ALL || t == DEFAULT)
+            {
+                return Err(format!(
+                    "ruleset {name}: standard {standard} takes plain tags, none holding : or ! and neither {ALL} nor {DEFAULT}"
+                ));
+            }
+            match merged.get(standard) {
+                Some((known, first)) if known != tags => {
+                    return Err(format!(
+                        "ruleset {name}: standard {standard} brings {tags:?}, but ruleset {first} gives it {known:?}"
+                    ));
+                }
+                Some(_) => {}
+                None => {
+                    log::debug!("ruleset {name}: standard {standard} brings {tags:?}");
+                    merged.insert(standard.clone(), (tags.clone(), name));
+                }
+            }
+        }
+    }
+    Ok(merged.into_iter().map(|(s, (tags, _))| (s, tags)).collect())
+}
+
+/// The tags the standards of `tags`’ control tags bring, in order: its `standards` entry, else the standard’s own name.
+fn family(tags: &[String], standards: &BTreeMap<String, Vec<String>>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for standard in tags
+        .iter()
+        .filter_map(|t| t.split_once(':').map(|(s, _)| s))
+    {
+        let brought = standards
+            .get(standard)
+            .cloned()
+            .unwrap_or_else(|| vec![standard.to_owned()]);
+        for tag in brought {
+            if !out.contains(&tag) {
+                out.push(tag);
+            }
+        }
+    }
+    out
+}
+
 /// `base` tags then `own`, where an own `!tag` drops that tag from `base`.
 fn tagged(base: Vec<String>, own: Vec<String>) -> Vec<String> {
     let (drop, own): (Vec<_>, Vec<_>) = own.into_iter().partition(|t| t.starts_with('!'));
@@ -475,6 +536,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         conflicts: base.conflicts,
         pinned: over.pinned || (!score_set && base.pinned),
         applies,
+        family: base.family,
     }
 }
 
@@ -576,10 +638,20 @@ impl Library {
                 }
             }
         }
+        let standards = standards(&rulesets)?;
+        let mut standard_tags = BTreeSet::new();
+        for spec in definitions.values_mut() {
+            spec.family = family(&spec.tags, &standards);
+            standard_tags.extend(spec.family.iter().cloned());
+            let own = std::mem::take(&mut spec.tags);
+            spec.tags = tagged(own, spec.family.clone());
+        }
+        log::debug!("{} standards bring tags {standard_tags:?}", standards.len());
         Ok(Self {
             rulesets,
             definitions,
             owners: owner,
+            standard_tags,
         })
     }
 
@@ -714,10 +786,9 @@ impl Library {
             .iter()
             .filter(|(id, spec)| {
                 *id == pattern
-                    || spec
-                        .tags
-                        .iter()
-                        .any(|t| t.contains(':') && glob(pattern, t))
+                    || spec.tags.iter().any(|t| {
+                        (t.contains(':') || self.standard_tags.contains(t)) && glob(pattern, t)
+                    })
                     || !self.standard_only(id, spec)
             })
             .map(|(id, spec)| (id.clone(), spec.clone()))

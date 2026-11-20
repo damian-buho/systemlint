@@ -539,8 +539,8 @@ fn sources() -> (Value, Vec<Check>) {
 fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_first() {
     let (document, checks) = sources();
     let text = lint_human(&document, &checks, 0, false, false, false);
-    let expected = "Error (7.5): [apt/stale-suite] [default] [apt]\nA source fetches an older release’s suite\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nRationale: the host stops getting new package versions and security fixes from that source, and its old packages can clash with the rest of the system.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
-        Warning (4.5): [apt/overlap] [default] [apt]\nA repository is partly listed in two places\n- /a.list:1.\n- /b.sources:1.\nRationale: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
+    let expected = "Error (7.5): [apt/stale-suite]\nA source fetches an older release’s suite\nTags: default, apt\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nRationale: the host stops getting new package versions and security fixes from that source, and its old packages can clash with the rest of the system.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
+        Warning (4.5): [apt/overlap]\nA repository is partly listed in two places\nTags: default, apt\n- /a.list:1.\n- /b.sources:1.\nRationale: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
         Rating            F\nErrors            2\nWarnings          2\nInfo              0\nPassed            2\n";
     assert_eq!(text, expected);
     let painted = lint_human(&document, &checks, 0, true, false, true);
@@ -1065,7 +1065,7 @@ fn plain_drops_only_a_whole_leading_subject_from_the_message() {
 
 // Two standards’ rules on one fact that contradict each other, as `selectors` pick them and `prefer` settles them.
 fn contradicting(selectors: &[&str], prefer: &[&str]) -> Vec<Check> {
-    let yaml = "tags: [default]\nrules:\n  pw/rotate: {fact: pw.max, expect: {maximum: 365}, severity: error, tags: ['cis:5.4.1.1'], conflicts: [pw/keep]}\n  pw/keep: {fact: pw.max, expect: {minimum: 99999}, severity: error, tags: ['nist:5.1.1.2'], conflicts: [pw/rotate]}\n  pw/other: {fact: pw.max, expect: {const: 0}, severity: error}\n";
+    let yaml = "tags: [default]\nrules:\n  pw/rotate: {fact: pw.max, expect: {maximum: 365}, severity: error, tags: ['cis:5.4.1.1'], conflicts: [pw/keep], rationale: a stolen password works forever}\n  pw/keep: {fact: pw.max, expect: {minimum: 99999}, severity: error, tags: ['nist:5.1.1.2'], conflicts: [pw/rotate], rationale: forced changes breed weak passwords}\n  pw/other: {fact: pw.max, expect: {const: 0}, severity: error}\n";
     let library = Library::new(BTreeMap::from([(
         "pw".to_owned(),
         systemlint::yaml::from_str(yaml).unwrap(),
@@ -1099,7 +1099,7 @@ fn two_selected_rules_in_conflict_print_one_block_and_fail_nothing() {
         )
     );
     let human = lint_human(&json!({}), &checks, 0, false, false, false);
-    let line = "Conflict: pw/keep (nist:5.1.1.2) and pw/rotate (cis:5.4.1.1) contradict each other, so none of them counts; keep the standard you follow with --prefer 'nist:*' or --prefer 'cis:*'.\n";
+    let line = "Conflict: pw/keep (nist:5.1.1.2) and pw/rotate (cis:5.4.1.1) contradict each other, so none of them counts; keep the standard you follow with --prefer nist or --prefer cis.\nRationale of pw/keep: forced changes breed weak passwords.\nRationale of pw/rotate: a stolen password works forever.\n";
     assert_eq!(human.matches("Conflict:").count(), 1, "{human}");
     assert!(human.contains(line), "{human}");
     assert!(

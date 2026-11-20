@@ -392,12 +392,30 @@ fn rotated_from(path: &str) -> Option<&str> {
 
 /// The header of one rule’s block: label, rule ID in bold and its tags, then the title on its own line when the rule has one.
 fn header(label: &str, check: &Check, on: bool) -> String {
-    let tags: String = check.tags.iter().map(|t| format!(" [{t}]")).collect();
-    let id = paint(on, "1", &format!("[{}]", check.rule)) + &paint(on, "2", &tags);
-    check.title.as_deref().map_or_else(
-        || format!("{label}: {id}"),
-        |title| format!("{label}: {id}\n{}", values(on, title)),
-    )
+    let mut out = format!("{label}: {}", paint(on, "1", &format!("[{}]", check.rule)));
+    if let Some(title) = &check.title {
+        let _ = write!(out, "\n{}", values(on, title));
+    }
+    let tags: Vec<&str> = check
+        .tags
+        .iter()
+        .filter(|t| !t.contains(':'))
+        .map(String::as_str)
+        .collect();
+    if !tags.is_empty() {
+        let _ = write!(out, "\nTags: {}", paint(on, "2", &tags.join(", ")));
+    }
+    out
+}
+
+/// The control tags of `check`, `cis-ubuntu-26.04:3.2.1`, which the human report shows only under `-v`.
+fn controls(check: &Check) -> Vec<&str> {
+    check
+        .tags
+        .iter()
+        .filter(|t| t.contains(':'))
+        .map(String::as_str)
+        .collect()
 }
 
 /// The image a container’s failing file subject (a `path` or `path:line`) comes from unchanged: absent from the writable layer `meta.subject.changed` lists, and not read from running state.
@@ -686,6 +704,10 @@ fn failure_block(
         log::debug!("rule {}: {remedied} remedies, folded {folded}", worst.rule);
         let command = format!("systemlint fix --tags {}", worst.rule);
         let _ = writeln!(tail, "{lead}\n  {}", paint(on, SHOWN, &command));
+    }
+    let named = controls(worst);
+    if verbose && !named.is_empty() {
+        let _ = writeln!(tail, "Controls: {}", named.join(", "));
     }
     for reference in worst.references.iter().filter(|_| verbose) {
         let _ = writeln!(tail, "See: {} <{}>", reference.title, reference.url);
@@ -1012,9 +1034,27 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
             .map(|c| location(&c.subject_label(), c.reason.as_deref(), on));
         subject_block(&mut blocks, &mut out, (3, Reverse(None), 0), lines);
     }
-    for (reason, rules) in by_reason(checks.iter().filter(|c| c.outcome == Outcome::Conflict)) {
+    let conflicting: Vec<&Check> = checks
+        .iter()
+        .filter(|c| c.outcome == Outcome::Conflict)
+        .collect();
+    for (reason, rules) in by_reason(conflicting.iter().copied()) {
         log::debug!("{} rules in conflict: {reason}", rules.len());
         let _ = writeln!(out, "Conflict: {}", sentence(reason));
+        for rule in &rules {
+            let why = conflicting
+                .iter()
+                .find(|c| c.rule == *rule)
+                .and_then(|c| c.rationale.as_deref());
+            if let Some(why) = why {
+                let _ = writeln!(
+                    out,
+                    "{} {}",
+                    paint(on, RATIONALE, &format!("Rationale of {rule}:")),
+                    sentence(why)
+                );
+            }
+        }
         out.push('\n');
     }
     split(&mut blocks, &mut out, (4, Reverse(None), 0));
