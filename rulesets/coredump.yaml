@@ -14,7 +14,7 @@ rules:
     score: 6.8
     message: "fs.suid_dumpable is {got}, so a crashed setuid program leaves a core file its user can read, with the secrets it held"
     rationale: a crash of a privileged program leaves a file anyone can read, holding its memory with password hashes and keys
-    fix: set “fs.suid_dumpable = 0”, or “fs.suid_dumpable = 2” when a root-only crash handler such as apport or systemd-coredump receives the dumps
+    remedy: {drop-in: {into: sysctl, name: coredump-suid-dumpable, lines: ["fs.suid_dumpable = 0"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#suid-dumpable
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}

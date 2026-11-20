@@ -1352,7 +1352,7 @@ fn failure(
                     .remedy
                     .as_ref()
                     .filter(|r| matches!(r, crate::fix::Remedy::DropIn(_)))
-                    .map(|_| &EMPTY)
+                    .map(|_| bound.last().unwrap_or(&EMPTY))
             }))
             .filter(|(r, _)| {
                 !matches!(r, crate::fix::Remedy::DisableLine(_))

@@ -14,7 +14,7 @@ rules:
     score: 7.0
     message: "fs.protected_symlinks is {got}, so a user can plant a symlink in /tmp that a root process follows to overwrite any file"
     rationale: a local user can trick a privileged program into overwriting files it never meant to touch, such as system configuration
-    fix: set “fs.protected_symlinks = 1”
+    remedy: {drop-in: {into: sysctl, name: fs-protected-symlinks, lines: ["fs.protected_symlinks = 1"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#protected-symlinks
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -27,7 +27,7 @@ rules:
     score: 7.0
     message: "fs.protected_hardlinks is {got}, so a user can hard-link a setuid binary or a root-owned file and keep it after an update"
     rationale: a local user can pin a privileged file in place and keep an old vulnerable copy after the system is updated
-    fix: set “fs.protected_hardlinks = 1”
+    remedy: {drop-in: {into: sysctl, name: fs-protected-hardlinks, lines: ["fs.protected_hardlinks = 1"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#protected-hardlinks
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -40,7 +40,7 @@ rules:
     score: 4.0
     message: "fs.protected_fifos is {got}, so a process that creates a FIFO in /tmp may open one another user planted under that name"
     rationale: a local user can plant a pipe in a shared directory and capture or feed data to a privileged program that opens it
-    fix: set “fs.protected_fifos = 1”, or “fs.protected_fifos = 2” to cover group-writable sticky directories too
+    remedy: {drop-in: {into: sysctl, name: fs-protected-fifos, lines: ["fs.protected_fifos = 1"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#protected-fifos
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -53,7 +53,7 @@ rules:
     score: 4.0
     message: "fs.protected_regular is {got}, so a process that creates a file in /tmp may write into one another user planted under that name"
     rationale: a local user can plant a file in a shared directory and have a privileged program write into it or read attacker-chosen content
-    fix: set “fs.protected_regular = 1”, or “fs.protected_regular = 2” to cover group-writable sticky directories too
+    remedy: {drop-in: {into: sysctl, name: fs-protected-regular, lines: ["fs.protected_regular = 1"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/fs.html#protected-regular
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}

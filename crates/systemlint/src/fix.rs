@@ -52,7 +52,43 @@ pub enum Directory {
     Modprobe,
     /// `/etc/apt/apt.conf.d`, for turning off recommended and suggested packages.
     Apt,
+    /// `/etc/sysctl.d`, for the kernel settings in [`SYSCTL`] at their hardened values, loaded at once on the live host.
+    Sysctl,
 }
+
+/// The sysctl program that loads a drop-in into the running kernel.
+const SYSCTL_PROGRAM: &str = "/usr/sbin/sysctl";
+
+/// The kernel settings a sysctl drop-in may write, `*` one interface, each with the values that only take something away.
+const SYSCTL: &[(&str, &[&str])] = &[
+    ("dev.tty.ldisc_autoload", &["0"]),
+    ("fs.protected_fifos", &["1", "2"]),
+    ("fs.protected_hardlinks", &["1"]),
+    ("fs.protected_regular", &["1", "2"]),
+    ("fs.protected_symlinks", &["1"]),
+    ("fs.suid_dumpable", &["0"]),
+    ("kernel.dmesg_restrict", &["1"]),
+    ("kernel.kptr_restrict", &["1", "2"]),
+    ("kernel.perf_event_paranoid", &["2", "3"]),
+    ("kernel.randomize_va_space", &["2"]),
+    ("kernel.sysrq", &["0"]),
+    ("kernel.unprivileged_bpf_disabled", &["1", "2"]),
+    ("kernel.yama.ptrace_scope", &["1", "2", "3"]),
+    ("net.ipv4.conf.*.accept_redirects", &["0"]),
+    ("net.ipv4.conf.*.accept_source_route", &["0"]),
+    ("net.ipv4.conf.*.log_martians", &["1"]),
+    ("net.ipv4.conf.*.route_localnet", &["0"]),
+    ("net.ipv4.conf.*.rp_filter", &["1"]),
+    ("net.ipv4.conf.*.secure_redirects", &["0"]),
+    ("net.ipv4.conf.*.send_redirects", &["0"]),
+    ("net.ipv4.icmp_echo_ignore_broadcasts", &["1"]),
+    ("net.ipv4.icmp_ignore_bogus_error_responses", &["1"]),
+    ("net.ipv4.icmp_ratemask", &["88089"]),
+    ("net.ipv4.tcp_rfc1337", &["1"]),
+    ("net.ipv4.tcp_syncookies", &["1"]),
+    ("net.ipv6.conf.*.accept_redirects", &["0"]),
+    ("net.ipv6.conf.*.accept_source_route", &["0"]),
+];
 
 /// The modprobe that unloads a module, the one the kernel-modules collectors run.
 const MODPROBE: &str = "/usr/sbin/modprobe";
@@ -74,6 +110,7 @@ impl Directory {
         match self {
             Self::Modprobe => "/etc/modprobe.d",
             Self::Apt => "/etc/apt/apt.conf.d",
+            Self::Sysctl => "/etc/sysctl.d",
         }
     }
 
@@ -81,7 +118,7 @@ impl Directory {
     fn order(self) -> u8 {
         match self {
             Self::Modprobe => 60,
-            Self::Apt => 99,
+            Self::Apt | Self::Sysctl => 99,
         }
     }
 
@@ -103,12 +140,66 @@ impl Directory {
             ) => module(m),
             (Self::Modprobe, ["blacklist", m]) => module(m),
             (Self::Apt, _) => APT_LINES.contains(&line),
+            (Self::Sysctl, [key, "=", value]) => SYSCTL
+                .iter()
+                .any(|(k, values)| values.contains(value) && same_key(k, key)),
             _ => false,
         }
     }
 }
 
+/// Whether the sysctl `key` is `pattern`, whose `*` stands for one segment of letters, digits, `_` and `-`.
+fn same_key(pattern: &str, key: &str) -> bool {
+    let (mut want, mut got) = (pattern.split('.'), key.split('.'));
+    loop {
+        match (want.next(), got.next()) {
+            (None, None) => return true,
+            (Some("*"), Some(g))
+                if !g.is_empty()
+                    && g.chars()
+                        .all(|c| c.is_ascii_alphanumeric() || "_-".contains(c)) => {}
+            (Some(w), Some(g)) if w == g => {}
+            _ => return false,
+        }
+    }
+}
+
+/// What a drop-in’s `{subject}` stands for when its lines are checked at load, as an interface name.
+const SUBJECT_EXAMPLE: &str = "eth0";
+
 impl DropIn {
+    /// It with each `{subject}` filled from `subject`, none when the subject holds anything but letters, digits, `_` and `-`.
+    pub fn for_subject(&self, subject: &str) -> Option<Self> {
+        if !self.lines.iter().any(|l| l.contains("{subject}")) {
+            return Some(self.clone());
+        }
+        let plain = !subject.is_empty()
+            && subject
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "_-".contains(c));
+        log::debug!(
+            "drop-in {} for subject {subject:?}: plain {plain}",
+            self.name
+        );
+        plain.then(|| {
+            let mut lines: Vec<String> = Vec::new();
+            for line in self.lines.iter().map(|l| l.replace("{subject}", subject)) {
+                if !lines.contains(&line) {
+                    lines.push(line);
+                }
+            }
+            Self {
+                lines,
+                ..self.clone()
+            }
+        })
+    }
+
+    /// The command that loads it into the running kernel, a sysctl drop-in’s only.
+    fn loading(&self) -> Option<String> {
+        (self.into == Directory::Sysctl).then(|| format!("sysctl --load={}", self.path()))
+    }
+
     /// The file it writes.
     pub fn path(&self) -> String {
         format!(
@@ -146,10 +237,25 @@ impl DropIn {
         } else {
             "these lines"
         };
-        let mut steps = vec![
-            Step::Say(format!("Write {these} to “{}”:", self.path())),
-            Step::Show(Shown::Lines(self.lines.clone())),
-        ];
+        let each = self.lines.iter().any(|l| l.contains("{subject}"));
+        let lines = self
+            .lines
+            .iter()
+            .map(|l| l.replace("{subject}", "<name>"))
+            .collect();
+        let what = if each {
+            format!(
+                "Write {these} to “{}”, the “<name>” line once for each one listed:",
+                self.path()
+            )
+        } else {
+            format!("Write {these} to “{}”:", self.path())
+        };
+        let mut steps = vec![Step::Say(what), Step::Show(Shown::Lines(lines))];
+        if let Some(command) = self.loading() {
+            steps.push(Step::Say("Load it into the running kernel:".to_owned()));
+            steps.push(Step::Show(Shown::Run(command)));
+        }
         if let Some(command) = self.unloading() {
             let them = if self.modules().len() == 1 {
                 "it"
@@ -220,7 +326,11 @@ impl Remedy {
                 if drop.lines.is_empty() || drop.lines.len() > 16 {
                     return Err("remedy drop-in takes 1 to 16 lines".to_owned());
                 }
-                match drop.lines.iter().find(|l| !drop.into.admits(l)) {
+                match drop
+                    .lines
+                    .iter()
+                    .find(|l| !drop.into.admits(&l.replace("{subject}", SUBJECT_EXAMPLE)))
+                {
                     Some(line) => Err(format!(
                         "remedy drop-in line {line:?} is not one that only turns something off in {}",
                         drop.into.path()
@@ -242,13 +352,14 @@ impl Remedy {
                 None => format!("# no line named in {}", quote(subject)),
             },
             Self::DropIn(drop) => {
+                let drop = drop.for_subject(subject).unwrap_or_else(|| drop.clone());
                 let lines: Vec<String> = drop.lines.iter().map(|l| quote(l)).collect();
                 let written = format!(
                     "printf '%s\\n' {} > {}",
                     lines.join(" "),
                     quote(&drop.path())
                 );
-                match drop.unloading() {
+                match drop.unloading().or_else(|| drop.loading()) {
                     Some(command) => format!("{written} && {command}"),
                     None => written,
                 }
@@ -370,13 +481,17 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> P
                     (path.to_owned(), Some((n, sha?.to_owned())))
                 }
                 Remedy::DropIn(drop) => (drop.path(), None),
-                _ => (subject, None),
+                _ => (subject.clone(), None),
+            };
+            let remedy = match remedy {
+                Remedy::DropIn(drop) => Remedy::DropIn(drop.for_subject(&subject)?),
+                other => (*other).clone(),
             };
             Some(Change {
                 rule: c.rule.clone(),
                 path,
                 line,
-                remedy: (*remedy).clone(),
+                remedy,
             })
         })
         .filter(|c| c.path.starts_with('/'))
@@ -384,15 +499,18 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> P
     let key = |c: &Change| (c.path.clone(), c.line.clone(), c.remedy.command(""));
     changes.sort_by_key(key);
     changes.dedup_by(|a, b| match (&a.remedy, &mut b.remedy) {
-        (Remedy::DropIn(later), Remedy::DropIn(kept))
-            if later.lines == kept.lines && a.path == b.path =>
-        {
+        (Remedy::DropIn(later), Remedy::DropIn(kept)) if a.path == b.path => {
             log::debug!(
                 "{}: one write, unload {}",
                 a.path,
                 later.unload || kept.unload
             );
             kept.unload |= later.unload;
+            for line in &later.lines {
+                if !kept.lines.contains(line) {
+                    kept.lines.push(line.clone());
+                }
+            }
             true
         }
         _ => a.path == b.path && a.line == b.line && a.remedy == b.remedy,
@@ -507,7 +625,42 @@ fn drop_in(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
             )));
         }
     }
-    write(root, drop).and_then(|w| unload(root, drop, w))
+    write(root, drop)
+        .and_then(|w| unload(root, drop, w))
+        .and_then(|w| load(root, drop, w))
+}
+
+/// Loads a sysctl drop-in into the running kernel, only on the live root, adding what it did to `written`.
+fn load(root: &Root, drop: &DropIn, written: Applied) -> Result<Applied, std::io::Error> {
+    let live = root.path() == std::path::Path::new("/");
+    log::debug!(
+        "{}: load {}, live root {live}",
+        drop.path(),
+        drop.into == Directory::Sysctl
+    );
+    if drop.into != Directory::Sysctl || !live {
+        return Ok(written);
+    }
+    let path = format!("--load={}", drop.path());
+    let output = crate::runner::run(
+        std::path::Path::new(SYSCTL_PROGRAM),
+        &[path.as_str()],
+        None,
+        UNLOAD_TIMEOUT,
+        crate::runner::OUTPUT_CAP,
+        None,
+    )
+    .map_err(std::io::Error::other)?;
+    log::debug!("sysctl {path}: exit {}", output.code());
+    let (before, after) = written.unwrap_or(("unchanged".to_owned(), "unchanged".to_owned()));
+    if output.code() != 0 {
+        let answer = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        return Ok(Some((
+            before,
+            format!("{after}, not loaded until the next boot (sysctl answered “{answer}”)"),
+        )));
+    }
+    Ok(Some((before, format!("{after}, loaded"))))
 }
 
 /// The `modules` that `/proc/modules` text lists with a use count above 0, and that count.

@@ -14,7 +14,7 @@ rules:
     score: 4.5
     message: "net.ipv4.tcp_syncookies is {got}, so a SYN flood fills the connection backlog and the host stops accepting TCP connections"
     rationale: a flood of half-open connections fills the queue, and real clients can no longer connect to the host
-    fix: set “net.ipv4.tcp_syncookies = 1”
+    remedy: {drop-in: {into: sysctl, name: ip-flood-syncookies, lines: ["net.ipv4.tcp_syncookies = 1"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -27,7 +27,7 @@ rules:
     score: 4.0
     message: "net.ipv4.icmp_echo_ignore_broadcasts is {got}, so the host answers pings sent to a broadcast address and can amplify a smurf attack"
     rationale: an attacker can use the host to amplify a flood against a victim by sending one ping to the broadcast address
-    fix: set “net.ipv4.icmp_echo_ignore_broadcasts = 1”
+    remedy: {drop-in: {into: sysctl, name: ip-flood-broadcast-echo, lines: ["net.ipv4.icmp_echo_ignore_broadcasts = 1"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -40,7 +40,7 @@ rules:
     score: 2.0
     message: "net.ipv4.icmp_ignore_bogus_error_responses is {got}, so the kernel logs a warning for every malformed ICMP error a router or sender returns, and a flood of them fills the log"
     rationale: a flood of malformed ICMP error messages fills the log with warnings, which can hide real events or fill the disk
-    fix: set “net.ipv4.icmp_ignore_bogus_error_responses = 1”, the kernel default
+    remedy: {drop-in: {into: sysctl, name: ip-flood-bogus-icmp-errors, lines: ["net.ipv4.icmp_ignore_bogus_error_responses = 1"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-flood, sysctl, cis-ubuntu-26.04:3.3.1.6, dev-sec-linux-baseline:sysctl-03]
   ip-flood/icmp-ratemask:
@@ -51,7 +51,7 @@ rules:
     score: 1.0
     message: "net.ipv4.icmp_ratemask is {got}, not 88089, which also rate-limits echo replies and source quench"
     rationale: echo replies and source quench packets are not rate limited, so the host can be pushed into answering a ping flood at full speed
-    fix: set “net.ipv4.icmp_ratemask = 88089”
+    remedy: {drop-in: {into: sysctl, name: ip-flood-icmp-ratemask, lines: ["net.ipv4.icmp_ratemask = 88089"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-flood, sysctl, dev-sec-linux-baseline:sysctl-06, '!default']
   ip-flood/tcp-rfc1337:
@@ -62,6 +62,6 @@ rules:
     score: 1.0
     message: "net.ipv4.tcp_rfc1337 is {got}, so a stray RST may end a connection in TIME-WAIT early (RFC 1337)"
     rationale: a forged reset packet can cut a connection that is only waiting to close, so an attacker can break sessions
-    fix: set “net.ipv4.tcp_rfc1337 = 1”
+    remedy: {drop-in: {into: sysctl, name: ip-flood-tcp-rfc1337, lines: ["net.ipv4.tcp_rfc1337 = 1"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-flood, sysctl, dev-sec-linux-baseline:sysctl-10]

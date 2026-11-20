@@ -16,10 +16,7 @@ rules:
     score: 5.0
     message: "{subject} accepts IPv4 ICMP redirects (accept_redirects {got}), so anyone on the link can reroute this host’s traffic through themselves"
     rationale: a neighbour on the same network can send a forged message that routes this host’s traffic through their machine
-    fix:
-      - 'Set these lines:'
-      - lines: ["net.ipv4.conf.all.accept_redirects = 0", "net.ipv4.conf.default.accept_redirects = 0"]
-      - Then set each listed interface’s key the same way.
+    remedy: {drop-in: {into: sysctl, name: ip-routing-ipv4-redirects, lines: ["net.ipv4.conf.all.accept_redirects = 0", "net.ipv4.conf.default.accept_redirects = 0", "net.ipv4.conf.{subject}.accept_redirects = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -34,10 +31,7 @@ rules:
     score: 5.0
     message: "{subject} accepts IPv6 ICMP redirects (accept_redirects {got}), so anyone on the link can reroute this host’s traffic through themselves"
     rationale: a neighbour on the same network can send a forged message that routes this host’s traffic through their machine
-    fix:
-      - 'Set this line:'
-      - lines: ["net.ipv6.conf.default.accept_redirects = 0"]
-      - Then set each listed interface’s key the same way.
+    remedy: {drop-in: {into: sysctl, name: ip-routing-ipv6-redirects, lines: ["net.ipv6.conf.default.accept_redirects = 0", "net.ipv6.conf.{subject}.accept_redirects = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -67,7 +61,7 @@ rules:
     score: 1.0
     message: "net.ipv4.conf.{subject}.secure_redirects is {got}, so a redirect is accepted from any packet claiming a listed gateway’s address, which a spoofed source satisfies; ip-routing/ipv4-redirects judges the wider setting"
     rationale: an attacker who spoofs a gateway’s address can still redirect this host’s traffic to their machine
-    fix: set “net.ipv4.conf.all.secure_redirects = 0” and “net.ipv4.conf.default.secure_redirects = 0”
+    remedy: {drop-in: {into: sysctl, name: ip-routing-ipv4-secure-redirects, lines: ["net.ipv4.conf.all.secure_redirects = 0", "net.ipv4.conf.default.secure_redirects = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.10, cis-ubuntu-26.04:3.3.1.11, dev-sec-linux-baseline:sysctl-15]
   ip-routing/route-localnet:
@@ -79,11 +73,7 @@ rules:
     score: 7.0
     message: "{subject} sets route_localnet {got}, so a packet from the link addressed to 127.0.0.1 is delivered, and services bound to loopback only answer anyone next to this host"
     rationale: a machine on the network can reach services meant to be open only to this host, such as a database bound to 127.0.0.1
-    fix:
-      - 'Set these lines:'
-      - lines: ["net.ipv4.conf.all.route_localnet = 0", "net.ipv4.conf.default.route_localnet = 0"]
-      - Then set each listed interface’s key the same way.
-      - On a Kubernetes node, run kube-proxy with “--iptables-localhost-nodeports=false”.
+    remedy: {drop-in: {into: sysctl, name: ip-routing-route-localnet, lines: ["net.ipv4.conf.all.route_localnet = 0", "net.ipv4.conf.default.route_localnet = 0", "net.ipv4.conf.{subject}.route_localnet = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.19]
   ip-routing/ipv4-ip-forward:
@@ -130,7 +120,7 @@ rules:
     score: 1.0
     message: "net.ipv4.conf.{subject}.send_redirects is {got}, so this host tells its neighbours to reroute traffic, which only a router should"
     rationale: a host that is not a router can be made to steer its neighbours’ traffic along paths an attacker picks
-    fix: set “net.ipv4.conf.all.send_redirects = 0” and “net.ipv4.conf.default.send_redirects = 0”
+    remedy: {drop-in: {into: sysctl, name: ip-routing-ipv4-send-redirects, lines: ["net.ipv4.conf.all.send_redirects = 0", "net.ipv4.conf.default.send_redirects = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.4, cis-ubuntu-26.04:3.3.1.5, dev-sec-linux-baseline:sysctl-16]
   ip-routing/ipv4-rp-filter-strict:
@@ -154,7 +144,7 @@ rules:
     score: 1.0
     message: "net.ipv4.conf.{subject}.log_martians is {got}, so packets with impossible source addresses arrive unlogged"
     rationale: spoofed or misrouted packets arrive silently, so an attack or a broken route leaves no trace
-    fix: set “net.ipv4.conf.all.log_martians = 1” and “net.ipv4.conf.default.log_martians = 1”
+    remedy: {drop-in: {into: sysctl, name: ip-routing-ipv4-log-martians, lines: ["net.ipv4.conf.all.log_martians = 1", "net.ipv4.conf.default.log_martians = 1"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.16, cis-ubuntu-26.04:3.3.1.17, dev-sec-linux-baseline:sysctl-17]
   ip-routing/ipv6-source-route:
@@ -166,7 +156,7 @@ rules:
     score: 1.0
     message: "net.ipv6.conf.{subject}.accept_source_route is {got}, so a sender may choose the path its IPv6 packets take through this host"
     rationale: a sender can choose the path of a packet and bypass firewalls that trust where it appears to come from
-    fix: set “net.ipv6.conf.all.accept_source_route = 0” and “net.ipv6.conf.default.accept_source_route = 0”
+    remedy: {drop-in: {into: sysctl, name: ip-routing-ipv6-source-route, lines: ["net.ipv6.conf.all.accept_source_route = 0", "net.ipv6.conf.default.accept_source_route = 0"]}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.2.5, cis-ubuntu-26.04:3.3.2.6, dev-sec-linux-baseline:sysctl-13]
   ip-routing/ipv6-accept-ra:

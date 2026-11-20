@@ -14,7 +14,7 @@ rules:
     score: 7.5
     message: "kernel.randomize_va_space is {got}, so stack, heap or mmap addresses are predictable, which makes memory corruption bugs easier to exploit"
     rationale: an attacker who finds a memory bug can aim at a known address, so a crash becomes code execution far more often
-    fix: set “kernel.randomize_va_space = 2” in a file under “/etc/sysctl.d/”
+    remedy: {drop-in: {into: sysctl, name: kernel-aslr, lines: ["kernel.randomize_va_space = 2"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#randomize-va-space
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -27,7 +27,7 @@ rules:
     score: 5.0
     message: "kernel.kptr_restrict is {got}, so /proc and other interfaces print kernel pointers to unprivileged users, which defeats kernel address randomization"
     rationale: any local user learns where the kernel sits in memory, which removes the guesswork from a kernel exploit
-    fix: set “kernel.kptr_restrict = 1”, or “kernel.kptr_restrict = 2” to hide them from root as well
+    remedy: {drop-in: {into: sysctl, name: kernel-kptr-restrict, lines: ["kernel.kptr_restrict = 1"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#kptr-restrict
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -40,7 +40,7 @@ rules:
     score: 4.0
     message: "kernel.dmesg_restrict is {got}, so any user can read the kernel log, which can leak addresses and hardware details"
     rationale: any local user can read kernel messages that reveal memory addresses and hardware, material for planning a kernel exploit
-    fix: set “kernel.dmesg_restrict = 1”
+    remedy: {drop-in: {into: sysctl, name: kernel-dmesg-restrict, lines: ["kernel.dmesg_restrict = 1"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#dmesg-restrict
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -53,7 +53,7 @@ rules:
     score: 5.0
     message: "kernel.yama.ptrace_scope is {got}, so one compromised process can read the memory and secrets of every other process its user runs"
     rationale: malware in one of a user’s programs can attach to their other programs and lift passwords, keys and session tokens from memory
-    fix: set “kernel.yama.ptrace_scope = 1”, so only a parent may trace its children
+    remedy: {drop-in: {into: sysctl, name: kernel-ptrace-scope, lines: ["kernel.yama.ptrace_scope = 1"]}}
     docs: https://docs.kernel.org/admin-guide/LSM/Yama.html
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -66,7 +66,7 @@ rules:
     score: 6.0
     message: "kernel.unprivileged_bpf_disabled is {got}, so any user can load BPF programs, a frequent path to kernel exploits"
     rationale: any local user can run their own code inside the kernel, a route that has been used again and again to become root
-    fix: set “kernel.unprivileged_bpf_disabled = 1”, or “kernel.unprivileged_bpf_disabled = 2” to let an administrator turn it back on until reboot
+    remedy: {drop-in: {into: sysctl, name: kernel-unprivileged-bpf, lines: ["kernel.unprivileged_bpf_disabled = 2"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#unprivileged-bpf-disabled
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -79,7 +79,7 @@ rules:
     score: 4.0
     message: "kernel.perf_event_paranoid is {got}, so unprivileged users can sample kernel activity through perf_event_open, which leaks kernel addresses and timing"
     rationale: any local user can watch kernel activity and timing, which reveals addresses and secrets that help an exploit or a side-channel attack
-    fix: set “kernel.perf_event_paranoid = 2”
+    remedy: {drop-in: {into: sysctl, name: kernel-perf-events, lines: ["kernel.perf_event_paranoid = 2"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html#perf-event-paranoid
     references:
       - {title: Lynis KRNL-6000, url: "https://cisofy.com/lynis/controls/KRNL-6000/"}
@@ -117,7 +117,7 @@ rules:
     score: 1.0
     message: "kernel.sysrq is {got}, so whoever reaches the console keyboard may reboot, kill processes or sync disks without logging in"
     rationale: anyone with keyboard access can reboot the machine, kill every process or sync disks without logging in
-    fix: set “kernel.sysrq = 0”
+    remedy: {drop-in: {into: sysctl, name: kernel-sysrq, lines: ["kernel.sysrq = 0"]}}
     docs: https://docs.kernel.org/admin-guide/sysctl/kernel.html
     tags: [kernel, sysctl, dev-sec-linux-baseline:sysctl-30, '!default']
   kernel/stig-fips:

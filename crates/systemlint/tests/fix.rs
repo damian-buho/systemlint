@@ -596,3 +596,55 @@ fn applying_a_drop_in_writes_it_once_and_leaves_a_file_with_other_lines() {
         "no temporary file is left: {leftovers:?}"
     );
 }
+
+#[test]
+fn a_sysctl_drop_in_writes_only_a_listed_key_at_a_hardened_value() {
+    let ok = |line: &str| {
+        drop_in(&format!(
+            "drop-in: {{into: sysctl, name: x, lines: ['{line}']}}"
+        ))
+        .validate()
+    };
+    for admitted in [
+        "kernel.kptr_restrict = 1",
+        "kernel.kptr_restrict = 2",
+        "net.ipv4.conf.all.send_redirects = 0",
+        "net.ipv6.conf.enx0826ae3aa571.accept_redirects = 0",
+        "net.ipv6.conf.{subject}.accept_redirects = 0",
+    ] {
+        assert!(ok(admitted).is_ok(), "{admitted}");
+    }
+    for refused in [
+        "kernel.kptr_restrict = 0",
+        "kernel.core_pattern = |/tmp/x",
+        "net.ipv4.conf.all.send_redirects = 1",
+        "net.ipv4.conf.a.b.send_redirects = 0",
+        "net.ipv4.conf..send_redirects = 0",
+        "kernel.kptr_restrict=1",
+    ] {
+        assert!(ok(refused).is_err(), "{refused}");
+    }
+}
+
+#[test]
+fn a_subject_drop_in_writes_every_failing_subject_into_one_file() {
+    let yaml = "fact: n.*.r\nexpect: {const: 0}\nremedy: {drop-in: {into: sysctl, name: r, lines: ['net.ipv6.conf.default.accept_redirects = 0', 'net.ipv6.conf.{subject}.accept_redirects = 0']}}\n";
+    let rule = compile("t/r", systemlint::yaml::from_str(yaml).unwrap()).unwrap();
+    let document = json!({"n": {"eth0": {"r": 1}, "wl-p": {"r": 1}, "default": {"r": 1}, "a b": {"r": 1}, "ok": {"r": 0}}});
+    let checks = lint(&document, std::slice::from_ref(&rule), &[], "2026-11-20");
+    let planned = plan(&checks, &[rule], &document).changes;
+    assert_eq!(planned.len(), 1, "{planned:?}");
+    let Remedy::DropIn(drop) = &planned[0].remedy else {
+        panic!("{planned:?}")
+    };
+    assert_eq!(drop.path(), "/etc/sysctl.d/99-systemlint-r.conf");
+    assert_eq!(
+        drop.lines,
+        [
+            "net.ipv6.conf.default.accept_redirects = 0",
+            "net.ipv6.conf.eth0.accept_redirects = 0",
+            "net.ipv6.conf.wl-p.accept_redirects = 0",
+        ],
+        "a subject with a blank is left out, a repeated line written once"
+    );
+}
