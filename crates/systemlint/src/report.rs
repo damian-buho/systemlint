@@ -927,17 +927,12 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
     }))
     .values()
     {
-        let _ = writeln!(out, "{}", header("Unknown", group[0], on));
-        group.iter().for_each(|c| {
-            let _ = writeln!(
-                out,
-                "{}",
-                sentence(&location(&c.subject_label(), c.reason.as_deref(), on))
-            );
-        });
-        out.push('\n');
+        let _ = writeln!(out, "{}\n", header("Unknown", group[0], on));
+        let lines = group
+            .iter()
+            .map(|c| location(&c.subject_label(), c.reason.as_deref(), on));
+        subject_block(&mut blocks, &mut out, (3, Reverse(None), 0), lines);
     }
-    split(&mut blocks, &mut out, (3, Reverse(None), 0));
     for (reason, rules) in by_reason(checks.iter().filter(|c| c.outcome == Outcome::Conflict)) {
         log::debug!("{} rules in conflict: {reason}", rules.len());
         let _ = writeln!(out, "Conflict: {}", sentence(reason));
@@ -959,21 +954,14 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
     )
     .values()
     {
-        let _ = writeln!(out, "{}", header("Waived", group[0], on));
-        for (check, w) in group.iter().filter_map(|c| Some((c, c.waiver.as_ref()?))) {
-            let _ = writeln!(
-                out,
-                "{}",
-                sentence(&location(
-                    &check.subject_label(),
-                    Some(&format!("{} (until {})", w.reason, w.until)),
-                    on
-                ))
-            );
-        }
-        out.push('\n');
+        let _ = writeln!(out, "{}\n", header("Waived", group[0], on));
+        let lines = group.iter().filter_map(|c| {
+            let w = c.waiver.as_ref()?;
+            let why = format!("{} (until {})", w.reason, w.until);
+            Some(location(&c.subject_label(), Some(&why), on))
+        });
+        subject_block(&mut blocks, &mut out, (6, Reverse(None), 0), lines);
     }
-    split(&mut blocks, &mut out, (6, Reverse(None), 0));
     for group in ranked(checks) {
         let (items, mid, tail) = failure_block(&mut out, document, &group, verbose, on);
         let level = group.iter().filter_map(|c| c.severity).max();
@@ -991,6 +979,28 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
         }
     }
     blocks
+}
+
+/// Moves the header in `out` into `blocks` at `order`, its subjects one item per line, so targets join them one by one.
+fn subject_block(
+    blocks: &mut Vec<Block>,
+    out: &mut String,
+    order: Order,
+    lines: impl Iterator<Item = String>,
+) {
+    split(blocks, out, order);
+    if let Some(block) = blocks.last_mut() {
+        block.items = lines
+            .map(|line| Item {
+                line,
+                waiver: String::new(),
+                under: String::new(),
+                shipped: false,
+                step: None,
+            })
+            .collect();
+        log::debug!("{}: {} subjects", block.head, block.items.len());
+    }
 }
 
 /// Where a human block sorts: its section, then a failure’s level and score, worst first.

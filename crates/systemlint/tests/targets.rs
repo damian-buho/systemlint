@@ -355,6 +355,26 @@ fn human_prints_a_subject_shared_by_containers_once_beside_the_ones_they_differ_
 }
 
 #[test]
+fn human_joins_an_unknown_subject_shared_by_targets_once() {
+    let yaml = "fact: files.*\nexpect: {x-cel: \"self > 0\"}\n";
+    let rules = [compile("x/size", systemlint::yaml::from_str(yaml).unwrap()).unwrap()];
+    let (a, b) = (
+        json!({"files": {"/a": "big", "/c": "odd"}}),
+        json!({"files": {"/a": "big"}}),
+    );
+    let (ja, jb) = (
+        lint(&a, &rules, &[], "2026-11-20"),
+        lint(&b, &rules, &[], "2026-11-20"),
+    );
+    let host = json!({"files": {}});
+    let targets = [("a", &a, ja.as_slice()), ("b", &b, jb.as_slice())];
+    let text = lint_human_targets(&host, &[], 0, &targets, (true, false, false));
+    assert_eq!(text.matches("- /a:").count(), 1, "{text}");
+    assert!(text.contains("In every container:\n- /a:"), "{text}");
+    assert!(text.contains("In a:\n- /c:"), "{text}");
+}
+
+#[test]
 fn human_offers_systemlint_fix_after_the_fix_steps_it_makes() {
     let yaml = "fact: v\nexpect: {const: 0}\nfix:\n  - 'Add this line:'\n  - lines: ['blacklist atm']\nremedy: {drop-in: {into: modprobe, name: atm, lines: ['blacklist atm']}}\n";
     let rules = [compile("x/drop", systemlint::yaml::from_str(yaml).unwrap()).unwrap()];
