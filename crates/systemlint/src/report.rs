@@ -1456,6 +1456,7 @@ pub fn lint_human_targets(
     if !quiet {
         out.push_str(&format!("{}\n\n", paint(on, "1", "Final report")));
         out.push_str(&target_rows(&every, on));
+        out.push('\n');
         if left_out > 0 {
             out += &row(
                 "Not selected",
