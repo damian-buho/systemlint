@@ -167,7 +167,6 @@ const FAILING: &[(&str, &str)] = &[
     ("ssh/access-unlisted", MAIN),
     ("ssh/banner-none", MAIN),
     ("ssh/ciphers", MAIN),
-    ("ssh/client-alive-interval", MAIN),
     ("ssh/gateway-ports", MAIN),
     ("ssh/login-grace-time", MAIN),
     ("ssh/max-startups", MAIN),
