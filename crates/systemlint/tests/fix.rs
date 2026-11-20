@@ -545,7 +545,7 @@ fn a_plan_writes_one_drop_in_once_unloading_when_either_rule_asks() {
 }
 
 #[test]
-fn applying_a_drop_in_writes_it_once_and_leaves_a_file_with_other_lines() {
+fn applying_a_drop_in_writes_it_once_adds_to_a_file_of_admitted_lines_and_leaves_any_other() {
     let dir = base("drop-in");
     std::fs::create_dir_all(dir.join("etc/modprobe.d")).unwrap();
     let root = Root::open(&dir).unwrap();
@@ -575,17 +575,30 @@ fn applying_a_drop_in_writes_it_once_and_leaves_a_file_with_other_lines() {
         None,
         "a re-run changes nothing"
     );
-    std::fs::write(
-        dir.join("etc/modprobe.d/60-systemlint-mine.conf"),
-        "blacklist atm\n",
-    )
-    .unwrap();
-    let error = apply(&root, &change("mine")).unwrap_err();
-    assert!(error.to_string().contains("other lines"), "{error}");
+    let mine = dir.join("etc/modprobe.d/60-systemlint-mine.conf");
+    std::fs::write(&mine, "blacklist atm\n").unwrap();
     assert_eq!(
-        std::fs::read_to_string(dir.join("etc/modprobe.d/60-systemlint-mine.conf")).unwrap(),
-        "blacklist atm\n"
+        apply(&root, &change("mine")).unwrap(),
+        Some(("1 line".into(), "2 lines".into()))
     );
+    assert_eq!(
+        std::fs::read_to_string(&mine).unwrap(),
+        "blacklist atm\ninstall atm /bin/false\n"
+    );
+    assert_eq!(
+        apply(&root, &change("mine")).unwrap(),
+        None,
+        "a re-run adds nothing"
+    );
+    for other in ["options atm x=1\n", "blacklist atm"] {
+        std::fs::write(&mine, other).unwrap();
+        let error = apply(&root, &change("mine")).unwrap_err();
+        assert!(
+            error.to_string().contains("other lines"),
+            "{other:?}: {error}"
+        );
+        assert_eq!(std::fs::read_to_string(&mine).unwrap(), other);
+    }
     let leftovers: Vec<_> = std::fs::read_dir(dir.join("etc/modprobe.d"))
         .unwrap()
         .filter_map(|e| e.ok()?.file_name().into_string().ok())

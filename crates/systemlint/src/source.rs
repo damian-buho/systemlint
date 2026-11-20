@@ -406,6 +406,30 @@ impl Root {
 
     /// `text` as the new file `name` in the directory `dir`, through a temporary sibling renamed without replacing, so it appears whole or not at all and never over another file.
     pub fn write_new(&self, dir: &str, name: &str, text: &str, mode: u32) -> io::Result<()> {
+        self.swap_in(dir, name, text, mode, None)
+    }
+
+    /// `text` over the file `name` in `dir`, swapped in whole, and swapped back when that file no longer held `held`.
+    pub fn replace(
+        &self,
+        dir: &str,
+        name: &str,
+        text: &str,
+        mode: u32,
+        held: &str,
+    ) -> io::Result<()> {
+        self.swap_in(dir, name, text, mode, Some(held))
+    }
+
+    /// Writes a temporary sibling, then renames it to `name` without replacing, or with `held` exchanges the two and checks the old one.
+    fn swap_in(
+        &self,
+        dir: &str,
+        name: &str,
+        text: &str,
+        mode: u32,
+        held: Option<&str>,
+    ) -> io::Result<()> {
         let parent = self.open_at(dir, OFlags::PATH | OFlags::DIRECTORY | OFlags::NOFOLLOW)?;
         let temporary = format!(".{name}.{}.tmp", std::process::id());
         let flags =
@@ -416,23 +440,44 @@ impl Root {
             flags,
             Mode::from_raw_mode(mode),
         )?;
+        let rename = |how| {
+            rustix::fs::renameat_with(&parent, temporary.as_str(), &parent, name, how)
+                .map_err(io::Error::from)
+        };
         let written = (|| {
             let mut file = File::from(fd);
             io::Write::write_all(&mut file, text.as_bytes())?;
             file.sync_all()?;
-            rustix::fs::renameat_with(
+            let Some(held) = held else {
+                return rename(rustix::fs::RenameFlags::NOREPLACE);
+            };
+            rename(rustix::fs::RenameFlags::EXCHANGE)?;
+            let old = rustix::fs::openat(
                 &parent,
                 temporary.as_str(),
-                &parent,
-                name,
-                rustix::fs::RenameFlags::NOREPLACE,
-            )
-            .map_err(io::Error::from)
+                OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
+                Mode::empty(),
+            )?;
+            let mut was = String::new();
+            io::Read::read_to_string(
+                &mut io::Read::take(File::from(old), crate::runner::OUTPUT_CAP),
+                &mut was,
+            )?;
+            log::debug!(
+                "replace {dir}/{name}: it still held what was read {}",
+                was == held
+            );
+            if was == held {
+                return Ok(());
+            }
+            rename(rustix::fs::RenameFlags::EXCHANGE)?;
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "it changed while systemlint wrote it, so lint again before fixing",
+            ))
         })();
-        if written.is_err() {
-            log::debug!("write {dir}/{name} failed, removing {temporary}");
-            let _ = rustix::fs::unlinkat(&parent, temporary.as_str(), rustix::fs::AtFlags::empty());
-        }
+        log::debug!("write {dir}/{name}: {written:?}, removing {temporary}");
+        let _ = rustix::fs::unlinkat(&parent, temporary.as_str(), rustix::fs::AtFlags::empty());
         written
     }
 

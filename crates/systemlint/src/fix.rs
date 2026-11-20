@@ -753,7 +753,7 @@ pub fn in_use<'a>(listed: &str, modules: &[&'a str]) -> Vec<(&'a str, u64)> {
         .collect()
 }
 
-/// Writes `drop` as a new file, nothing when it already holds exactly its lines, refusing one that holds anything else.
+/// Writes `drop` as a new file, adding its missing lines to one holding only lines its directory admits, refusing one that holds anything else.
 fn write(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
     let path = drop.path();
     let text = drop.text();
@@ -768,14 +768,36 @@ fn write(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
             root.open_for_change(&path)?
                 .take(crate::runner::OUTPUT_CAP)
                 .read_to_string(&mut held)?;
-            log::debug!("{path}: exists, holds its lines {}", held == text);
-            match held == text {
-                true => Ok(None),
-                false => Err(std::io::Error::new(
+            let lines: Vec<&str> = held.lines().collect();
+            let admitted = held.ends_with('\n') && lines.iter().all(|l| drop.into.admits(l));
+            let missing: Vec<&String> = drop
+                .lines
+                .iter()
+                .filter(|l| !lines.contains(&l.as_str()))
+                .collect();
+            log::debug!(
+                "{path}: exists with {} lines, all admitted {admitted}, {} missing",
+                lines.len(),
+                missing.len()
+            );
+            if missing.is_empty() && admitted {
+                return Ok(None);
+            }
+            if !admitted {
+                return Err(std::io::Error::new(
                     std::io::ErrorKind::AlreadyExists,
                     "it exists with other lines, so systemlint leaves it",
-                )),
+                ));
             }
+            let merged: String = missing
+                .iter()
+                .fold(held.clone(), |t, l| format!("{t}{l}\n"));
+            root.replace(drop.into.path(), name, &merged, 0o644, &held)?;
+            let count = |n: usize| format!("{n} line{}", if n == 1 { "" } else { "s" });
+            Ok(Some((
+                count(lines.len()),
+                count(lines.len() + missing.len()),
+            )))
         }
         Err(e) => Err(e),
     }
