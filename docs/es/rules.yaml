@@ -1439,6 +1439,15 @@ org:
               - default
               - env
             title: TLS certificate checks are turned off
+          - id: ephemeral-ports/service-port-unreserved
+            ruleset: ephemeral-ports
+            score: 4.0
+            severity: warning
+            tags:
+              - default
+              - network
+              - stability
+            title: A service port lies inside the ephemeral port range
           - id: files/accounts-group
             ruleset: files
             score: 1.0
