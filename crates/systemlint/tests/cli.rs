@@ -643,7 +643,7 @@ fn ruleset_vars_come_from_var_then_vars_then_config_then_default() {
     let file = dir.join("vars.yaml");
     std::fs::write(&file, "want: 1\n").unwrap();
     let (facts, file) = (path.display().to_string(), file.display().to_string());
-    let config = "check:\n  rulesets:\n    t: {tags: [default], vars: {want: {default: 2}}, rules: {t/x: {fact: x, expect: {const: '${want}'}, severity: error}}}\n";
+    let config = "check:\n  rulesets:\n    t: {tags: [default], vars: {want: {default: 2, minimum: 1, maximum: 9}}, rules: {t/x: {fact: x, expect: {const: '${want}'}, severity: error}}}\n";
     assert_eq!(
         run(&dir, config, &["check", &facts]).0,
         1,

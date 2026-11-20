@@ -6,13 +6,13 @@ description: System-wide kernel tables close to their limit, where the next open
 topic: Boot and kernel
 tags: [default]
 vars:
-  usage-percent: {default: 90}
+  usage-percent: {default: 90, minimum: 1, maximum: 100}
 rules:
   fs-limits/aio-near-max:
     title: Async IO contexts are close to their system-wide limit
     fact: sysctl.settings.fs.aio-nr
     when: {sysctl.settings.fs: {required: [aio-nr]}}
-    expect: {x-cel: "self * 100 < vars['usage-percent'] * facts.sysctl.settings.fs['aio-max-nr']"}
+    expect: {x-cel: "double(self) * 100.0 < double(vars['usage-percent']) * double(facts.sysctl.settings.fs['aio-max-nr'])"}
     severity: warning
     unit: count
     message: "fs.aio-nr is {got}, past ${usage-percent}% of fs.aio-max-nr, so the next io_setup() fails and a database or virtual machine refuses to start or falls back to synchronous IO"
@@ -24,7 +24,7 @@ rules:
     title: Open file handles are close to their system-wide limit
     fact: sysctl.settings.fs.file-nr.allocated
     when: {sysctl.settings.fs: {required: [file-nr]}}
-    expect: {x-cel: "self * 100 < vars['usage-percent'] * facts.sysctl.settings.fs['file-nr'].max"}
+    expect: {x-cel: "double(self) * 100.0 < double(vars['usage-percent']) * double(facts.sysctl.settings.fs['file-nr'].max)"}
     severity: warning
     unit: count
     message: "fs.file-nr counts {got} open file handles, past ${usage-percent}% of fs.file-max, so the next open() anywhere on the host fails with “Too many open files in system”"

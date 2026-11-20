@@ -6,12 +6,12 @@ description: Local accounts and groups that share an identity, hide behind a rep
 topic: Accounts and authentication
 tags: [default]
 vars:
-  password-max-days: {default: 365}
-  password-min-days: {default: 1}
-  password-warn-days: {default: 7}
-  password-inactive-days: {default: 45}
-  uid-min: {default: 1000}
-  stig-password-inactive-days: {default: 35}
+  password-max-days: {default: 365, minimum: 1, maximum: 99999}
+  password-min-days: {default: 1, minimum: 0, maximum: 99999}
+  password-warn-days: {default: 7, minimum: 0, maximum: 99999}
+  password-inactive-days: {default: 45, minimum: 0, maximum: 99999}
+  uid-min: {default: 1000, minimum: 1, maximum: 4294967294}
+  stig-password-inactive-days: {default: 35, minimum: 0, maximum: 99999}
 rules:
   accounts/uid-zero:
     title: An account other than root has uid 0

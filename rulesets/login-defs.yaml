@@ -7,9 +7,9 @@ topic: Accounts and authentication
 tags: [default]
 when: {auth.login-defs: {minProperties: 1}, os.init: {not: {minProperties: 1, additionalProperties: {not: {contains: {enum: [systemd, init, openrc-init, runit]}}}}}}
 vars:
-  password-max-days: {default: 365}
-  password-min-days: {default: 1}
-  password-warn-days: {default: 7}
+  password-max-days: {default: 365, minimum: 1, maximum: 99999}
+  password-min-days: {default: 1, minimum: 0, maximum: 99999}
+  password-warn-days: {default: 7, minimum: 0, maximum: 99999}
 rules:
   login-defs/umask:
     title: The login umask leaves new files open to other users

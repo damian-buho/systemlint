@@ -7,14 +7,14 @@ topic: Accounts and authentication
 tags: [default]
 when: {auth.pam: {minProperties: 1}, os.init: {not: {minProperties: 1, additionalProperties: {not: {contains: {enum: [systemd, init, openrc-init, runit]}}}}}}
 vars:
-  faillock-deny: {default: 5}
-  faillock-unlock-time: {default: 900}
-  faillock-root-unlock-time: {default: 60}
-  pwhistory-remember: {default: 24}
-  stig-faillock-deny: {default: 3}
-  stig-faillock-fail-interval: {default: 900}
-  stig-maxlogins: {default: 10}
-  stig-faildelay: {default: 4000000}
+  faillock-deny: {default: 5, minimum: 1, maximum: 1000}
+  faillock-unlock-time: {default: 900, minimum: 0, maximum: 31536000}
+  faillock-root-unlock-time: {default: 60, minimum: 0, maximum: 31536000}
+  pwhistory-remember: {default: 24, minimum: 1, maximum: 400}
+  stig-faillock-deny: {default: 3, minimum: 1, maximum: 1000}
+  stig-faillock-fail-interval: {default: 900, minimum: 1, maximum: 31536000}
+  stig-maxlogins: {default: 10, minimum: 1, maximum: 100000}
+  stig-faildelay: {default: 4000000, minimum: 0, maximum: 4294967295}
 rules:
   pam/permit-sufficient:
     title: pam_permit alone authenticates

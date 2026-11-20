@@ -6,8 +6,8 @@ description: An audit daemon that is missing, not running, records nothing or no
 topic: Logging and auditing
 tags: [default]
 vars:
-  audit-backlog-limit: {default: 8192}
-  audit-max-log-file: {default: 8}
+  audit-backlog-limit: {default: 8192, minimum: 1, maximum: 4294967295}
+  audit-max-log-file: {default: 8, minimum: 1, maximum: 1048576}
 rules:
   auditd/not-installed:
     title: The audit daemon is not installed

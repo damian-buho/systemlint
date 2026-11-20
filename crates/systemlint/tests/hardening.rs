@@ -164,6 +164,22 @@ fn one(ruleset: &str, rule: &str, dotted: &str, value: Option<Value>) -> Outcome
 }
 
 #[test]
+fn files_near_max_decides_at_its_edge_and_at_an_unlimited_kernel_maximum() {
+    let files = |allocated: i64, max: i64| {
+        one(
+            "fs-limits",
+            "fs-limits/files-near-max",
+            "fs.file-nr",
+            Some(json!({"allocated": allocated, "max": max})),
+        )
+    };
+    assert_eq!(files(89, 100), Outcome::Pass);
+    assert_eq!(files(90, 100), Outcome::Fail);
+    assert_eq!(files(1 << 20, i64::MAX), Outcome::Pass);
+    assert_eq!(files(i64::MAX, i64::MAX), Outcome::Fail);
+}
+
+#[test]
 fn every_sysctl_rule_passes_at_its_edge_fails_beyond_it_and_is_unknown_unset() {
     let edges = [
         ("kernel", "kernel/aslr", "kernel.randomize_va_space", 2, 1),

@@ -6,7 +6,7 @@ description: Log files under /var/log, and the directory itself, more open or di
 topic: Logging and auditing
 tags: [default]
 vars:
-  unrotated-bytes: {default: 1073741824}
+  unrotated-bytes: {default: 1073741824, minimum: 1, maximum: 1125899906842624}
 rules:
   logs/file-mode:
     title: A log file is more open than 0640

@@ -7,7 +7,7 @@ topic: Accounts and authentication
 tags: [default]
 when: {sudo.binary: {minProperties: 1}, sudo.version: {minProperties: 1}}
 vars:
-  sudo-timestamp-timeout: {default: 15}
+  sudo-timestamp-timeout: {default: 15, minimum: 0, maximum: 1440}
 rules:
   sudo-defaults/no-authenticate:
     title: sudo runs commands without asking for a password

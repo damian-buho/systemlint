@@ -6,10 +6,10 @@ description: OpenSSH server settings that weaken authentication, forwarding or c
 topic: Accounts and authentication
 tags: [default]
 vars:
-  ssh-max-sessions: {default: 10}
-  ssh-max-auth-tries: {default: 4}
-  ssh-login-grace-time: {default: 60}
-  ssh-stig-client-alive-interval: {default: 600}
+  ssh-max-sessions: {default: 10, minimum: 1, maximum: 1000}
+  ssh-max-auth-tries: {default: 4, minimum: 1, maximum: 100}
+  ssh-login-grace-time: {default: 60, minimum: 1, maximum: 86400}
+  ssh-stig-client-alive-interval: {default: 600, minimum: 1, maximum: 86400}
 rules:
   ssh/root-login:
     title: Root may log in with a password

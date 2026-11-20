@@ -5,9 +5,9 @@
 description: Virtual memory settings that stall writers or run out of memory early
 topic: Boot and kernel
 vars:
-  dirty-limit-gib: {default: 4}
-  min-free-percent: {default: 5}
-  commit-limit-percent: {default: 80}
+  dirty-limit-gib: {default: 4, minimum: 1, maximum: 1048576}
+  min-free-percent: {default: 5, minimum: 1, maximum: 100}
+  commit-limit-percent: {default: 80, minimum: 1, maximum: 100}
 rules:
   vm/dirty-background-ratio-above-limit:
     title: Background writeback starts at or above the writer limit
@@ -35,7 +35,7 @@ rules:
     when: {memory.info.MemTotal: {type: integer}}
     facts:
       any:
-        - {fact: sysctl.settings.vm.dirty_ratio, expect: {x-cel: "self * facts.memory.info.MemTotal <= vars['dirty-limit-gib'] * 107374182400"}}
+        - {fact: sysctl.settings.vm.dirty_ratio, expect: {x-cel: "double(self) * double(facts.memory.info.MemTotal) <= double(vars['dirty-limit-gib']) * 107374182400.0"}}
         - {fact: sysctl.settings.vm.dirty_bytes, expect: {exclusiveMinimum: 0}}
     severity: advice
     message: "vm.dirty_ratio is {got}, so over ${dirty-limit-gib} GiB of this host’s memory may fill with unwritten data, and every writer then stalls while the kernel flushes it"
@@ -59,7 +59,7 @@ rules:
     facts:
       any:
         - {fact: sysctl.settings.vm.overcommit_memory, expect: {not: {const: 2}}}
-        - {fact: memory.info.CommitLimit, expect: {x-cel: "self * 100 >= vars['commit-limit-percent'] * facts.memory.info.MemTotal"}}
+        - {fact: memory.info.CommitLimit, expect: {x-cel: "double(self) * 100.0 >= double(vars['commit-limit-percent']) * double(facts.memory.info.MemTotal)"}}
     severity: warning
     message: "vm.overcommit_memory is {got} and the commit limit, vm.overcommit_ratio of memory plus swap, is under ${commit-limit-percent}% of memory, so allocations fail with out-of-memory errors while the rest stays unused"
     rationale: programs are refused memory and crash with out-of-memory errors while much of the memory is still free

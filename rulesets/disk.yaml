@@ -6,7 +6,7 @@ description: Filesystems close to full
 topic: Files and permissions
 tags: [default]
 vars:
-  boot-kernels: {default: 3}
+  boot-kernels: {default: 3, minimum: 1, maximum: 100}
 rules:
   disk/full:
     title: A filesystem is almost out of space

@@ -13,7 +13,7 @@ use serde_json::{Map, Value};
 
 use crate::rules::{Ruleset, When};
 
-/// A variable a ruleset declares: its default and the environment variable that may set it.
+/// A variable a ruleset declares: its default, the environment variable that may set it, and a number’s inclusive range.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Var {
@@ -21,6 +21,10 @@ pub struct Var {
     pub default: Option<Value>,
     #[serde(default, rename = "from-env")]
     pub from_env: Option<String>,
+    #[serde(default)]
+    pub minimum: Option<f64>,
+    #[serde(default)]
+    pub maximum: Option<f64>,
 }
 
 /// The values given for variables: flag layers first, each named for errors, then the environment, then `lint.vars`.
@@ -150,6 +154,44 @@ fn resolve(ruleset: &str, var: &str, decl: &Var, supplied: &Supplied) -> Result<
         ));
     };
     log::debug!("ruleset {ruleset}: var {var} from {source}");
+    let value = typed(ruleset, var, &source, value, decl)?;
+    within(ruleset, var, &source, &value, decl)?;
+    Ok(value)
+}
+
+/// Refuses a number outside `decl`’s range, and a number var that declares no range at all.
+fn within(ruleset: &str, var: &str, source: &str, value: &Value, decl: &Var) -> Result<(), String> {
+    let numeric = value.is_number() || decl.default.as_ref().is_some_and(Value::is_number);
+    let (Some(min), Some(max)) = (decl.minimum, decl.maximum) else {
+        if numeric || decl.minimum.is_some() || decl.maximum.is_some() {
+            return Err(format!(
+                "ruleset {ruleset}: var {var} is a number, so it declares both minimum and maximum"
+            ));
+        }
+        return Ok(());
+    };
+    let Some(number) = value.as_f64() else {
+        return Err(format!(
+            "ruleset {ruleset}: var {var} from {source}: {value} is not a number, though it declares a range"
+        ));
+    };
+    log::debug!("ruleset {ruleset}: var {var} = {number}, range {min} to {max}");
+    if !(min..=max).contains(&number) {
+        return Err(format!(
+            "ruleset {ruleset}: var {var} from {source}: {number} is outside {min} to {max}"
+        ));
+    }
+    Ok(())
+}
+
+/// `value` read as its default’s type: a string from a flag or the environment becomes a number or a boolean.
+fn typed(
+    ruleset: &str,
+    var: &str,
+    source: &str,
+    value: Value,
+    decl: &Var,
+) -> Result<Value, String> {
     match (&value, &decl.default) {
         (Value::String(text), Some(Value::Number(_))) => text.trim().parse().map(Value::Number).map_err(|_| format!("ruleset {ruleset}: var {var} from {source}: “{text}” is not a number like its default")),
         (Value::String(text), Some(Value::Bool(_))) => match text.trim() {

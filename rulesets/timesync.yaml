@@ -6,7 +6,7 @@ description: Time synchronisation daemons left off or with no time server named
 topic: Services
 tags: [default, timesync]
 vars:
-  chrony-maxpoll-max: {default: 16}
+  chrony-maxpoll-max: {default: 16, minimum: -6, maximum: 24}
 rules:
   timesync/timesyncd-no-server:
     title: systemd-timesyncd names no time server

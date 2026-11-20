@@ -9,7 +9,7 @@ use systemlint::judge::{Outcome, compile, lint};
 use systemlint::rules::{Library, Ruleset};
 use systemlint::vars::{Supplied, apply};
 
-const NTP: &str = "vars:\n  ntp: {default: pool.ntp.org, from-env: NTP_SERVER}\n  age: {default: 90}\nwhen: {os.release.ID: '${ntp}'}\nrules:\n  t/ntp: {fact: ntp.server, expect: {const: '${ntp}'}, message: 'use ${ntp}, not {got}; costs $5 and $${ntp}'}\n  t/age: {fact: login.max-days, expect: {maximum: '${age}'}, message: 'at most ${age} days', fix: 'set ${age}'}\n  t/all: {facts: {all: [{fact: a, expect: {const: '${age}'}}]}}\n";
+const NTP: &str = "vars:\n  ntp: {default: pool.ntp.org, from-env: NTP_SERVER}\n  age: {default: 90, minimum: 1, maximum: 365}\nwhen: {os.release.ID: '${ntp}'}\nrules:\n  t/ntp: {fact: ntp.server, expect: {const: '${ntp}'}, message: 'use ${ntp}, not {got}; costs $5 and $${ntp}'}\n  t/age: {fact: login.max-days, expect: {maximum: '${age}'}, message: 'at most ${age} days', fix: 'set ${age}'}\n  t/all: {facts: {all: [{fact: a, expect: {const: '${age}'}}]}}\n";
 
 fn rulesets(yaml: &str) -> BTreeMap<String, Ruleset> {
     BTreeMap::from([(
@@ -129,7 +129,7 @@ fn a_text_value_takes_the_type_of_its_default() {
         })
     };
     assert_eq!(age("30").unwrap().rules["t/age"]["expect"]["maximum"], 30);
-    assert_eq!(age("0.5").unwrap().rules["t/age"]["expect"]["maximum"], 0.5);
+    assert_eq!(age("1.5").unwrap().rules["t/age"]["expect"]["maximum"], 1.5);
     assert_eq!(
         age("thirty").unwrap_err(),
         "ruleset fleet: var age from --var: “thirty” is not a number like its default"
@@ -199,7 +199,7 @@ fn every_gap_fails_the_load_naming_the_var_and_ruleset() {
     );
     assert_eq!(
         refused(
-            "vars:\n  'a b': {default: 1}\nrules: {}\n",
+            "vars:\n  'a b': {default: x}\nrules: {}\n",
             Supplied::default()
         ),
         "ruleset fleet: var “a b” needs a name of letters, digits, _, - and ."
@@ -266,7 +266,7 @@ fn a_filled_rule_judges_the_supplied_value() {
 #[test]
 fn x_cel_reads_vars_typed_and_its_text_is_never_filled() {
     let mut sets = rulesets(
-        "vars:\n  share: {default: 0.5}\n  ntp: {default: pool.ntp.org}\nrules:\n  t/share: {fact: a, expect: {x-cel: 'double(self) <= vars.share * double(facts.b) && \"${ntp}\" != vars.ntp'}}\n",
+        "vars:\n  share: {default: 0.5, minimum: 0, maximum: 1}\n  ntp: {default: pool.ntp.org}\nrules:\n  t/share: {fact: a, expect: {x-cel: 'double(self) <= vars.share * double(facts.b) && \"${ntp}\" != vars.ntp'}}\n",
     );
     apply(
         &mut sets,
@@ -288,4 +288,36 @@ fn x_cel_reads_vars_typed_and_its_text_is_never_filled() {
         .outcome
     };
     assert_eq!((outcome(5), outcome(6)), (Outcome::Pass, Outcome::Fail));
+}
+
+#[test]
+fn a_number_var_holds_only_inside_its_declared_range() {
+    let age = |value: i64| {
+        apply(
+            &mut rulesets(NTP),
+            &Supplied {
+                flags: vec![("--var".to_owned(), map(json!({"age": value})))],
+                env: no_env,
+                ..Supplied::default()
+            },
+        )
+    };
+    assert!(age(1).is_ok());
+    assert!(age(365).is_ok());
+    assert_eq!(
+        age(0).unwrap_err(),
+        "ruleset fleet: var age from --var: 0 is outside 1 to 365"
+    );
+    assert_eq!(
+        age(366).unwrap_err(),
+        "ruleset fleet: var age from --var: 366 is outside 1 to 365"
+    );
+    assert_eq!(
+        apply(
+            &mut rulesets("vars:\n  n: {default: 3}\nrules: {}\n"),
+            &Supplied::default()
+        )
+        .unwrap_err(),
+        "ruleset fleet: var n is a number, so it declares both minimum and maximum"
+    );
 }

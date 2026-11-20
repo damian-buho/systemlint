@@ -6,7 +6,7 @@ description: files that grant root, hold password hashes or host keys, or sit in
 topic: Files and permissions
 tags: [default]
 vars:
-  system-gid-max: {default: 999}
+  system-gid-max: {default: 999, minimum: 0, maximum: 4294967294}
 rules:
   files/world-writable:
     title: A file is writable by every user

@@ -318,7 +318,7 @@ A ruleset declares `vars`, and `${name}` fills the strings of its own entries’
 ```yaml
 vars:
   ntp: {default: pool.ntp.org, from-env: NTP_SERVER}
-  max-days: {default: 90}
+  max-days: {default: 90, minimum: 1, maximum: 365}
 rules:
   time/server: {fact: ntp.server, expect: {const: "${ntp}"}, message: "use ${ntp}"}
   login/max-days: {fact: login.max-days, expect: {maximum: "${max-days}"}}
@@ -333,6 +333,8 @@ takes the type of a number or boolean default, and fails when it is not one.
 environment read unless `from-env` names it. The load fails, naming the var and
 the ruleset, when a var has no value and no default, when an entry names a var
 its ruleset does not declare, or when a value names a var no ruleset declares.
+A number var declares its inclusive `minimum` and `maximum`, and the load fails
+on a value outside them, so no setting reaches a rule’s arithmetic unchecked.
 
 ## Selecting rules
 
