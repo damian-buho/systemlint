@@ -24,7 +24,6 @@ systemlint check --root /mnt/image --tags auth
 | `auth-pam` | `/etc/pam.d/*` | `words` | `auth.pam.<path>` |
 | `auth-limits` | `/etc/security/limits.conf`, `limits.d/*.conf` | `words` | `auth.limits.<path>` |
 | `auth-pwquality` | `/etc/security/pwquality.conf.d/*.conf`, then `pwquality.conf` | `kv`, a bare option `true`, the last line winning | `auth.pwquality.<option>` |
-| `auth-pwquality-module` | `pam_pwquality.so` under `/usr/lib` and `/lib` | `stat` | `auth.pwquality-module.<path>` |
 | `auth-securetty` | `/etc/securetty` | `lines` | `auth.securetty.<path>` |
 | `auth-faillock` | `/etc/security/faillock.conf` | `kv`, a bare option `true` | `auth.faillock.<option>` |
 | `auth-pwhistory` | `/etc/security/pwhistory.conf` | `kv`, a bare option `true` | `auth.pwhistory.<option>` |
@@ -95,7 +94,6 @@ auth:
 | `pam/stig-faillock` | `faillock.conf` does not set `deny` 1 to `stig-faillock-deny` (3), `unlock_time` 0 and `fail_interval` `stig-faillock-fail-interval` (900) or more (STIG 200610, *standard-only*) |
 | `pam/stig-faildelay` | `common-auth` has no auth line calling `pam_faildelay` with `delay=` `stig-faildelay` (4000000) microseconds or more (STIG 300017, *standard-only*) |
 | `pam/stig-maxlogins` | no limits file sets `* hard maxlogins` (or `-`) between 1 and `stig-maxlogins` (10) (STIG 200000, *standard-only*) |
-| `pam/pwquality-missing` | no `pam_pwquality.so` is on disk (*standard-only*) |
 | `pwquality/minlen` | `minlen` is unset (8) or below `pwquality-minlen` (14, CIS) (*standard-only*) |
 | `pwquality/minlen-single-factor` | `minlen` is unset or below `pwquality-single-factor-minlen` (15, NIST SP 800-63B-4 and the STIG) |
 | `pwquality/credit` | a `dcredit`, `ucredit`, `lcredit` or `ocredit` above 0 counts characters of that class toward `minlen` |

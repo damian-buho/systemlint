@@ -155,19 +155,17 @@ rules, all tagged with its control:
 
 - `kernel-modules/<module>` fails a shipped module whose `install` line is
   missing or runs anything but `/bin/false` or `/bin/true`, with or without
-  `/usr`; it skips a module no kernel ships.
+  `/usr`, or that no `blacklist` line names, as CIS asks for both; it skips a
+  module no kernel ships, and its fix writes both lines to one file.
 - `kernel-modules/<module>-loaded` fails a module in `/proc/modules`; it skips
   under `--root`.
-- `kernel-modules/<module>-blacklist` fails a shipped module with no
-  `blacklist` line. A blacklist stops loading by alias only, so this rule never
-  runs by default.
 
-By default the first two run for cramfs, freevxfs, hfs, hfsplus, jffs2, udf,
-dccp, rds, sctp and tipc. For firewire-core, atm and can only `-loaded` runs,
-since a host may need them. overlay, squashfs (Docker, snaps) and usb-storage
-run only when their tag is named, as in `--tags 'cis-ubuntu-26.04:*'`.
+By default both run for cramfs, freevxfs, hfs, hfsplus, jffs2, udf,
+firewire-core, atm, can, dccp, rds, sctp and tipc. overlay, squashfs (Docker,
+snaps) and usb-storage run only when their tag is named, as in
+`--tags 'cis-ubuntu-26.04:*'`.
 
-Where CIS says a host may need a module, all three of its rules skip that
+Where CIS says a host may need a module, both of its rules skip that
 host: overlay while a container runtime is on disk (`container-runtimes`:
 dockerd, containerd, podman, crio, kubelet, LXC, LXD, Incus, k3s, rke2 and the
 Docker, LXD and MicroK8s snaps, into `runtimes.containers`), squashfs while
@@ -792,7 +790,7 @@ directives outside any stanza keyed by the file’s path, each stanza by
 
 | Rule | Severity | Fails when |
 | --- | --- | --- |
-| `logs/file-mode` | info | a log file but `wtmp`, `btmp` and `lastlog` is more open than 0640, unless the logrotate stanza naming it creates it open, which `logs/rotation-mode` blames instead |
+| `logs/file-mode` | info | a log file but `wtmp`, `btmp` and `lastlog` is more open than 0640, unless the logrotate stanza naming it creates it open, which `logs/rotation-mode` blames instead; stricter than CIS 6.1.3.1’s list, so it holds for both |
 | `logs/rotation-mode` | info | a `create` mode, in a stanza or outside one, is more open than 0640, so a rotated log reopens to other users; a stanza for `wtmp`, `btmp` or `lastlog`, one with `copytruncate` or `nocreate`, and a file logrotate skips by its extension (`.dpkg-old`, `~`) are left out; its fix names the logs the stanza made |
 | `logs/unrotated` | warning | a log file holding more than the `unrotated-bytes` var (1 GiB) on disk is named by no logrotate stanza, so nothing caps it; `lastlog`, journal files, `/var/log/audit/audit.log` (auditd rotates it) and rotated copies (`.1`, `-20261119`, `.gz`) are left out |
 | `logs/directory-mode` | info | `/var/log` is more open than 0755, Ubuntu’s stock 0775 included (STIG only) |
@@ -803,7 +801,6 @@ directives outside any stanza keyed by the file’s path, each stanza by
 | `logs/cis-login-records-mode` | info | `wtmp`, `btmp`, `lastlog`, a rotation of them or `README` is more open than 0664 (CIS 6.1.3.1) |
 | `logs/cis-readable-mode` | info | a file in `/var/log/apt`, or a `cloud-init.log`, `localmessages` or `waagent.log` file, is more open than 0644 (CIS 6.1.3.1) |
 | `logs/cis-group-mode` | info | an `sssd`, `SSSD`, `gdm` or `gdm3` file is more open than 0660 (CIS 6.1.3.1) |
-| `logs/cis-mode` | info | any other log file is more open than 0640 (CIS 6.1.3.1) |
 
 The CIS script also names owners and groups per file; those rows stay open.
 

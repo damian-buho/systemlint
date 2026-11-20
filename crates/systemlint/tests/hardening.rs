@@ -3292,7 +3292,7 @@ fn modules() -> Vec<String> {
         .unwrap()
         .keys()
         .filter_map(|id| id.strip_prefix("kernel-modules/"))
-        .filter(|m| *m != "builtin" && !m.ends_with("-loaded") && !m.ends_with("-blacklist"))
+        .filter(|m| *m != "builtin" && !m.ends_with("-loaded"))
         .map(str::to_owned)
         .collect()
 }
@@ -3325,28 +3325,31 @@ fn every_kernel_module_rule_passes_when_turned_away_and_fails_when_loadable() {
     for m in &names {
         let k = m.replace('-', "_");
         let host = |command: Value, blacklist: Value, loaded: Value| json!({"shipped": {m.as_str(): {}}, "install": {k.as_str(): {"command": command}}, "blacklist": blacklist, "loaded": loaded});
-        let outcomes = |a, b, c| {
-            BTreeMap::from([
-                (String::new(), a),
-                ("-blacklist".to_owned(), b),
-                ("-loaded".to_owned(), c),
-            ])
-        };
+        let outcomes = |a, b| BTreeMap::from([(String::new(), a), ("-loaded".to_owned(), b)]);
         assert_eq!(
             module(
                 m,
                 host(json!(["/bin/false"]), json!({k.as_str(): {}}), json!({}))
             ),
-            outcomes(Pass, Pass, Pass),
+            outcomes(Pass, Pass),
             "{m}: turned away, blacklisted, not loaded"
         );
         assert_eq!(
             module(
                 m,
-                host(json!(["/usr/bin/true"]), json!({}), json!({k.as_str(): {}}))
+                host(
+                    json!(["/usr/bin/true"]),
+                    json!({k.as_str(): {}}),
+                    json!({k.as_str(): {}})
+                )
             ),
-            outcomes(Pass, Fail, Fail),
+            outcomes(Pass, Fail),
             "{m}: /usr/bin/true passes as CIS accepts it"
+        );
+        assert_eq!(
+            module(m, host(json!(["/bin/false"]), json!({}), json!({})))[""],
+            Fail,
+            "{m}: turned away but not blacklisted"
         );
         for command in [
             json!(["/sbin/modprobe", "--ignore-install", k]),
@@ -3362,12 +3365,12 @@ fn every_kernel_module_rule_passes_when_turned_away_and_fails_when_loadable() {
         let unshipped = json!({"shipped": {}, "install": {}, "blacklist": {}});
         assert_eq!(
             module(m, unshipped),
-            outcomes(Skip, Skip, Skip),
+            outcomes(Skip, Skip),
             "{m}: not shipped, under --root"
         );
         assert_eq!(
             module(m, json!({"shipped": {m.as_str(): {}}, "loaded": {}})),
-            outcomes(Unknown, Unknown, Pass),
+            outcomes(Unknown, Pass),
             "{m}: a failed modprobe collector is unknown, never a finding"
         );
     }
@@ -3377,13 +3380,7 @@ fn every_kernel_module_rule_passes_when_turned_away_and_fails_when_loadable() {
 fn a_kernel_module_the_host_needs_is_never_a_finding() {
     use Outcome::{Fail, Skip};
     let loaded = |m: &str, users: u64| json!({"shipped": {m: {}}, "install": {}, "blacklist": {}, "loaded": {m.replace('-', "_"): {"instances": users}}});
-    let all = |o| {
-        BTreeMap::from([
-            (String::new(), o),
-            ("-blacklist".to_owned(), o),
-            ("-loaded".to_owned(), o),
-        ])
-    };
+    let all = |o| BTreeMap::from([(String::new(), o), ("-loaded".to_owned(), o)]);
     for m in ["overlay", "squashfs", "udf", "usb-storage"] {
         assert_eq!(
             needing(m, loaded(m, 0), json!({})),
@@ -5449,18 +5446,6 @@ fn pwquality_dictcheck_and_enforcing_fail_only_where_the_effective_value_is_zero
             .all(|(_, _, o)| *o == Outcome::NotApplicable),
         "a stack without pam_pwquality is not judged"
     );
-    let module = |stats: Value| {
-        let mut document = auth(json!({}), json!([]), json!({"/etc/pam.d/other": []}));
-        document["auth"]["pwquality-module"] = stats;
-        document["collectors"]["auth-pwquality-module"] =
-            json!({"status": "ok", "into": "auth.pwquality-module"});
-        outcomes("pam", "pam/pwquality-missing", &document)
-    };
-    assert_eq!(module(json!({})), [Outcome::Fail]);
-    assert_eq!(
-        module(json!({"/usr/lib/x86_64-linux-gnu/security/pam_pwquality.so": {"exists": true}})),
-        [Outcome::Pass]
-    );
 }
 
 // The (subject, outcome) pairs of one rule over stats at `into`, with the groups and users the joins read.
@@ -6875,11 +6860,11 @@ fn cis_dot_files_logs_and_audit_log_size_and_group_fail_at_their_edge() {
         Outcome::Fail
     );
     assert_eq!(
-        log("logs/cis-mode", "/var/log/syslog", "0640"),
+        log("logs/file-mode", "/var/log/syslog", "0640"),
         Outcome::Pass
     );
     assert_eq!(
-        log("logs/cis-mode", "/var/log/syslog", "0644"),
+        log("logs/file-mode", "/var/log/syslog", "0644"),
         Outcome::Fail
     );
     let audit = |rule: &str, conf: Value| {

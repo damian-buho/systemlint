@@ -8,14 +8,16 @@ tags: [default]
 rules:
   kernel-modules/cramfs:
     title: Kernel module “cramfs” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [cramfs]}}
-    expect: {required: [cramfs], properties: {cramfs: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [cramfs], properties: {cramfs: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [cramfs]}}
     severity: warning
     score: 4.0
-    message: "cramfs is shipped and no modprobe.d install line turns it away, so a crafted cramfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "cramfs is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so a crafted cramfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: anyone who can hand the host a compressed read-only image can feed it to a kernel parser that few people review, and a bug there runs attacker code with full kernel power
-    remedy: {drop-in: {into: modprobe, name: block-cramfs-autoloading, lines: ["install cramfs /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-cramfs-autoloading, lines: ["install cramfs /bin/false", "blacklist cramfs"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -29,33 +31,23 @@ rules:
     score: 4.0
     message: "cramfs is loaded in the running kernel, so a crafted cramfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: the cramfs driver is already in memory, so a compressed read-only image plugged in or placed on disk is parsed by kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: block-cramfs-autoloading, lines: ["install cramfs /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-cramfs-autoloading, lines: ["install cramfs /bin/false", "blacklist cramfs"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.1, lynis]
-  kernel-modules/cramfs-blacklist:
-    title: Kernel module “cramfs” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [cramfs]}}
-    expect: {required: [cramfs]}
-    severity: info
-    score: 2.0
-    message: "cramfs is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a hardware ID or alias lookup can still pull in the cramfs driver on its own, putting a compressed read-only image in front of kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: skip-cramfs-on-device-match, lines: ["blacklist cramfs"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.1, '!default']
   kernel-modules/freevxfs:
     title: Kernel module “freevxfs” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [freevxfs]}}
-    expect: {required: [freevxfs], properties: {freevxfs: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [freevxfs], properties: {freevxfs: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [freevxfs]}}
     severity: warning
     score: 4.0
-    message: "freevxfs is shipped and no modprobe.d install line turns it away, so a crafted freevxfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "freevxfs is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so a crafted freevxfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: anyone who can hand the host a Veritas filesystem image can feed it to a kernel parser that few people review, and a bug there runs attacker code with full kernel power
-    remedy: {drop-in: {into: modprobe, name: block-freevxfs-autoloading, lines: ["install freevxfs /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-freevxfs-autoloading, lines: ["install freevxfs /bin/false", "blacklist freevxfs"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -69,33 +61,23 @@ rules:
     score: 4.0
     message: "freevxfs is loaded in the running kernel, so a crafted freevxfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: the freevxfs driver is already in memory, so a Veritas filesystem image plugged in or placed on disk is parsed by kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: block-freevxfs-autoloading, lines: ["install freevxfs /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-freevxfs-autoloading, lines: ["install freevxfs /bin/false", "blacklist freevxfs"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.2, lynis]
-  kernel-modules/freevxfs-blacklist:
-    title: Kernel module “freevxfs” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [freevxfs]}}
-    expect: {required: [freevxfs]}
-    severity: info
-    score: 2.0
-    message: "freevxfs is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a hardware ID or alias lookup can still pull in the freevxfs driver on its own, putting a Veritas filesystem image in front of kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: skip-freevxfs-on-device-match, lines: ["blacklist freevxfs"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.2, '!default']
   kernel-modules/hfs:
     title: Kernel module “hfs” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [hfs]}}
-    expect: {required: [hfs], properties: {hfs: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [hfs], properties: {hfs: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [hfs]}}
     severity: warning
     score: 4.0
-    message: "hfs is shipped and no modprobe.d install line turns it away, so a crafted hfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "hfs is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so a crafted hfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: anyone who can hand the host an old Macintosh filesystem image can feed it to a kernel parser that few people review, and a bug there runs attacker code with full kernel power
-    remedy: {drop-in: {into: modprobe, name: block-hfs-autoloading, lines: ["install hfs /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-hfs-autoloading, lines: ["install hfs /bin/false", "blacklist hfs"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -109,33 +91,23 @@ rules:
     score: 4.0
     message: "hfs is loaded in the running kernel, so a crafted hfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: the hfs driver is already in memory, so an old Macintosh filesystem image plugged in or placed on disk is parsed by kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: block-hfs-autoloading, lines: ["install hfs /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-hfs-autoloading, lines: ["install hfs /bin/false", "blacklist hfs"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.3, lynis]
-  kernel-modules/hfs-blacklist:
-    title: Kernel module “hfs” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [hfs]}}
-    expect: {required: [hfs]}
-    severity: info
-    score: 2.0
-    message: "hfs is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a hardware ID or alias lookup can still pull in the hfs driver on its own, putting an old Macintosh filesystem image in front of kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: skip-hfs-on-device-match, lines: ["blacklist hfs"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.3, '!default']
   kernel-modules/hfsplus:
     title: Kernel module “hfsplus” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [hfsplus]}}
-    expect: {required: [hfsplus], properties: {hfsplus: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [hfsplus], properties: {hfsplus: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [hfsplus]}}
     severity: warning
     score: 4.0
-    message: "hfsplus is shipped and no modprobe.d install line turns it away, so a crafted hfsplus image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "hfsplus is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so a crafted hfsplus image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: anyone who can hand the host a Macintosh filesystem image can feed it to a kernel parser that few people review, and a bug there runs attacker code with full kernel power
-    remedy: {drop-in: {into: modprobe, name: block-hfsplus-autoloading, lines: ["install hfsplus /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-hfsplus-autoloading, lines: ["install hfsplus /bin/false", "blacklist hfsplus"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -149,33 +121,23 @@ rules:
     score: 4.0
     message: "hfsplus is loaded in the running kernel, so a crafted hfsplus image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: the hfsplus driver is already in memory, so a Macintosh filesystem image plugged in or placed on disk is parsed by kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: block-hfsplus-autoloading, lines: ["install hfsplus /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-hfsplus-autoloading, lines: ["install hfsplus /bin/false", "blacklist hfsplus"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.4, lynis]
-  kernel-modules/hfsplus-blacklist:
-    title: Kernel module “hfsplus” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [hfsplus]}}
-    expect: {required: [hfsplus]}
-    severity: info
-    score: 2.0
-    message: "hfsplus is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a hardware ID or alias lookup can still pull in the hfsplus driver on its own, putting a Macintosh filesystem image in front of kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: skip-hfsplus-on-device-match, lines: ["blacklist hfsplus"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.4, '!default']
   kernel-modules/jffs2:
     title: Kernel module “jffs2” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [jffs2]}}
-    expect: {required: [jffs2], properties: {jffs2: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [jffs2], properties: {jffs2: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [jffs2]}}
     severity: warning
     score: 4.0
-    message: "jffs2 is shipped and no modprobe.d install line turns it away, so a crafted jffs2 image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "jffs2 is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so a crafted jffs2 image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: anyone who can hand the host a flash-chip filesystem image can feed it to a kernel parser that few people review, and a bug there runs attacker code with full kernel power
-    remedy: {drop-in: {into: modprobe, name: block-jffs2-autoloading, lines: ["install jffs2 /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-jffs2-autoloading, lines: ["install jffs2 /bin/false", "blacklist jffs2"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -189,33 +151,23 @@ rules:
     score: 4.0
     message: "jffs2 is loaded in the running kernel, so a crafted jffs2 image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: the jffs2 driver is already in memory, so a flash-chip filesystem image plugged in or placed on disk is parsed by kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: block-jffs2-autoloading, lines: ["install jffs2 /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-jffs2-autoloading, lines: ["install jffs2 /bin/false", "blacklist jffs2"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.5, lynis]
-  kernel-modules/jffs2-blacklist:
-    title: Kernel module “jffs2” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [jffs2]}}
-    expect: {required: [jffs2]}
-    severity: info
-    score: 2.0
-    message: "jffs2 is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a hardware ID or alias lookup can still pull in the jffs2 driver on its own, putting a flash-chip filesystem image in front of kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: skip-jffs2-on-device-match, lines: ["blacklist jffs2"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.5, '!default']
   kernel-modules/overlay:
     title: Kernel module “overlay” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [overlay]}, kernel: {not: &overlay-in-use {required: [loaded], properties: {loaded: {required: [overlay], properties: {overlay: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}, runtimes.containers: {maxProperties: 0}}
-    expect: {required: [overlay], properties: {overlay: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [overlay], properties: {overlay: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [overlay]}}
     severity: warning
     score: 4.0
-    message: overlay is shipped, no container runtime is on disk to need it, and no modprobe.d install line turns it away, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
+    message: overlay is shipped, no container runtime is on disk to need it, and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
     rationale: a user who can mount in a user namespace can attack overlayfs, whose past bugs gave an ordinary user root
-    remedy: {drop-in: {into: modprobe, name: block-overlay-autoloading, lines: ["install overlay /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-overlay-autoloading, lines: ["install overlay /bin/false", "blacklist overlay"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/overlay-loaded:
@@ -227,31 +179,21 @@ rules:
     score: 4.0
     message: overlay is loaded in the running kernel with nothing using it, and no container runtime is on disk to need it, so any user who can mount in a user namespace reaches overlayfs, a repeated source of privilege escalations
     rationale: overlayfs is already in the kernel for a user who can mount in a user namespace, and its past bugs gave an ordinary user root
-    remedy: {drop-in: {into: modprobe, name: block-overlay-autoloading, lines: ["install overlay /bin/false"], unload: true}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
-  kernel-modules/overlay-blacklist:
-    title: Kernel module “overlay” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [overlay]}, kernel: {not: *overlay-in-use}, runtimes.containers: {maxProperties: 0}}
-    expect: {required: [overlay]}
-    severity: info
-    score: 2.0
-    message: "overlay is shipped, no container runtime is on disk to need it, and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a hardware ID or alias lookup can still pull in overlayfs on its own, whose past bugs gave an ordinary user root
-    remedy: {drop-in: {into: modprobe, name: skip-overlay-on-device-match, lines: ["blacklist overlay"]}}
+    remedy: {drop-in: {into: modprobe, name: block-overlay-autoloading, lines: ["install overlay /bin/false", "blacklist overlay"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.6, '!default']
   kernel-modules/squashfs:
     title: Kernel module “squashfs” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [squashfs]}, kernel: {not: &squashfs-in-use {required: [loaded], properties: {loaded: {required: [squashfs], properties: {squashfs: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}, snapd.binary: {maxProperties: 0}}
-    expect: {required: [squashfs], properties: {squashfs: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [squashfs], properties: {squashfs: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [squashfs]}}
     severity: warning
     score: 4.0
-    message: "squashfs is shipped, snapd is not on disk to need it, and no modprobe.d install line turns it away, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "squashfs is shipped, snapd is not on disk to need it, and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: anyone who can hand the host a compressed read-only image such as a snap package can feed it to a kernel parser that few people review, and a bug there runs attacker code with full kernel power
-    remedy: {drop-in: {into: modprobe, name: block-squashfs-autoloading, lines: ["install squashfs /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-squashfs-autoloading, lines: ["install squashfs /bin/false", "blacklist squashfs"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -265,33 +207,23 @@ rules:
     score: 4.0
     message: "squashfs is loaded in the running kernel with nothing using it, and snapd is not on disk to need it, so a crafted squashfs image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: the squashfs driver is already in memory, so a compressed read-only image such as a snap package plugged in or placed on disk is parsed by kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: block-squashfs-autoloading, lines: ["install squashfs /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-squashfs-autoloading, lines: ["install squashfs /bin/false", "blacklist squashfs"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.7, lynis, '!default']
-  kernel-modules/squashfs-blacklist:
-    title: Kernel module “squashfs” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [squashfs]}, kernel: {not: *squashfs-in-use}, snapd.binary: {maxProperties: 0}}
-    expect: {required: [squashfs]}
-    severity: info
-    score: 2.0
-    message: "squashfs is shipped, snapd is not on disk to need it, and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a hardware ID or alias lookup can still pull in the squashfs driver on its own, putting a compressed read-only image such as a snap package in front of kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: skip-squashfs-on-device-match, lines: ["blacklist squashfs"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.7, '!default']
   kernel-modules/udf:
     title: Kernel module “udf” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [udf]}, kernel: {not: &udf-in-use {required: [loaded], properties: {loaded: {required: [udf], properties: {udf: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}, azure: {not: &on-azure {anyOf: [{required: [agent], properties: {agent: {minProperties: 1}}}, {required: [chassis], properties: {chassis: {not: {additionalProperties: {not: {contains: {const: "7783-7084-3265-9085-8269-3286-77"}}}}}}}]}}}
-    expect: {required: [udf], properties: {udf: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [udf], properties: {udf: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [udf]}}
     severity: warning
     score: 4.0
-    message: "udf is shipped, this is no Azure host, which needs it, and no modprobe.d install line turns it away, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
+    message: "udf is shipped, this is no Azure host, which needs it, and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: anyone who can hand the host an optical disc image can feed it to a kernel parser that few people review, and a bug there runs attacker code with full kernel power
-    remedy: {drop-in: {into: modprobe, name: block-udf-autoloading, lines: ["install udf /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-udf-autoloading, lines: ["install udf /bin/false", "blacklist udf"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
@@ -305,33 +237,23 @@ rules:
     score: 4.0
     message: "udf is loaded in the running kernel with nothing using it, and this is no Azure host, which needs it, so a crafted udf image on a USB stick or in a loop file reaches a rarely audited filesystem driver"
     rationale: the udf driver is already in memory, so an optical disc image plugged in or placed on disk is parsed by kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: block-udf-autoloading, lines: ["install udf /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-udf-autoloading, lines: ["install udf /bin/false", "blacklist udf"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
     tags: [kernel, cis-ubuntu-26.04:1.1.1.8, lynis]
-  kernel-modules/udf-blacklist:
-    title: Kernel module “udf” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [udf]}, kernel: {not: *udf-in-use}, azure: {not: *on-azure}}
-    expect: {required: [udf]}
-    severity: info
-    score: 2.0
-    message: "udf is shipped, this is no Azure host, which needs it, and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a hardware ID or alias lookup can still pull in the udf driver on its own, putting an optical disc image in front of kernel code that few people review
-    remedy: {drop-in: {into: modprobe, name: skip-udf-on-device-match, lines: ["blacklist udf"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.8, '!default']
   kernel-modules/firewire-core:
     title: Kernel module “firewire-core” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [firewire-core]}}
-    expect: {required: [firewire_core], properties: {firewire_core: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [firewire_core], properties: {firewire_core: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [firewire_core]}}
     severity: warning
     score: 4.0
-    message: "firewire-core is shipped and no modprobe.d install line turns it away, so a FireWire device plugged in can read and write memory through DMA"
+    message: "firewire-core is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so a FireWire device plugged in can read and write memory through DMA"
     rationale: anyone who plugs in a FireWire device can read or overwrite the host’s memory, passwords and encryption keys included, without logging in
-    remedy: {drop-in: {into: modprobe, name: block-firewire-core-autoloading, lines: ["install firewire_core /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-firewire-core-autoloading, lines: ["install firewire_core /bin/false", "blacklist firewire_core"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis STRG-1846, url: "https://cisofy.com/lynis/controls/STRG-1846/"}
@@ -345,33 +267,21 @@ rules:
     score: 4.0
     message: "firewire_core is loaded in the running kernel, so a FireWire device plugged in can read and write memory through DMA"
     rationale: the FireWire driver is active, so a device plugged in can read or overwrite the host’s memory, passwords and encryption keys included
-    remedy: {drop-in: {into: modprobe, name: block-firewire-core-autoloading, lines: ["install firewire_core /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-firewire-core-autoloading, lines: ["install firewire_core /bin/false", "blacklist firewire_core"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.9]
-  kernel-modules/firewire-core-blacklist:
-    title: Kernel module “firewire-core” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [firewire-core]}}
-    expect: {required: [firewire_core]}
-    severity: info
-    score: 2.0
-    message: "firewire-core is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: an alias lookup can still load the FireWire driver on its own, after which a plugged-in device can read the host’s memory
-    remedy: {drop-in: {into: modprobe, name: skip-firewire-core-on-device-match, lines: ["blacklist firewire_core"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    references:
-      - {title: Lynis STRG-1846, url: "https://cisofy.com/lynis/controls/STRG-1846/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.9, lynis, '!default']
   kernel-modules/usb-storage:
     title: Kernel module “usb-storage” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [usb-storage]}, kernel: {not: &usb-storage-in-use {required: [loaded], properties: {loaded: {required: [usb_storage], properties: {usb_storage: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}}
-    expect: {required: [usb_storage], properties: {usb_storage: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [usb_storage], properties: {usb_storage: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [usb_storage]}}
     severity: warning
     score: 4.0
-    message: "usb-storage is shipped, no USB storage device uses it, and no modprobe.d install line turns it away, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
+    message: "usb-storage is shipped, no USB storage device uses it, and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
     rationale: anyone with a USB stick can copy data off the host or bring malware onto it
-    remedy: {drop-in: {into: modprobe, name: block-usb-storage-autoloading, lines: ["install usb_storage /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-usb-storage-autoloading, lines: ["install usb_storage /bin/false", "blacklist usb_storage"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis USB-1000, url: "https://cisofy.com/lynis/controls/USB-1000/"}
@@ -385,33 +295,21 @@ rules:
     score: 4.0
     message: "usb_storage is loaded in the running kernel and no USB storage device uses it, so a USB storage device plugged in mounts, a way for data to leave and malware to arrive"
     rationale: a USB stick or disk already mounts on this host, so anyone with one can copy data off it or bring malware onto it
-    remedy: {drop-in: {into: modprobe, name: block-usb-storage-autoloading, lines: ["install usb_storage /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-usb-storage-autoloading, lines: ["install usb_storage /bin/false", "blacklist usb_storage"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:1.1.1.10, '!default']
-  kernel-modules/usb-storage-blacklist:
-    title: Kernel module “usb-storage” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [usb-storage]}, kernel: {not: *usb-storage-in-use}}
-    expect: {required: [usb_storage]}
-    severity: info
-    score: 2.0
-    message: "usb-storage is shipped, no USB storage device uses it, and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: an alias lookup can still load the USB storage driver on its own, after which anyone with a stick can copy data off the host
-    remedy: {drop-in: {into: modprobe, name: skip-usb-storage-on-device-match, lines: ["blacklist usb_storage"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    references:
-      - {title: Lynis USB-1000, url: "https://cisofy.com/lynis/controls/USB-1000/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.10, stig-ubuntu-26.04:UBTU-24-300039, lynis, '!default']
   kernel-modules/atm:
     title: Kernel module “atm” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [atm]}}
-    expect: {required: [atm], properties: {atm: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [atm], properties: {atm: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [atm]}}
     severity: warning
     score: 5.0
-    message: "atm is shipped and no modprobe.d install line turns it away, so any local user opening an atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
+    message: "atm is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening an atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a atm socket and so load kernel code for asynchronous transfer mode networking that nobody on this host uses, where one bug gives root
-    remedy: {drop-in: {into: modprobe, name: block-atm-autoloading, lines: ["install atm /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-atm-autoloading, lines: ["install atm /bin/false", "blacklist atm"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.1]
   kernel-modules/atm-loaded:
@@ -423,31 +321,21 @@ rules:
     score: 5.0
     message: "atm is loaded in the running kernel, so any local user opening an atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the atm code for asynchronous transfer mode networking is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
-    remedy: {drop-in: {into: modprobe, name: block-atm-autoloading, lines: ["install atm /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-atm-autoloading, lines: ["install atm /bin/false", "blacklist atm"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.1]
-  kernel-modules/atm-blacklist:
-    title: Kernel module “atm” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [atm]}}
-    expect: {required: [atm]}
-    severity: info
-    score: 2.0
-    message: "atm is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a socket or alias request can still load the atm code for asynchronous transfer mode networking on its own, exposing its bugs to every local user
-    remedy: {drop-in: {into: modprobe, name: skip-atm-on-device-match, lines: ["blacklist atm"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.1, '!default']
   kernel-modules/can:
     title: Kernel module “can” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [can]}}
-    expect: {required: [can], properties: {can: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [can], properties: {can: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [can]}}
     severity: warning
     score: 5.0
-    message: "can is shipped and no modprobe.d install line turns it away, so any local user opening a can socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
+    message: "can is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening a can socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a can socket and so load kernel code for vehicle bus networking that nobody on this host uses, where one bug gives root
-    remedy: {drop-in: {into: modprobe, name: block-can-autoloading, lines: ["install can /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-can-autoloading, lines: ["install can /bin/false", "blacklist can"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.2]
   kernel-modules/can-loaded:
@@ -459,31 +347,21 @@ rules:
     score: 5.0
     message: "can is loaded in the running kernel, so any local user opening a can socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the can code for vehicle bus networking is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
-    remedy: {drop-in: {into: modprobe, name: block-can-autoloading, lines: ["install can /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-can-autoloading, lines: ["install can /bin/false", "blacklist can"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     tags: [kernel, cis-ubuntu-26.04:3.2.2]
-  kernel-modules/can-blacklist:
-    title: Kernel module “can” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [can]}}
-    expect: {required: [can]}
-    severity: info
-    score: 2.0
-    message: "can is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a socket or alias request can still load the can code for vehicle bus networking on its own, exposing its bugs to every local user
-    remedy: {drop-in: {into: modprobe, name: skip-can-on-device-match, lines: ["blacklist can"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.2, '!default']
   kernel-modules/dccp:
     title: Kernel module “dccp” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [dccp]}}
-    expect: {required: [dccp], properties: {dccp: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [dccp], properties: {dccp: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [dccp]}}
     severity: warning
     score: 5.0
-    message: "dccp is shipped and no modprobe.d install line turns it away, so any local user opening a dccp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
+    message: "dccp is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening a dccp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a dccp socket and so load kernel code for the datagram congestion control protocol that nobody on this host uses, where one bug gives root
-    remedy: {drop-in: {into: modprobe, name: block-dccp-autoloading, lines: ["install dccp /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-dccp-autoloading, lines: ["install dccp /bin/false", "blacklist dccp"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -497,33 +375,23 @@ rules:
     score: 5.0
     message: "dccp is loaded in the running kernel, so any local user opening a dccp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the dccp code for the datagram congestion control protocol is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
-    remedy: {drop-in: {into: modprobe, name: block-dccp-autoloading, lines: ["install dccp /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-dccp-autoloading, lines: ["install dccp /bin/false", "blacklist dccp"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.3, lynis]
-  kernel-modules/dccp-blacklist:
-    title: Kernel module “dccp” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [dccp]}}
-    expect: {required: [dccp]}
-    severity: info
-    score: 2.0
-    message: "dccp is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a socket or alias request can still load the dccp code for the datagram congestion control protocol on its own, exposing its bugs to every local user
-    remedy: {drop-in: {into: modprobe, name: skip-dccp-on-device-match, lines: ["blacklist dccp"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.3, '!default']
   kernel-modules/rds:
     title: Kernel module “rds” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [rds]}}
-    expect: {required: [rds], properties: {rds: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [rds], properties: {rds: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [rds]}}
     severity: warning
     score: 5.0
-    message: "rds is shipped and no modprobe.d install line turns it away, so any local user opening a rds socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
+    message: "rds is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening a rds socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a rds socket and so load kernel code for cluster messaging that nobody on this host uses, where one bug gives root
-    remedy: {drop-in: {into: modprobe, name: block-rds-autoloading, lines: ["install rds /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-rds-autoloading, lines: ["install rds /bin/false", "blacklist rds"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -537,33 +405,23 @@ rules:
     score: 5.0
     message: "rds is loaded in the running kernel, so any local user opening a rds socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the rds code for cluster messaging is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
-    remedy: {drop-in: {into: modprobe, name: block-rds-autoloading, lines: ["install rds /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-rds-autoloading, lines: ["install rds /bin/false", "blacklist rds"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.4, lynis]
-  kernel-modules/rds-blacklist:
-    title: Kernel module “rds” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [rds]}}
-    expect: {required: [rds]}
-    severity: info
-    score: 2.0
-    message: "rds is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a socket or alias request can still load the rds code for cluster messaging on its own, exposing its bugs to every local user
-    remedy: {drop-in: {into: modprobe, name: skip-rds-on-device-match, lines: ["blacklist rds"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.4, '!default']
   kernel-modules/sctp:
     title: Kernel module “sctp” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [sctp]}}
-    expect: {required: [sctp], properties: {sctp: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [sctp], properties: {sctp: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [sctp]}}
     severity: warning
     score: 5.0
-    message: "sctp is shipped and no modprobe.d install line turns it away, so any local user opening a sctp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
+    message: "sctp is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening a sctp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a sctp socket and so load kernel code for the stream control transmission protocol that nobody on this host uses, where one bug gives root
-    remedy: {drop-in: {into: modprobe, name: block-sctp-autoloading, lines: ["install sctp /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-sctp-autoloading, lines: ["install sctp /bin/false", "blacklist sctp"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -577,33 +435,23 @@ rules:
     score: 5.0
     message: "sctp is loaded in the running kernel, so any local user opening a sctp socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the sctp code for the stream control transmission protocol is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
-    remedy: {drop-in: {into: modprobe, name: block-sctp-autoloading, lines: ["install sctp /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-sctp-autoloading, lines: ["install sctp /bin/false", "blacklist sctp"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.5, lynis]
-  kernel-modules/sctp-blacklist:
-    title: Kernel module “sctp” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [sctp]}}
-    expect: {required: [sctp]}
-    severity: info
-    score: 2.0
-    message: "sctp is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a socket or alias request can still load the sctp code for the stream control transmission protocol on its own, exposing its bugs to every local user
-    remedy: {drop-in: {into: modprobe, name: skip-sctp-on-device-match, lines: ["blacklist sctp"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.5, '!default']
   kernel-modules/tipc:
     title: Kernel module “tipc” loads automatically
-    fact: kernel.install
     when: {kernel.shipped: {required: [tipc]}}
-    expect: {required: [tipc], properties: {tipc: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}
+    facts:
+      all:
+        - {fact: kernel.install, expect: {required: [tipc], properties: {tipc: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
+        - {fact: kernel.blacklist, expect: {required: [tipc]}}
     severity: warning
     score: 5.0
-    message: "tipc is shipped and no modprobe.d install line turns it away, so any local user opening a tipc socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
+    message: "tipc is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening a tipc socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a tipc socket and so load kernel code for cluster messaging that nobody on this host uses, where one bug gives root
-    remedy: {drop-in: {into: modprobe, name: block-tipc-autoloading, lines: ["install tipc /bin/false"]}}
+    remedy: {drop-in: {into: modprobe, name: block-tipc-autoloading, lines: ["install tipc /bin/false", "blacklist tipc"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
@@ -617,23 +465,11 @@ rules:
     score: 5.0
     message: "tipc is loaded in the running kernel, so any local user opening a tipc socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the tipc code for cluster messaging is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
-    remedy: {drop-in: {into: modprobe, name: block-tipc-autoloading, lines: ["install tipc /bin/false"], unload: true}}
+    remedy: {drop-in: {into: modprobe, name: block-tipc-autoloading, lines: ["install tipc /bin/false", "blacklist tipc"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
     tags: [kernel, cis-ubuntu-26.04:3.2.6, lynis]
-  kernel-modules/tipc-blacklist:
-    title: Kernel module “tipc” is not blacklisted
-    fact: kernel.blacklist
-    when: {kernel.shipped: {required: [tipc]}}
-    expect: {required: [tipc]}
-    severity: info
-    score: 2.0
-    message: "tipc is shipped and no modprobe.d blacklist line names it, so a device or alias asking for it loads it"
-    rationale: a socket or alias request can still load the tipc code for cluster messaging on its own, exposing its bugs to every local user
-    remedy: {drop-in: {into: modprobe, name: skip-tipc-on-device-match, lines: ["blacklist tipc"]}}
-    docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.6, '!default']
   kernel-modules/builtin:
     title: A kernel builds a module in, beyond modprobe.d’s reach
     fact: kernel.builtin.*

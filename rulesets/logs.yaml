@@ -39,7 +39,7 @@ rules:
       - 'Then, if it comes back at the next rotation, set 0640 where it is created: the program that writes it, or rsyslog’s “$FileCreateMode”.'
     remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
-    tags: [logging, stig-ubuntu-26.04:UBTU-24-700010, stig-ubuntu-26.04:UBTU-24-700150]
+    tags: [logging, stig-ubuntu-26.04:UBTU-24-700010, stig-ubuntu-26.04:UBTU-24-700150, cis-ubuntu-26.04:6.1.3.1]
   logs/rotation-mode:
     title: Logrotate creates new logs more open than 0640
     fact: logrotate.*.directives
@@ -186,24 +186,5 @@ rules:
     rationale: a login or session log open to other users lets them read which accounts signed in, or alter that record
     fix: run “chmod 0660” on the file
     remedy: {chmod: "ugo-xst,o-rw"}
-    docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
-    tags: [logging, cis-ubuntu-26.04:6.1.3.1, '!default']
-  logs/cis-mode:
-    title: A log file is more open than 0640
-    fact: logs.files.*.mode
-    keys: {not: {pattern: "/((lastlog|wtmp|btmp)([.-][^/]*)?|README)$|(/apt/[^/]+|/(cloud-init\\.log|localmessages|waagent\\.log)[^/]*)$|/(SSSD|sssd|gdm|gdm3)$"}}
-    when:
-      logs.files.*.kind: file
-      'logrotate.{~logrotate.*.names}': *no-open-creator
-    expect: {pattern: "^0[0246][04]0$"}
-    severity: info
-    score: 1.0
-    message: "{subject} has mode {got}; the benchmark asks 0640 or stricter for every log it names no other mode for"
-    rationale: any local user can read what services logged, including client addresses, failed logins and leaked tokens
-    fix:
-      - 'Close the file to other users now:'
-      - run: chmod 0640 {subject}
-      - 'Then, if it comes back at the next rotation, set 0640 where it is created: the program that writes it, or rsyslog’s “$FileCreateMode”.'
-    remedy: {chmod: "u-xs,g-wxs,o-rwxt"}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/logrotate.8.html
     tags: [logging, cis-ubuntu-26.04:6.1.3.1, '!default']
