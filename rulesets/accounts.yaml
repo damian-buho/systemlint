@@ -226,7 +226,9 @@ rules:
     title: An account without a login shell has a usable password
     fact: accounts.shadow.*.password
     keys: {not: {const: root}}
-    when: {accounts.shadow.*.in-passwd: true, accounts.passwd.*.login-shell: false, accounts.passwd.*.interactive-shell: false, accounts.passwd.*.password: shadow}
+    when:
+      - {accounts.shadow.*.in-passwd: true, accounts.passwd.*.login-shell: false, accounts.passwd.*.interactive-shell: false, accounts.passwd.*.password: shadow}
+      - {accounts.shadow.*.in-passwd: true, accounts.passwd.*.shell: {pattern: "^/"}, 'accounts.shell-files.{accounts.passwd.*.shell}.exists': false, accounts.passwd.*.password: shadow}
     expect: {not: {enum: [hash, empty]}}
     severity: info
     score: 2.0
@@ -238,7 +240,7 @@ rules:
   accounts/shell-not-listed:
     title: A login shell is missing from /etc/shells
     fact: accounts.passwd.*.login-shell
-    when: {accounts.passwd.*.interactive-shell: true}
+    when: {accounts.passwd.*.interactive-shell: true, accounts.passwd.*.shell: {pattern: "^/"}, 'accounts.shell-files.{accounts.passwd.*.shell}.exists': true}
     expect: {const: true}
     severity: info
     score: 1.0

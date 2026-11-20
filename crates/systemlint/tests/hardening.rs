@@ -1860,22 +1860,28 @@ fn nist_rotation_fails_any_scheduled_expiry_and_contradicts_the_cis_maximum() {
 
 #[test]
 fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
-    let entry = |shell: bool, password: &str| json!({"uid": 1, "password": password, "login-shell": shell, "interactive-shell": shell, "shadowed": []});
-    let person = json!({"uid": 1000, "password": "shadow", "login-shell": false, "interactive-shell": true, "shell": "/usr/bin/zsh", "shadowed": []});
-    let document = accounts(
+    let entry = |shell: bool, password: &str| json!({"uid": 1, "password": password, "login-shell": shell, "interactive-shell": shell, "shell": if shell { "/bin/bash" } else { "/usr/sbin/nologin" }, "shadowed": []});
+    let person = |shell: &str| json!({"uid": 1000, "password": "shadow", "login-shell": false, "interactive-shell": true, "shell": shell, "shadowed": []});
+    let mut document = accounts(
         json!({"root": entry(false, "shadow"), "mail": entry(false, "shadow"), "nobody": entry(false, "shadow"),
-               "alice": entry(true, "shadow"), "inline": entry(false, "hash"), "ghost": entry(false, "shadow"), "me": person}),
+               "alice": entry(true, "shadow"), "inline": entry(false, "hash"), "ghost": entry(false, "shadow"),
+               "me": person("/usr/bin/zsh"), "gone": person("/usr/bin/fish")}),
         json!({}),
-        json!({"me": {"password": "hash", "in-passwd": true}, "root": {"password": "hash", "in-passwd": true}, "mail": {"password": "hash", "in-passwd": true},
+        json!({"me": {"password": "hash", "in-passwd": true}, "gone": {"password": "hash", "in-passwd": true}, "root": {"password": "hash", "in-passwd": true}, "mail": {"password": "hash", "in-passwd": true},
                "nobody": {"password": "locked", "in-passwd": true}, "alice": {"password": "hash", "in-passwd": true},
                "inline": {"password": "hash", "in-passwd": true}, "ghost": {"password": "missing", "in-passwd": true},
                "stale": {"password": "hash", "in-passwd": false}}),
     );
+    document["accounts"]["shell-files"] = json!({"/bin/bash": {"exists": true}, "/usr/sbin/nologin": {"exists": true},
+                                            "/usr/bin/zsh": {"exists": true}, "/usr/bin/fish": {"exists": false}});
+    document["collectors"]["accounts-shell-files"] =
+        json!({"status": "ok", "into": "accounts.shell-files"});
     assert_eq!(
         account_rule("accounts/shadow-missing", &document),
         [
             ("alice".into(), Outcome::Pass),
             ("ghost".into(), Outcome::Fail),
+            ("gone".into(), Outcome::Pass),
             ("inline".into(), Outcome::Pass),
             ("mail".into(), Outcome::Pass),
             ("me".into(), Outcome::Pass),
@@ -1889,13 +1895,14 @@ fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
         [
             ("alice".into(), Outcome::Skip),
             ("ghost".into(), Outcome::Pass),
+            ("gone".into(), Outcome::Fail),
             ("inline".into(), Outcome::Skip),
             ("mail".into(), Outcome::Fail),
             ("me".into(), Outcome::Skip),
             ("nobody".into(), Outcome::Pass),
             ("stale".into(), Outcome::Skip),
         ],
-        "root is CIS’s exception, an inline passwd hash never reads shadow, a person’s unlisted zsh is no lock, and a line no account holds is skipped"
+        "root is CIS’s exception, an inline passwd hash never reads shadow, a person’s unlisted zsh is no lock but a removed fish is, and a line no account holds is skipped"
     );
     let unlisted: Vec<_> = selected(
         "accounts",
@@ -1915,7 +1922,7 @@ fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
             ("alice".into(), Outcome::Pass),
             ("me".into(), Outcome::Fail)
         ],
-        "only an interactive shell is asked to be listed"
+        "only an interactive shell still on disk is asked to be listed"
     );
     assert_eq!(
         unlisted[1]

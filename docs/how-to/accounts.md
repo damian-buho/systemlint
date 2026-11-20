@@ -23,6 +23,7 @@ systemlint check --root /mnt/image --tags accounts
 | `accounts-passwd` | `/etc/passwd`, `/etc/shells` | `passwd` with `shells: /etc/shells` | `accounts.passwd.<name>` |
 | `accounts-group` | `/etc/group` | `words` on `:`, the password field dropped | `accounts.group.<name>` |
 | `accounts-shadow` | `/etc/shadow`, `/etc/passwd`, root only | `shadow` with `passwd: /etc/passwd` | `accounts.shadow.<name>` |
+| `accounts-shell-files` | the stat of each absolute passwd shell, absent ones kept | `stat` | `accounts.shell-files.<path>` |
 | `accounts-shells` | `/etc/shells` | `lines` | `accounts.shells./etc/shells` |
 | `accounts-passwd-compat`, `-group-compat`, `-shadow-compat` (root only) | `/etc/passwd`, `/etc/group`, `/etc/shadow` | `match`, the name of each line starting `+` | `accounts.compat.<file>.<name>` |
 | `nsswitch` | `/etc/nsswitch.conf` | `kv` on `:`, then `split` on blanks | `nsswitch.<database>` |
@@ -62,6 +63,10 @@ accounts:
   interactive shell (`bash`, `zsh`, `fish`, `dash` and the like), listed in
   `/etc/shells` or not, so a person whose shell is missing there is never read
   as an account with no shell.
+- `accounts-shell-files` stats every absolute passwd shell into `accounts.shell-files`,
+  keyed by path, `exists: false` for one gone from disk, so an account whose
+  shell was removed counts as one with no shell: `accounts/no-shell-unlocked`
+  asks for its lock and `accounts/shell-not-listed` leaves it out.
 - Empty lines and lines starting with `#` are skipped. A line with the wrong
   number of fields, or a uid that is not a number, is left out with a
   diagnostic naming its line; a group’s `gid` is a number when it is written
@@ -88,7 +93,7 @@ accounts:
 | `accounts/shadow-group-members` | group `shadow` lists members, who can read every hash |
 | `accounts/shadow-group-primary` | an account’s primary gid is 42, while group `shadow` holds gid 42 as Debian’s `base-passwd` fixes it; elsewhere it answers `skip` |
 | `accounts/nologin-shell` | `/etc/shells` lists `nologin` on a line that is no comment, so it counts as a valid shell |
-| `accounts/shell-not-listed` | an account’s shell is an interactive shell that `/etc/shells` does not list |
+| `accounts/shell-not-listed` | an account’s shell is an interactive shell, still on disk, that `/etc/shells` does not list |
 
 The rules only CIS Ubuntu 26.04 asks for carry `'!default'` and run with
 `--tags 'cis-ubuntu-26.04:*'` or `--tags accounts`. Each ageing rule judges an
