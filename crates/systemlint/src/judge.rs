@@ -1086,6 +1086,57 @@ pub fn describe(value: Option<&Value>) -> String {
     }
 }
 
+/// `text` with each `{facts.PATH}` replaced by the fact PATH names on `bound`, `empty` for none, which takes a comma right after it along.
+pub fn with_facts(text: &str, document: &Value, bound: &[String], empty: &str) -> String {
+    let (mut out, mut rest) = (String::new(), text);
+    while let Some(start) = rest.find("{facts.") {
+        let Some(length) = rest[start..].find('}') else {
+            break;
+        };
+        out.push_str(&rest[..start]);
+        let path = &rest[start + "{facts.".len()..start + length];
+        let value = parse_path(path)
+            .ok()
+            .and_then(|p| resolve(document, &p, bound).ok())
+            .and_then(|keys| get(document, &keys));
+        let spelled = spelled(value).unwrap_or_else(|| empty.to_owned());
+        log::debug!("fact reference {path} on {bound:?}: {spelled:?}");
+        rest = &rest[start + length + 1..];
+        if spelled.is_empty() {
+            rest = rest.strip_prefix(',').unwrap_or(rest);
+        }
+        out.push_str(&spelled);
+    }
+    out + rest
+}
+
+/// A fact as a configuration line spells it, a list of `from`/`to` ranges as sysctl does (`22,8000-8080`), none when absent or empty.
+fn spelled(value: Option<&Value>) -> Option<String> {
+    let range = |i: &Value| Some((i.get("from")?.as_u64()?, i.get("to")?.as_u64()?));
+    match value? {
+        Value::Null => None,
+        Value::String(s) => Some(s.clone()),
+        Value::Array(items) if items.is_empty() => None,
+        Value::Array(items) => match items.iter().map(range).collect::<Option<Vec<_>>>() {
+            Some(ranges) => Some(
+                ranges
+                    .iter()
+                    .map(|(f, t)| {
+                        if f == t {
+                            f.to_string()
+                        } else {
+                            format!("{f}-{t}")
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(","),
+            ),
+            None => Some(Value::Array(items.clone()).to_string()),
+        },
+        other => Some(other.to_string()),
+    }
+}
+
 /// The subject a drop-in remedy stands on, which names no path.
 static EMPTY: String = String::new();
 
@@ -1333,7 +1384,7 @@ fn failure(
         variables.insert("suggested".to_owned(), suggested);
     }
     let message = match &rule.spec.message {
-        Some(template) => fill(template, &variables),
+        Some(template) => fill(&with_facts(template, document, bound, "none"), &variables),
         None => format!("{}{pointer}: {error}", keys.join(".")),
     };
     let score = score(&rule.spec, value.pointer(pointer));
@@ -1342,7 +1393,8 @@ fn failure(
         severity: Some(level_of(score)),
         score: Some(score),
         message: Some(message),
-        fix: chosen(rule, document, bound).map(|f| f.map(|t| fill(t, &variables))),
+        fix: chosen(rule, document, bound)
+            .map(|f| f.map(|t| fill(&with_facts(t, document, bound, ""), &variables))),
         remedy: rule
             .spec
             .remedy

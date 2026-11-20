@@ -18,8 +18,8 @@ rules:
         || facts.sysctl.settings.net.ipv4.ip_local_reserved_ports.exists(r, int(bound[1]) >= r.from && int(bound[1]) <= r.to)
     severity: warning
     score: 4.0
-    message: "{subject} is where {got}, a system service, listens, inside net.ipv4.ip_local_port_range, and net.ipv4.ip_local_reserved_ports leaves it out, so while the service restarts an outgoing connection may take the port and the service fails to start"
+    message: "{subject} is where {got}, a system service, listens, inside net.ipv4.ip_local_port_range ({facts.sysctl.settings.net.ipv4.ip_local_port_range.min}–{facts.sysctl.settings.net.ipv4.ip_local_port_range.max}), and net.ipv4.ip_local_reserved_ports ({facts.sysctl.settings.net.ipv4.ip_local_reserved_ports}) leaves it out, so while the service restarts an outgoing connection may take the port and the service fails to start"
     rationale: an outgoing connection can take the port while its service is down, and the service then can’t start again until that connection ends
-    fix: add the port to “net.ipv4.ip_local_reserved_ports” in a file under “/etc/sysctl.d/”, or narrow “net.ipv4.ip_local_port_range” so it no longer covers the port
+    remedy: {drop-in: {into: sysctl, name: reserved-ports, lines: ['net.ipv4.ip_local_reserved_ports = {facts.sysctl.settings.net.ipv4.ip_local_reserved_ports},{subject}']}}
     docs: https://docs.kernel.org/networking/ip-sysctl.html#ip-variables
     tags: [network, stability]

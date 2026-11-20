@@ -219,6 +219,43 @@ const SYSCTL: &[(&str, &[&str])] = &[
     ("net.ipv6.conf.*.accept_source_route", &["0"]),
 ];
 
+/// The sysctl key a drop-in may set to a list of ports, which a later file replaces whole, so its one line holds every port.
+const RESERVED_PORTS: &str = "net.ipv4.ip_local_reserved_ports";
+
+/// The only fact a drop-in line may name: the ports already reserved, which its line keeps.
+const RESERVED_FACT: &str = "{facts.sysctl.settings.net.ipv4.ip_local_reserved_ports}";
+
+/// Whether `value` is a comma list of ports and `a-b` port ranges, as `ip_local_reserved_ports` takes them.
+fn ports(value: &str) -> bool {
+    let port = |p: &str| p.parse::<u16>().is_ok_and(|n| n > 0);
+    value.split(',').all(|item| match item.split_once('-') {
+        Some((a, b)) => port(a) && port(b) && a.parse::<u16>().ok() <= b.parse::<u16>().ok(),
+        None => port(item),
+    })
+}
+
+/// `line` with a port list’s repeated and empty items dropped, any other line as it is.
+fn listed(line: &str) -> String {
+    let Some(value) = line
+        .strip_prefix(RESERVED_PORTS)
+        .and_then(|v| v.strip_prefix(" = "))
+    else {
+        return line.to_owned();
+    };
+    let mut items: Vec<&str> = Vec::new();
+    for item in value.split(',').filter(|i| !i.is_empty()) {
+        if !items.contains(&item) {
+            items.push(item);
+        }
+    }
+    format!("{RESERVED_PORTS} = {}", items.join(","))
+}
+
+/// The key of a sysctl `key = value` line, which a later line of the same key replaces.
+fn sysctl_key(line: &str) -> Option<&str> {
+    line.split_once(" = ").map(|(key, _)| key)
+}
+
 /// The modprobe that unloads a module, the one the kernel-modules collectors run.
 const MODPROBE: &str = "/usr/sbin/modprobe";
 
@@ -287,6 +324,7 @@ impl Directory {
             (Self::Modprobe, ["blacklist", m]) => module(m),
             (Self::Apt, _) => APT_LINES.contains(&line),
             (Self::Sudoers, _) => SUDOERS_LINES.contains(&line),
+            (Self::Sysctl, [key, "=", value]) if *key == RESERVED_PORTS => ports(value),
             (Self::Sysctl, [key, "=", value]) => SYSCTL
                 .iter()
                 .any(|(k, values)| values.contains(value) && same_key(k, key)),
@@ -394,12 +432,24 @@ impl DropIn {
             "these lines"
         };
         let each = self.lines.iter().any(|l| l.contains("{subject}"));
+        let list = self
+            .lines
+            .iter()
+            .any(|l| l.starts_with(RESERVED_PORTS) && l.contains("{subject}"));
         let lines = self
             .lines
             .iter()
-            .map(|l| l.replace("{subject}", "<name>"))
+            .map(|l| match l.starts_with(RESERVED_PORTS) {
+                true => l.replace("{subject}", "<ports>"),
+                false => l.replace("{subject}", "<name>"),
+            })
             .collect();
-        let what = if each {
+        let what = if list {
+            format!(
+                "Write {these} to “{}”, “<ports>” standing for every port listed, joined by commas:",
+                self.path()
+            )
+        } else if each {
             format!(
                 "Write {these} to “{}”, the “<name>” line once for each one listed:",
                 self.path()
@@ -488,11 +538,14 @@ impl Remedy {
                 if drop.lines.is_empty() || drop.lines.len() > 16 {
                     return Err("remedy drop-in takes 1 to 16 lines".to_owned());
                 }
-                match drop
-                    .lines
-                    .iter()
-                    .find(|l| !drop.into.admits(&l.replace("{subject}", SUBJECT_EXAMPLE)))
-                {
+                let example = |l: &str| {
+                    let subject = match l.starts_with(RESERVED_PORTS) {
+                        true => "1",
+                        false => SUBJECT_EXAMPLE,
+                    };
+                    l.replace(RESERVED_FACT, "1").replace("{subject}", subject)
+                };
+                match drop.lines.iter().find(|l| !drop.into.admits(&example(l))) {
                     Some(line) => Err(format!(
                         "remedy drop-in line {line:?} is not one that only turns something off in {}",
                         drop.into.path()
@@ -686,7 +739,15 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> P
                 _ => (subject.clone(), None),
             };
             let remedy = match remedy {
-                Remedy::DropIn(drop) => Remedy::DropIn(drop.for_subject(&subject)?),
+                Remedy::DropIn(drop) => {
+                    let drop = drop.for_subject(&subject)?;
+                    let lines = drop
+                        .lines
+                        .iter()
+                        .map(|l| listed(&crate::judge::with_facts(l, document, &c.subject, "")))
+                        .collect();
+                    Remedy::DropIn(DropIn { lines, ..drop })
+                }
                 Remedy::SetKey(set) => {
                     Remedy::SetKey(set.read_from(rule.subject_value(document, &c.subject, 0)))
                 }
@@ -712,8 +773,16 @@ pub fn plan(checks: &[Check], rules: &[Rule], document: &serde_json::Value) -> P
             );
             kept.unload |= later.unload;
             for line in &later.lines {
-                if !kept.lines.contains(line) {
-                    kept.lines.push(line.clone());
+                let same = kept.lines.iter().position(|k| {
+                    k.starts_with(RESERVED_PORTS) && sysctl_key(k) == sysctl_key(line)
+                });
+                match same {
+                    Some(at) => {
+                        let tail = line.split_once(" = ").map_or("", |(_, v)| v);
+                        kept.lines[at] = listed(&format!("{},{tail}", kept.lines[at]));
+                    }
+                    None if !kept.lines.contains(line) => kept.lines.push(line.clone()),
+                    None => {}
                 }
             }
             true
@@ -1003,9 +1072,18 @@ fn write(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
                     "it exists with other lines, so systemlint leaves it",
                 ));
             }
-            let merged: String = missing
+            let replaced = |l: &str| {
+                drop.into == Directory::Sysctl
+                    && missing
+                        .iter()
+                        .any(|m| sysctl_key(m).is_some() && sysctl_key(m) == sysctl_key(l))
+            };
+            let kept: String = lines
                 .iter()
-                .fold(held.clone(), |t, l| format!("{t}{l}\n"));
+                .filter(|l| !replaced(l))
+                .map(|l| format!("{l}\n"))
+                .collect();
+            let merged: String = missing.iter().fold(kept, |t, l| format!("{t}{l}\n"));
             root.replace(
                 drop.into.path(),
                 name,
@@ -1015,10 +1093,7 @@ fn write(root: &Root, drop: &DropIn) -> Result<Applied, std::io::Error> {
                 &check,
             )?;
             let count = |n: usize| format!("{n} line{}", if n == 1 { "" } else { "s" });
-            Ok(Some((
-                count(lines.len()),
-                count(lines.len() + missing.len()),
-            )))
+            Ok(Some((count(lines.len()), count(merged.lines().count()))))
         }
         Err(e) => Err(e),
     }

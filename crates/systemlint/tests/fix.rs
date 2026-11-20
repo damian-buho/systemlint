@@ -856,3 +856,76 @@ fn a_set_key_writes_only_a_listed_value_and_only_over_what_the_lint_read() {
         "MAIL_DIR /var/mail\nUMASK 027\n"
     );
 }
+
+#[test]
+fn a_reserved_ports_drop_in_writes_one_line_of_the_reserved_ports_and_every_failing_one() {
+    const LINE: &str = "net.ipv4.ip_local_reserved_ports = {facts.sysctl.settings.net.ipv4.ip_local_reserved_ports},{subject}";
+    let ok = |line: &str| {
+        drop_in(&format!(
+            "drop-in: {{into: sysctl, name: p, lines: ['{line}']}}"
+        ))
+        .validate()
+    };
+    for admitted in [LINE, "net.ipv4.ip_local_reserved_ports = 1,65535,8000-8080"] {
+        assert!(ok(admitted).is_ok(), "{admitted}");
+    }
+    for refused in [
+        "net.ipv4.ip_local_reserved_ports = {facts.os.release.ID}",
+        "net.ipv4.ip_local_reserved_ports = 0",
+        "net.ipv4.ip_local_reserved_ports = 65536",
+        "net.ipv4.ip_local_reserved_ports = 9-8",
+        "net.ipv4.ip_local_reserved_ports = 1 2",
+        "kernel.sysrq = {facts.sysctl.settings.net.ipv4.ip_local_reserved_ports}",
+    ] {
+        assert!(ok(refused).is_err(), "{refused}");
+    }
+    let yaml = format!(
+        "fact: ports.*\nexpect: {{const: ok}}\nmessage: \"{{subject}} outside {{facts.sysctl.settings.net.ipv4.ip_local_reserved_ports}}\"\nremedy: {{drop-in: {{into: sysctl, name: p, lines: ['{LINE}']}}}}\n"
+    );
+    let rule = compile("t/p", systemlint::yaml::from_str(&yaml).unwrap()).unwrap();
+    let lines = |reserved: Value| {
+        let document = json!({"ports": {"2375": "no", "9000": "no", "22": "ok"}, "sysctl": {"settings": {"net": {"ipv4": {"ip_local_reserved_ports": reserved}}}}});
+        let checks = lint(&document, std::slice::from_ref(&rule), &[], "2026-11-20");
+        let messages: Vec<String> = checks.iter().filter_map(|c| c.message.clone()).collect();
+        let planned = plan(&checks, std::slice::from_ref(&rule), &document).changes;
+        assert_eq!(planned.len(), 1, "{planned:?}");
+        let Remedy::DropIn(drop) = &planned[0].remedy else {
+            panic!("{planned:?}")
+        };
+        (drop.lines.clone(), messages)
+    };
+    let (written, messages) = lines(json!([{"from": 22, "to": 22}, {"from": 8000, "to": 8080}]));
+    assert_eq!(
+        written,
+        ["net.ipv4.ip_local_reserved_ports = 22,8000-8080,2375,9000"]
+    );
+    assert_eq!(messages[0], "2375 outside 22,8000-8080");
+    let (written, messages) = lines(json!([]));
+    assert_eq!(written, ["net.ipv4.ip_local_reserved_ports = 2375,9000"]);
+    assert_eq!(messages[0], "2375 outside none");
+    let dir = base("reserved-ports");
+    std::fs::create_dir_all(dir.join("etc/sysctl.d")).unwrap();
+    let file = dir.join("etc/sysctl.d/99-systemlint-p.conf");
+    std::fs::write(
+        &file,
+        "net.ipv4.ip_local_reserved_ports = 2375\nkernel.sysrq = 0\n",
+    )
+    .unwrap();
+    let change = Change {
+        rule: "t/p".into(),
+        path: "/etc/sysctl.d/99-systemlint-p.conf".into(),
+        line: None,
+        remedy: drop_in(
+            "drop-in: {into: sysctl, name: p, lines: ['net.ipv4.ip_local_reserved_ports = 2375,9000']}",
+        ),
+    };
+    assert_eq!(
+        apply(&Root::open(&dir).unwrap(), &change).unwrap(),
+        Some(("2 lines".into(), "2 lines".into()))
+    );
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        "kernel.sysrq = 0\nnet.ipv4.ip_local_reserved_ports = 2375,9000\n",
+        "the older line of the key gives way"
+    );
+}
