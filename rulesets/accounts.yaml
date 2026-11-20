@@ -49,7 +49,7 @@ rules:
     keys: {not: {pattern: "^[+-]"}}
     unique: true
     severity: warning
-    score: 5.0
+    score: 4.5
     message: "{subject} shares gid {got} with {others}, so a member of one gets the other’s file access"
     rationale: members of one group quietly get access to everything the other group owns
     fix:
@@ -100,8 +100,8 @@ rules:
     title: An account keeps its password hash in /etc/passwd
     fact: accounts.passwd.*.password
     expect: {not: {const: hash}}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 6.5
     message: "{subject} keeps its password hash in /etc/passwd, which every local user can read, so anyone on the host can crack it offline"
     rationale: any local user can read the password hash and crack it offline at leisure
     fix:
@@ -184,7 +184,7 @@ rules:
     when: {accounts.shadow.*.password: hash}
     expect: {type: integer, minimum: "${password-min-days}"}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}’s minimum password age in days is {got}, so a forced change can be undone sooner than the ${password-min-days} asked"
     rationale: a user forced to change a password can switch straight back to the old one
     fix:
@@ -200,7 +200,7 @@ rules:
     when: {accounts.shadow.*.password: hash}
     expect: {type: integer, minimum: "${password-warn-days}"}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "{subject}’s password expiry warning in days is {got}, where at least ${password-warn-days} is asked"
     rationale: users are locked out by an expiry they had no time to notice and prepare for
     fix:
@@ -216,7 +216,7 @@ rules:
     when: {accounts.shadow.*.password: hash}
     expect: {type: integer, minimum: 0, maximum: "${password-inactive-days}"}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}’s grace in days before an expired password locks it is {got}, where at most ${password-inactive-days} is asked"
     rationale: an abandoned account with an expired password stays open to an attacker for weeks
     fix: run “chage --inactive ${password-inactive-days} {subject}”, and “useradd -D -f ${password-inactive-days}” for new accounts
@@ -231,7 +231,7 @@ rules:
       - {accounts.shadow.*.in-passwd: true, accounts.passwd.*.shell: {pattern: "^/"}, 'accounts.shell-files.{accounts.passwd.*.shell}.exists': false, accounts.passwd.*.password: shadow}
     expect: {not: {enum: [hash, empty]}}
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} has no login shell but an unlocked password, so any service that authenticates through PAM without a shell, such as mail or FTP, still accepts it"
     rationale: an account meant only for a service can still be broken into by guessing its password through mail or FTP
     fix: run “usermod --lock {subject}”, unless a service logs it in by password on purpose
@@ -280,8 +280,8 @@ rules:
       nsswitch: {required: [passwd], properties: {passwd: {contains: {const: compat}}}}
       clients.binaries: {not: {propertyNames: {not: {pattern: "/ypbind$"}}}}
     expect: {not: {}}
-    severity: warning
-    score: 5.0
+    severity: error
+    score: 7.0
     message: "/etc/passwd holds the NIS entry “{subject}”, which nsswitch.conf’s compat mode fills with accounts from whichever server answers for the NIS domain"
     rationale: NIS never authenticates its server, so a host on the network that answers first can add accounts here, uid 0 included
     fix: 'delete the “{subject}” line with “vipw”, and set “passwd: files” in “/etc/nsswitch.conf” once no account comes from NIS'
@@ -336,7 +336,7 @@ rules:
     fact: accounts.shells.*
     expect: {not: {contains: {pattern: "^[^#]*/nologin\\b"}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject} lists nologin, so a service that only admits accounts with a valid shell, such as an FTP server, admits accounts meant to have none"
     rationale: accounts meant to be unable to log in can still pass the shell check of FTP and similar services
     fix: delete the “nologin” lines from {subject}
@@ -351,7 +351,7 @@ rules:
       - {accounts.passwd.*.uid: 65534}
     expect: {const: false}
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} is a system account with a shell listed in /etc/shells, so anyone who gets its password or key gets a shell"
     rationale: anyone who steals a service account’s key or password gets an interactive shell on the machine
     fix: run “usermod --shell /usr/sbin/nologin {subject}”, unless a person logs in as it on purpose
@@ -385,7 +385,7 @@ rules:
     when: {accounts.passwd: {required: [root]}}
     expect: {const: locked}
     severity: info
-    score: 1.0
+    score: 2.0
     message: "root’s password in /etc/shadow is {got}, not locked, so root may log in directly with it, leaving no record of which administrator did"
     rationale: whoever has the root password logs in as plain root and the logs cannot say which administrator did what
     fix: run “passwd --lock root” once every administrator reaches root through sudo
@@ -395,8 +395,8 @@ rules:
     title: grpck finds the group files inconsistent
     fact: accounts.grpck.exit-status
     expect: {const: 0}
-    severity: warning
-    score: 3.0
+    severity: info
+    score: 2.0
     message: "grpck --read-only exits {got}, so /etc/group and /etc/gshadow hold a malformed line, a duplicate name or a member with no account, which tools read differently"
     rationale: a malformed group entry can give or deny access differently in different tools without anyone noticing
     fix: run “grpck --read-only” as root and fix each line it names, or let “grpck” fix them

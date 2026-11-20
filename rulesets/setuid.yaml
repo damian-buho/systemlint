@@ -27,7 +27,7 @@ rules:
       if: {required: [group-writable], properties: {group-writable: {const: true}}}
       then: {required: [kind, mode], properties: {kind: {const: directory}, mode: {pattern: "^[1357]"}}}
     severity: warning
-    score: 6.5
+    score: 6.0
     message: "{subject} is writable by its group, whose every member can then swap a set-user-ID file below it for a program of their own"
     rationale: any member of that group can replace a program that runs with its owner’s rights, usually root, and so take over the host
     fix: run “chmod g-w” on it, or check that only administrators are in its group

@@ -10,8 +10,8 @@ rules:
     title: Symlinks in /tmp are followed across owners
     fact: sysctl.settings.fs.protected_symlinks
     expect: {const: 1}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 6.0
     message: "fs.protected_symlinks is {got}, so a user can plant a symlink in /tmp that a root process follows to overwrite any file"
     rationale: a local user can trick a privileged program into overwriting files it never meant to touch, such as system configuration
     remedy: {drop-in: {into: sysctl, name: fs-protected-symlinks, lines: ["fs.protected_symlinks = 1"]}}
@@ -23,8 +23,8 @@ rules:
     title: Hard links are allowed to files the user cannot write
     fact: sysctl.settings.fs.protected_hardlinks
     expect: {const: 1}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 6.0
     message: "fs.protected_hardlinks is {got}, so a user can hard-link a setuid binary or a root-owned file and keep it after an update"
     rationale: a local user can pin a privileged file in place and keep an old vulnerable copy after the system is updated
     remedy: {drop-in: {into: sysctl, name: fs-protected-hardlinks, lines: ["fs.protected_hardlinks = 1"]}}

@@ -12,8 +12,8 @@ rules:
     expect:
       if: {required: [world-writable], properties: {world-writable: {const: true}}}
       then: {required: [mode], properties: {mode: {pattern: "^[1357]"}}}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 6.0
     message: "{subject} is writable by every user without the sticky bit, so any user can delete or replace another user’s files in it"
     rationale: any user can delete or replace other users’ files in the directory, breaking their programs or planting files they will trust
     fix: run “chmod +t” on the directory, which leaves it mode 1777

@@ -11,7 +11,7 @@ rules:
     fact: sysctl.settings.kernel.randomize_va_space
     expect: {const: 2}
     severity: error
-    score: 7.5
+    score: 7.0
     message: "kernel.randomize_va_space is {got}, so stack, heap or mmap addresses are predictable, which makes memory corruption bugs easier to exploit"
     rationale: an attacker who finds a memory bug can aim at a known address, so a crash becomes code execution far more often
     remedy: {drop-in: {into: sysctl, name: kernel-aslr, lines: ["kernel.randomize_va_space = 2"]}}
@@ -23,8 +23,8 @@ rules:
     title: Kernel addresses are shown to every user
     fact: sysctl.settings.kernel.kptr_restrict
     expect: {minimum: 1}
-    severity: warning
-    score: 5.0
+    severity: info
+    score: 2.5
     message: "kernel.kptr_restrict is {got}, so /proc and other interfaces print kernel pointers to unprivileged users, which defeats kernel address randomization"
     rationale: any local user learns where the kernel sits in memory, which removes the guesswork from a kernel exploit
     remedy: {drop-in: {into: sysctl, name: kernel-kptr-restrict, lines: ["kernel.kptr_restrict = 1"]}}
@@ -36,8 +36,8 @@ rules:
     title: The kernel log is readable by every user
     fact: sysctl.settings.kernel.dmesg_restrict
     expect: {const: 1}
-    severity: warning
-    score: 4.0
+    severity: info
+    score: 2.5
     message: "kernel.dmesg_restrict is {got}, so any user can read the kernel log, which can leak addresses and hardware details"
     rationale: any local user can read kernel messages that reveal memory addresses and hardware, material for planning a kernel exploit
     remedy: {drop-in: {into: sysctl, name: kernel-dmesg-restrict, lines: ["kernel.dmesg_restrict = 1"]}}
@@ -50,7 +50,7 @@ rules:
     fact: sysctl.settings.kernel.yama.ptrace_scope
     expect: {minimum: 1}
     severity: warning
-    score: 5.0
+    score: 4.5
     message: "kernel.yama.ptrace_scope is {got}, so one compromised process can read the memory and secrets of every other process its user runs"
     rationale: malware in one of a user’s programs can attach to their other programs and lift passwords, keys and session tokens from memory
     remedy: {drop-in: {into: sysctl, name: kernel-ptrace-scope, lines: ["kernel.yama.ptrace_scope = 1"]}}
@@ -75,8 +75,8 @@ rules:
     title: Unprivileged users may profile the kernel
     fact: sysctl.settings.kernel.perf_event_paranoid
     expect: {minimum: 2}
-    severity: warning
-    score: 4.0
+    severity: info
+    score: 3.0
     message: "kernel.perf_event_paranoid is {got}, so unprivileged users can sample kernel activity through perf_event_open, which leaks kernel addresses and timing"
     rationale: any local user can watch kernel activity and timing, which reveals addresses and secrets that help an exploit or a side-channel attack
     remedy: {drop-in: {into: sysctl, name: kernel-perf-events, lines: ["kernel.perf_event_paranoid = 2"]}}
@@ -88,8 +88,8 @@ rules:
     title: Any user may load TTY line discipline modules
     fact: sysctl.settings.dev.tty.ldisc_autoload
     expect: {const: 0}
-    severity: info
-    score: 2.5
+    severity: warning
+    score: 4.5
     message: "dev.tty.ldisc_autoload is {got}, so any user can make the kernel load a rarely used line discipline module, and with it that module’s bugs"
     rationale: any local user can make the kernel load an obscure driver, whose bugs have been used to gain root
     fix: set “dev.tty.ldisc_autoload = 0”, unless a serial device needs a line discipline loaded on demand
@@ -114,7 +114,7 @@ rules:
     fact: sysctl.settings.kernel.sysrq
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 2.0
     message: "kernel.sysrq is {got}, so whoever reaches the console keyboard may reboot, kill processes or sync disks without logging in"
     rationale: anyone with keyboard access can reboot the machine, kill every process or sync disks without logging in
     remedy: {drop-in: {into: sysctl, name: kernel-sysrq, lines: ["kernel.sysrq = 0"]}}

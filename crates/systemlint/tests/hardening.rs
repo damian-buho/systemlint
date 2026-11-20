@@ -2502,7 +2502,7 @@ fn a_certificate_fails_expired_or_nearly_so_and_untrusted_only_while_valid() {
     assert_eq!(
         cert(-1, -1, false),
         [
-            row("tls/expired", Outcome::Fail, Some(8.5)),
+            row("tls/expired", Outcome::Fail, Some(8.0)),
             row("tls/expiring", Outcome::Skip, None),
             row("tls/untrusted", Outcome::Skip, None)
         ],

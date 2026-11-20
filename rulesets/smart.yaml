@@ -54,8 +54,8 @@ rules:
     fact: smart.devices.*.nvme_smart_health_information_log.percentage_used
     when: {smart.devices.*: {required: [nvme_smart_health_information_log]}}
     expect: {maximum: 99}
-    severity: warning
-    score: 6.0
+    severity: error
+    score: 7.0
     message: "{subject} reports {field} {got}, the percent of its rated write endurance used, so it may turn read-only or fail at any time"
     rationale: past its rated endurance the flash wears out unpredictably, so the disk may stop accepting writes
     fix: replace {subject} soon, and keep a backup of it until then

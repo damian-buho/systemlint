@@ -12,7 +12,7 @@ rules:
     when: {systemd.state.*.active: active}
     expect: {maxItems: 0}
     severity: warning
-    score: 5.0
+    score: 4.0
     message: "{subject} still runs {got}, deleted from disk since it started, so the fix an upgrade shipped there has not reached it"
     rationale: the running service still has the old flaws that the upgrade was meant to remove
     fix: run “systemctl restart {subject}”

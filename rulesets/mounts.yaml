@@ -294,7 +294,7 @@ rules:
     when: {mounts: {required: [active], properties: {active: {required: [/proc]}}}}
     expect: {contains: {pattern: "^hidepid=([12]|noaccess|invisible)$"}}
     severity: info
-    score: 1.0
+    score: 2.0
     message: "/proc is mounted without hidepid, so every user reads every other user’s processes and their command lines, a password passed as an argument included"
     rationale: any user can see what every other user runs and read command lines, so a password typed as an argument leaks
     fix:

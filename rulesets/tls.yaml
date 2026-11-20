@@ -12,7 +12,7 @@ rules:
     fact: probes.*.http.*.tls.days-left
     keys: {pattern: "^https://"}
     expect: {minimum: 0}
-    score: 8.5
+    score: 8.0
     suggest: {fact: probes.*.http.*.tls.not-after, otherwise: an unknown date}
     message: "{subject} serves a certificate that ended {suggested}, so every client refuses the site or trains its users to click through the warning"
     rationale: browsers refuse to connect, and users learn to click through warnings that an attacker can then also exploit

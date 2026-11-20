@@ -17,7 +17,7 @@ rules:
     keys: {const: root}
     expect: {enum: [no, prohibit-password, forced-commands-only]}
     severity: error
-    score: 8.5
+    score: 7.5
     message: "{subject} gets PermitRootLogin {got}, so sshd lets it log in with a password"
     rationale: anyone who guesses or steals the root password gets full control of the machine over the network
     fix: set “PermitRootLogin prohibit-password”, or “PermitRootLogin no”
@@ -30,7 +30,7 @@ rules:
     fact: sshd.settings.passwordauthentication.*
     expect: {const: no}
     severity: warning
-    score: 6.0
+    score: 5.0
     message: "{subject} has PasswordAuthentication {got}, so sshd accepts passwords, which can be guessed over the network"
     rationale: an attacker can try millions of passwords against any account from anywhere until one works
     fix: set “PasswordAuthentication no” once every user has a key
@@ -113,7 +113,7 @@ rules:
     fact: sshd.settings.x11forwarding.*
     expect: {const: no}
     severity: warning
-    score: 4.0
+    score: 3.5
     message: "{subject} has X11Forwarding {got}, so sshd forwards X11, which hands the server a way into the client’s display"
     rationale: a hostile server can read the client’s screen and keystrokes or send input to its windows
     fix: set “X11Forwarding no”
@@ -137,7 +137,7 @@ rules:
     fact: sshd.settings.permittunnel.*
     expect: {const: no}
     severity: warning
-    score: 5.0
+    score: 4.0
     message: "{subject} has PermitTunnel {got}, so sshd allows tun device forwarding, a full network link into the host"
     rationale: a logged-in user can bridge the host’s network to a machine they control and bypass its firewall
     fix: set “PermitTunnel no”
@@ -149,8 +149,8 @@ rules:
     title: A weak cipher is offered
     fact: sshd.global.*.ciphers
     expect: {items: {not: {pattern: "-cbc$|^3des|arcfour|blowfish|cast128|^rijndael"}}}
-    severity: error
-    score: 7.5
+    severity: warning
+    score: 5.0
     message: "{subject} offers {got}, a weak cipher, so a client that still accepts it may settle on a session an eavesdropper can attack"
     rationale: an eavesdropper on the network path can break the weak cipher and read or alter the session
     fix: remove {got} from “Ciphers”
@@ -161,7 +161,7 @@ rules:
     fact: sshd.global.*.macs
     expect: {items: {not: {pattern: "md5|sha1|-96|^umac-64"}}}
     severity: warning
-    score: 5.5
+    score: 5.0
     message: "{subject} offers {got}, a weak MAC, so a client that still accepts it may settle on a session whose integrity an attacker on the path can forge"
     rationale: an attacker on the network path can alter commands or data in transit without being noticed
     fix: remove {got} from “MACs”, for example with “MACs -hmac-sha1*,umac-64*”
@@ -171,8 +171,8 @@ rules:
     title: A weak key exchange is offered
     fact: sshd.global.*.kexalgorithms
     expect: {items: {not: {pattern: "sha1|^diffie-hellman-group1-"}}}
-    severity: error
-    score: 7.5
+    severity: warning
+    score: 5.0
     message: "{subject} offers {got}, a weak key exchange, so a client that still accepts it may agree on a session key an eavesdropper can recover"
     rationale: an eavesdropper who records the handshake can work out the session key and read everything sent
     fix: remove {got} from “KexAlgorithms”
@@ -183,7 +183,7 @@ rules:
     fact: sshd.global.*.kexalgorithms
     expect: {contains: {enum: [mlkem768x25519-sha256, sntrup761x25519-sha512, sntrup761x25519-sha512@openssh.com]}}
     severity: warning
-    score: 4.0
+    score: 3.5
     message: "{subject} offers no post-quantum key exchange, so a session recorded today can be decrypted once a quantum computer breaks its key exchange: {got}"
     rationale: an attacker who records traffic now can read it years later with a quantum computer
     fix: add “mlkem768x25519-sha256” and “sntrup761x25519-sha512” to the front of “KexAlgorithms”, or remove the “KexAlgorithms” line to get OpenSSH’s defaults
@@ -277,7 +277,7 @@ rules:
     fact: sshd.settings.gssapiauthentication.*
     expect: {const: no}
     severity: warning
-    score: 3.0
+    score: 3.5
     message: "{subject} has GSSAPIAuthentication {got}, so sshd runs the Kerberos library on input from every client, a parser most hosts never need"
     rationale: a flaw in the Kerberos code can be reached by any stranger who connects, before they log in
     fix: set “GSSAPIAuthentication no”, unless users log in with Kerberos tickets
@@ -299,7 +299,7 @@ rules:
     fact: sshd.global.*.maxstartups
     expect: {pattern: "^([0-9]|10)(:([3-9][0-9]|100):([0-9]|[1-5][0-9]|60))?$"}
     severity: info
-    score: 1.0
+    score: 2.0
     message: "{subject} has MaxStartups {got}, looser than the benchmark’s 10:30:60, so more half-open logins are kept before sshd starts dropping them"
     rationale: an attacker can pile up half-open logins and keep real users from connecting
     fix: set “MaxStartups 10:30:60”
@@ -310,7 +310,7 @@ rules:
     fact: sshd.global.*.usepam
     expect: {const: yes}
     severity: warning
-    score: 4.0
+    score: 3.5
     message: "{subject} has UsePAM {got}, so logins skip the PAM account and session stacks: lockout, limits and expiry checks"
     rationale: locked, expired and rate-limited accounts can still log in because the account checks never run
     fix: set “UsePAM yes”
@@ -321,7 +321,7 @@ rules:
     fact: sshd.settings.x11uselocalhost.*
     expect: {const: "yes"}
     severity: warning
-    score: 3.0
+    score: 4.0
     message: "{subject} has X11UseLocalhost {got}, so a forwarded X11 display listens on the network, where any host may connect to the user’s session"
     rationale: other machines on the network can connect to the user’s forwarded display and see or control their windows
     fix: set “X11UseLocalhost yes”

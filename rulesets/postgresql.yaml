@@ -12,7 +12,7 @@ rules:
     when: {postgresql.conf.*.kind: file}
     expect: {pattern: "^[0-7]{3}0$"}
     severity: info
-    score: 1.0
+    score: 3.0
     message: "{subject} has mode {got}, so every user reads which hosts and users the server trusts, and how"
     rationale: any local user can learn which hosts and accounts the server trusts and how, which helps them plan an attack
     fix: run “chmod 0640 {subject}”, keeping it in group postgres

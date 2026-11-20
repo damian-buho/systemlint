@@ -26,7 +26,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/sudoers}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/sudoers}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {enum: [/etc/sudoers.d, /etc/sudoers.d/]}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {enum: [dir=/etc/sudoers.d, dir=/etc/sudoers.d/]}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records writes to /etc/sudoers or /etc/sudoers.d, so such a change leaves no trace for an investigation"
     rationale: an attacker who grants themselves root rights through sudoers leaves nothing in the logs to show who did it or when
     fix:
@@ -45,7 +45,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b64'}, {properties: {"-S": {contains: {const: execve}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: execve}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records execve on both architectures, so such a change leaves no trace for an investigation"
     rationale: a command run as another user, root included, leaves no record of who really started it
     fix:
@@ -66,7 +66,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/any'}, {properties: {"-S": {contains: {const: settimeofday}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/any'}, {properties: {"-S": {contains: {const: clock_settime}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records adjtimex, settimeofday, clock_settime or writes to /etc/localtime, so such a change leaves no trace for an investigation"
     rationale: an attacker can move the clock to make log entries look older or newer than they are, and nothing shows it happened
     fix:
@@ -87,7 +87,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: sethostname}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: setdomainname}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "{subject}: no audit rule records sethostname or setdomainname on both architectures, so such a change leaves no trace for an investigation"
     rationale: a host renamed to look like another machine leaves no record, so logs from it can be mistaken for that machine’s
     fix:
@@ -106,7 +106,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/issue}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/issue}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/issue.net}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/issue.net}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "{subject}: no audit rule records writes to /etc/issue or /etc/issue.net, so such a change leaves no trace for an investigation"
     rationale: a changed login banner, such as a false notice or a fake prompt, leaves no record of who edited it
     fix:
@@ -125,7 +125,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/hosts}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/hosts}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/hostname}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/hostname}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "{subject}: no audit rule records writes to /etc/hosts or /etc/hostname, so such a change leaves no trace for an investigation"
     rationale: an edited hosts file can silently send a name such as a bank or update server to an attacker’s address, with no record of who did it
     fix:
@@ -145,7 +145,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {enum: [/etc/network/interfaces.d, /etc/network/interfaces.d/]}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {enum: [dir=/etc/network/interfaces.d, dir=/etc/network/interfaces.d/]}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {enum: [/etc/netplan, /etc/netplan/]}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {enum: [dir=/etc/netplan, dir=/etc/netplan/]}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "{subject}: no audit rule records writes to /etc/network/interfaces, /etc/network/interfaces.d or /etc/netplan, so such a change leaves no trace for an investigation"
     rationale: changed network settings can reroute or expose the host’s traffic with no record of who changed them
     fix:
@@ -163,7 +163,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {enum: [/etc/NetworkManager, /etc/NetworkManager/]}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {enum: [dir=/etc/NetworkManager, dir=/etc/NetworkManager/]}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "{subject}: no audit rule records writes to /etc/NetworkManager, so such a change leaves no trace for an investigation"
     rationale: changed NetworkManager settings can reroute or expose the host’s traffic with no record of who changed them
     fix:
@@ -200,7 +200,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: truncate}}}}, {$ref: '#/$defs/eperm'}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: ftruncate}}}}, {$ref: '#/$defs/eperm'}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records creat, open, openat, truncate or ftruncate failing with EACCES or EPERM on both architectures, so such a change leaves no trace for an investigation"
     rationale: an intruder probing for files they may not touch leaves no sign of the attempts, so a break-in in progress goes unseen
     fix:
@@ -218,7 +218,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/group}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/group}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records writes to /etc/group, so such a change leaves no trace for an investigation"
     rationale: someone added to a powerful group such as sudo leaves no record of who did it
     fix:
@@ -236,7 +236,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/passwd}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/passwd}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records writes to /etc/passwd, so such a change leaves no trace for an investigation"
     rationale: a new account or a changed shell or uid, such as a second root, leaves no record of who made it
     fix:
@@ -255,7 +255,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/shadow}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/shadow}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/gshadow}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/gshadow}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records writes to /etc/shadow or /etc/gshadow, so such a change leaves no trace for an investigation"
     rationale: a replaced or blanked password hash lets someone log in as another user, and nothing shows who changed it
     fix:
@@ -273,7 +273,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/security/opasswd}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/security/opasswd}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records writes to /etc/security/opasswd, so such a change leaves no trace for an investigation"
     rationale: wiped password history lets a user reuse an old stolen password, and nothing shows who edited it
     fix:
@@ -291,7 +291,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/nsswitch.conf}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/nsswitch.conf}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records writes to /etc/nsswitch.conf, so such a change leaves no trace for an investigation"
     rationale: a changed lookup order can redirect user and host lookups to an attacker’s source, with no record of who changed it
     fix:
@@ -310,7 +310,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /etc/pam.conf}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/etc/pam.conf}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {enum: [/etc/pam.d, /etc/pam.d/]}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {enum: [dir=/etc/pam.d, dir=/etc/pam.d/]}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records writes to /etc/pam.conf or /etc/pam.d, so such a change leaves no trace for an investigation"
     rationale: a weakened login stack, such as one that accepts any password, leaves no record of who edited it
     fix:
@@ -335,7 +335,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: fchmodat}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: fchmodat2}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records chmod, fchmod, fchmodat or fchmodat2 on both architectures, so such a change leaves no trace for an investigation"
     rationale: a file made world-writable or a program made setuid root leaves no record of who changed it
     fix:
@@ -360,7 +360,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: lchown}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: fchownat}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records chown, fchown, lchown or fchownat on both architectures, so such a change leaves no trace for an investigation"
     rationale: a file handed to another user, or a root-owned file taken over, leaves no record of who changed it
     fix:
@@ -389,7 +389,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: lremovexattr}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: fremovexattr}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records setxattr, lsetxattr, fsetxattr, removexattr, lremovexattr or fremovexattr on both architectures, so such a change leaves no trace for an investigation"
     rationale: a file given extra privileges through capabilities or hidden labels leaves no record of who set them
     fix:
@@ -408,7 +408,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b64'}, {properties: {"-S": {contains: {const: mount}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: mount}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records mount on both architectures, so such a change leaves no trace for an investigation"
     rationale: a disk or share mounted over a system directory, or a stick attached to copy data, leaves no record of who did it
     fix:
@@ -428,7 +428,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /var/log/wtmp}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/var/log/wtmp}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /var/log/btmp}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/var/log/btmp}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records writes to utmp, wtmp or btmp, so such a change leaves no trace for an investigation"
     rationale: who was logged in and when can be erased from the login history with no record of the edit
     fix:
@@ -447,7 +447,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /var/log/lastlog}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/var/log/lastlog}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {const: /var/run/faillock}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {const: path=/var/run/faillock}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records writes to /var/log/lastlog or /var/run/faillock, so such a change leaves no trace for an investigation"
     rationale: last-login and failed-login counters can be reset to hide password guessing, and nothing shows who reset them
     fix:
@@ -468,7 +468,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: unlink}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: unlinkat}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records unlink or unlinkat on both architectures, so such a change leaves no trace for an investigation"
     rationale: a deleted log, key or evidence file leaves no record of who removed it
     fix:
@@ -491,7 +491,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: renameat}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: renameat2}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records rename, renameat or renameat2 on both architectures, so such a change leaves no trace for an investigation"
     rationale: a file renamed to hide it or to swap a program for another leaves no record of who did it
     fix:
@@ -510,7 +510,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {enum: [/etc/apparmor, /etc/apparmor/]}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {enum: [dir=/etc/apparmor, dir=/etc/apparmor/]}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-wa', properties: {"-w": {contains: {enum: [/etc/apparmor.d, /etc/apparmor.d/]}}}}, {$ref: '#/$defs/write', properties: {"-F": {contains: {enum: [dir=/etc/apparmor.d, dir=/etc/apparmor.d/]}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records writes to /etc/apparmor or /etc/apparmor.d, so such a change leaves no trace for an investigation"
     rationale: a confinement profile switched off or loosened lets a hacked service roam the system, with no record of who changed it
     fix:
@@ -528,7 +528,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-x', properties: {"-w": {contains: {const: /usr/bin/chcon}}}}, {$ref: '#/$defs/run', properties: {"-F": {contains: {const: path=/usr/bin/chcon}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records runs of /usr/bin/chcon, so such a change leaves no trace for an investigation"
     rationale: a changed security label on a file can free a confined program, and nothing shows who relabelled it
     fix:
@@ -546,7 +546,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-x', properties: {"-w": {contains: {const: /usr/bin/setfacl}}}}, {$ref: '#/$defs/run', properties: {"-F": {contains: {const: path=/usr/bin/setfacl}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records runs of /usr/bin/setfacl, so such a change leaves no trace for an investigation"
     rationale: a file opened to another user through an access list leaves no record of who granted it
     fix:
@@ -564,7 +564,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-x', properties: {"-w": {contains: {const: /usr/bin/chacl}}}}, {$ref: '#/$defs/run', properties: {"-F": {contains: {const: path=/usr/bin/chacl}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject}: no audit rule records runs of /usr/bin/chacl, so such a change leaves no trace for an investigation"
     rationale: a file opened to another user through an access list leaves no record of who granted it
     fix:
@@ -582,7 +582,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-x', properties: {"-w": {contains: {const: /usr/sbin/usermod}}}}, {$ref: '#/$defs/run', properties: {"-F": {contains: {const: path=/usr/sbin/usermod}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records runs of /usr/sbin/usermod, so such a change leaves no trace for an investigation"
     rationale: an account given new groups, a new shell or a new home leaves no record of who changed it
     fix:
@@ -600,7 +600,7 @@ rules:
       allOf:
         - not: {additionalProperties: {not: {contains: {anyOf: [{$ref: '#/$defs/watch-x', properties: {"-w": {contains: {const: /usr/bin/kmod}}}}, {$ref: '#/$defs/run', properties: {"-F": {contains: {const: path=/usr/bin/kmod}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records runs of /usr/bin/kmod, so such a change leaves no trace for an investigation"
     rationale: a kernel module loaded or removed through the kmod tool, a way to hide malware, leaves no record of who ran it
     fix:
@@ -621,7 +621,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: init_module}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: finit_module}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records init_module or finit_module on both architectures, so such a change leaves no trace for an investigation"
     rationale: a rootkit loaded into the kernel leaves no record of when or by whom
     fix:
@@ -640,7 +640,7 @@ rules:
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b64'}, {properties: {"-S": {contains: {const: delete_module}}}}]}}}}
         - not: {additionalProperties: {not: {contains: {allOf: [{$ref: '#/$defs/b32'}, {properties: {"-S": {contains: {const: delete_module}}}}]}}}}
     severity: info
-    score: 2.0
+    score: 1.8
     message: "{subject}: no audit rule records delete_module on both architectures, so such a change leaves no trace for an investigation"
     rationale: a security module unloaded from the kernel leaves no record of when or by whom
     fix:

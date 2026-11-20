@@ -69,8 +69,8 @@ rules:
     keys: {pattern: "/\\.bash_history$"}
     when: {home.dots.*.kind: file}
     expect: {pattern: "^0[0246]00$"}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 3.5
     message: "{subject} has mode {got}, beyond 0600, so other users read the commands its owner typed, and any password typed into one"
     rationale: any other user can read the commands the owner typed, including passwords typed on a command line by mistake
     fix: run “chmod 0600” on the file
@@ -112,7 +112,7 @@ rules:
     when: {home.dots.*.kind: directory}
     expect: {pattern: "^0[0-7]00$"}
     severity: info
-    score: 1.0
+    score: 2.0
     message: "{subject} has mode {got}; the benchmark asks 0700, so neither the owner’s group nor other users reach its keys"
     rationale: another user can read or replace the owner’s SSH keys and authorized keys, then log in as them
     fix: run “chmod 0700” on the directory

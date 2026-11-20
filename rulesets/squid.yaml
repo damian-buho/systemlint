@@ -11,8 +11,8 @@ rules:
     fact: squid.conf.*.mode
     when: {squid.conf.*.kind: file}
     expect: {pattern: "^[0-7]{3}0$"}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 4.5
     message: "{subject} has mode {got}, so every user reads it, the logins of its cache_peer lines included"
     rationale: any local user can read the proxy’s settings, including the passwords it uses to log in to other proxies
     fix: run “chmod 0640 {subject}” and “chgrp proxy {subject}”

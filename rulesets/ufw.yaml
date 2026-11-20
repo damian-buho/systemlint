@@ -28,8 +28,8 @@ rules:
     fact: ufw.conf.ENABLED
     when: {ufw.binary: {minProperties: 1}}
     expect: {const: "yes"}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 5.5
     message: "/etc/ufw/ufw.conf sets ENABLED={got}, so ufw loads no rules at boot and the host runs without its firewall"
     rationale: the host runs with no firewall, so every listening service is open to the network
     fix: run “ufw enable” once the rules allow your own SSH session, or uninstall ufw if another firewall guards the host
@@ -43,8 +43,8 @@ rules:
     keys: {const: ufw.service}
     when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes"}
     expect: {const: false}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 5.5
     message: "ufw.service is masked, so systemd never starts it and the rules /etc/ufw/ufw.conf enables are never loaded at boot"
     rationale: after each reboot the firewall rules are not loaded, so the host comes up open to the network
     fix:
@@ -62,8 +62,8 @@ rules:
     keys: {const: ufw.service}
     when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes", systemd.state.*: {required: [active]}}
     expect: {not: {const: failed}}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 5.5
     message: "ufw.service failed, so the rules /etc/ufw/ufw.conf enables are not loaded and the host runs without its firewall"
     rationale: the firewall rules are not loaded, so every listening service is open to the network
     fix:
@@ -82,8 +82,8 @@ rules:
     keys: {const: ufw.service}
     when: {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes", systemd.state.*.masked: false}
     expect: {const: true}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 5.5
     message: "no .wants or .requires link pulls in ufw.service, so systemd never starts it and the rules /etc/ufw/ufw.conf enables are never loaded at boot"
     rationale: after each reboot the firewall rules are not loaded, so the host comes up open to the network
     fix: run “systemctl enable --now ufw.service”
@@ -97,7 +97,7 @@ rules:
     when: &on {ufw.binary: {minProperties: 1}, ufw.conf.ENABLED: "yes"}
     expect: &deny {pattern: "(?i)^(drop|reject)$"}
     severity: warning
-    score: 6.0
+    score: 5.5
     message: "/etc/default/ufw sets DEFAULT_INPUT_POLICY={got}, so every port no rule denies is open to the network although ufw is on"
     rationale: every service listening on an unlisted port, including ones installed by accident, can be reached from the network
     fix: run “ufw default deny incoming” once the rules allow your own SSH session

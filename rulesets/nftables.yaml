@@ -14,8 +14,8 @@ rules:
       anyOf:
         - {properties: {policy: {const: drop}}}
         - {properties: {drops: {const: true}}}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 5.5
     message: "nftables.service is enabled, yet no chain on the IPv4 input hook has a drop policy or reaches a drop or reject rule, so the host accepts every IPv4 packet sent to it"
     rationale: the administrator believes a firewall protects the host, yet every service on it is reachable from any IPv4 address
     fix:
@@ -31,8 +31,8 @@ rules:
     fact: nftables.hooks.ipv6.input
     when: {sysctl.settings.net.ipv6.conf.all.disable_ipv6: {not: {const: 1}}}
     expect: *filtered
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 5.5
     message: "nftables.service is enabled, yet no chain on the IPv6 input hook has a drop policy or reaches a drop or reject rule, so the host accepts every IPv6 packet sent to it"
     rationale: the administrator believes a firewall protects the host, yet every service on it is reachable from any IPv6 address
     fix:
@@ -49,8 +49,8 @@ rules:
     keys: {const: nftables.service}
     when: {systemd.state.*: {required: [active]}}
     expect: {not: {const: failed}}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 5.5
     message: "nftables.service failed, so the ruleset in /etc/nftables.conf is not loaded and the host runs without its firewall"
     rationale: every service on the host is reachable from the network while the administrator believes a firewall is in place
     fix:

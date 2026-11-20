@@ -26,8 +26,8 @@ rules:
       all:
         - {fact: banner.*.*.world-writable, expect: {const: false}}
         - {fact: banner.*.*.group-writable, expect: {const: false}}
-    severity: warning
-    score: 4.0
+    severity: info
+    score: 3.0
     message: "{subject} is writable by its group or by every user, who can then show a forged notice to everyone who logs in and ask for their password"
     rationale: any user who can write to the banner can show every person logging in a forged notice, for instance a request for their password
     fix: run “chmod go-w” on the file
@@ -38,8 +38,8 @@ rules:
     title: The login banner is not owned by root
     fact: banner.*.*.uid
     expect: {const: 0}
-    severity: warning
-    score: 4.0
+    severity: info
+    score: 2.0
     message: "{subject} is owned by uid {got}, so that user can show a forged notice to everyone who logs in"
     rationale: a non-root owner can show every person logging in a forged notice, for instance a request for their password
     fix: run “chown root” on the file

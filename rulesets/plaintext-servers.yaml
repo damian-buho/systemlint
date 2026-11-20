@@ -45,7 +45,7 @@ rules:
     keys: {enum: [telnet.socket, rsh.socket, rlogin.socket, rexec.socket]}
     expect: *off
     severity: error
-    score: 8.0
+    score: 7.5
     message: "{subject} is enabled or running, so logins and their passwords cross the network in plain text, and rsh and rlogin trust whole hosts"
     rationale: anyone watching the network can read passwords as they are typed, and trusted hosts can log in without one
     fix: run “systemctl disable --now {subject}”, and log in over SSH instead

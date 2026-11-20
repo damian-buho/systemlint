@@ -306,7 +306,7 @@ rules:
         - {fact: kernel.install, expect: {required: [atm], properties: {atm: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
         - {fact: kernel.blacklist, expect: {required: [atm]}}
     severity: warning
-    score: 5.0
+    score: 4.5
     message: "atm is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening an atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a atm socket and so load kernel code for asynchronous transfer mode networking that nobody on this host uses, where one bug gives root
     remedy: {drop-in: {into: modprobe, name: block-atm-autoloading, lines: ["install atm /bin/false", "blacklist atm"]}}
@@ -318,7 +318,7 @@ rules:
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [atm]}}
     severity: warning
-    score: 5.0
+    score: 4.5
     message: "atm is loaded in the running kernel, so any local user opening an atm socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the atm code for asynchronous transfer mode networking is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
     remedy: {drop-in: {into: modprobe, name: block-atm-autoloading, lines: ["install atm /bin/false", "blacklist atm"], unload: true}}
@@ -332,7 +332,7 @@ rules:
         - {fact: kernel.install, expect: {required: [can], properties: {can: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
         - {fact: kernel.blacklist, expect: {required: [can]}}
     severity: warning
-    score: 5.0
+    score: 4.5
     message: "can is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening a can socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a can socket and so load kernel code for vehicle bus networking that nobody on this host uses, where one bug gives root
     remedy: {drop-in: {into: modprobe, name: block-can-autoloading, lines: ["install can /bin/false", "blacklist can"]}}
@@ -344,7 +344,7 @@ rules:
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [can]}}
     severity: warning
-    score: 5.0
+    score: 4.5
     message: "can is loaded in the running kernel, so any local user opening a can socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the can code for vehicle bus networking is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
     remedy: {drop-in: {into: modprobe, name: block-can-autoloading, lines: ["install can /bin/false", "blacklist can"], unload: true}}
@@ -388,7 +388,7 @@ rules:
         - {fact: kernel.install, expect: {required: [rds], properties: {rds: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
         - {fact: kernel.blacklist, expect: {required: [rds]}}
     severity: warning
-    score: 5.0
+    score: 5.5
     message: "rds is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening a rds socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a rds socket and so load kernel code for cluster messaging that nobody on this host uses, where one bug gives root
     remedy: {drop-in: {into: modprobe, name: block-rds-autoloading, lines: ["install rds /bin/false", "blacklist rds"]}}
@@ -402,7 +402,7 @@ rules:
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [rds]}}
     severity: warning
-    score: 5.0
+    score: 5.5
     message: "rds is loaded in the running kernel, so any local user opening a rds socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the rds code for cluster messaging is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
     remedy: {drop-in: {into: modprobe, name: block-rds-autoloading, lines: ["install rds /bin/false", "blacklist rds"], unload: true}}
@@ -448,7 +448,7 @@ rules:
         - {fact: kernel.install, expect: {required: [tipc], properties: {tipc: {properties: {command: {minItems: 1, prefixItems: [{pattern: '^(/usr)?/bin/(false|true)$'}]}}}}}}
         - {fact: kernel.blacklist, expect: {required: [tipc]}}
     severity: warning
-    score: 5.0
+    score: 5.5
     message: "tipc is shipped and modprobe.d lacks the install line that turns it away or the blacklist line that keeps a device from asking for it, so any local user opening a tipc socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: any local user can open a tipc socket and so load kernel code for cluster messaging that nobody on this host uses, where one bug gives root
     remedy: {drop-in: {into: modprobe, name: block-tipc-autoloading, lines: ["install tipc /bin/false", "blacklist tipc"]}}
@@ -462,7 +462,7 @@ rules:
     when: {kernel: {required: [loaded]}}
     expect: {not: {required: [tipc]}}
     severity: warning
-    score: 5.0
+    score: 5.5
     message: "tipc is loaded in the running kernel, so any local user opening a tipc socket loads a rarely used protocol stack, a frequent source of kernel privilege escalations"
     rationale: the tipc code for cluster messaging is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
     remedy: {drop-in: {into: modprobe, name: block-tipc-autoloading, lines: ["install tipc /bin/false", "blacklist tipc"], unload: true}}

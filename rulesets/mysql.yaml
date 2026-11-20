@@ -11,8 +11,8 @@ rules:
     fact: mysql.datadir.*.mode
     when: {mysql.datadir.*.kind: directory}
     expect: {pattern: "^[0-7]{3}0$"}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 5.5
     message: "{subject} has mode {got}, so every user lists the databases in it, and reads any table file whose own mode allows"
     rationale: any local user can list the databases and read table files, bypassing the database’s own logins
     fix: run “chmod 0750 {subject}”, keeping it owned by mysql

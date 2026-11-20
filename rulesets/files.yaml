@@ -42,8 +42,8 @@ rules:
     title: A file is not owned by root
     fact: files.*.*.uid
     expect: {const: 0}
-    severity: error
-    score: 8.0
+    severity: warning
+    score: 5.5
     message: "{subject} is owned by uid {got}, not root, so that user can change it"
     rationale: that user can rewrite the file and take over whatever root runs from it
     fix: run “chown root” on the file
@@ -57,8 +57,8 @@ rules:
     title: Password hashes are readable too widely
     fact: files.shadow.*.mode
     expect: {pattern: "^0[0246][04]0$"}
-    severity: error
-    score: 8.5
+    severity: warning
+    score: 6.5
     message: "{subject} has mode {got}; password hashes need 0640 or stricter, readable by root and the shadow group alone"
     rationale: a user who can read the password hashes can crack them offline and log in as anyone
     fix: run “chmod 0640” on the file
@@ -69,8 +69,8 @@ rules:
     title: An SSH host key is readable too widely
     fact: files.ssh-host-keys.*.mode
     expect: {pattern: "^0[0246][04]0$"}
-    severity: error
-    score: 8.5
+    severity: warning
+    score: 6.0
     message: "{subject} has mode {got}; a private host key needs 0600, or 0640 for an ssh_keys group, or any user can impersonate this host"
     rationale: a user who reads the private key can pose as this server and capture the passwords of people who log in
     fix: run “chmod 0600” on the key
@@ -82,8 +82,8 @@ rules:
     fact: files.apt-auth.*.mode
     when: {files.apt-auth.*.kind: file}
     expect: {pattern: "^[0-7]{3}[0-3]$"}
-    severity: error
-    score: 7.5
+    severity: warning
+    score: 5.5
     message: "{subject} has mode {got}, so every user reads the logins and passwords APT uses for private repositories and proxies"
     rationale: any local user can read the logins and passwords for private package repositories and proxies
     fix: run “chmod 0640” on the file, or “chmod 0600”
@@ -95,8 +95,8 @@ rules:
     fact: files.accounts.*.mode
     when: {files.accounts.*.kind: file}
     expect: {pattern: "^0[0246][04][04]$"}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 6.0
     message: "{subject} has mode {got}, beyond 0644, so someone other than root may rewrite the accounts it lists, or it carries an execute or special bit no database needs"
     rationale: a user who can rewrite the account list can add an account with root’s rights or unlock one without a password
     fix: run “chmod 0644” on the file
@@ -109,7 +109,7 @@ rules:
     when: {files.boot.*.kind: file}
     expect: {pattern: "^0[0-7]00$"}
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} has mode {got}; the benchmark asks 0600, so a GRUB password hash in it reaches no other user"
     rationale: any local user can read the boot password hash and crack it offline to edit the boot menu
     fix: run “chmod 0600” on the file, and keep it so across “update-grub” with a password set in “/etc/grub.d”
@@ -122,7 +122,7 @@ rules:
     when: {files.audit-config.*.kind: file}
     expect: {pattern: "^0[0246][04]0$"}
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} has mode {got}; the benchmark asks 0640 or stricter, so other users cannot read what is watched and plan around it"
     rationale: any local user can read what the audit system watches and choose actions that go unrecorded
     fix: run “chmod 0640” on the file
@@ -135,7 +135,7 @@ rules:
     when: {files.accounts.*.kind: file}
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 1.5
     message: "{subject} belongs to gid {got}; the benchmark asks group root, so no other group’s change of mode can open it"
     rationale: a member of another group could be given access to the account list when its mode changes, and rewrite who may log in
     fix: run “chgrp 0” on the file
@@ -160,7 +160,7 @@ rules:
     fact: files.audit-config.*.gid
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 1.5
     message: "{subject} belongs to gid {got}; the benchmark asks group root, so no other group’s change of mode can let it rewrite what is audited"
     rationale: members of another group could rewrite what the audit system records, and cover their tracks
     fix: run “chgrp 0” on the file
@@ -172,8 +172,8 @@ rules:
     fact: files.audit-tools.*.mode
     when: {files.audit-tools.*.kind: file}
     expect: {pattern: "^0[0-7][0145][0145]$"}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 4.0
     message: "{subject} has mode {got}, beyond 0755, so someone other than root may swap the tool that reads or changes the audit trail, or it runs with a set-ID or sticky bit it does not need"
     rationale: a user who can replace an audit tool can hide their own actions, or run their own code with the tool’s rights
     fix: run “chmod 0755” on the file
@@ -186,7 +186,7 @@ rules:
     when: {files.audit-tools.*.kind: file}
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 3.0
     message: "{subject} belongs to gid {got}, not root, so the members of that group get the group’s access to a tool that reads or changes the audit trail"
     rationale: members of that group can tamper with the tools that read or change the audit trail and so erase evidence
     fix: run “chgrp 0” on the file
@@ -198,8 +198,8 @@ rules:
     fact: files.libraries.*.gid
     when: {files.libraries.*.kind: file}
     expect: {maximum: "${system-gid-max}"}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 6.0
     message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts, so those users get the group’s access to code every program loading it runs"
     rationale: any member of that group can modify code that every program loading the library runs, root’s programs included
     fix: run “chgrp 0” on the file
@@ -211,8 +211,8 @@ rules:
     fact: files.libraries.*.gid
     when: {files.libraries.*.kind: directory}
     expect: {const: 0}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 5.0
     message: "{subject} belongs to gid {got}, not root, so the members of that group get the group’s access to a directory programs load their libraries from"
     rationale: members of that group can drop in a replacement library that programs, root’s included, then load
     fix: run “chgrp 0” on the directory
@@ -223,8 +223,8 @@ rules:
     title: A system command belongs to a group of user accounts
     fact: files.commands.*.gid
     expect: {maximum: "${system-gid-max}"}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 6.0
     message: "{subject} belongs to gid {got}, above ${system-gid-max}, a group of user accounts, so those users get the group’s access to a command root and every user run"
     rationale: any member of that group can change a command that root and every user run, and so run their code as root
     fix: run “chgrp 0” on the file
@@ -236,8 +236,8 @@ rules:
     fact: files.libraries.*.mode
     when: {files.libraries.*.kind: file}
     expect: {pattern: "^[0-7][0-7][0145][0145]$"}
-    severity: info
-    score: 1.0
+    severity: error
+    score: 7.0
     message: "{subject} has mode {got}, beyond 0755, so someone other than its owner can change code every program loading it runs"
     rationale: whoever can write the library runs their own code inside every program that loads it, root’s programs included
     fix: run “chmod go-w” on the file
@@ -248,8 +248,8 @@ rules:
     title: A shared library or its directory is not owned by root
     fact: files.libraries.*.uid
     expect: {const: 0}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 5.5
     message: "{subject} is owned by uid {got}, not root, so that user can replace code programs load, root’s programs included"
     rationale: the owner of a library or its directory can swap in their own code, which every program loading it then runs
     fix: run “chown root” on it
@@ -260,8 +260,8 @@ rules:
     title: A system command is writable by its group or other users
     fact: files.commands.*.mode
     expect: {pattern: "^[0-7][0-7][0145][0145]$"}
-    severity: info
-    score: 1.0
+    severity: error
+    score: 7.0
     message: "{subject} has mode {got}, beyond 0755, so someone other than its owner can change a command root and every user run"
     rationale: whoever can write a system command runs their own code as the next user to call it, root included
     fix: run “chmod go-w” on the file
@@ -272,8 +272,8 @@ rules:
     title: A system command is not owned by root
     fact: files.commands.*.uid
     expect: {const: 0}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 5.5
     message: "{subject} is owned by uid {got}, not root, so that user can change a command root and every user run"
     rationale: the owner of a system command can rewrite it and run their own code as the next user to call it, root included
     fix: run “chown root” on the file
@@ -285,7 +285,7 @@ rules:
     fact: files.audit-config.*.uid
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 2.0
     message: "{subject} is owned by uid {got}, not root, so that user can change what is audited"
     rationale: the owner of the audit configuration can stop the recording of their own actions
     fix: run “chown root” on the file
@@ -298,7 +298,7 @@ rules:
     when: {files.audit-tools.*.kind: file}
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 3.0
     message: "{subject} is owned by uid {got}, not root, so that user can swap the tool that reads or changes the audit trail"
     rationale: the owner of an audit tool can replace it with one that hides their actions from the audit trail
     fix: run “chown root” on the file

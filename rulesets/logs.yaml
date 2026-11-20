@@ -70,7 +70,7 @@ rules:
       'logrotate.{~logrotate.*.names}': {not: {type: object}}
     expect: {maximum: "${unrotated-bytes}"}
     severity: warning
-    score: 4.0
+    score: 3.5
     unit: bytes
     message: "{subject} has {field} {got} and no logrotate stanza names it, so nothing caps it and it grows until /var/log fills, taking logging and every service that writes there with it"
     rationale: an unrotated log grows without limit until its filesystem is full, and then logging and the services writing there fail

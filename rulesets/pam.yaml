@@ -59,7 +59,7 @@ rules:
       if: {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_unix\\.so$"}}}}
       then: {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?auth$"}, module: {pattern: "(^|/)pam_faillock\\.so$"}}}}
     severity: warning
-    score: 5.0
+    score: 4.0
     message: "{subject} checks passwords with pam_unix but never calls pam_faillock, so an attacker may guess passwords without limit"
     rationale: an attacker can try thousands of passwords against an account and is never shut out
     fix:
@@ -85,8 +85,8 @@ rules:
           properties:
             module: {pattern: "(^|/)pam_unix\\.so$"}
             arguments: {contains: {pattern: "^remember="}}
-    severity: warning
-    score: 3.0
+    severity: info
+    score: 1.5
     message: "{subject} passes remember= to pam_unix, which keeps old password hashes in /etc/security/opasswd in a format pam_pwhistory has replaced"
     rationale: old password hashes pile up in a file in a format the newer history module no longer reads or trims
     fix:
@@ -134,7 +134,7 @@ rules:
     keys: {const: /etc/pam.d/common-password}
     expect: {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwquality\\.so$"}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject} never calls pam_pwquality, so a new password is not checked against a dictionary or a minimum length"
     rationale: a user can set a password like “1234” or “password” because nothing checks it
     fix: install libpam-pwquality, which adds “pam_pwquality” to {subject} through “pam-auth-update”
@@ -148,7 +148,7 @@ rules:
     keys: {const: /etc/pam.d/common-password}
     expect: {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject} never calls pam_pwhistory, so a user may set a password they used before"
     rationale: a user forced to change a leaked password can simply set it back to the same one
     fix:
@@ -170,7 +170,7 @@ rules:
           module: {pattern: "(^|/)pam_wheel\\.so$"}
           arguments: {allOf: [{contains: {const: use_uid}}, {contains: {pattern: "^group=\\S+$"}}]}
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} has no required pam_wheel line with use_uid and group=, so every user may try root’s password through su"
     rationale: any local user who steals or guesses root’s password can become root with su
     fix: add “auth required pam_wheel.so use_uid group=<an empty group>” to {subject}
@@ -222,7 +222,7 @@ rules:
     when: {"/auth/pam/~1etc~1pam.d~1common-password": {allOf: [{contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}}}}, {not: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}, arguments: {contains: {pattern: "^remember="}}}}}}]}}
     expect: {required: [remember], properties: {remember: {minimum: "${pwhistory-remember}"}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "/etc/security/pwhistory.conf keeps fewer than ${pwhistory-remember} old passwords (unset is 10), so a user may cycle back to an old one"
     rationale: a user cycles through a few new passwords and lands back on a leaked old one
     fix: set “remember = ${pwhistory-remember}” or more in “/etc/security/pwhistory.conf”
@@ -236,7 +236,7 @@ rules:
         - {fact: auth.pwhistory, expect: {required: [enforce_for_root], properties: {enforce_for_root: {const: true}}}}
         - {fact: "/auth/pam/~1etc~1pam.d~1common-password", expect: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}, arguments: {contains: {pattern: "^enforce_for_root$"}}}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "neither /etc/security/pwhistory.conf nor the pam_pwhistory line sets enforce_for_root, so root changing a password may reuse an old one"
     rationale: root can set a password back to one that was already leaked or shared
     fix: add “enforce_for_root” to “/etc/security/pwhistory.conf”
@@ -249,7 +249,7 @@ rules:
     when: {"/auth/pam/~1etc~1pam.d~1common-password": {contains: {required: [type, module], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}}}}}
     expect: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_pwhistory\\.so$"}, arguments: {contains: {pattern: "^use_authtok$"}}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject} calls pam_pwhistory without use_authtok, so it prompts for the new password instead of taking the one pam_pwquality checked"
     rationale: the history module asks for the new password a second time and may check a different one than the one the strength check approved
     fix:
@@ -264,7 +264,7 @@ rules:
     keys: {const: /etc/pam.d/common-password}
     expect: {not: {contains: {required: [type, module, arguments], properties: {type: {pattern: "(?i)^-?password$"}, module: {pattern: "(^|/)pam_unix\\.so$"}, arguments: {not: {contains: {const: use_authtok}}}}}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "{subject} calls pam_unix to set passwords without use_authtok, so it may prompt for a new password the modules before it never checked"
     rationale: a new password typed again at the pam_unix prompt can skip the strength and history checks that ran before it
     fix:

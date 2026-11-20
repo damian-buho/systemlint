@@ -33,8 +33,8 @@ rules:
     fact: auth.pwquality
     when: {"/auth/pam/~1etc~1pam.d~1common-password": {not: {contains: {allOf: [*called, {required: [arguments], properties: {arguments: {contains: {pattern: "^minlen="}}}}]}}}}
     expect: {required: [minlen], properties: {minlen: {type: integer, minimum: "${pwquality-single-factor-minlen}"}}}
-    severity: warning
-    score: 3.0
+    severity: info
+    score: 2.0
     message: "pwquality.conf leaves minlen unset (8) or below ${pwquality-single-factor-minlen}, so a password that alone guards a login may be short enough to guess offline from its hash"
     rationale: a password that is the only thing guarding a login can be short enough to crack from its stolen hash
     fix: set “minlen = ${pwquality-single-factor-minlen}” in “/etc/security/pwquality.conf.d/50-pwlength.conf”
@@ -52,8 +52,8 @@ rules:
         ucredit: *credit
         lcredit: *credit
         ocredit: *credit
-    severity: warning
-    score: 3.0
+    severity: info
+    score: 2.0
     message: "pwquality.conf sets {field} to {got}, a positive credit, so each such character counts as an extra one and a password shorter than minlen is accepted"
     rationale: a short password padded with a few digits or symbols counts as long enough and is easy to crack
     fix: set “{field} = 0” in “/etc/security/pwquality.conf”, or a negative value to require that class
@@ -71,7 +71,7 @@ rules:
         ocredit: *composed
         minclass: {not: {type: integer, exclusiveMinimum: 1}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "pwquality.conf sets {field} to {got}, a composition rule, which steers people to predictable patterns such as a capital first and a digit and a symbol last"
     rationale: people follow the rule with a predictable pattern like Password1!, which attackers try first
     fix:
@@ -191,8 +191,8 @@ rules:
         - allOf:
             - {properties: {pam: {properties: {/etc/pam.d/common-password: {not: {contains: {allOf: [*called, {required: [arguments], properties: {arguments: {contains: {pattern: "^dictcheck="}}}}]}}}}}}}
             - {properties: {pwquality: {properties: {dictcheck: &off {not: {anyOf: [{const: 0}, {type: string, pattern: "^0+$"}]}}}}}}
-    severity: warning
-    score: 4.0
+    severity: info
+    score: 2.5
     message: "pwquality.conf or the pam_pwquality line of /etc/pam.d/common-password sets dictcheck to 0, so a new password that is a dictionary word is accepted"
     rationale: a common word or a leaked password is accepted and falls to a dictionary attack in seconds
     fix:
@@ -211,8 +211,8 @@ rules:
         - allOf:
             - {properties: {pam: {properties: {/etc/pam.d/common-password: {not: {contains: {allOf: [*called, {required: [arguments], properties: {arguments: {contains: {pattern: "^enforcing="}}}}]}}}}}}}
             - {properties: {pwquality: {properties: {enforcing: *off}}}}
-    severity: warning
-    score: 4.0
+    severity: info
+    score: 2.5
     message: "pwquality.conf or the pam_pwquality line of /etc/pam.d/common-password sets enforcing to 0, so pam_pwquality prints its objection and accepts the weak password anyway"
     rationale: users see the warning, set the weak password anyway, and the check protects nothing
     fix:
@@ -227,7 +227,7 @@ rules:
         - {fact: auth.pwquality, expect: {required: [enforce_for_root], properties: {enforce_for_root: {const: true}}}}
         - {fact: "/auth/pam/~1etc~1pam.d~1common-password", expect: {contains: {allOf: [*called, {required: [arguments], properties: {arguments: {contains: {const: enforce_for_root}}}}]}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "neither pwquality.conf nor the pam_pwquality line sets enforce_for_root, so root changing a password is only warned about a weak one"
     rationale: root can set a weak password for itself, and root’s password is the one worth most to an attacker
     fix: add “enforce_for_root” to “/etc/security/pwquality.conf.d/50-pwroot.conf”

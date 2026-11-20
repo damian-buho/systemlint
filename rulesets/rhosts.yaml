@@ -13,7 +13,7 @@ rules:
     when: {rhosts.system.*.kind: file}
     expect: {maximum: 0}
     severity: error
-    score: 8.0
+    score: 7.0
     message: "{subject} names hosts, so the installed rsh or rlogin server lets their users in as the same local user with no password"
     rationale: anyone on a listed host can log in as the same local user without a password
     fix:
@@ -27,7 +27,7 @@ rules:
     when: {rhosts.users.*.kind: file}
     expect: {maximum: 0}
     severity: error
-    score: 8.0
+    score: 7.0
     message: "{subject} names hosts, so the installed rsh or rlogin server lets the users it lists log in as its owner with no password"
     rationale: anyone on a listed host can log in as that user without a password
     fix:

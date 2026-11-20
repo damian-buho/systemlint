@@ -10,8 +10,8 @@ rules:
     title: Setuid programs dump core readable by the user
     fact: sysctl.settings.fs.suid_dumpable
     expect: {enum: [0, 2]}
-    severity: error
-    score: 6.8
+    severity: warning
+    score: 4.0
     message: "fs.suid_dumpable is {got}, so a crashed setuid program leaves a core file its user can read, with the secrets it held"
     rationale: a crash of a privileged program leaves a file anyone can read, holding its memory with password hashes and keys
     remedy: {drop-in: {into: sysctl, name: coredump-suid-dumpable, lines: ["fs.suid_dumpable = 0"]}}
@@ -36,7 +36,7 @@ rules:
             required: [type, item, value]
             properties: {type: {pattern: "(?i)^(hard|-)$"}, item: {pattern: "(?i)^core$"}, value: {not: {const: 0}}}
     severity: warning
-    score: 3.0
+    score: 3.5
     message: "pam_limits sets no hard core limit of 0 for every user, or raises it for some, so a program that crashes in a login session can write its memory, secrets included, to a core file"
     rationale: a crashing program writes its memory, with passwords and keys in it, to disk where it can be read later
     fix:
@@ -53,7 +53,7 @@ rules:
     when: {sysctl.settings.fs.suid_dumpable: 2}
     expect: {pattern: "^\\|?/"}
     severity: info
-    score: 1.0
+    score: 2.5
     message: "kernel.core_pattern is {got} while fs.suid_dumpable is 2, so the kernel refuses every setuid core dump to that relative path and a crash of a setuid program leaves nothing to debug"
     rationale: a crash of a privileged program leaves no core file, so the cause of the crash cannot be examined
     fix: set “kernel.core_pattern” to an absolute path or a “|pipe”, or set “fs.suid_dumpable = 0”

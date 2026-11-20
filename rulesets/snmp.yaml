@@ -13,8 +13,8 @@ rules:
       any:
         - {fact: ports, expect: {properties: {"udp:161": {properties: {addresses: {items: {pattern: "^(127\\.|::1$)"}}}}}}}
         - {fact: snmp.communities, expect: {maxProperties: 0}}
-    severity: warning
-    score: 6.0
+    severity: error
+    score: 7.0
     message: "snmpd listens beyond the loopback on UDP 161 and a com2sec, rocommunity or rwcommunity line names public or private, so whoever reaches it reads, or with rw changes, what the agent exposes"
     rationale: anyone on the network who guesses the well-known password can read the host’s details, and with write access change its settings
     fix: replace the community in “/etc/snmp/snmpd.conf” with a long random one, or move to SNMPv3 users (“createUser”)

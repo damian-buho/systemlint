@@ -11,7 +11,7 @@ rules:
     fact: usb.authorized-default.*
     expect: {not: {contains: {const: "1"}}}
     severity: info
-    score: 1.0
+    score: 2.5
     message: "{subject} is 1, so a device plugged into that controller, a keyboard that types commands among them, works before anyone approves it"
     rationale: a malicious USB device, such as a fake keyboard that types commands, is trusted the moment it is plugged in
     fix: authorize devices with usbguard, or write “0” (none) or “2” (internal ports only) to the “authorized_default” files from a udev rule

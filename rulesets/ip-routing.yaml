@@ -44,7 +44,7 @@ rules:
         - {fact: sysctl.settings.net.ipv4.conf.*.accept_source_route, expect: {const: 0}}
         - {fact: sysctl.settings.net.ipv4.conf.all.accept_source_route, expect: {const: 0}}
     severity: warning
-    score: 6.0
+    score: 5.5
     message: "{subject} and all both set accept_source_route, so a sender can dictate the path replies take and slip past filters that trust the source address"
     rationale: a sender can choose the path of a packet and bypass firewalls that trust where it appears to come from
     fix: set “net.ipv4.conf.all.accept_source_route = 0”
@@ -58,7 +58,7 @@ rules:
     keys: {enum: [all, default]}
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 2.5
     message: "net.ipv4.conf.{subject}.secure_redirects is {got}, so a redirect is accepted from any packet claiming a listed gateway’s address, which a spoofed source satisfies; ip-routing/ipv4-redirects judges the wider setting"
     rationale: an attacker who spoofs a gateway’s address can still redirect this host’s traffic to their machine
     remedy: {drop-in: {into: sysctl, name: ip-routing-ipv4-secure-redirects, lines: ["net.ipv4.conf.all.secure_redirects = 0", "net.ipv4.conf.default.secure_redirects = 0"]}}
@@ -69,8 +69,8 @@ rules:
     fact: sysctl.settings.net.ipv4.conf.*.route_localnet
     keys: {not: {const: lo}}
     expect: {const: 0}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 5.5
     message: "{subject} sets route_localnet {got}, so a packet from the link addressed to 127.0.0.1 is delivered, and services bound to loopback only answer anyone next to this host"
     rationale: a machine on the network can reach services meant to be open only to this host, such as a database bound to 127.0.0.1
     remedy: {drop-in: {into: sysctl, name: ip-routing-route-localnet, lines: ["net.ipv4.conf.all.route_localnet = 0", "net.ipv4.conf.default.route_localnet = 0", "net.ipv4.conf.{subject}.route_localnet = 0"]}}
@@ -81,7 +81,7 @@ rules:
     fact: sysctl.settings.net.ipv4.ip_forward
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 3.0
     message: "net.ipv4.ip_forward is {got}, so this host routes IPv4 packets between its interfaces"
     rationale: a compromised or misconfigured host becomes a bridge that passes an attacker from one network to another
     fix: set “net.ipv4.ip_forward = 0”, unless this host is a router or runs containers that need it
@@ -93,7 +93,7 @@ rules:
     keys: {enum: [all, default]}
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 3.0
     message: "net.ipv4.conf.{subject}.forwarding is {got}, so this host routes IPv4 packets between its interfaces"
     rationale: a compromised or misconfigured host becomes a bridge that passes an attacker from one network to another
     fix: set “net.ipv4.conf.all.forwarding = 0” and “net.ipv4.conf.default.forwarding = 0”, unless this host is a router or runs containers that need it
@@ -105,7 +105,7 @@ rules:
     keys: {enum: [all, default]}
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 3.0
     message: "net.ipv6.conf.{subject}.forwarding is {got}, so this host routes IPv6 packets between its interfaces"
     rationale: a compromised or misconfigured host becomes a bridge that passes an attacker from one network to another
     fix: set “net.ipv6.conf.all.forwarding = 0” and “net.ipv6.conf.default.forwarding = 0”, unless this host is a router or runs containers that need it
@@ -117,7 +117,7 @@ rules:
     keys: {enum: [all, default]}
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 2.5
     message: "net.ipv4.conf.{subject}.send_redirects is {got}, so this host tells its neighbours to reroute traffic, which only a router should"
     rationale: a host that is not a router can be made to steer its neighbours’ traffic along paths an attacker picks
     remedy: {drop-in: {into: sysctl, name: ip-routing-ipv4-send-redirects, lines: ["net.ipv4.conf.all.send_redirects = 0", "net.ipv4.conf.default.send_redirects = 0"]}}
@@ -129,7 +129,7 @@ rules:
     keys: {enum: [all, default]}
     expect: {const: 1}
     severity: info
-    score: 1.0
+    score: 3.0
     message: "net.ipv4.conf.{subject}.rp_filter is {got}, not the strict 1 the benchmark asks; systemd ships the loose 2, which a host with several uplinks needs"
     rationale: packets with forged source addresses are accepted and can be used to spoof trusted machines or aim floods at a victim
     fix: set “net.ipv4.conf.all.rp_filter = 1” and “net.ipv4.conf.default.rp_filter = 1”, unless replies may arrive on another interface than the request left
@@ -152,8 +152,8 @@ rules:
     fact: sysctl.settings.net.ipv6.conf.*.accept_source_route
     keys: {enum: [all, default]}
     expect: {const: 0}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 5.5
     message: "net.ipv6.conf.{subject}.accept_source_route is {got}, so a sender may choose the path its IPv6 packets take through this host"
     rationale: a sender can choose the path of a packet and bypass firewalls that trust where it appears to come from
     remedy: {drop-in: {into: sysctl, name: ip-routing-ipv6-source-route, lines: ["net.ipv6.conf.all.accept_source_route = 0", "net.ipv6.conf.default.accept_source_route = 0"]}}
@@ -164,8 +164,8 @@ rules:
     fact: sysctl.settings.net.ipv6.conf.*.accept_ra
     keys: {enum: [all, default]}
     expect: {const: 0}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 4.5
     message: "net.ipv6.conf.{subject}.accept_ra is {got}, so any host on the link may announce itself as the IPv6 router; a host that takes its address from SLAAC needs it"
     rationale: anyone on the network can announce themselves as the router and carry all of this host’s traffic
     fix: set “net.ipv6.conf.all.accept_ra = 0” and “net.ipv6.conf.default.accept_ra = 0”, unless this host configures IPv6 from router advertisements
@@ -177,7 +177,7 @@ rules:
     keys: {enum: [all]}
     expect: {enum: [1, 2]}
     severity: info
-    score: 1.0
+    score: 2.0
     message: "net.ipv4.conf.all.arp_ignore is {got}, so this host answers ARP for an address on any of its interfaces"
     rationale: a host can be tricked into answering for addresses it should not, which helps an attacker map or impersonate it
     fix: set “net.ipv4.conf.all.arp_ignore = 1”
@@ -189,7 +189,7 @@ rules:
     keys: {enum: [all]}
     expect: {const: 2}
     severity: info
-    score: 1.0
+    score: 2.0
     message: "net.ipv4.conf.all.arp_announce is {got}, so ARP requests may name a source address from another interface"
     rationale: a host leaks addresses from its other networks into requests on the wrong network, revealing its layout
     fix: set “net.ipv4.conf.all.arp_announce = 2”
@@ -201,7 +201,7 @@ rules:
     keys: {enum: [all, default]}
     expect: {const: 1}
     severity: info
-    score: 1.0
+    score: 2.0
     message: "net.ipv4.conf.{subject}.shared_media is {got}, not the kernel’s default 1 dev-sec asks"
     rationale: a host accepts redirects to gateways it cannot reach directly, which a forged message can use to misroute traffic
     fix: set “net.ipv4.conf.all.shared_media = 1” and “net.ipv4.conf.default.shared_media = 1”
@@ -225,7 +225,7 @@ rules:
     keys: {enum: [default]}
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 3.0
     message: "net.ipv6.conf.default.accept_ra_rtr_pref is {got}, so a router advertisement may rank itself above the real router"
     rationale: an attacker’s advertisement can claim high priority and take over from the real router
     fix: set “net.ipv6.conf.default.accept_ra_rtr_pref = 0”, unless this host configures IPv6 from router advertisements
@@ -236,8 +236,8 @@ rules:
     fact: sysctl.settings.net.ipv6.conf.*.accept_ra_pinfo
     keys: {enum: [default]}
     expect: {const: 0}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 3.5
     message: "net.ipv6.conf.default.accept_ra_pinfo is {got}, so a router advertisement may hand this host an address prefix"
     rationale: an attacker’s advertisement can give the host an address range that sends its traffic through the attacker
     fix: set “net.ipv6.conf.default.accept_ra_pinfo = 0”, unless this host configures IPv6 from router advertisements
@@ -248,8 +248,8 @@ rules:
     fact: sysctl.settings.net.ipv6.conf.*.accept_ra_defrtr
     keys: {enum: [default]}
     expect: {const: 0}
-    severity: info
-    score: 1.0
+    severity: warning
+    score: 4.0
     message: "net.ipv6.conf.default.accept_ra_defrtr is {got}, so a router advertisement may become this host’s default route"
     rationale: an attacker’s advertisement can make their machine the path for all of this host’s outgoing traffic
     fix: set “net.ipv6.conf.default.accept_ra_defrtr = 0”, unless this host configures IPv6 from router advertisements
@@ -261,7 +261,7 @@ rules:
     keys: {enum: [all, default]}
     expect: {const: 0}
     severity: info
-    score: 1.0
+    score: 3.0
     message: "net.ipv6.conf.{subject}.autoconf is {got}, so this host takes an IPv6 address from any router advertisement; a host configured by SLAAC needs it"
     rationale: an attacker’s advertisement can give the host an address of the attacker’s choosing
     fix: set “net.ipv6.conf.all.autoconf = 0” and “net.ipv6.conf.default.autoconf = 0”, unless this host configures IPv6 from router advertisements

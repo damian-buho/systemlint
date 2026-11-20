@@ -33,8 +33,8 @@ rules:
     keys: {const: systemd-journald.service}
     when: {systemd.state.*: {required: [active]}}
     expect: {const: active}
-    severity: warning
-    score: 5.0
+    severity: info
+    score: 3.0
     message: "{subject} is {got}, so programs that log to the journal or to syslog lose what they write"
     rationale: messages from services and from the system itself vanish, so an intrusion or a crash leaves no trace
     fix:

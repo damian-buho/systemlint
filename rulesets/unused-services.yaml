@@ -29,7 +29,7 @@ rules:
     keys: {enum: [avahi-daemon.service, avahi-daemon.socket]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: the Avahi mDNS daemon announces this host and its services to the local network, a service to leave off unless this host offers it"
     rationale: any machine on the network learns what this host is and which services it runs, and can feed it forged announcements
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -41,7 +41,7 @@ rules:
     keys: {enum: [kea-dhcp-ddns-server.service, kea-dhcp4-server.service, kea-dhcp6-server.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: a Kea DHCP server hands out addresses and routes to any host on the network, a service to leave off unless this host offers it"
     rationale: a misconfigured or compromised server can hand every host on the network a wrong address or gateway and redirect their traffic
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -53,7 +53,7 @@ rules:
     keys: {enum: [named.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: the BIND DNS server answers DNS queries from the network, a service to leave off unless this host offers it"
     rationale: a flaw in the name server can be attacked by anyone on the network, and it can be abused to amplify floods at other targets
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -65,7 +65,7 @@ rules:
     keys: {enum: [dnsmasq.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: dnsmasq serves DNS and DHCP to the network, a service to leave off unless this host offers it"
     rationale: a flaw in this small network server can be attacked by anyone on the network, and it can poison the names that hosts use
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -77,7 +77,7 @@ rules:
     keys: {enum: [vsftpd.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} is enabled or running: the vsftpd FTP server serves files over FTP, a service to leave off unless this host offers it"
     rationale: anyone on the network can try passwords against a service that sends them in clear text and exposes files
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -89,7 +89,7 @@ rules:
     keys: {enum: [slapd.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: the slapd LDAP server serves a directory to the network, a service to leave off unless this host offers it"
     rationale: anyone on the network can query or attack the directory of users and passwords
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -101,7 +101,7 @@ rules:
     keys: {enum: [dovecot.service, dovecot.socket]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: the Dovecot IMAP and POP3 server serves mailboxes to the network, a service to leave off unless this host offers it"
     rationale: anyone on the network can try passwords against mailboxes or exploit a flaw in the mail server
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -113,7 +113,7 @@ rules:
     keys: {enum: [nfs-server.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} is enabled or running: the NFS server exports file systems to the network, a service to leave off unless this host offers it"
     rationale: other machines can mount the exported directories and read or change files if an export is too open
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -125,7 +125,7 @@ rules:
     keys: {enum: [cups.service, cups.socket]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: the CUPS print server takes print jobs and serves its web interface, a service to leave off unless this host offers it"
     rationale: anyone on the network can send jobs or reach the web interface, and past flaws here have given remote code execution
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -137,7 +137,7 @@ rules:
     keys: {enum: [rpcbind.service, rpcbind.socket]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} is enabled or running: rpcbind maps RPC programs to ports for any host that asks, a service to leave off unless this host offers it"
     rationale: any host can ask which RPC services run here, and the service has been used to amplify floods at other targets
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -149,7 +149,7 @@ rules:
     keys: {enum: [rsync.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: the rsync daemon serves files over the rsync protocol, a service to leave off unless this host offers it"
     rationale: anyone on the network can read or overwrite files shared over this daemon when a module is too open
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -161,7 +161,7 @@ rules:
     keys: {enum: [smbd.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} is enabled or running: the Samba file server shares files over SMB, a service to leave off unless this host offers it"
     rationale: anyone on the network can try to read shared files or exploit a flaw in the file server
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -173,7 +173,7 @@ rules:
     keys: {enum: [snmpd.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: the SNMP daemon answers SNMP queries about this host, a service to leave off unless this host offers it"
     rationale: anyone who guesses the community string can read details of the host’s network, processes and software, or change settings
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -185,7 +185,7 @@ rules:
     keys: {enum: [inetutils-inetd.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} is enabled or running: inetutils-inetd starts the telnet server and other inetd services, a service to leave off unless this host offers it"
     rationale: anyone on the network can log in over telnet, where passwords and sessions travel unencrypted
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -197,7 +197,7 @@ rules:
     keys: {enum: [squid.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: the Squid proxy relays web traffic for its clients, a service to leave off unless this host offers it"
     rationale: outsiders can use the proxy to hide their traffic behind this host or reach internal networks through it
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -209,7 +209,7 @@ rules:
     keys: {enum: [apache2.service, apache2.socket, nginx.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is enabled or running: a web server serves HTTP to the network, a service to leave off unless this host offers it"
     rationale: anyone on the network can reach the web server and attack its code or any application running on it
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose
@@ -221,7 +221,7 @@ rules:
     keys: {enum: [xinetd.service]}
     expect: *off
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} is enabled or running: xinetd starts network services on demand, a service to leave off unless this host offers it"
     rationale: every service it starts on demand is another door open to the network, often an old unencrypted one
     fix: run “systemctl mask --now {subject}”, or remove its package, unless this host serves it on purpose

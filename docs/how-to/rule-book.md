@@ -53,6 +53,36 @@ workload: forwarding and `overlay` break Docker, `squashfs` breaks snaps,
 `usb-storage` breaks a desktop, refused router advertisements break SLAAC.
 It stays in its subject’s ruleset and runs when that standard is named.
 
+## Scores
+
+A score says how bad the exposure is on a typical host, never how often a
+benchmark cites it. Pick the band from who can do what, then move within it
+by how likely and how easy that is:
+
+| Score | Who gains what |
+| --- | --- |
+| 8.0–9.9 | anyone on the network takes the host, its root or its secrets now, with no login, or any local user becomes root at once: an open Docker socket, an empty password with SSH open, unsigned packages, a setuid file anyone may write |
+| 6.6–7.9 | anyone on the network reads or changes its traffic, or a local user becomes root with a known step: plain-HTTP sources, root login over SSH, an exploit ASLR would stop |
+| 4.5–6.5 | a neighbour on the link or any local user gains a real foothold: redirects accepted, a kernel module any user can load, secrets readable by every user |
+| 3.3–4.4 | an attacker who already has a foothold gets a step further, or the host stops working under load: core dumps of setuid programs, a service port in the ephemeral range |
+| 2.0–3.2 | a hardening layer that makes a known attack harder is off: ICMP rate limits, a kernel pointer leak, ASLR weaker than full |
+| 1.0–1.9 | a record or a preference is missing and nothing is exposed by it alone: an audit watch, a separate mount, a banner |
+
+Loss of data or service scores on its own scale, the higher of the two
+winning:
+
+| Score | What is lost |
+| --- | --- |
+| 8.0–9.9 | data is being lost now or at the next fault: a failing disk, a degraded array, a critical temperature |
+| 6.6–7.9 | the host or its trust breaks soon on its own: a worn-out disk, an expired certificate |
+| 4.5–6.5 | data or a service degrades: bad sectors, media errors, a high temperature |
+| 3.3–4.4 | the host stops working under load: a full `/boot`, files near their limit |
+
+A rule a standard alone asks for scores what its exposure is worth, not less
+for being standard-only. A score never sits at a band’s floor by default: give
+it the number its row and its likelihood earn, and two rules about the same
+exposure the same number.
+
 ## Small rulesets
 
 One ruleset per subject a person thinks of (`ufw.yaml`, `kernel.yaml`,

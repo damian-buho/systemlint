@@ -23,7 +23,7 @@ rules:
     when: {apparmor.binary: {minProperties: 1}}
     expect: {minProperties: 1}
     severity: info
-    score: 4.0
+    score: 3.0
     message: "the kernel lists no loaded AppArmor profile, so AppArmor is off (apparmor=0, another LSM) or apparmor.service loaded nothing, and every program runs unconfined"
     rationale: a hijacked service keeps full access to everything its user can reach, because nothing limits what a program may touch
     fix:
@@ -62,7 +62,7 @@ rules:
     when: {apparmor.profiles.*.mode: {not: {const: unconfined}}}
     expect: {enum: [enforce, kill]}
     severity: info
-    score: 2.0
+    score: 2.5
     message: "{subject} is in {got} mode, so AppArmor lets the program do what the profile would deny"
     rationale: a hijacked program can still do the things its profile was written to forbid, because violations are only logged or not checked at all
     fix: once the profile allows what the program needs, run “aa-enforce” on it; a stub profile from “/etc/apparmor.d” needs its rules written first

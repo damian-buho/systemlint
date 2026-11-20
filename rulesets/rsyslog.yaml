@@ -45,7 +45,7 @@ rules:
               - {properties: {legacy: {required: [filecreatemode]}}}
               - {properties: {objects: {contains: {properties: {type: {const: module}, params: {required: [load, filecreatemode], properties: {load: {pattern: "(?i)^(builtin:)?omfile$"}}}}}}}}
     severity: warning
-    score: 4.0
+    score: 3.5
     message: "no rsyslog configuration file sets $FileCreateMode or the omfile module’s fileCreateMode, so rsyslog creates each log file 0644, readable by every user"
     rationale: any local user can read the new log files, which hold client addresses, failed logins and leaked tokens
     fix:
@@ -63,7 +63,7 @@ rules:
         legacy: {properties: {filecreatemode: {items: {properties: {value: &mode {pattern: "^0?[0246][04]0$"}}}}}}
         objects: {items: {properties: {params: {properties: {filecreatemode: *mode}}}}}
     severity: warning
-    score: 4.0
+    score: 3.5
     message: "{subject} sets a $FileCreateMode or fileCreateMode more open than 0640, so rsyslog creates log files other users can read or anyone can change"
     rationale: other users can read, or even change, the log files, which hold client addresses, failed logins and leaked tokens
     fix:
@@ -80,7 +80,7 @@ rules:
         objects: {not: {contains: {properties: {type: {const: input}, params: {required: [type], properties: {type: {pattern: "(?i)^im(tcp|ptcp|udp|relp|gssapi)$"}}}}}}}
         legacy: {not: {anyOf: [{required: [inputtcpserverrun]}, {required: [inputptcpserverrun]}, {required: [udpserverrun]}, {required: [inputudpserverrun]}, {required: [inputrelpserverrun]}, {required: [inputgssserverrun]}]}}
     severity: info
-    score: 2.0
+    score: 3.0
     message: "{subject} starts an rsyslog network input, so any host that reaches the port can write log lines here, fill the disk or forge entries"
     rationale: anyone who can reach the port can flood the disk with fake lines or plant forged log entries to cover an intrusion
     fix:
@@ -110,8 +110,8 @@ rules:
       anyOf:
         - {properties: {selectors: {not: {contains: {properties: {action: {type: string, pattern: "^@@"}}}}}}}
         - {properties: {legacy: {required: [actionsendstreamdrivermode], properties: {actionsendstreamdrivermode: {contains: {properties: {value: {const: "1"}}}}}}}}
-    severity: info
-    score: 2.0
+    severity: warning
+    score: 3.5
     message: "{subject} forwards logs over UDP, or over TCP without StreamDriverMode 1, so anyone on the path reads them and can forge entries"
     rationale: anyone on the network path can read the logs in transit and inject forged entries into the central log
     fix:

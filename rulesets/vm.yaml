@@ -49,6 +49,7 @@ rules:
     when: {memory.info.MemTotal: {type: integer}}
     expect: {x-cel: "double(self) * 102400.0 <= double(vars['min-free-percent']) * double(facts.memory.info.MemTotal)"}
     severity: warning
+    score: 3.5
     message: "vm.min_free_kbytes is {got}, over ${min-free-percent}% of this host’s memory, so the kernel reclaims and kills processes for memory while that much stays idle"
     rationale: a large part of memory sits idle while programs are killed for lack of it
     fix: remove the “vm.min_free_kbytes” setting so the kernel sizes it from memory, or lower it
@@ -61,6 +62,7 @@ rules:
         - {fact: sysctl.settings.vm.overcommit_memory, expect: {not: {const: 2}}}
         - {fact: memory.info.CommitLimit, expect: {x-cel: "double(self) * 100.0 >= double(vars['commit-limit-percent']) * double(facts.memory.info.MemTotal)"}}
     severity: warning
+    score: 3.5
     message: "vm.overcommit_memory is {got} and the commit limit, vm.overcommit_ratio of memory plus swap, is under ${commit-limit-percent}% of memory, so allocations fail with out-of-memory errors while the rest stays unused"
     rationale: programs are refused memory and crash with out-of-memory errors while much of the memory is still free
     fix: raise “vm.overcommit_ratio” or add swap until “CommitLimit” in “/proc/meminfo” covers what the services commit

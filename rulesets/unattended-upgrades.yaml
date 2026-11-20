@@ -42,7 +42,7 @@ rules:
         - {not: {patternProperties: {"(?i)^unattended-upgrade::remove-unused-dependencies$": {not: {pattern: "(?i)^(\\s*\\+?(0x)?0*1|yes|true|with|on|enable)$"}}}}}
         - {patternProperties: {"(?i)^unattended-upgrade::remove-unused-kernel-packages$": {not: {pattern: "(?i)^(|\\s*[+-]?(0x0+|0+)|no|false|without|off|disable)$"}}}}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "Unattended-Upgrade::Remove-Unused-Dependencies is off or Remove-Unused-Kernel-Packages is off, so dependencies and kernels an upgrade replaced stay installed"
     rationale: old dependencies and kernels pile up, filling the disk until upgrades fail and leaving old vulnerable code on the host
     fix: set “Unattended-Upgrade::Remove-Unused-Dependencies "true";” and “Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";” in “/etc/apt/apt.conf.d/50unattended-upgrades”

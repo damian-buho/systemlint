@@ -29,7 +29,7 @@ rules:
     fact: auth.login-defs
     expect: {required: [UMASK], properties: {UMASK: {type: string, pattern: "^0[0-7]?77$"}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "UMASK in /etc/login.defs is unset (022) or leaves a group bit open, where 077 is asked, so a user’s new files are readable by the members of their group"
     rationale: files a user creates can be read by every member of their group, so private documents and keys are exposed to people who need not see them
     fix: set “UMASK 077” in “/etc/login.defs”
@@ -40,7 +40,7 @@ rules:
     fact: auth.login-defs
     expect: {required: [ENCRYPT_METHOD], properties: {ENCRYPT_METHOD: {enum: [SHA512, YESCRYPT]}}}
     severity: warning
-    score: 5.0
+    score: 4.5
     message: "ENCRYPT_METHOD in /etc/login.defs is unset or names a scheme other than SHA512 or YESCRYPT, written in capitals, so chpasswd, newusers and pam_unix with no hash option fall back to DES or MD5, whose hashes crack offline in hours"
     rationale: password hashes stored in the weak scheme can be cracked offline within hours once the hash file leaks
     fix:
@@ -56,7 +56,7 @@ rules:
     fact: auth.login-defs
     expect: {required: [ENCRYPT_METHOD], properties: {ENCRYPT_METHOD: {const: SHA512}}}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "ENCRYPT_METHOD in /etc/login.defs is {got}, where SHA512, the FIPS 140-3 approved scheme, is asked"
     rationale: password hashes may be stored in a scheme outside the approved set, which a regulated environment rejects and may be cracked faster
     fix:
@@ -74,7 +74,7 @@ rules:
         - {required: [SHA_CRYPT_MIN_ROUNDS], properties: {SHA_CRYPT_MIN_ROUNDS: {type: integer, minimum: 5000}}}
         - {not: {required: [SHA_CRYPT_MIN_ROUNDS]}, properties: {SHA_CRYPT_MAX_ROUNDS: {type: integer, minimum: 5000}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "SHA_CRYPT_MIN_ROUNDS, or SHA_CRYPT_MAX_ROUNDS when it is the only one set, in /etc/login.defs is below 5000, the default, so new password hashes cost an offline attacker less than an unconfigured host’s"
     rationale: each password guess costs an attacker less to try, so a leaked hash file is cracked sooner
     fix: set “SHA_CRYPT_MIN_ROUNDS 5000” in “/etc/login.defs”, or remove both “SHA_CRYPT_*_ROUNDS” lines to get the default
@@ -121,7 +121,7 @@ rules:
     fact: auth.login-defs
     expect: {required: [PASS_MIN_DAYS], properties: {PASS_MIN_DAYS: {type: integer, minimum: "${password-min-days}"}}}
     severity: info
-    score: 2.0
+    score: 1.5
     message: "PASS_MIN_DAYS in /etc/login.defs is unset or below ${password-min-days}, so on accounts made from now on a forced password change can be undone at once"
     rationale: a user can change the password straight back to the old one, so a forced change on a possibly leaked password achieves nothing
     fix:
@@ -137,7 +137,7 @@ rules:
     fact: auth.login-defs
     expect: {required: [PASS_WARN_AGE], properties: {PASS_WARN_AGE: {type: integer, minimum: "${password-warn-days}"}}}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "PASS_WARN_AGE in /etc/login.defs is unset or below ${password-warn-days}, so accounts made from now on get less warning before their password expires"
     rationale: users learn too late that their password is about to expire and can be locked out of the host or caught off guard
     fix:

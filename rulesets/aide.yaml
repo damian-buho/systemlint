@@ -11,7 +11,7 @@ rules:
     fact: aide.binary
     expect: {minProperties: 1}
     severity: info
-    score: 2.0
+    score: 2.5
     message: "no aide program is in /usr/bin, /bin or /usr/local/bin, so a changed system file goes unnoticed"
     rationale: nothing watches for changed system files, so a planted backdoor or altered program stays undetected
     fix:
@@ -33,7 +33,7 @@ rules:
         dailyaidecheck.timer: {required: [enabled], properties: {enabled: {const: true}, active: {const: active}}}
         dailyaidecheck.service: {properties: {masked: {const: false}}}
     severity: info
-    score: 2.0
+    score: 2.5
     message: "dailyaidecheck.timer is missing, not enabled or not active, or dailyaidecheck.service is masked, so AIDE never compares the disk against its database"
     rationale: file changes are never checked, so a planted backdoor or altered program stays undetected
     fix:
@@ -63,7 +63,7 @@ rules:
     when: {aide.binary: {minProperties: 1}}
     expect: {minProperties: 1}
     severity: info
-    score: 2.0
+    score: 2.5
     message: "aide is on disk but /var/lib/aide/aide.db is not, so AIDE has no baseline to compare the disk against"
     rationale: the integrity checker has no record of how the files used to look, so it cannot spot a planted backdoor or altered program
     fix:

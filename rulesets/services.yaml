@@ -22,8 +22,8 @@ rules:
       systemd.units.*.sections: {properties: {Unit: {not: {required: [X-Snappy]}}}}
       systemd.state.*.enabled: true
       systemd.state.*.masked: false
-    severity: warning
-    score: 6.0
+    severity: info
+    score: 3.0
     message: "{subject} runs as root with every capability, may gain privileges through setuid programs and may write anywhere, so any bug in it hands over the whole host"
     rationale: a single flaw in the service gives an attacker complete control of the host
     fix:

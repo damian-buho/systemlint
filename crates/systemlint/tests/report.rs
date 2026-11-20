@@ -540,13 +540,13 @@ fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_first() {
     let (document, checks) = sources();
     let text = lint_human(&document, &checks, 0, false, false, false);
     let expected = "Error (7.5): [apt/stale-suite]\nA source fetches an older release’s suite\nTags: default, apt\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nRationale: the host stops getting new package versions and security fixes from that source, and its old packages can clash with the rest of the system.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
-        Warning (4.5): [apt/overlap]\nA repository is partly listed in two places\nTags: default, apt\n- /a.list:1.\n- /b.sources:1.\nRationale: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
-        Rating            F\nErrors            2\nWarnings          2\nInfo              0\nPassed            2\n";
+        Info (1.5): [apt/overlap]\nA repository is partly listed in two places\nTags: default, apt\n- /a.list:1.\n- /b.sources:1.\nRationale: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
+        Rating            E\nErrors            2\nWarnings          0\nInfo              2\nPassed            2\n";
     assert_eq!(text, expected);
     let painted = lint_human(&document, &checks, 0, true, false, true);
     assert!(
         painted.contains("\x1b[31mError\x1b[0m (7.5): \x1b[1m[apt/stale-suite]\x1b[0m")
-            && painted.contains("\x1b[33mWarning\x1b[0m"),
+            && painted.contains("\x1b[2mInfo\x1b[0m"),
         "{painted}"
     );
     assert!(!painted.contains("Rating"), "quiet drops the summary");
@@ -872,7 +872,7 @@ fn plain_prints_one_tab_separated_line_per_finding() {
     assert_eq!(lines.len(), 5, "{text}");
     assert_eq!(
         lines[2],
-        "warning\t4.5\tapt/overlap\t/a.list:1\tlists some of the same suites and components as “/b.sources:1”.\t1. List each suite and component in one entry only. 2. Then refresh the package lists: “sudo apt update”."
+        "info\t1.5\tapt/overlap\t/a.list:1\tlists some of the same suites and components as “/b.sources:1”.\t1. List each suite and component in one entry only. 2. Then refresh the package lists: “sudo apt update”."
     );
     assert!(
         lines[0].starts_with("error\t7.5\tapt/stale-suite\t/a.list:1\t"),
@@ -880,7 +880,7 @@ fn plain_prints_one_tab_separated_line_per_finding() {
     );
     assert_eq!(
         lines[4],
-        "rating\tF\t\t\tErrors 2, Warnings 2, Info 0, Passed 2\t"
+        "rating\tE\t\t\tErrors 2, Warnings 0, Info 2, Passed 2\t"
     );
     assert!(
         lines

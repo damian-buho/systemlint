@@ -78,8 +78,8 @@ rules:
     fact: apt.sources.*.uris
     when: {apt.sources.*.enabled: true}
     expect: {items: {not: {pattern: "^([a-z]+\\+)?(http|ftp)://"}}}
-    severity: warning
-    score: 6.0
+    severity: error
+    score: 7.0
     message: "{subject} fetches over {got}, which shows every package name to the network and lets it withhold updates"
     rationale: anyone on the network path can read which packages are installed, hold back updates, or swap in a different package
     fix: switch the source to “https://”
@@ -103,8 +103,8 @@ rules:
     fact: apt.sources.*.covered-by
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
-    severity: warning
-    score: 4.5
+    severity: info
+    score: 1.5
     message: "{subject} lists nothing that {got} does not list already"
     rationale: the same repository is fetched twice and a later edit to one entry leaves the other behind, so the host mixes old and new settings
     fix:
@@ -119,8 +119,8 @@ rules:
     fact: apt.sources.*.overlaps
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
-    severity: warning
-    score: 4.5
+    severity: info
+    score: 1.5
     message: "{subject} lists some of the same suites and components as {got}"
     rationale: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour
     fix:
@@ -134,8 +134,8 @@ rules:
     fact: apt.sources.*.key-conflicts
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
-    severity: error
-    score: 8.5
+    severity: warning
+    score: 5.0
     message: "{subject} and {got} name one repository with different Signed-By keys, so apt refuses to update"
     rationale: updates from that repository stop working, so the host quietly stops receiving its packages
     fix: give the entries the same “Signed-By”, or remove one of them
@@ -146,8 +146,8 @@ rules:
     fact: apt.sources.*.expired-lists
     when: {apt.sources.*.enabled: true}
     expect: {maxItems: 0}
-    severity: error
-    score: 7.0
+    severity: warning
+    score: 5.0
     message: "{subject} has an expired Release file {got}, so apt installs nothing new from it until an update succeeds"
     rationale: the host cannot install or update anything from that source, and its fixes stop arriving
     fix: run “sudo apt update”, and fix the error it reports for the source
@@ -240,7 +240,7 @@ rules:
         - {not: {patternProperties: {"(?i)^apt::install-recommends$": {not: {pattern: *false}}}}}
         - {patternProperties: {"(?i)^apt::install-suggests$": {not: {pattern: *true}}}}
     severity: info
-    score: 2.0
+    score: 1.0
     message: "APT::Install-Recommends or APT::Install-Suggests is on, so every install pulls in packages nobody asked for, each one more to patch"
     rationale: every install brings along extra packages nobody asked for, each adding code that needs patching and can hold a vulnerability
     remedy: {drop-in: {into: apt, name: skip-recommends-and-suggests, lines: ['APT::Install-Recommends "0";', 'APT::Install-Suggests "0";']}}
