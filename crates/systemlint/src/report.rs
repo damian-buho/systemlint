@@ -167,6 +167,12 @@ const VALUE: &str = "36";
 /// The style of a line the reader types or writes, shown alone.
 const SHOWN: &str = "1";
 
+/// The colour of the `Rationale:` label: bold magenta.
+const RATIONALE: &str = "1;35";
+
+/// The colour of the `Fix:` and `Run:` labels: bold green.
+const FIX: &str = "1;32";
+
 /// `text` with each “quoted” span and absolute path painted as a value, or as it is.
 fn values(on: bool, text: &str) -> String {
     if !on {
@@ -209,10 +215,16 @@ fn paths(text: &str) -> String {
 /// A fix’s lines under `indent`: one `Fix:` sentence, or `Fix:` over its numbered steps, each command or file line alone below its step.
 fn fix_text(fix: &Fix, indent: &str, on: bool) -> String {
     let steps = match fix {
-        Fix::Text(text) => return format!("{indent}Fix: {}\n", values(on, &sentence(text))),
+        Fix::Text(text) => {
+            return format!(
+                "{indent}{} {}\n",
+                paint(on, FIX, "Fix:"),
+                values(on, &sentence(text))
+            );
+        }
         Fix::Steps(steps) => steps,
     };
-    let mut out = format!("{indent}Fix:\n");
+    let mut out = format!("{indent}{}\n", paint(on, FIX, "Fix:"));
     let mut number = 0;
     for step in steps {
         match step {
@@ -629,7 +641,11 @@ fn failure_block(
             ) {
                 (Some(command), true) => item.step = Some(build_step(command, check)),
                 (Some(command), false) if !folded => {
-                    item.under = format!("  Run: {}\n", paint(on, SHOWN, command));
+                    item.under = format!(
+                        "  {} {}\n",
+                        paint(on, FIX, "Run:"),
+                        paint(on, SHOWN, command)
+                    );
                 }
                 _ => {}
             }
@@ -646,7 +662,12 @@ fn failure_block(
     }
     let mut mid = String::new();
     if let Some(why) = &worst.rationale {
-        let _ = writeln!(mid, "Rationale: {}", sentence(why));
+        let _ = writeln!(
+            mid,
+            "{} {}",
+            paint(on, RATIONALE, "Rationale:"),
+            sentence(why)
+        );
     }
     if let Some(fix) = problems[0][0]
         .fix
@@ -675,10 +696,15 @@ fn failure_block(
 
 /// `items` joined by commas into lines of at most `WIDTH` columns, each indented by two spaces.
 fn wrap(items: &[String], on: bool) -> String {
+    wrap_at(items, on, WIDTH)
+}
+
+/// `items` joined by commas into lines of at most `limit` columns, each indented by two spaces.
+fn wrap_at(items: &[String], on: bool, limit: usize) -> String {
     let (mut out, mut width) = (String::new(), 0);
     for item in items {
         let length = item.chars().count();
-        if width > 0 && width + 2 + length > WIDTH {
+        if width > 0 && width + 2 + length > limit {
             out.push_str(",\n");
             width = 0;
         } else if width > 0 {
@@ -767,12 +793,7 @@ fn counts(
             ", run them by naming their ruleset in --tags",
             None,
         ),
-        (
-            "Not run",
-            not_run,
-            ", they need root, an opt-in flag or fresher facts",
-            None,
-        ),
+        ("Not run", not_run, "", None),
         (
             "Nothing to check",
             n("skip") + n("not-applicable"),
@@ -808,6 +829,64 @@ fn summary_rows(document: &Value, checks: &[Check], left_out: usize, on: bool) -
             None => numbers::count(count as u64),
         };
         out += &row(label, &format!("{shown}{why}"));
+        if label == "Not run" {
+            out += &not_run_rows(document, checks, on);
+        }
+    }
+    out
+}
+
+/// What the not-run rules need, each with its words for one rule and for several.
+const NEEDS: [(&str, &str, &str); 6] = [
+    ("root", "needs root", "need root"),
+    (
+        "access",
+        "is refused even to root",
+        "are refused even to root",
+    ),
+    ("opt-in", "needs an opt-in flag", "need an opt-in flag"),
+    (
+        "live",
+        "needs a live run, not --root",
+        "need a live run, not --root",
+    ),
+    ("fresh", "needs fresher facts", "need fresher facts"),
+    (
+        "",
+        "needs a fact a skipped collector holds",
+        "need a fact a skipped collector holds",
+    ),
+];
+
+/// One indented line per need under the `Not run` count, naming the rules that need it.
+fn not_run_rows(document: &Value, checks: &[Check], on: bool) -> String {
+    let mut needs: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for check in checks.iter().filter(|c| skip_reason(document, c).is_some()) {
+        let outcome = &document["collectors"][check.collector.as_deref().unwrap_or_default()];
+        let need = match outcome["status"].as_str() {
+            Some("ok") => "live",
+            _ => outcome["needs"].as_str().unwrap_or_default(),
+        };
+        needs.entry(need).or_default().insert(&check.rule);
+    }
+    let mut out = String::new();
+    for (key, one, many) in NEEDS {
+        let Some(rules) = needs.get(key) else {
+            continue;
+        };
+        let what = if rules.len() == 1 { one } else { many };
+        let noun = if rules.len() == 1 { "rule" } else { "rules" };
+        log::debug!("not run, {key}: {} rules", rules.len());
+        let _ = writeln!(
+            out,
+            "  {} {noun} {what}:",
+            numbers::count(rules.len() as u64)
+        );
+        let names: Vec<String> = rules.iter().map(|r| (*r).to_owned()).collect();
+        out += &wrap_at(&names, on, WIDTH - 3)
+            .lines()
+            .map(|l| format!("  {l}\n"))
+            .collect::<String>();
     }
     out
 }
@@ -877,14 +956,14 @@ fn collector_blocks<'a>(
     }
 }
 
-/// One block per rule: not run reasons, unreadable paths, unknowns, manual rules, waivers, failures worst first (with references when `verbose`), each with where it sorts.
+/// One block per rule: not run reasons under `verbose`, unreadable paths, unknowns, manual rules, waivers, failures worst first (with references when `verbose`), each with where it sorts.
 fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Block> {
     let mut blocks = Vec::new();
     let mut out = String::new();
     collector_blocks(
         &mut out,
         "Not run",
-        checks.iter().filter_map(|c| {
+        checks.iter().filter(|_| verbose).filter_map(|c| {
             Some((
                 shown_skip(document, c)?.to_owned(),
                 c.collector.as_deref()?,
@@ -942,7 +1021,12 @@ fn blocks(document: &Value, checks: &[Check], verbose: bool, on: bool) -> Vec<Bl
     for check in checks.iter().filter(|c| c.outcome == Outcome::Manual) {
         let _ = writeln!(out, "{}", header("Manual", check, on));
         if let Some(why) = &check.rationale {
-            let _ = writeln!(out, "Rationale: {}", sentence(why));
+            let _ = writeln!(
+                out,
+                "{} {}",
+                paint(on, RATIONALE, "Rationale:"),
+                sentence(why)
+            );
         }
         out.push('\n');
     }

@@ -444,8 +444,8 @@ expiry is the only judgement that reads the clock at lint time.
 
 ## Check output and exit codes
 
-`--format human` prints one block per rule, an empty line after each: a
-`Not run` block per reason a collector was skipped (no root, a refused read,
+`--format human` prints one block per rule, an empty line after each: with
+`-v`, a `Not run` block per reason a collector was skipped (no root, a refused read,
 live-only under `--root`) with its rules wrapped under it, none for an opt-in the
 run did not ask for (`--image-config`, `--network`, `--containers`), which only the counts show, a
 `Not read` block per path a collector could not read (still `unknown` in the
@@ -463,7 +463,7 @@ step. The summary
 follows, one count per row: the rating, each level, the passes, then what did
 not run in two kinds. `Not selected` and `Not run` are yours to turn on (name
 the ruleset in `--tags`; run as root, add the opt-in flag, or collect fresh
-facts), while `Nothing to check` is a rule this host has nothing for (no
+facts), `Not run` listing its rules under it by what each needs, while `Nothing to check` is a rule this host has nothing for (no
 such program, a ruleset whose `when` the host does not meet). One last line
 names the rulesets with no rule that applies to the host:
 
@@ -473,7 +473,11 @@ Errors            5
 Warnings          9
 Info              0
 Passed            577
-Not run           24, they need root, an opt-in flag or fresher facts
+Not run           24
+  3 rules need root:
+    accounts/shadow-missing, files/owner, logs/file-mode
+  1 rule needs an opt-in flag:
+    tls/expired
 Nothing to check  21, the host has nothing these rules judge
 
 Not applicable to this host: gdm, nftables, tls.
@@ -492,8 +496,8 @@ it opens with, a rule not run on one `not-run` line per reason whatever its
 subjects, and the counts after `rating` and the grade. Subject, `Rationale:` and `Fix:` lines, and the last two fields of every
 line, end with a full stop unless they already end a sentence, and
 the last field opens with a capital, so a screen reader reading the whole report
-pauses between them. Colour marks only the level word
-and rule IDs, so the words still carry the meaning; `--color auto`, the
+pauses between them. Colour marks only the level word, rule IDs and the
+`Rationale:`, `Fix:` and `Run:` labels, so the words still carry the meaning; `--color auto`, the
 default, turns it off under `NO_COLOR`, `SYSTEMLINT_NO_COLOR`, `TERM=dumb` or
 when stdout is not a terminal, and `FORCE_COLOR` turns it on.
 `--format json` prints the document’s `meta`, every check, passes included, and

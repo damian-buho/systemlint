@@ -233,10 +233,9 @@ fn umask() -> u32 {
 fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     let mut document = facts("root");
     document["env"] = json!({"files": {"/etc/environment": {"vars": {}}}});
-    let root = json!({"status": "skipped", "reason": "needs root, and this run is unprivileged", "into": "env.processes"});
+    let root = json!({"status": "skipped", "needs": "root", "reason": "needs root, and this run is unprivileged", "into": "env.processes"});
     document["collectors"]["env-processes"] = root.clone();
-    document["collectors"]["env-defaults"] =
-        json!({"status": "skipped", "reason": root["reason"], "into": "env.defaults"});
+    document["collectors"]["env-defaults"] = json!({"status": "skipped", "needs": "root", "reason": root["reason"], "into": "env.defaults"});
     document["collectors"]["env-image"] = json!({"status": "error", "reason": "can’t read it\nat src/lib.rs:1:1", "into": "env.image"});
     let rules = ["a", "b"].map(|id| {
         compile(
@@ -247,8 +246,13 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     });
     let checks = lint(&document, &rules, &[], "2026-11-11");
     let text = lint_human(&document, &checks, 0, false, false, false);
-    assert!(text.contains("Not run (env-defaults, env-processes): needs root, and this run is unprivileged\n  env/a, env/b\n\n"), "{text}");
-    assert_eq!(text.matches("Not run (").count(), 1, "{text}");
+    let reasons = lint_human(&document, &checks, 0, false, true, false);
+    assert!(reasons.contains("Not run (env-defaults, env-processes): needs root, and this run is unprivileged\n  env/a, env/b\n\n"), "{reasons}");
+    assert_eq!(reasons.matches("Not run (").count(), 1, "{reasons}");
+    assert!(
+        !text.contains("Not run ("),
+        "the reasons wait for -v: {text}"
+    );
     assert!(
         text.contains("Unknown (env-image): can’t read it.\n  env/a, env/b\n\n"),
         "a collector error prints once, its rules under it, its later lines only with -v: {text}"
@@ -256,7 +260,7 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     let loud = lint_human(&document, &checks, 0, false, true, false);
     assert!(loud.contains("can’t read it\nat src/lib.rs:1:1"), "{loud}");
     assert!(
-        text.ends_with("Passed            2\nUnknown           2\nNot run           4, they need root, an opt-in flag or fresher facts\n"),
+        text.ends_with("Passed            2\nUnknown           2\nNot run           4\n  2 rules need root:\n    env/a, env/b\n"),
         "{text}"
     );
     assert!(
@@ -282,11 +286,12 @@ fn a_key_files_leave_unset_is_not_run_where_a_set_one_still_judges() {
     let checks = lint(&document, &rules, &[], "2026-11-20");
     let text = lint_human(&document, &checks, 0, false, false, false);
     assert!(
-        text.contains("Not run (sysctl): read the files alone\n  kernel/unset\n"),
+        lint_human(&document, &checks, 0, false, true, false)
+            .contains("Not run (sysctl): read the files alone\n  kernel/unset\n"),
         "{text}"
     );
     assert!(
-        text.ends_with("Passed            1\nUnknown           1\nNot run           1, they need root, an opt-in flag or fresher facts\n"),
+        text.ends_with("Passed            1\nUnknown           1\nNot run           1\n  1 rule needs a live run, not --root:\n    kernel/unset\n"),
         "a present value the rule can’t decide stays unknown: {text}"
     );
 }
@@ -294,8 +299,8 @@ fn a_key_files_leave_unset_is_not_run_where_a_set_one_still_judges() {
 #[test]
 fn an_opt_in_left_off_prints_no_block_and_still_counts() {
     let mut document = facts("root");
-    document["collectors"]["env-image"] = json!({"status": "skipped", "opt-in": true, "reason": "reads an image config, and no --image-config was given", "into": "env.image"});
-    document["collectors"]["env-processes"] = json!({"status": "skipped", "reason": "can’t read /proc/1/environ without root", "into": "env.processes"});
+    document["collectors"]["env-image"] = json!({"status": "skipped", "opt-in": true, "needs": "opt-in", "reason": "reads an image config, and no --image-config was given", "into": "env.image"});
+    document["collectors"]["env-processes"] = json!({"status": "skipped", "needs": "root", "reason": "can’t read /proc/1/environ without root", "into": "env.processes"});
     let rules = ["image", "processes"].map(|source| {
         let yaml = format!("fact: env.{source}.*.vars\nexpect: {{type: object}}\n");
         compile(
@@ -308,11 +313,12 @@ fn an_opt_in_left_off_prints_no_block_and_still_counts() {
     let text = lint_human(&document, &checks, 0, false, false, false);
     assert!(!text.contains("image-config"), "{text}");
     assert!(
-        text.contains("Not run (env-processes): can’t read /proc/1/environ without root\n"),
+        lint_human(&document, &checks, 0, false, true, false)
+            .contains("Not run (env-processes): can’t read /proc/1/environ without root\n"),
         "{text}"
     );
     assert!(
-        text.ends_with("Not run           2, they need root, an opt-in flag or fresher facts\n"),
+        text.ends_with("Not run           2\n  1 rule needs root:\n    env/processes\n  1 rule needs an opt-in flag:\n    env/image\n"),
         "{text}"
     );
     let plain = lint_plain(&document, &checks, true);
@@ -778,7 +784,7 @@ fn human_wraps_a_long_not_run_list_within_80_columns() {
         &lint(&document, &rules, &[], "2026-11-11"),
         0,
         true,
-        false,
+        true,
         false,
     );
     assert!(text.lines().all(|l| l.chars().count() <= 80), "{text}");
@@ -788,6 +794,41 @@ fn human_wraps_a_long_not_run_list_within_80_columns() {
             && text.contains("env/rule-11\n\n"),
         "{text}"
     );
+    let summary = lint_human(
+        &document,
+        &lint(&document, &rules, &[], "2026-11-11"),
+        0,
+        false,
+        false,
+        false,
+    );
+    assert!(
+        summary.lines().all(|l| l.chars().count() <= 80),
+        "{summary}"
+    );
+    assert!(
+        summary.contains("Not run           12\n  12 rules need a fact a skipped collector holds:\n    env/rule-00, "),
+        "{summary}"
+    );
+}
+
+#[test]
+fn the_rationale_and_fix_labels_take_their_colours() {
+    let rule = compile("x/drop", systemlint::yaml::from_str(EXPLAINED).unwrap()).unwrap();
+    let document = json!({"v": 1});
+    let text = lint_human(
+        &document,
+        &lint(&document, &[rule], &[], "2026-11-20"),
+        0,
+        true,
+        false,
+        true,
+    );
+    assert!(
+        text.contains("\x1b[1;35mRationale:\x1b[0m a value [here] leaks."),
+        "{text:?}"
+    );
+    assert!(text.contains("\x1b[1;32mFix:\x1b[0m drop it."), "{text:?}");
 }
 
 #[test]

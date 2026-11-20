@@ -212,7 +212,7 @@ document, with a `reason` when it is not `ok`:
 | --- | --- |
 | `ok` | the plugin replied and its facts are under `into` |
 | `error` | reading failed for any reason but a refusal, the plugin exited non-zero or replied with invalid JSON; the reason is kept |
-| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`, a fact it needs or reads from whose collector was skipped (`needs fact sshd, which collector sshd skipped: …`), or the kernel refused a read (`can’t list /etc/cron.hourly without root`), or a `check` read its saved facts past their `ttl` (`expired: true`, its facts dropped); the reason is kept, and `opt-in: true` marks an `image-config`, `network` or `containers` collector the run did not ask for |
+| `skipped` | the mode cannot run it, such as `exec` or `live` under `--root`, `image-config` without `--image-config`, `privileged` in an unprivileged run, or `network` without `--network`, a fact it needs or reads from whose collector was skipped (`needs fact sshd, which collector sshd skipped: …`), or the kernel refused a read (`can’t list /etc/cron.hourly without root`), or a `check` read its saved facts past their `ttl` (`expired: true`, its facts dropped); the reason is kept, `opt-in: true` marks an `image-config`, `network` or `containers` collector the run did not ask for, and `needs` names what would run it: `root`, `access` (refused even to root), `opt-in`, `live` (not `--root`) or `fresh` (newer facts), inherited by a collector that waited on it |
 
 An `ok` collector also records its `plugin` and `op`, the plugin’s
 `diagnostics`, under `redacted` the JSON Pointers of the values the plugin
@@ -222,9 +222,9 @@ marked secret, which are replaced by `[redacted]` in every output, and under
 
 A rule that reads a fact from a collector that did not finish `ok` answers
 `unknown`, naming that collector, rather than passing. The `human` report lists
-an `unknown` from a `skipped` collector on no line of its own: it prints one
-`not run` line per skip reason, naming the collectors and the rules, and counts
-those checks as `not run`; `json`, `sarif` and `textfile` keep them
+an `unknown` from a `skipped` collector on no line of its own: with `-v` it prints one
+`not run` line per skip reason, naming the collectors and the rules; it counts
+those checks as `not run`, and lists their rules under that count by `needs`; `json`, `sarif` and `textfile` keep them
 `unknown`.
 
 ## The facts document

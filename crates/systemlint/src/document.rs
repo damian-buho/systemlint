@@ -191,7 +191,7 @@ pub fn expire(document: &mut Value, now: i64) {
         {
             map.remove(leaf);
         }
-        document["collectors"][&id] = serde_json::json!({"status": "skipped", "reason": reason, "into": into, "ttl": ttl, "expired": true});
+        document["collectors"][&id] = serde_json::json!({"status": "skipped", "reason": reason, "into": into, "ttl": ttl, "expired": true, "needs": "fresh"});
     }
 }
 

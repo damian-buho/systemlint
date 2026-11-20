@@ -160,16 +160,22 @@ pub fn collect_reporting(
         } else {
             None
         };
-        let skip = match (
+        let (skip, needs) = match (
             (collector.live || collector.network) && !options.live,
             collector.privileged && !options.privileged,
         ) {
-            (true, _) => Some(format!(
-                "reads the live host only, and --root {} was given",
-                options.root.path().display()
-            )),
-            (_, true) => Some("needs root, and this run is unprivileged".to_owned()),
-            _ => None,
+            (true, _) => (
+                Some(format!(
+                    "reads the live host only, and --root {} was given",
+                    options.root.path().display()
+                )),
+                "live",
+            ),
+            (_, true) => (
+                Some("needs root, and this run is unprivileged".to_owned()),
+                "root",
+            ),
+            _ => (None, ""),
         };
         let hosted = options.target.is_some()
             && (collector.host || collector.containers || collector.network);
@@ -187,8 +193,12 @@ pub fn collect_reporting(
                 opt_in.is_some()
             );
             let mut outcome = json!({"status": "skipped", "reason": reason});
+            if !needs.is_empty() && !hosted {
+                outcome["needs"] = json!(needs);
+            }
             if opt_in.is_some() {
                 outcome["opt-in"] = Value::Bool(true);
+                outcome["needs"] = json!("opt-in");
             }
             if hosted {
                 outcome["host"] = Value::Bool(true);
@@ -198,7 +208,7 @@ pub fn collect_reporting(
         }
         if collector.read.commands_only() && !options.live {
             log::debug!("collector {} skipped: exec under --root", collector.id);
-            outcomes.insert(collector.id.clone(), json!({"status": "skipped", "reason": format!("runs {} on a live host only, and --root {} was given", collector.read.program(), options.root.path().display())}));
+            outcomes.insert(collector.id.clone(), json!({"status": "skipped", "needs": "live", "reason": format!("runs {} on a live host only, and --root {} was given", collector.read.program(), options.root.path().display())}));
             continue;
         }
         match trail::scoped(&trail::collector(&collector.id), || {
@@ -409,7 +419,8 @@ fn record(
                 "collector {} refused, privileged {privileged}: {reason}",
                 collector.id
             );
-            json!({"status": "skipped", "reason": reason})
+            let needs = if privileged { "access" } else { "root" };
+            json!({"status": "skipped", "needs": needs, "reason": reason})
         }
         Err(Failure::Absent(program)) => {
             log::debug!("collector {} skipped: {program} is absent", collector.id);
@@ -490,6 +501,9 @@ fn skipped_need(
         let mut skipped = json!({"status": "skipped", "reason": format!("needs fact {need}, which collector {} skipped: {}", producer.id, outcome["reason"].as_str().unwrap_or_default())});
         for flag in ["opt-in", "absent"].into_iter().filter(|f| outcome[*f] == true) {
             skipped[flag] = Value::Bool(true);
+        }
+        if let Some(needs) = outcome.get("needs") {
+            skipped["needs"] = needs.clone();
         }
         Some(skipped)
     })
