@@ -89,6 +89,7 @@ rules:
     tags: [ip-routing, sysctl, cis-ubuntu-26.04:3.3.1.1, dev-sec-linux-baseline:sysctl-01, '!default']
   ip-routing/ipv4-forwarding:
     title: IPv4 forwarding is on
+    folds: [ip-routing/ipv4-ip-forward]
     fact: sysctl.settings.net.ipv4.conf.*.forwarding
     keys: {enum: [all, default]}
     expect: {const: 0}

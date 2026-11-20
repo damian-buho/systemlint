@@ -26,6 +26,7 @@ rules:
     tags: [auth, cis-ubuntu-26.04:5.4.3.3, lynis]
   login-defs/umask-077:
     title: The login umask lets the group read new files
+    folds: [login-defs/umask]
     fact: auth.login-defs
     expect: {required: [UMASK], properties: {UMASK: {type: string, pattern: "^0[0-7]?77$"}}}
     severity: info
@@ -53,6 +54,7 @@ rules:
     tags: [auth, cis-ubuntu-26.04:5.4.1.4, lynis]
   login-defs/encrypt-method-sha512:
     title: New passwords are hashed with a scheme other than SHA512
+    folds: [login-defs/encrypt-method]
     fact: auth.login-defs
     expect: {required: [ENCRYPT_METHOD], properties: {ENCRYPT_METHOD: {const: SHA512}}}
     severity: info

@@ -1593,7 +1593,41 @@ pub fn lint(document: &Value, rules: &[Rule], waivers: &[Waiver], today: &str) -
             });
         }
     }
+    fold(&mut checks, rules);
     checks
+}
+
+/// Drops each failing check of a rule a selected rule `folds`, where that rule fails the same subject, or anywhere when the check has none.
+fn fold(checks: &mut Vec<Check>, rules: &[Rule]) {
+    let by: BTreeMap<&str, Vec<&str>> = rules.iter().fold(BTreeMap::new(), |mut by, r| {
+        for looser in &r.spec.folds {
+            by.entry(looser.as_str())
+                .or_insert_with(Vec::new)
+                .push(r.id.as_str());
+        }
+        by
+    });
+    let failing: Vec<(String, Vec<String>)> = checks
+        .iter()
+        .filter(|c| c.is_failing())
+        .map(|c| (c.rule.clone(), c.subject.clone()))
+        .collect();
+    checks.retain(|c| {
+        let stricter = by.get(c.rule.as_str()).into_iter().flatten().find(|s| {
+            failing
+                .iter()
+                .any(|(r, subject)| r == *s && (c.subject.is_empty() || *subject == c.subject))
+        });
+        let folded = c.is_failing() && stricter.is_some();
+        if folded {
+            log::debug!(
+                "rule {} on {:?} folded into {stricter:?}",
+                c.rule,
+                c.subject
+            );
+        }
+        !folded
+    });
 }
 
 /// Turns every judged check of a rule whose `conflicts` names another selected rule into a `conflict`, naming the pair and how to keep one.

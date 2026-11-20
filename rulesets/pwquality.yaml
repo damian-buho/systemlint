@@ -148,6 +148,7 @@ rules:
     tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.1, '!default']
   pwquality/stig-difok:
     title: A new password may repeat most of the old one
+    folds: [pwquality/difok]
     fact: auth.pwquality
     when: {"/auth/pam/~1etc~1pam.d~1common-password": {not: {contains: {allOf: [*called, {required: [arguments], properties: {arguments: {contains: {pattern: "^difok="}}}}]}}}}
     expect: {required: [difok], properties: {difok: {type: integer, minimum: "${pwquality-stig-difok}"}}}

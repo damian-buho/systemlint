@@ -218,6 +218,7 @@ rules:
     tags: [default, audit, cis-ubuntu-26.04:6.2.4.4, stig-ubuntu-26.04:UBTU-24-901380]
   auditd/stig-log-mode:
     title: An audit log is readable by its group
+    folds: [auditd/log-mode]
     fact: auditd.logs.*.mode
     when: {auditd.binary: {minProperties: 1}, auditd.logs.*.kind: file}
     expect: {pattern: "^0[0246]00$"}

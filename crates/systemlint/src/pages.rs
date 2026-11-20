@@ -209,6 +209,16 @@ pub fn section(library: &Library, id: &str, spec: &Spec) -> String {
     if let Some(expect) = &spec.expect {
         blocks.push(schema("Expects", expect));
     }
+    if !spec.folds.is_empty() {
+        let links = spec
+            .folds
+            .iter()
+            .map(|c| format!("- [{c}]({})", href(library, c)));
+        blocks.push(format!(
+            "#### Folds\n\n{}",
+            links.collect::<Vec<_>>().join("\n")
+        ));
+    }
     if !spec.conflicts.is_empty() {
         let links = spec
             .conflicts

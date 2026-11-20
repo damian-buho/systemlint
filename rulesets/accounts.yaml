@@ -370,6 +370,7 @@ rules:
     tags: [accounts, cis-ubuntu-26.04:5.4.1.5, '!default']
   accounts/stig-useradd-inactive:
     title: New accounts are not disabled after 35 days of inactivity
+    folds: [accounts/useradd-inactive]
     fact: auth.useradd
     expect: {required: [INACTIVE], properties: {INACTIVE: {type: integer, minimum: 0, maximum: "${stig-password-inactive-days}"}}}
     severity: info

@@ -231,6 +231,9 @@ pub struct Spec {
     pub same: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub conflicts: Vec<String>,
+    /// Looser rules on the same setting whose failure this rule’s failure stands for while both are selected.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub folds: Vec<String>,
     #[serde(skip)]
     pub pinned: bool,
     /// The `when` of every ruleset that defines or brings the rule, by ruleset name.
@@ -534,6 +537,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         unique: over.unique || base.unique,
         same: over.same.or(base.same),
         conflicts: base.conflicts,
+        folds: base.folds,
         pinned: over.pinned || (!score_set && base.pinned),
         applies,
         family: base.family,
@@ -576,9 +580,9 @@ impl Library {
                     ));
                 }
                 if !spec.defines() {
-                    if !spec.conflicts.is_empty() {
+                    if !spec.conflicts.is_empty() || !spec.folds.is_empty() {
                         return Err(format!(
-                            "ruleset {name}: rule {id} overrides a rule, so it takes no conflicts; declare them where the rule is defined"
+                            "ruleset {name}: rule {id} overrides a rule, so it takes no conflicts or folds; declare them where the rule is defined"
                         ));
                     }
                     continue;
@@ -610,6 +614,15 @@ impl Library {
             }
         }
         for (id, spec) in &definitions {
+            for other in &spec.folds {
+                log::debug!("rule {id} folds rule {other}");
+                if other == id || !definitions.contains_key(other) {
+                    return Err(format!(
+                        "ruleset {}: rule {id} folds rule {other}, which is itself or no ruleset defines",
+                        owner[id]
+                    ));
+                }
+            }
             for other in &spec.conflicts {
                 let named = definitions.get(other).map(|o| o.conflicts.contains(id));
                 log::debug!(

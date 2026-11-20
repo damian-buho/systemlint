@@ -1449,3 +1449,61 @@ fn fixes_gives_each_subject_the_first_choice_its_key_and_when_admit() {
         "{refused}"
     );
 }
+
+#[test]
+fn a_stricter_failure_folds_the_looser_one_on_its_subject_or_on_a_subjectless_one() {
+    const LOOSE: (&str, &str) = ("t/loose", "fact: v.*\nexpect: {maximum: 10}\n");
+    const STRICT: (&str, &str) = (
+        "t/strict",
+        "fact: v.*\nexpect: {maximum: 5}\nfolds: [t/loose]\n",
+    );
+    const WHOLE: (&str, &str) = ("t/whole", "fact: w\nexpect: {const: 0}\n");
+    const ANY: (&str, &str) = (
+        "t/any",
+        "fact: v.*\nexpect: {maximum: 5}\nfolds: [t/whole]\n",
+    );
+    const NONE: (&str, &str) = (
+        "t/any",
+        "fact: v.d\nexpect: {maximum: 5}\nfolds: [t/whole]\n",
+    );
+    let document = json!({"v": {"a": 20, "b": 20, "c": 7, "d": 1}, "w": 1});
+    let failing = |rules: &[(&str, &str)], waivers: &[Waiver]| {
+        let rules: Vec<_> = rules
+            .iter()
+            .map(|(id, yaml)| compile(id, systemlint::yaml::from_str(yaml).unwrap()).unwrap())
+            .collect();
+        let mut left: Vec<String> = lint(&document, &rules, waivers, "2026-11-20")
+            .iter()
+            .filter(|c| c.is_failing())
+            .map(|c| format!("{} {}", c.rule, c.subject_text()))
+            .collect();
+        left.sort();
+        left
+    };
+    assert_eq!(
+        failing(&[LOOSE, STRICT], &[]),
+        ["t/strict a", "t/strict b", "t/strict c"]
+    );
+    assert_eq!(
+        failing(&[LOOSE], &[]),
+        ["t/loose a", "t/loose b"],
+        "unselected, the stricter rule folds nothing"
+    );
+    let waived = Waiver {
+        rule: "t/strict".into(),
+        subject: Some("a".into()),
+        target: None,
+        reason: "r".into(),
+        until: "2026-11-20".into(),
+    };
+    assert_eq!(
+        failing(&[LOOSE, STRICT], &[waived]),
+        ["t/loose a", "t/strict b", "t/strict c"],
+        "a waived stricter failure folds nothing"
+    );
+    assert_eq!(
+        failing(&[WHOLE, ANY], &[]),
+        ["t/any a", "t/any b", "t/any c"]
+    );
+    assert_eq!(failing(&[WHOLE, NONE], &[]), ["t/whole "]);
+}

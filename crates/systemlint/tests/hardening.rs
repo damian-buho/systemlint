@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use serde_json::{Value, json};
 use systemlint::judge::{Outcome, compile, lint};
-use systemlint::rules::Library;
+use systemlint::rules::{Library, Spec};
 use systemlint::vars::{Supplied, apply};
 use systemlint_protocol::{ExecInput, Input};
 
@@ -96,7 +96,17 @@ fn selected(
                     .select(selectors)
                     .unwrap()
                     .into_iter()
-                    .map(|(id, spec)| compile(&id, spec).unwrap())
+                    // Each rule’s own verdict, never folded into a stricter one’s.
+                    .map(|(id, spec)| {
+                        compile(
+                            &id,
+                            Spec {
+                                folds: vec![],
+                                ..spec
+                            },
+                        )
+                        .unwrap()
+                    })
                     .collect(),
             )
         }))

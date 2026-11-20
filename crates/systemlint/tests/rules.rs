@@ -658,7 +658,31 @@ fn conflicts_must_be_declared_on_both_sides_of_a_defined_pair() {
         refused(&format!("rules:\n{}", rule("s/a", "s/a"))).contains("names itself in conflicts")
     );
     let over = format!("{pair}  fixture/x: {{conflicts: [s/a]}}\n");
-    assert!(refused(&over).contains("overrides a rule, so it takes no conflicts"));
+    assert!(refused(&over).contains("overrides a rule, so it takes no conflicts or folds"));
+}
+
+#[test]
+fn folds_must_name_another_defined_rule_and_only_a_definition_takes_them() {
+    let load = |yaml: &str| {
+        Library::new(BTreeMap::from([(
+            "s".to_owned(),
+            systemlint::yaml::from_str::<Ruleset>(yaml).unwrap(),
+        )]))
+    };
+    let rule = |id: &str, folds: &str| {
+        format!("  {id}: {{fact: x, expect: {{const: 1}}, folds: [{folds}]}}\n")
+    };
+    let pair = format!(
+        "rules:\n{}  s/b: {{fact: x, expect: {{const: 2}}}}\n",
+        rule("s/a", "s/b")
+    );
+    assert_eq!(load(&pair).unwrap().definitions["s/a"].folds, ["s/b"]);
+    for bad in [rule("s/a", "s/ghost"), rule("s/a", "s/a")] {
+        let error = load(&format!("rules:\n{bad}")).unwrap_err();
+        assert!(error.contains("is itself or no ruleset defines"), "{error}");
+    }
+    let over = load(&format!("{pair}  fixture/x: {{folds: [s/a]}}\n")).unwrap_err();
+    assert!(over.contains("takes no conflicts or folds"), "{over}");
 }
 
 #[test]

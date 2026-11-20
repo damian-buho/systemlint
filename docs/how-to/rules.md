@@ -55,6 +55,7 @@ apt/https:
 | `unique` | `true` to fail every subject whose fact value another subject holds too, see [Unique values](#unique-values); `expect` may then be left out |
 | `same` | a fact, bound like `when`, the rule’s fact must equal, its value in `{same}`; `expect` may then be left out, see [Joined facts](#joined-facts) |
 | `conflicts` | IDs of rules of another standard this rule contradicts, each naming this one back, else the rulesets are refused; while both are selected, every check of either answers `conflict` and none counts, see [Check output](#check-output-and-exit-codes); only a definition takes it |
+| `folds` | IDs of looser rules on the same setting, such as a standard’s stricter value: while both are selected, a failure of this rule drops their failing check on the same subject, or any of theirs that has no subject, so one problem prints once; a waived failure folds nothing; only a definition takes it |
 
 A fact path is dotted (`os.release.VERSION_ID`), or a JSON Pointer when it
 starts with `/`, for keys holding dots (`/files/~1etc~1ssh~1sshd_config.d~1a.conf/mode`).
