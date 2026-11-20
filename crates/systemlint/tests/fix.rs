@@ -446,12 +446,12 @@ fn a_drop_in_without_a_fix_shows_the_file_it_writes_as_the_fix_steps() {
     };
     assert!(
         steps(r#"'APT::Install-Suggests "0";'"#)
-            .contains("Write this line to “/etc/apt/apt.conf.d/60-systemlint-quiet.conf”:"),
+            .contains("Write this line to “/etc/apt/apt.conf.d/99-systemlint-quiet.conf”:"),
         "one line"
     );
     assert!(
         steps(r#"'APT::Install-Suggests "0";', 'APT::Install-Recommends "0";'"#)
-            .contains("Write these lines to “/etc/apt/apt.conf.d/60-systemlint-quiet.conf”:"),
+            .contains("Write these lines to “/etc/apt/apt.conf.d/99-systemlint-quiet.conf”:"),
         "two lines"
     );
     let own = "fact: v\nexpect: {const: 0}\nfix: write it yourself\nremedy: {drop-in: {into: apt, name: quiet, lines: ['APT::Install-Suggests \"0\";']}}\n";

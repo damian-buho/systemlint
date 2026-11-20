@@ -32,7 +32,7 @@ pub enum Remedy {
     DropIn(DropIn),
 }
 
-/// A drop-in file: the directory it goes in, the name it takes after `60-systemlint-`, and its lines.
+/// A drop-in file: the directory it goes in, the name it takes after `<order>-systemlint-`, and its lines.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct DropIn {
@@ -77,6 +77,14 @@ impl Directory {
         }
     }
 
+    /// The name prefix that orders its drop-ins: apt lets the last file read win, so its own reads last.
+    fn order(self) -> u8 {
+        match self {
+            Self::Modprobe => 60,
+            Self::Apt => 99,
+        }
+    }
+
     /// Whether `line` only turns something off here.
     fn admits(self, line: &str) -> bool {
         let module = |m: &str| {
@@ -103,7 +111,12 @@ impl Directory {
 impl DropIn {
     /// The file it writes.
     pub fn path(&self) -> String {
-        format!("{}/60-systemlint-{}.conf", self.into.path(), self.name)
+        format!(
+            "{}/{}-systemlint-{}.conf",
+            self.into.path(),
+            self.into.order(),
+            self.name
+        )
     }
 
     /// Its text: every line ended by a newline.
