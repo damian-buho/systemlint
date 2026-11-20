@@ -11,38 +11,104 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## Características del proyecto
 
-### Reglas que saben para qué hosts son
+### En cada pipeline y en cada panel
 
-- Un conjunto de reglas nombra los hosts para los que está escrito, así en cualquier otro host sus reglas responden no aplicable, nunca desconocido ni fallido, y quedan fuera de la calificación. Ver [reglas](../how-to/rules.md).
-- Las reglas de apt incluidas juzgan Debian, Ubuntu y las distribuciones basadas en ellos, y se hacen a un lado en todos los demás. Ver [fuentes de apt](../how-to/apt.md).
-- Un procedimiento que ningún dato puede probar es una regla manual, listada para que una persona la revise y nunca contada como aprobada.
+- JSON, SARIF 2.1.0 y el textfile de node-exporter llevan los mismos hallazgos, así el escaneo de código, Prometheus y Alertmanager ven lo mismo que una persona. Ver [salidas](../how-to/outputs.md).
+- Una GitHub Action analiza la raíz de una imagen de contenedor sin ejecutarla y sube SARIF con un resumen del trabajo. Ver [CI](../how-to/ci.md).
+- Cada tipo de fallo tiene su propio código de salida, así un pipeline distingue un host con fallos de un conjunto de reglas roto o una entrada ilegible.
 
-### Recolección rápida y de solo lectura
+### Recolectar una vez, juzgar en cualquier lugar
 
-- Los recolectores se ejecutan en paralelo, así una revisión completa es lo bastante rápida para cada arranque, despliegue y trabajo de CI. Ver [recolectores](../how-to/collectors.md).
-- La recolección solo lee: cada archivo, comando y respuesta tiene un límite de tamaño y de tiempo, así un montaje colgado o un archivo enorme nunca detiene la ejecución.
-- Con `--root`, los enlaces simbólicos de una imagen se resuelven dentro de la imagen, así analizar una imagen no confiable nunca lee los archivos del host.
+- Recolectar los hechos y juzgarlos son pasos separados: guarda un documento de hechos de un host y júzgalo después contra cuantas políticas quieras, en otra máquina, más tarde, sin acceso al host. Ver [recolectores](../how-to/collectors.md).
+- La misma ejecución analiza un host en vivo, un sistema de archivos raíz montado con `--root` o el entorno de una imagen de contenedor con `--image-config`, así una imagen de referencia se revisa antes de publicarse.
+- Los recolectores se ejecutan en paralelo y cada archivo, comando y respuesta tiene un límite de tamaño y de tiempo, así un montaje NFS muerto o un registro enorme nunca detiene la ejecución.
+- Un documento guardado recuerda cuándo se recolectó: los hechos que caducan, como los procesos en ejecución, expiran y sus reglas informan `Not run` en lugar de juzgar el host de ayer.
 
-### Arreglos que hace por sí mismo, y solo los que quitan acceso
+### El host y cada contenedor en una sola ejecución
 
-- `systemlint fix` hace los cambios que un informe imprime como líneas `Run:`, en el host en vivo o en el sistema de archivos raíz de una imagen con `--root`, y pregunta antes. Ver [remedios](../how-to/rules.md#remedies).
-- Un arreglo solo quita acceso: borra bits de permiso, da un archivo a root o comenta una línea que concede acceso, así un conjunto de reglas que no escribiste nunca puede entregar un archivo a un usuario.
-- Una línea editada desde el análisis se deja intacta, y se conserva la única clave autorizada de una cuenta, así un arreglo nunca te deja fuera.
-- Dos fuentes apt que se duplican se listan como un problema con un arreglo, no como dos hallazgos.
+- `--containers` encuentra cada contenedor en ejecución, incluidos los anidados, y revisa cada uno desde dentro con sus propios espacios de nombres, etiqueta de AppArmor y capacidades, así un contenedor se juzga tal como se ejecuta. Ver [contenedores](../how-to/collectors.md#containers).
+- Un hallazgo compartido por muchos contenedores es un solo bloque que los nombra, y los contenedores de una misma imagen se juzgan como uno.
+- Un archivo que falla y que el contenedor nunca cambió se atribuye a su imagen, con el paso de construcción que lo arregla, mientras que uno cambiado en ejecución es deriva propia del contenedor.
+- Las revisiones exclusivas del host, como el kernel, el cargador de arranque y el hardware, se apartan dentro de los contenedores en lugar de fallar allí.
+
+### Ajustes juzgados como los aplica el programa
+
+- A OpenSSH se le pregunta por sus propios ajustes efectivos, una vez de forma global y una vez por cuenta, así se encuentra un bloque `Match` que vuelve a activar el acceso por contraseña para un usuario, sin un analizador de configuración al que engañar. Ver [sshd](../how-to/sshd.md).
+- Las concesiones de sudo y los `Defaults` vienen del propio sudo, tanto el sudo clásico como sudo-rs, con inclusiones, alias y grupos resueltos, y se informa de una línea de sudoers que sudo omite en silencio por estar rota.
+- Las pilas de PAM, `login.defs`, la calidad de contraseñas y los límites de recursos se leen en el orden y con la precedencia que usan sus bibliotecas, así la línea que gana es la línea juzgada. Ver [autenticación](../how-to/auth.md).
+- Los ajustes del kernel y las listas de bloqueo de módulos vienen de `sysctl` y `modprobe` cuando se ejecutan, y de sus directorios de fragmentos en el mismo orden en caso contrario, así una imagen montada se juzga como el host arrancado.
+- El modo de un archivo de registro se juzga según lo que lo recrea: un registro que logrotate reabrirá con permisos seguros no es un hallazgo, lo es su regla de rotación.
+
+### Permisos de archivos que importan, no cada bit
+
+- Los archivos que conceden root, guardan hashes de contraseñas o claves del host, o están en el `PATH`, se reservan a root, y también se revisa cada directorio por encima de un programa con set-user-ID, pues un directorio padre escribible equivale a un programa escribible. Ver [archivos](../how-to/files.md).
+- El directorio personal de cada usuario, `~/.ssh` y las claves autorizadas se revisan desde fuera: un archivo de claves escribible por todos, una RSA corta o una clave DSA, un directorio personal al que otros pueden entrar.
+- Se nombran los montajes que respetan los bits set-user-ID, los archivos de dispositivo o los programas donde cualquier usuario puede escribir, tanto en `/etc/fstab` como tal como están montados ahora.
+- Las cuentas se revisan en conjunto en `passwd`, `shadow` y `group`: un segundo root, un nombre o ID repetido, una cuenta sin contraseña.
+
+### Cada hallazgo es real
+
+- Una regla falla solo ante un riesgo, nunca por la mera presencia: la unidad generada de un snap, el propio entorno de una imagen de contenedor o una ruta de solo lectura propiedad de root son normales para su dueño y no dan aviso. Ver [el libro de reglas](../how-to/rule-book.md).
+- Lo que la ejecución no pudo revisar dice por qué: `Not run` nombra el privilegio que faltó, `Unknown` significa que falta un hecho que debería existir, y un programa que no está instalado simplemente no es nada que revisar.
+- Un conjunto de reglas nombra los hosts para los que está escrito, así en cualquier otro host sus reglas responden no aplicable y quedan fuera de la calificación. Ver [reglas](../how-to/rules.md).
+- Donde un estándar admite que un host puede necesitar algo, la regla lo deja en paz: un módulo del kernel en uso, overlay donde se ejecutan contenedores, squashfs donde se usan snaps, nunca se piden bloqueados.
+- Un procedimiento que ningún hecho puede probar es una regla manual, listada para que una persona la revise y nunca contada como superada.
+
+### Arreglos que hace por sí mismo, con las herramientas que los gestionan
+
+- `systemlint fix` aplica los arreglos que imprime un informe, en el host en vivo o en el sistema de archivos raíz de una imagen con `--root`, y pregunta antes; una segunda ejecución no cambia nada. Ver [remedios](../how-to/rules.md#remedies).
+- Cada arreglo pasa por la herramienta que gestiona el ajuste: `sysctl --load` tras un fragmento, `visudo --check` antes de instalar una línea de sudoers, `systemctl mask`, `dockerd --validate` antes de reiniciar Docker.
+- Un arreglo solo quita acceso: borra bits de permiso, da un archivo a root, comenta una línea que concede acceso o bloquea un módulo, así un conjunto de reglas que no escribiste nunca puede abrir el host.
+- Una línea editada desde el análisis, un módulo del kernel en uso y la única clave autorizada de una cuenta se dejan intactos, así un arreglo nunca te deja fuera.
+
+### Endurecimiento del kernel y la CPU, según lo informa el kernel en ejecución
+
+- Los fallos de CPU que el kernel en ejecución informa como no mitigados, y los ajustes del kernel que entregan a usuarios sin privilegios disposiciones de memoria, direcciones del kernel o superficie de ataque adicional, son cada uno un hallazgo.
+- Los módulos del kernel de sistemas de archivos, protocolos y dispositivos poco comunes que se cargan bajo demanda se encuentran a partir de los módulos incluidos para cada kernel instalado, y se informa de un controlador USB que confía en cada dispositivo nuevo. Ver [módulos del kernel](../how-to/services.md#kernel-modules).
+- Las reglas de auditoría se juzgan por lo que registran, en disco y cargadas, no por la redacción de un estándar, así una regla equivalente escrita de otra manera pasa. Ver [reglas de auditoría del kernel](../how-to/services.md#kernel-audit-rules).
+- AppArmor no cargado, un menú de GRUB que cualquiera puede editar, un shell de rescate que no pide contraseña y los volcados de memoria de programas privilegiados son cada uno un hallazgo.
+
+### Lo que el host expone a la red
+
+- Los sockets que escuchan más allá del loopback se asocian con los servicios que responden a cualquiera que los alcance, como la API sin cifrar de Docker, memcached sobre UDP o `cups-browsed`, con el programa que mantiene cada puerto. Ver [sockets en escucha](../how-to/services.md#listening-sockets).
+- El cortafuegos se juzga por lo que hace, no por lo que dice: las cadenas de nftables se siguen a través de cada salto para saber si algo enviado al host se descarta alguna vez, y se nombra un ufw instalado pero apagado.
+- Un servicio del sistema que escucha en un puerto que el kernel puede asignar a una conexión saliente se detecta antes de que ambos choquen en el arranque.
+- Redis y MongoDB abiertos sin contraseña, una comunidad SNMP que cualquiera adivina, Postfix que revela a extraños qué direcciones existen, y los servidores telnet, rsh, TFTP y NIS son cada uno un hallazgo.
+- Con `--network`, se pregunta a los servidores de nombres si resuelven para este host y se obtienen certificados para detectar caducidad y confianza rota, con tiempos de espera, reintentos y proxies tomados del entorno. Ver [sondeos de red](../how-to/collectors.md#network-probes).
 
 ### Hallazgos que leen una persona, un pipeline y un lector de pantalla
 
-- Cada regla que falla es un bloque con su nivel, una puntuación de 0.0 a 9.9, su título y por qué importa, cada sujeto afectado y un arreglo, en pasos numerados con cada comando en su propia línea, el peor primero. Ver [reglas](../how-to/rules.md).
+- Cada regla que falla es un bloque con su nivel, una puntuación de 0.0 a 9.9, su título, por qué importa, cada sujeto afectado y un arreglo en pasos numerados, el peor primero. Ver [reglas](../how-to/rules.md).
 - Una calificación de S a F y un recuento por fila cierran la ejecución, y separan las reglas que aún puedes activar de las que no tienen nada que juzgar en el host.
-- `--plain` imprime una línea separada por tabuladores por hallazgo, para `grep`, `awk` y lectores de pantalla.
-- El color marca el nivel y cada valor que nombra el informe (rutas, ajustes citados, contenedores, imágenes), nunca el significado por sí solo, y se apaga con `NO_COLOR`, `TERM=dumb` o una tubería.
-- JSON, SARIF 2.1.0 y el textfile de node-exporter llevan los mismos hallazgos a CI y a monitoreo. Ver [salidas](../how-to/outputs.md).
+- `--plain` imprime una línea separada por tabuladores por hallazgo, para `grep`, `awk` y lectores de pantalla, y el color nunca lleva el significado por sí solo y se apaga con `NO_COLOR`, `TERM=dumb` o una tubería.
+- Los recuentos y tamaños se agrupan y se escalan como los escribe la configuración regional del lector.
+
+### Secretos y código inyectado en cada entorno
+
+- Se buscan en los entornos de archivos del sistema, archivos de unidad, servicios en ejecución, contenedores e imágenes credenciales, inyección de código con `LD_PRELOAD`, verificaciones TLS desactivadas y una entrada vacía o relativa en `PATH`. Ver [entornos](../how-to/env.md).
+- Cada valor se sustituye por un hash con clave antes de llegar a un complemento, al documento de hechos o al informe, así un escaneo nunca copia un secreto a ninguna parte.
+- Las contraseñas en texto plano en `~/.netrc`, la confianza `.rhosts` que respeta un rsh instalado y las configuraciones legibles de PostgreSQL, Squid y CUPS se informan cada una donde otros usuarios pueden alcanzarlas.
+
+### Discos que fallan y sistemas de archivos llenos antes de que tumben el host
+
+- Los discos se juzgan por sus propias comprobaciones de salud: fallos y desgaste SMART de NVMe y ATA, matrices RAID por software que perdieron un miembro, errores de dispositivo de Btrfs y sensores de temperatura cuya alarma está activada.
+- Los sistemas de archivos casi llenos, las tablas de archivos y de IO asíncrona del kernel cerca de su límite, y los ajustes de memoria virtual que bloquean a los escritores o agotan la memoria antes de tiempo se informan antes de que falle la siguiente escritura.
+- Los servicios que aún ejecutan código que una actualización reemplazó en disco, las actualizaciones que solo surten efecto tras un reinicio y las unidades fallidas se listan con el servicio que hay que reiniciar. Ver [servicios en ejecución](../how-to/services.md#running-services).
+- La sincronización horaria apagada o sin servidor indicado, y un diario que no conserva nada entre reinicios, se detectan antes de que fallen los registros y los certificados.
 
 ### Reglas que citan los estándares que cumplen
 
-- Cada regla lleva como etiquetas los controles que cumple, así `--tags 'cis-ubuntu-26.04:5.2.*'` ejecuta un estándar o una de sus secciones. Ver [reglas](../how-to/rules.md).
-- Donde dos estándares se contradicen, como la rotación forzada de contraseñas frente a NIST SP 800-63B, la ejecución informa un conflicto y no hace fallar al host por ninguno, y `--tags all --prefer 'cis-ubuntu-26.04:*'` ejecuta todas las reglas con ese estándar ganando cada conflicto. Ver [estándares en conflicto](../how-to/rule-book.md#conflicting-standards).
-- Un umbral que elige un estándar toma por defecto el número de ese estándar y cambia con `--var`, así seguir tu propia política no requiere una regla propia.
+- Las reglas llevan como etiquetas los controles de CIS Ubuntu Linux 26.04, DISA STIG, CIS Controls v8, NIST SP 800-53 y 800-171, PCI DSS 4, ISO 27001:2022, HIPAA y las líneas base de dev-sec, así `--tags cis`, `--tags 'cis-ubuntu-26.04:5.2.*'` o `--tags pci-dss` ejecuta un estándar o una de sus secciones. Ver [reglas](../how-to/rules.md).
+- Una regla que coincide con una prueba de Lynis la nombra, así un equipo que viene de Lynis conserva sus puntos de referencia.
+- Donde dos estándares se contradicen, como la rotación forzada de contraseñas frente a NIST SP 800-63B, la ejecución informa un conflicto y no hace fallar al host por ninguno, y `--prefer 'cis-ubuntu-26.04:*'` permite que un estándar gane cada conflicto. Ver [estándares en conflicto](../how-to/rule-book.md#conflicting-standards).
+- Un umbral que elige un estándar toma por defecto el número de ese estándar y cambia con `--var`, y una exención con fecha de caducidad silencia un hallazgo que aceptas hasta que vence de nuevo.
+
+### Seguro de ejecutar como root en un host en el que no confías
+
+- Cada ruta se lee dentro de la raíz que se revisa, así un enlace simbólico de una imagen no confiable nunca puede hacer que el escaneo lea los archivos del propio host.
+- Cada complemento es un programa estático separado que solo convierte en hechos los bytes que leyó el núcleo; no abre ningún archivo, no ejecuta ningún comando y no toca la red. Ver [protocolo](../how-to/protocol.md).
+- Los complementos, recolectores y conjuntos de reglas se cargan solo desde directorios propiedad de root o tuyos y escribibles por nadie más, y un recolector escrito en línea en un archivo de configuración no puede ejecutar un comando.
+- Nada sale del host salvo que `--network` lo pida.
 
 ## Heredado de B19 / Ubuntu
 

@@ -9,38 +9,104 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## Project Features
 
-### Rules that know which hosts they are for
+### In every pipeline and on every dashboard
 
-- A ruleset names the hosts it is written for, so on any other host its rules answer not applicable, never unknown or failed, and stay out of the rating. See [rules](how-to/rules.md).
-- The shipped apt rules judge Debian, Ubuntu and the distributions built on them, and stand aside everywhere else. See [apt sources](how-to/apt.md).
+- JSON, SARIF 2.1.0 and node-exporter textfile carry the same findings, so code scanning, Prometheus and Alertmanager see what a person sees. See [outputs](how-to/outputs.md).
+- A GitHub Action lints a container image’s root without running it and uploads SARIF with a job summary. See [CI](how-to/ci.md).
+- Each kind of failure has its own exit code, so a pipeline tells a failing host from a broken ruleset or an unreadable input.
+
+### Collect once, judge anywhere
+
+- Collecting facts and judging them are separate steps: save one facts document from a host, then judge it against any number of policies, on another machine, later, with no access to the host. See [collectors](how-to/collectors.md).
+- The same run lints a live host, a mounted root filesystem with `--root`, or a container image’s environment with `--image-config`, so a golden image is checked before it ships.
+- Collectors run in parallel and every file, command and answer has a size and time limit, so a dead NFS mount or a huge log never stalls the run.
+- A saved document remembers when it was collected: facts that go stale, such as running processes, expire and their rules report `Not run` instead of judging yesterday’s host.
+
+### The host and every container in one run
+
+- `--containers` finds every running container, nested ones included, and checks each from inside with its own namespaces, AppArmor label and capabilities, so a container is judged as it really runs. See [containers](how-to/collectors.md#containers).
+- A finding shared by many containers is one block that names them, and containers of one image are judged as one.
+- A failing file the container never changed is blamed on its image with the build step to fix it, while one changed at runtime is the container’s own drift.
+- Host-only checks such as the kernel, the boot loader and the hardware stand aside inside containers instead of failing there.
+
+### Settings judged as the program applies them
+
+- OpenSSH is asked for its own effective settings, once globally and once per account, so a `Match` block that turns password login back on for one user is found, with no configuration parser to fool. See [sshd](how-to/sshd.md).
+- sudo grants and `Defaults` come from sudo itself, classic sudo and sudo-rs alike, with includes, aliases and groups settled, and a sudoers line sudo silently skips as broken is reported.
+- PAM stacks, `login.defs`, password quality and resource limits are read in the order and precedence their libraries use, so the line that wins is the line judged. See [authentication](how-to/auth.md).
+- Kernel settings and module blocklists come from `sysctl` and `modprobe` when they run, and from their drop-in directories in the same order otherwise, so a mounted image is judged like the booted host.
+- A log file’s mode is judged against what recreates it: a log that logrotate will reopen with safe permissions is not a finding, its rotation rule is.
+
+### File permissions that matter, not every bit
+
+- Files that grant root, hold password hashes or host keys, or sit in the `PATH` are kept to root, and every directory above a set-user-ID program is checked too, since a writable parent is as good as a writable program. See [files](how-to/files.md).
+- Each user’s home, `~/.ssh` and authorized keys are checked from the outside: a world-writable key file, a short RSA or a DSA key, a home others can enter.
+- Mounts that honour set-user-ID bits, device files or programs where every user can write are named, both in `/etc/fstab` and as they are mounted now.
+- Accounts are checked across `passwd`, `shadow` and `group` together: a second root, a repeated name or ID, an account with no password.
+
+### Every finding is real
+
+- A rule fails only on a risk, never on mere presence: a snap’s generated unit, a container image’s own environment or a root-owned read-only path is normal for its owner and stays quiet. See [the rule book](how-to/rule-book.md).
+- What the run could not check says why: `Not run` names the privilege it lacked, `Unknown` means a fact that should exist is missing, and a program that is not installed is simply nothing to check.
+- A ruleset names the hosts it is written for, so on any other host its rules answer not applicable and stay out of the rating. See [rules](how-to/rules.md).
+- Where a standard admits a host may need something, the rule leaves it alone: a kernel module in use, overlay where containers run, squashfs where snaps do, are never asked to be blocked.
 - A procedure no fact can prove is a manual rule, listed for a person to review and never counted as a pass.
 
-### Fast, read-only collection
+### Fixes it makes itself, through the tools that own them
 
-- Collectors run in parallel, so a full check is quick enough for every boot, deploy and CI job. See [collectors](how-to/collectors.md).
-- Collection only reads: every file, command and response has a size and time limit, so a hung mount or a huge file never stalls the run.
-- With `--root`, an image’s symbolic links resolve inside the image, so linting an untrusted image never reads the host’s files.
+- `systemlint fix` applies the fixes a report prints, on the live host or on an image’s root filesystem with `--root`, and asks first; a second run changes nothing. See [remedies](how-to/rules.md#remedies).
+- Each fix goes through the tool that owns the setting: `sysctl --load` after a drop-in, `visudo --check` before a sudoers line is installed, `systemctl mask`, `dockerd --validate` before Docker restarts.
+- A fix only takes access away: it clears permission bits, gives a file to root, comments out a line that grants access or blocks a module, so a ruleset you did not write can never open the host up.
+- A line edited since the lint, a kernel module in use and an account’s only authorized key are left alone, so a fix never locks you out.
 
-### Fixes it makes itself, and only ones that take access away
+### Kernel and CPU hardening, as the running kernel reports it
 
-- `systemlint fix` makes the changes a report prints as `Run:` lines, on the live host or on an image’s root filesystem with `--root`, and asks first. See [remedies](how-to/rules.md#remedies).
-- A fix only removes access: it clears permission bits, gives a file to root or comments out a line that grants access, so a ruleset you did not write can never hand a file to a user.
-- A line edited since the lint is left alone, and an account’s only authorized key is kept, so a fix never locks you out.
-- Two apt sources that duplicate each other list as one problem with one fix, not two findings.
+- CPU flaws the running kernel reports as unmitigated, and kernel settings that hand unprivileged users memory layouts, kernel addresses or extra attack surface, are each a finding.
+- Kernel modules for rare filesystems, protocols and devices that load on demand are found from the modules shipped for every installed kernel, and a USB controller that trusts every new device is reported. See [kernel modules](how-to/services.md#kernel-modules).
+- Audit rules are judged by what they record, on disk and loaded, not by one standard’s spelling, so an equivalent rule written another way passes. See [kernel audit rules](how-to/services.md#kernel-audit-rules).
+- AppArmor not loaded, a GRUB menu anyone may edit, a rescue shell that asks for no password and core dumps of privileged programs are each a finding.
+
+### What the host exposes to the network
+
+- Sockets listening beyond the loopback are matched to the services that answer anyone who reaches them, such as Docker’s plain API, memcached over UDP or `cups-browsed`, with the program that holds each port. See [listening sockets](how-to/services.md#listening-sockets).
+- The firewall is judged by what it does, not what it says: nftables chains are followed through every jump to tell whether anything sent to the host is ever dropped, and an installed ufw left off is named.
+- A system service listening on a port the kernel may hand to an outgoing connection is caught before the two collide at boot.
+- Redis and MongoDB open without a password, an SNMP community anyone guesses, Postfix telling strangers which addresses exist, and telnet, rsh, TFTP and NIS servers are each a finding.
+- With `--network`, nameservers are asked whether they resolve for this host and certificates are fetched to catch expiry and broken trust, with timeouts, retries and proxies from the environment. See [network probes](how-to/collectors.md#network-probes).
 
 ### Findings a person, a pipeline and a screen reader can read
 
-- Each failing rule is one block with its level, a 0.0–9.9 score, its title and why it matters, every subject it hit and one fix, in numbered steps with each command on its own line, the worst first. See [rules](how-to/rules.md).
+- Each failing rule is one block with its level, a 0.0–9.9 score, its title, why it matters, every subject it hit and one fix in numbered steps, the worst first. See [rules](how-to/rules.md).
 - An S to F rating and one count per row close the run, and tell the rules you can still turn on apart from those the host has nothing for.
-- `--plain` prints one tab-separated line per finding, for `grep`, `awk` and screen readers.
-- Colour marks the level and every value the report names (paths, quoted settings, containers, images), never meaning alone, and turns off under `NO_COLOR`, `TERM=dumb` or a pipe.
-- JSON, SARIF 2.1.0 and node-exporter textfile carry the same findings for CI and monitoring. See [outputs](how-to/outputs.md).
+- `--plain` prints one tab-separated line per finding, for `grep`, `awk` and screen readers, and colour never carries meaning alone and turns off under `NO_COLOR`, `TERM=dumb` or a pipe.
+- Counts and sizes are grouped and scaled the way the reader’s locale writes them.
+
+### Secrets and injected code in every environment
+
+- The environments of system files, unit files, running services, containers and images are searched for credentials, `LD_PRELOAD` code injection, turned-off TLS checks and an empty or relative entry in `PATH`. See [environments](how-to/env.md).
+- Every value is replaced by a keyed hash before it reaches a plugin, the facts document or the report, so a scan never copies a secret anywhere.
+- Plain-text passwords in `~/.netrc`, `.rhosts` trust that an installed rsh honours, and readable PostgreSQL, Squid and CUPS configurations are each reported where other users can reach them.
+
+### Failing disks and full filesystems before they take the host down
+
+- Disks are judged by their own health checks: NVMe and ATA SMART failures and wear, software RAID arrays that lost a member, Btrfs device errors and temperature sensors whose alarm is raised.
+- Filesystems close to full, kernel file and async IO tables near their limit, and virtual memory settings that stall writers or run out of memory early are reported before the next write fails.
+- Services still running code an upgrade replaced on disk, updates that take effect only after a reboot, and failed units are listed with the service to restart. See [running services](how-to/services.md#running-services).
+- Time synchronisation left off or with no server named, and a journal that keeps nothing across reboots, are caught before logs and certificates go wrong.
 
 ### Rules that cite the standards they satisfy
 
-- Each rule carries the controls it satisfies as tags, so `--tags 'cis-ubuntu-26.04:5.2.*'` runs one standard or one of its sections. See [rules](how-to/rules.md).
-- Where two standards contradict each other, such as forced password rotation against NIST SP 800-63B, the run reports one conflict and fails the host on neither, and `--tags all --prefer 'cis-ubuntu-26.04:*'` runs every rule with that standard winning each conflict. See [conflicting standards](how-to/rule-book.md#conflicting-standards).
-- A threshold a standard picks defaults to that standard’s number and changes with `--var`, so following your own policy needs no rule of your own.
+- Rules carry the controls of CIS Ubuntu Linux 26.04, DISA STIG, CIS Controls v8, NIST SP 800-53 and 800-171, PCI DSS 4, ISO 27001:2022, HIPAA and the dev-sec baselines as tags, so `--tags cis`, `--tags 'cis-ubuntu-26.04:5.2.*'` or `--tags pci-dss` runs one standard or one of its sections. See [rules](how-to/rules.md).
+- A rule that matches a Lynis test names it, so a team moving from Lynis keeps its reference points.
+- Where two standards contradict each other, such as forced password rotation against NIST SP 800-63B, the run reports one conflict and fails the host on neither, and `--prefer 'cis-ubuntu-26.04:*'` lets one standard win every conflict. See [conflicting standards](how-to/rule-book.md#conflicting-standards).
+- A threshold a standard picks defaults to that standard’s number and changes with `--var`, and a waiver with an expiry date silences a finding you accept until it is due again.
+
+### Safe to run as root on a host you do not trust
+
+- Every path is read inside the root being checked, so a symbolic link in an untrusted image can never make the scan read the host’s own files.
+- Each plugin is a separate static program that only turns bytes the core read into facts; it opens no file, runs no command and touches no network. See [protocol](how-to/protocol.md).
+- Plugins, collectors and rulesets load only from directories owned by root or by you and writable by no one else, and a collector written inline in a configuration file may not run a command.
+- Nothing leaves the host unless `--network` asks for it.
 
 ## Inherited from B19 / Ubuntu
 

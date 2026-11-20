@@ -24,11 +24,20 @@ El núcleo lee cada archivo y ejecuta cada orden; cada complemento es un binario
 
 ## Características
 
-- Reglas que saben para qué hosts son
-- Recolección rápida y de solo lectura
-- Arreglos que hace por sí mismo, y solo los que quitan acceso
+- En cada pipeline y en cada panel
+- Recolectar una vez, juzgar en cualquier lugar
+- El host y cada contenedor en una sola ejecución
+- Ajustes juzgados como los aplica el programa
+- Permisos de archivos que importan, no cada bit
+- Cada hallazgo es real
+- Arreglos que hace por sí mismo, con las herramientas que los gestionan
+- Endurecimiento del kernel y la CPU, según lo informa el kernel en ejecución
+- Lo que el host expone a la red
 - Hallazgos que leen una persona, un pipeline y un lector de pantalla
+- Secretos y código inyectado en cada entorno
+- Discos que fallan y sistemas de archivos llenos antes de que tumben el host
 - Reglas que citan los estándares que cumplen
+- Seguro de ejecutar como root en un host en el que no confías
 
 También hereda las características de B19 / Ubuntu; consulta [Características](FEATURES.md) para ver la lista completa.
 

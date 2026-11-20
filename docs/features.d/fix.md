@@ -3,9 +3,9 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Fixes it makes itself, and only ones that take access away
+# Fixes it makes itself, through the tools that own them
 
-- `systemlint fix` makes the changes a report prints as `Run:` lines, on the live host or on an image’s root filesystem with `--root`, and asks first. See [remedies](how-to/rules.md#remedies).
-- A fix only removes access: it clears permission bits, gives a file to root or comments out a line that grants access, so a ruleset you did not write can never hand a file to a user.
-- A line edited since the lint is left alone, and an account’s only authorized key is kept, so a fix never locks you out.
-- Two apt sources that duplicate each other list as one problem with one fix, not two findings.
+- `systemlint fix` applies the fixes a report prints, on the live host or on an image’s root filesystem with `--root`, and asks first; a second run changes nothing. See [remedies](how-to/rules.md#remedies).
+- Each fix goes through the tool that owns the setting: `sysctl --load` after a drop-in, `visudo --check` before a sudoers line is installed, `systemctl mask`, `dockerd --validate` before Docker restarts.
+- A fix only takes access away: it clears permission bits, gives a file to root, comments out a line that grants access or blocks a module, so a ruleset you did not write can never open the host up.
+- A line edited since the lint, a kernel module in use and an account’s only authorized key are left alone, so a fix never locks you out.

@@ -22,11 +22,20 @@ The core reads every file and runs every command; each plugin is a separate stat
 
 ## Features
 
-- Rules that know which hosts they are for
-- Fast, read-only collection
-- Fixes it makes itself, and only ones that take access away
+- In every pipeline and on every dashboard
+- Collect once, judge anywhere
+- The host and every container in one run
+- Settings judged as the program applies them
+- File permissions that matter, not every bit
+- Every finding is real
+- Fixes it makes itself, through the tools that own them
+- Kernel and CPU hardening, as the running kernel reports it
+- What the host exposes to the network
 - Findings a person, a pipeline and a screen reader can read
+- Secrets and injected code in every environment
+- Failing disks and full filesystems before they take the host down
 - Rules that cite the standards they satisfy
+- Safe to run as root on a host you do not trust
 
 It also inherits the features of B19 / Ubuntu — see [Features](docs/FEATURES.md) for the full list.
 
