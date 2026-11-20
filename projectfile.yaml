@@ -165,6 +165,7 @@ org:
         include:
           - /mutants.out/
           - /mutants.out.old/
+          - "*.profraw"
       textlint:
         include:
           - fixtures/sshd/sshd-T.txt

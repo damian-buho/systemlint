@@ -8,6 +8,7 @@
 # pf-cli-managed: yes
 
 # >>> user-patterns
+*.profraw
 .container/*/locale/*.mo
 .env
 .fetch
