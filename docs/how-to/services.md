@@ -371,7 +371,7 @@ standard controls alone, since a host may confine with another LSM:
 | `apparmor/not-installed` | info | no `apparmor_parser` is on disk |
 | `apparmor/no-profiles` | info | the parser is on disk and the kernel lists no profile (`apparmor=0`, another LSM, nothing loaded) |
 | `apparmor/service-off` | info | the parser is on disk and `apparmor.service` is missing, not enabled or not active |
-| `apparmor/not-enforcing` | info | a loaded profile is in any mode but `enforce` |
+| `apparmor/not-enforcing` | info | a loaded profile is in `complain` or `prompt` mode; `kill` passes, and an `unconfined` one, the stub Ubuntu ships for an app it may never install so that app gets user namespaces, is skipped |
 
 ## Docker daemon
 

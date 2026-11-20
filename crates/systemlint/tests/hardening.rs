@@ -4655,9 +4655,19 @@ fn apparmor_fails_off_disk_unloaded_unstarted_and_each_profile_short_of_enforce(
         [
             ("/usr/bin/man".to_owned(), Outcome::Pass),
             ("/usr/sbin/cupsd//third_party".to_owned(), Outcome::Pass),
-            ("busybox".to_owned(), Outcome::Fail),
+            ("busybox".to_owned(), Outcome::Skip),
             ("snap.firefox.firefox".to_owned(), Outcome::Fail)
-        ]
+        ],
+        "an unconfined stub only grants its program user namespaces"
+    );
+    assert_eq!(
+        apparmor(
+            "apparmor/not-enforcing",
+            true,
+            "/usr/bin/k (kill)\n",
+            json!({})
+        ),
+        [("/usr/bin/k".to_owned(), Outcome::Pass)]
     );
 }
 

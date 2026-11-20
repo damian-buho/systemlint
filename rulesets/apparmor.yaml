@@ -59,7 +59,8 @@ rules:
   apparmor/not-enforcing:
     title: An AppArmor profile is not enforced
     fact: apparmor.profiles.*.mode
-    expect: {const: enforce}
+    when: {apparmor.profiles.*.mode: {not: {const: unconfined}}}
+    expect: {enum: [enforce, kill]}
     severity: info
     score: 2.0
     message: "{subject} is in {got} mode, so AppArmor lets the program do what the profile would deny"
