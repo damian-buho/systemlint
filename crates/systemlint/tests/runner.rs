@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use systemlint::runner::{DESCRIBE_TIMEOUT, OUTPUT_CAP, call, describe};
+use systemlint::runner::{DESCRIBE_TIMEOUT, OUTPUT_CAP, PATH, call, describe, run};
 
 const GOOD: &str =
     r#"printf '%s\n' '{"name":"kv","version":"1.2.3","protocol":1,"ops":[{"op":"parse"}]}'"#;
@@ -106,4 +106,21 @@ fn output_cap_boundary() {
 fn timeout_kills_a_hung_plugin() {
     let error = call(&script("hung"), &[], None, Duration::ZERO, OUTPUT_CAP).unwrap_err();
     assert!(error.contains("within 0s"), "{error}");
+}
+
+#[test]
+fn a_child_gets_the_system_path_and_nothing_else_of_the_environment() {
+    let out = run(
+        Path::new("/bin/sh"),
+        &["-c", "printf '%s|%s' \"$PATH\" \"${HOME-unset}\""],
+        None,
+        DESCRIBE_TIMEOUT,
+        OUTPUT_CAP,
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        format!("{PATH}|unset")
+    );
 }

@@ -59,7 +59,7 @@ when any plugin was refused or failed to describe itself.
 
 ## Running a plugin
 
-The core starts a plugin with an empty environment except `LC_ALL=C`, no
+The core starts a plugin with an empty environment except `LC_ALL=C` and the system `PATH`, no
 shell, and stdin closed for `--describe`. It reads at most 16 MiB from stdout
 and from stderr and kills a plugin that has not answered `--describe` within
 30 seconds.
@@ -154,4 +154,4 @@ takes `collect.hash-key` from the configuration, and records which in
 The core records a non-zero exit or a reply that is not valid JSON as
 `collectors.<id>.status: error` with the reason, so a failed probe never looks
 like a missing fact. A request reaches the plugin on stdin under the same
-empty environment, 16 MiB cap and a 30-second timeout (`collect.timeout`).
+empty environment but `LC_ALL=C` and the system `PATH`, 16 MiB cap and a 30-second timeout (`collect.timeout`).

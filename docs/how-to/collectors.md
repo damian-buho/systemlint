@@ -92,7 +92,7 @@ collector, so a walk that was cut short never passes. A
   `linked-to`; its booleans are all false, since a symlink’s own mode means
   nothing on Linux.
 - `exec`: the argv runs directly, never through a shell, with an empty
-  environment except `LC_ALL=C`, a timeout and an output cap. Its `stdout`,
+  environment except `LC_ALL=C` and the system `PATH`, a timeout and an output cap. Its `stdout`,
   `stderr` and exit code are passed to the plugin, which judges the exit. An
   absent program ends a collector that reads only commands `skipped`
   (`needs /usr/sbin/auditctl, which is not installed`) with `absent: true`,

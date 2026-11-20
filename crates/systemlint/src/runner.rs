@@ -24,6 +24,9 @@ pub const OUTPUT_CAP: u64 = 16 * 1024 * 1024;
 /// How many children can run at once and still be stopped by a signal handler.
 pub const MAX_CHILDREN: usize = 64;
 
+/// The `PATH` every child gets, the system directories only, for a program that looks up its own helpers (dockerd’s `docker-proxy`).
+pub const PATH: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+
 /// The pids of the children running now, a process group negated, 0 in a free slot, so a Ctrl-C can stop them.
 static CHILDREN: [AtomicI32; MAX_CHILDREN] = [const { AtomicI32::new(0) }; 64];
 
@@ -299,6 +302,7 @@ pub fn run(
         .args(args)
         .env_clear()
         .env("LC_ALL", "C")
+        .env("PATH", PATH)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let spawned = command.spawn();
