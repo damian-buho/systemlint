@@ -506,8 +506,9 @@ tags, lists each subject on its own dash line with the value it failed on, then 
 ends with one `Fix:` line, or a fix under each subject when they differ. A rule
 with a remedy puts its command under each subject as a `Run:` line with no full
 stop, so it pastes into a shell, in place of the `Fix:` line, and closes with the `systemlint fix --tags`
-call that makes every change; `-v` adds a `Controls:` line naming its control
-tags and a `See:` line per reference.
+call that makes every change. A `References:` line names its control tags
+and each reference’s title, so an upstream ID (`Lynis USB-1000`) stays there to
+look up; `-v` turns each reference into a `See:` line with its URL.
 Failures that name each other, the two sides of `apt/overlap`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
 or level, score, rule, subject, message, fix, the message without the subject

@@ -721,17 +721,31 @@ fn human_shows_a_drop_in_as_its_fix_steps_then_offers_systemlint_fix() {
 const EXPLAINED: &str = "title: Dropped value\nfact: v\nexpect: {const: 0}\nfix: drop it\nrationale: a value [here] leaks\nreferences: [{title: 'CIS 1.2', url: 'https://example.org/cis'}, {title: 'Man page', url: 'https://example.org/man'}]\n";
 
 #[test]
-fn rationale_and_references_reach_every_format_and_the_human_references_only_under_verbose() {
+fn rationale_and_references_reach_every_format_and_the_human_reference_urls_only_under_verbose() {
     let rule = compile("x/drop", systemlint::yaml::from_str(EXPLAINED).unwrap()).unwrap();
     let document = json!({"v": 1});
     let checks = lint(&document, &[rule], &[], "2026-11-11");
     assert_eq!(
         lint_human(&document, &checks, 0, true, false, false),
-        "Warning (5.0): [x/drop]\nDropped value\n- v: 0 was expected.\nRationale: a value [here] leaks.\nFix: drop it.\n\n"
+        "Warning (5.0): [x/drop]\nDropped value\n- v: 0 was expected.\nRationale: a value [here] leaks.\nFix: drop it.\nReferences: CIS 1.2, Man page\n\n"
     );
     assert_eq!(
         lint_human(&document, &checks, 0, true, true, false),
         "Warning (5.0): [x/drop]\nDropped value\n- v: 0 was expected.\nRationale: a value [here] leaks.\nFix: drop it.\nSee: CIS 1.2 <https://example.org/cis>\nSee: Man page <https://example.org/man>\n\n"
+    );
+    let tagged = format!("{EXPLAINED}tags: [lynis, 'cis-ubuntu-26.04:1.2']\n");
+    let rule = compile("x/drop", systemlint::yaml::from_str(&tagged).unwrap()).unwrap();
+    let checks = lint(&document, &[rule], &[], "2026-11-11");
+    let text = lint_human(&document, &checks, 0, true, false, false);
+    assert!(text.contains("Tags: lynis\n"), "{text}");
+    assert!(
+        text.contains("References: cis-ubuntu-26.04:1.2, CIS 1.2, Man page\n"),
+        "{text}"
+    );
+    let text = lint_human(&document, &checks, 0, true, true, false);
+    assert!(
+        text.contains("References: cis-ubuntu-26.04:1.2\nSee: CIS 1.2"),
+        "{text}"
     );
     let report: Value = serde_json::from_str(&lint_json(&document, &checks)).unwrap();
     assert_eq!(

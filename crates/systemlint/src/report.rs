@@ -408,7 +408,7 @@ fn header(label: &str, check: &Check, on: bool) -> String {
     out
 }
 
-/// The control tags of `check`, `cis-ubuntu-26.04:3.2.1`, which the human report shows only under `-v`.
+/// The control tags of `check`, `cis-ubuntu-26.04:3.2.1`, which the human report lists under `References:`.
 fn controls(check: &Check) -> Vec<&str> {
     check
         .tags
@@ -705,9 +705,18 @@ fn failure_block(
         let command = format!("systemlint fix --tags {}", worst.rule);
         let _ = writeln!(tail, "{lead}\n  {}", paint(on, SHOWN, &command));
     }
-    let named = controls(worst);
-    if verbose && !named.is_empty() {
-        let _ = writeln!(tail, "Controls: {}", named.join(", "));
+    let mut named = controls(worst);
+    // Without `-v` the reference titles join the controls, so each upstream ID stays visible.
+    named.extend(
+        worst
+            .references
+            .iter()
+            .filter(|_| !verbose)
+            .map(|r| r.title.as_str()),
+    );
+    log::debug!("rule {}: {} references shown", worst.rule, named.len());
+    if !named.is_empty() {
+        let _ = writeln!(tail, "References: {}", named.join(", "));
     }
     for reference in worst.references.iter().filter(|_| verbose) {
         let _ = writeln!(tail, "See: {} <{}>", reference.title, reference.url);
