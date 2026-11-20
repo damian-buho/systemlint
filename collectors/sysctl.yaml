@@ -15,4 +15,6 @@ parse:
   - {plugin: formats, op: kv, with: {comments: ["#", ";"], repeat: last, swap: /., strip: "-"}}
   - {nest: "."}
   - {split: whitespace, fields: [allocated, free, max], at: fs.file-nr}
+  - {split: whitespace, fields: [min, max], at: net.ipv4.ip_local_port_range}
+  - {ranges: ",", at: net.ipv4.ip_local_reserved_ports}
 into: sysctl.settings

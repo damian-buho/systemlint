@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+description: A system service listening on a port the kernel may hand to an outgoing connection
+topic: Network
+tags: [default]
+rules:
+  ephemeral-ports/service-port-unreserved:
+    title: A service port lies inside the ephemeral port range
+    fact: ports-owners.*.*.program
+    when:
+      ports-owners.*.*.pid: {x-cel: "facts.processes.services.exists(u, int(self) in facts.processes.services[u].pids)"}
+    expect:
+      x-cel: >-
+        int(bound[1]) < facts.sysctl.settings.net.ipv4.ip_local_port_range.min
+        || int(bound[1]) > facts.sysctl.settings.net.ipv4.ip_local_port_range.max
+        || facts.sysctl.settings.net.ipv4.ip_local_reserved_ports.exists(r, int(bound[1]) >= r.from && int(bound[1]) <= r.to)
+    severity: warning
+    score: 4.0
+    message: "{subject} is where {got}, a system service, listens, inside net.ipv4.ip_local_port_range, and net.ipv4.ip_local_reserved_ports leaves it out, so while the service restarts an outgoing connection may take the port and the service fails to start"
+    rationale: an outgoing connection can take the port while its service is down, and the service then can’t start again until that connection ends
+    fix: add the port to “net.ipv4.ip_local_reserved_ports” in a file under “/etc/sysctl.d/”, or narrow “net.ipv4.ip_local_port_range” so it no longer covers the port
+    docs: https://docs.kernel.org/networking/ip-sysctl.html#ip-variables
+    tags: [network, stability]

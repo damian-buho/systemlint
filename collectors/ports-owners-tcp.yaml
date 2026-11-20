@@ -10,5 +10,5 @@ read:
 parse:
   plugin: formats
   op: match
-  with: {pattern: '^\S+\s+\d+\s+\d+\s+\S+:(?P<key>\d+)\s+\S+\s+users:\(\("(?P<program>[^"]+)"'}
+  with: {pattern: '^\S+\s+\d+\s+\d+\s+\S+:(?P<key>\d+)\s+\S+\s+users:\(\("(?P<program>[^"]+)",pid=(?P<pid>\d+)'}
 into: ports-owners.tcp

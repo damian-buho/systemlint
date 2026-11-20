@@ -721,14 +721,14 @@ ports:
   runs in: inside a container they list the container’s sockets. Under `--root`
   the rules are `Not run`.
 
-`ports-owners.tcp` and `ports-owners.udp` name the program behind each port,
+`ports-owners.tcp` and `ports-owners.udp` name the program behind each port and its PID,
 from `ss -Htlpn` and `ss -Hulpn`, when run as root (`privileged`, so
 unprivileged they are `Not run`, and `Not run` where `ss` is not installed):
 
 ```yaml
 ports-owners:
-  tcp: {"22": {program: sshd}}
-  udp: {"5353": {program: avahi-daemon}}
+  tcp: {"22": {program: sshd, pid: 812}}
+  udp: {"5353": {program: avahi-daemon, pid: 640}}
 ```
 
 - One fact per port, the first program `ss` lists: IPv4 and IPv6 sockets of a
@@ -742,6 +742,14 @@ CUPS browsing, CVE-2024-47176), `ports/memcached-udp` (UDP 11211, a
 reflection amplifier) and `ports/mta-public` (TCP 25, 465 or 587, a mail
 server meant for local mail, CIS 2.1.22; waive it on a host that receives mail
 for others).
+
+`ephemeral-ports/service-port-unreserved` fails a port a system service listens
+on (its PID in `processes.services`, so a port the kernel gave a port-0 bind or
+a user’s process never counts) that lies inside
+`net.ipv4.ip_local_port_range` and outside `net.ipv4.ip_local_reserved_ports`:
+while the service restarts, an outgoing connection may take the port. The
+`sysctl` collector splits the range into `min` and `max` and the reserved ports
+into `[{from, to}]`.
 
 ## Journal and display manager
 
