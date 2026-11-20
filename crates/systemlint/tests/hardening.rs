@@ -6250,11 +6250,25 @@ fn stig_account_and_login_limits_pass_at_their_edge() {
     let root = |password: &str| {
         the(
             "accounts/stig-root-unlocked",
-            &facts(&[("accounts.shadow", json!({"root": {"password": password}}))]),
+            &facts(&[
+                ("accounts.shadow", json!({"root": {"password": password}})),
+                ("accounts.passwd", json!({"root": {"uid": 0}})),
+            ]),
         )
     };
     assert_eq!(root("locked"), Outcome::Pass);
     assert_eq!(root("hash"), Outcome::Fail);
+    assert_eq!(
+        the(
+            "accounts/stig-root-unlocked",
+            &facts(&[
+                ("accounts.shadow", json!({})),
+                ("accounts.passwd", json!({}))
+            ])
+        ),
+        Outcome::Skip,
+        "a root with no passwd file, a scratch image, has no root to lock"
+    );
     let pam = |name: &str, entries: Value, extra: (&str, Value)| {
         let mut document = facts(&[
             ("auth.pam", json!({"/etc/pam.d/common-auth": entries})),

@@ -380,6 +380,7 @@ rules:
   accounts/stig-root-unlocked:
     title: root’s password is not locked
     fact: accounts.shadow.root.password
+    when: {accounts.passwd: {required: [root]}}
     expect: {const: locked}
     severity: info
     score: 1.0

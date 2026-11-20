@@ -110,6 +110,7 @@ rules:
     title: /var/log is not in group syslog
     fact: logs.files.*.gid
     keys: {const: /var/log}
+    when: {accounts.group: {required: [syslog]}}
     same: accounts.group.syslog.gid
     severity: info
     score: 1.0
