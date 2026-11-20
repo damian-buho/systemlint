@@ -230,6 +230,54 @@ fn a_ruleset_name_also_picks_its_tag() {
 }
 
 #[test]
+fn a_selected_ruleset_overrides_in_any_order_and_when_its_tags_select_it() {
+    let lib = library(&[
+        (
+            "t",
+            "tags: [default]\nrules:\n  a/x: {fact: x, expect: {minLength: 3}}\n",
+        ),
+        ("site", "tags: [default]\nrules:\n  a/x: error\n"),
+        ("loose", "rules:\n  a/x: info\n"),
+    ]);
+    let severity = |selectors: &[&str]| {
+        let selectors: Vec<String> = selectors.iter().map(|s| (*s).to_owned()).collect();
+        lib.select(&selectors).unwrap()["a/x"].severity
+    };
+    assert_eq!(severity(&["site", "t"]), Some(Severity::Error));
+    assert_eq!(
+        severity(&["t", "site"]),
+        Some(Severity::Error),
+        "order never matters"
+    );
+    assert_eq!(
+        severity(&[]),
+        Some(Severity::Error),
+        "a bare run selects site by its default tag"
+    );
+    assert_eq!(severity(&["default"]), Some(Severity::Error));
+    assert_eq!(
+        severity(&["t"]),
+        None,
+        "naming the defining ruleset alone selects no override"
+    );
+    assert_eq!(
+        severity(&["t", "loose"]),
+        Some(Severity::Info),
+        "a named ruleset beats one its tags select"
+    );
+    assert_eq!(
+        severity(&["all"]),
+        Some(Severity::Info),
+        "all selects every ruleset, and of two overrides its tags select the first by name wins"
+    );
+    assert_eq!(
+        ids(&lib.select(&["fixture".into()]).unwrap()),
+        ["apt/https", "os/supported", "shadow/private", "ssh/patched"],
+        "a ruleset its tags select brings no rule the selectors left out"
+    );
+}
+
+#[test]
 fn a_rule_defined_twice_an_unknown_override_and_a_cycle_are_refused() {
     let twice = BTreeMap::from([
         ("fixture".to_owned(), fixture()),

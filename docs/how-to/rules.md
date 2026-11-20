@@ -341,7 +341,11 @@ is a glob (`*` any run of characters, `/` and `:` included; `?` one) over rule
 IDs and tags; a selector naming a ruleset also picks that ruleset’s rules, so
 `ssh` brings the `ssh` ruleset and every rule tagged `ssh`. The list is a union: a ruleset
 brings its overrides, an ID or tag pick brings the plain rule unless a ruleset
-already brought it. A rule a `default` ruleset leaves out with `'!default'`,
+already brought it, in any order. A ruleset a selector matches by one of its
+`tags` (a bare run matching `default`, `all` matching every ruleset) applies its
+overrides to the rules picked, bringing no other rule, so a `site` ruleset tagged
+`default` changes a bare `check`; a named ruleset beats one its tags select, and
+of two its tags select the first by name wins. A rule a `default` ruleset leaves out with `'!default'`,
 one a standard alone asks for, is picked only by its exact ID or by a tag
 holding `:` (a standard’s control, `cis-ubuntu-26.04:*`), never by a ruleset
 name, a plain tag or an ID glob: `kernel-modules/*` is the default rules of

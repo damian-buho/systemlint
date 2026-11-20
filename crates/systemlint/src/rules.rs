@@ -4,7 +4,7 @@
 
 //! Rule specs, rulesets with `extends`, and the selector list that picks rules by ruleset, ID or tag.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -791,11 +791,45 @@ impl Library {
                 picked.len()
             );
         }
-        for selector in includes {
-            let (overrides, plain) = self.named(selector)?;
-            picked.extend(overrides);
+        let mut forced: BTreeSet<String> = BTreeSet::new();
+        for selector in &includes {
+            let (own, plain) = self.named(selector)?;
+            let overriding = self.overrides(selector);
+            for (id, spec) in own {
+                if overriding.contains(&id) {
+                    forced.insert(id.clone());
+                    picked.insert(id, spec);
+                } else if forced.contains(&id) {
+                    log::debug!("ruleset {selector} keeps the override of {id} picked before it");
+                } else {
+                    picked.insert(id, spec);
+                }
+            }
             for (id, spec) in plain {
                 picked.entry(id).or_insert(spec);
+            }
+        }
+        let tags: Vec<&str> = match includes.is_empty() {
+            true => vec![DEFAULT],
+            false => includes.iter().map(|s| s.as_str()).collect(),
+        };
+        for (name, ruleset) in &self.rulesets {
+            let by_tag = tags
+                .iter()
+                .any(|s| *s == "*" || ruleset.tags.iter().any(|t| glob(s, t)));
+            if !by_tag || includes.contains(&name) {
+                continue;
+            }
+            let resolved = self.resolve(name)?;
+            for id in self.overrides(name) {
+                if forced.contains(&id) || !picked.contains_key(&id) {
+                    continue;
+                }
+                log::debug!("ruleset {name}, selected by its tags, overrides {id}");
+                if let Some(spec) = resolved.get(&id) {
+                    picked.insert(id.clone(), spec.clone());
+                }
+                forced.insert(id);
             }
         }
         for selector in selectors.iter().filter_map(|s| s.strip_prefix('!')) {
@@ -814,6 +848,23 @@ impl Library {
             picked.retain(|id, _| !overrides.contains_key(id) && !plain.contains_key(id));
         }
         Ok(picked)
+    }
+
+    /// The rule IDs `name` overrides, in its own rules or through `extends`: those another ruleset defines.
+    fn overrides(&self, name: &str) -> BTreeSet<String> {
+        let Some(ruleset) = self.rulesets.get(name) else {
+            return BTreeSet::new();
+        };
+        let mut ids: BTreeSet<String> = ruleset
+            .rules
+            .keys()
+            .filter(|id| self.owners.get(*id).is_some_and(|o| o != name))
+            .cloned()
+            .collect();
+        for parent in &ruleset.extends {
+            ids.extend(self.overrides(parent));
+        }
+        ids
     }
 
     /// `picked` without its `off` rules.
