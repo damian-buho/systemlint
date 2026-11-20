@@ -260,7 +260,7 @@ fn human_folds_unknowns_from_skipped_collectors_into_one_line_per_reason() {
     let loud = lint_human(&document, &checks, 0, false, true, false);
     assert!(loud.contains("can’t read it\nat src/lib.rs:1:1"), "{loud}");
     assert!(
-        text.ends_with("Passed            2\nUnknown           2\nNot run           4\n  2 rules need root:\n    env/a, env/b\n"),
+        text.ends_with("Passed            2 checks\nUnknown           2 checks\nNot run           2 rules\n  2 rules need root:\n    env/a, env/b\n"),
         "{text}"
     );
     assert!(
@@ -291,7 +291,7 @@ fn a_key_files_leave_unset_is_not_run_where_a_set_one_still_judges() {
         "{text}"
     );
     assert!(
-        text.ends_with("Passed            1\nUnknown           1\nNot run           1\n  1 rule needs a live run, not --root:\n    kernel/unset\n"),
+        text.ends_with("Passed            1 check\nUnknown           1 check\nNot run           1 rule\n  1 rule needs a live run, not --root:\n    kernel/unset\n"),
         "a present value the rule can’t decide stays unknown: {text}"
     );
 }
@@ -318,7 +318,7 @@ fn an_opt_in_left_off_prints_no_block_and_still_counts() {
         "{text}"
     );
     assert!(
-        text.ends_with("Not run           2\n  1 rule needs root:\n    env/processes\n  1 rule needs an opt-in flag:\n    env/image\n"),
+        text.ends_with("Not run           2 rules\n  1 rule needs root:\n    env/processes\n  1 rule needs an opt-in flag:\n    env/image\n"),
         "{text}"
     );
     let plain = lint_plain(&document, &checks, true);
@@ -352,7 +352,7 @@ fn human_folds_an_unreadable_path_into_one_line_for_every_rule() {
     );
     assert!(!text.contains("Unknown: ["), "{text}");
     assert!(
-        text.ends_with("Passed            2\nUnknown           2\n"),
+        text.ends_with("Passed            2 checks\nUnknown           2 checks\n"),
         "the summary keeps them unknown: {text}"
     );
 }
@@ -380,6 +380,7 @@ fn judged(outcome: Outcome, score: f64) -> Check {
         docs: None,
         rationale: None,
         references: vec![],
+        standards: vec![],
     }
 }
 
@@ -541,7 +542,7 @@ fn human_prints_one_block_per_rule_a_pair_once_and_the_worst_first() {
     let text = lint_human(&document, &checks, 0, false, false, false);
     let expected = "Error (7.5): [apt/stale-suite]\nA source fetches an older release’s suite\nTags: default, apt\n- /a.list:1: “noble”.\n- /c.sources:1: “xenial”.\nRationale: the host stops getting new package versions and security fixes from that source, and its old packages can clash with the rest of the system.\nFix: set the suite to the host’s VERSION_CODENAME, or waive it when the vendor publishes no newer suite.\n\n\
         Info (1.5): [apt/overlap]\nA repository is partly listed in two places\nTags: default, apt\n- /a.list:1.\n- /b.sources:1.\nRationale: two entries disagree about the same repository, so one edit changes what is fetched while the other keeps the old behaviour.\nFix:\n  1. List each suite and component in one entry only.\n  2. Then refresh the package lists:\n       sudo apt update\n\n\
-        Rating            E\nErrors            2\nWarnings          0\nInfo              2\nPassed            2\n";
+        Final report\n\nRating            E\nErrors            2 findings in 1 rule\nWarnings          0 findings in 0 rules\nInfo              2 findings in 1 rule\nPassed            2 checks\n";
     assert_eq!(text, expected);
     let painted = lint_human(&document, &checks, 0, true, false, true);
     assert!(
@@ -569,7 +570,7 @@ fn human_prints_a_unit_rule_got_as_a_quantity_and_json_keeps_the_number() {
     assert!(text.contains("a has size 2 GiB"), "{text}");
     let passes: Vec<Check> = (0..1000).map(|_| judged(Outcome::Pass, 0.0)).collect();
     let text = lint_human(&json!({}), &passes, 0, false, false, false);
-    assert!(text.contains("Passed            1,000\n"), "{text}");
+    assert!(text.contains("Passed            1,000 checks\n"), "{text}");
     systemlint::numbers::set(None);
     let raw: Value = serde_json::from_str(&lint_json(&document, &titled)).unwrap();
     assert!(raw.to_string().contains("2147483648"), "{raw}");
@@ -849,7 +850,7 @@ fn human_wraps_a_long_not_run_list_within_80_columns() {
         "{summary}"
     );
     assert!(
-        summary.contains("Not run           12\n  12 rules need a fact a skipped collector holds:\n    env/rule-00, "),
+        summary.contains("Not run           12 rules\n  12 rules need a fact a skipped collector holds:\n    env/rule-00, "),
         "{summary}"
     );
 }
@@ -1145,10 +1146,10 @@ fn two_selected_rules_in_conflict_print_one_block_and_fail_nothing() {
     assert_eq!(human.matches("Conflict:").count(), 1, "{human}");
     assert!(human.contains(line), "{human}");
     assert!(
-        human.contains("Errors            1\n"),
+        human.contains("Errors            1 finding in 1 rule\n"),
         "only pw/other fails: {human}"
     );
-    assert!(human.contains("Conflict          2\n"), "{human}");
+    assert!(human.contains("Conflict          2 rules\n"), "{human}");
     let conflicted: Vec<Check> = checks
         .iter()
         .filter(|c| c.rule != "pw/other")
@@ -1261,5 +1262,46 @@ fn human_colours_quoted_values_and_paths_only_when_colour_is_on() {
     assert!(
         painted.contains("\x1b[36m/etc/b\x1b[0m."),
         "a path, its full stop left plain: {painted}"
+    );
+}
+
+#[test]
+fn compliance_rows_name_each_standard_and_hide_mapped_tags_by_default() {
+    let mut fail = judged(Outcome::Fail, 7.5);
+    fail.rule = "a/x".into();
+    fail.tags = vec!["stig-ubuntu-26.04:V-1".into(), "hipaa:164.312(b)".into()];
+    fail.standards = vec!["stig".into(), "hipaa".into()];
+    let mut other = fail.clone();
+    other.rule = "a/y".into();
+    let mut pass = judged(Outcome::Pass, 0.0);
+    pass.standards = vec!["cis".into()];
+    let checks = vec![fail, other, pass];
+    let text = lint_human(&json!({}), &checks, 0, false, false, false);
+    assert!(text.contains("Final report\n\nRating"), "{text}");
+    assert!(
+        text.contains("cis               no violations found\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("stig              2 findings in 2 rules\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("hipaa             2 findings in 2 rules\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("References: stig-ubuntu-26.04:V-1\n"),
+        "{text}"
+    );
+    let verbose = lint_human(&json!({}), &checks, 0, false, true, false);
+    assert!(
+        verbose.contains("References: stig-ubuntu-26.04:V-1, hipaa:164.312(b)\n"),
+        "{verbose}"
+    );
+    let green = lint_human(&json!({}), &checks, 0, false, false, true);
+    assert!(
+        green.contains("\x1b[32mno violations found\x1b[0m"),
+        "{green}"
     );
 }

@@ -758,3 +758,26 @@ fn a_standard_brings_its_mapped_tags_which_select_and_prefer_like_its_controls()
             .contains("takes plain tags")
     );
 }
+
+#[test]
+fn a_framework_tag_with_parentheses_loads_selects_by_glob_and_names_its_standard() {
+    let map = "standards: {cis-ubuntu-26.04: [cis, ubuntu], hipaa: [hipaa], nist-800-53: [nist], nist-csf-2: [nist]}\nrules: {}\n";
+    let set = "rules:\n  m/a: {fact: a, expect: {}, tags: ['cis-ubuntu-26.04:1.1', 'hipaa:164.312(e)(1)', 'nist-800-53:AC-6(9)', 'nist-csf-2:PR.DS-01']}\n";
+    let library = library(&[("standards", map), ("m", set)]);
+    let spec = &library.definitions["m/a"];
+    assert_eq!(
+        spec.standards,
+        ["cis", "hipaa", "nist"],
+        "one name per standard, nist once"
+    );
+    let picked = |s: &str| {
+        library
+            .select(&[s.to_owned()])
+            .map(|p| p.len())
+            .unwrap_or(0)
+    };
+    assert_eq!(picked("hipaa:164.312(e)(1)"), 1, "the exact tag");
+    assert_eq!(picked("hipaa:164.312*"), 1, "a glob over the parenthesis");
+    assert_eq!(picked("nist-800-53:AC-6(9)"), 1);
+    assert_eq!(picked("hipaa:164.313*"), 0, "a glob past the edge");
+}

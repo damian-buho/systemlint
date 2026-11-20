@@ -242,6 +242,9 @@ pub struct Spec {
     /// The tags the `standards` map gives the standards of its control tags, `cis` before `ubuntu`.
     #[serde(skip)]
     pub family: Vec<String>,
+    /// The name of each standard of its control tags, the first tag of its `standards` entry.
+    #[serde(skip)]
+    pub standards: Vec<String>,
 }
 
 impl Spec {
@@ -442,6 +445,24 @@ fn family(tags: &[String], standards: &BTreeMap<String, Vec<String>>) -> Vec<Str
     out
 }
 
+/// The name of each standard `tags`’ control tags belong to, its `standards` entry’s first tag, else its own name.
+fn names(tags: &[String], standards: &BTreeMap<String, Vec<String>>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for standard in tags
+        .iter()
+        .filter_map(|t| t.split_once(':').map(|(s, _)| s))
+    {
+        let name = standards
+            .get(standard)
+            .and_then(|t| t.first())
+            .map_or(standard, String::as_str);
+        if !out.iter().any(|n| n == name) {
+            out.push(name.to_owned());
+        }
+    }
+    out
+}
+
 /// `base` tags then `own`, where an own `!tag` drops that tag from `base`.
 fn tagged(base: Vec<String>, own: Vec<String>) -> Vec<String> {
     let (drop, own): (Vec<_>, Vec<_>) = own.into_iter().partition(|t| t.starts_with('!'));
@@ -541,6 +562,7 @@ fn merge(base: Spec, over: Spec) -> Spec {
         pinned: over.pinned || (!score_set && base.pinned),
         applies,
         family: base.family,
+        standards: base.standards,
     }
 }
 
@@ -655,6 +677,7 @@ impl Library {
         let mut standard_tags = BTreeSet::new();
         for spec in definitions.values_mut() {
             spec.family = family(&spec.tags, &standards);
+            spec.standards = names(&spec.tags, &standards);
             standard_tags.extend(spec.family.iter().cloned());
             let own = std::mem::take(&mut spec.tags);
             spec.tags = tagged(own, spec.family.clone());

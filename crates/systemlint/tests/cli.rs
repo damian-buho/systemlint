@@ -879,7 +879,7 @@ fn a_run_without_tags_counts_the_rules_the_default_left_out_in_the_summary() {
     let (code, text) = report(&["check", &facts]);
     assert_eq!(code, 0, "{text}");
     assert!(
-        text.contains("Not selected      2, run them by naming their ruleset in --tags\n"),
+        text.contains("Not selected      2 rules, run them by naming their ruleset in --tags\n"),
         "{text}"
     );
     let (code, text) = report(&["check", "--tags", "performance", &facts]);

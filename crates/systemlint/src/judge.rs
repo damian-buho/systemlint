@@ -105,6 +105,9 @@ pub struct Check {
     pub rationale: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub references: Vec<Reference>,
+    /// The standards the rule’s control tags belong to, by name.
+    #[serde(skip)]
+    pub standards: Vec<String>,
 }
 
 impl Check {
@@ -1172,6 +1175,7 @@ fn base(rule: &Rule, outcome: Outcome, bound: &[String]) -> Check {
         docs: rule.spec.docs.clone(),
         rationale: rule.spec.rationale.clone(),
         references: rule.spec.references.clone(),
+        standards: rule.spec.standards.clone(),
     }
 }
 

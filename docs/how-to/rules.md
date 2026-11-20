@@ -378,7 +378,7 @@ row, so a rule of your own without `default` never vanishes silently; `-v`
 logs the count per defining ruleset:
 
 ```text
-Not selected      12, run them by naming their ruleset in --tags
+Not selected      12 rules, run them by naming their ruleset in --tags
 ```
 
 ```sh
@@ -400,6 +400,13 @@ standards:
   cis-ubuntu-26.04: [cis, ubuntu, ubuntu-26.04]
   nist-sp-800-63b-4: [nist]
 ```
+
+Every CIS rule also carries the controls CIS maps it to in other frameworks
+(`cis-controls-v8`, `pci-dss-4`, `hipaa`, `iso-27001-2022`, `nist-800-53`,
+`nist-800-171-r2`, `nist-800-171-r3`, `nist-csf-2`), so `--tags hipaa` or
+`--tags 'hipaa:164.312(e)*'` selects them; `fips-140-3` is on two rules, named
+by their STIG ID. A framework tag means the rule contributes to that control,
+never that it satisfies it.
 
 ## Remedies
 
@@ -476,26 +483,32 @@ two on the `systemlint fix --tags <rule>` command that makes every change, on
 its own line; from three on that command stands for them, and `-v` keeps every
 command. Each quoted value and path is coloured when colour is on, and a fix
 of several steps is numbered, each command and file line alone below its
-step. The summary
-follows, one count per row: the rating, each level, the passes, then what did
+step. A bold `Final report`
+heading opens the summary, one count per row, each with its unit: the rating, each level, the passes, then what did
 not run in two kinds. `Not selected` and `Not run` are yours to turn on (name
 the ruleset in `--tags`; run as root, add the opt-in flag, or collect fresh
 facts), `Not run` listing its rules under it by what each needs, while `Nothing to check` is a rule this host has nothing for (no
 such program, a ruleset whose `when` the host does not meet). One last line
-names the rulesets with no rule that applies to the host:
+names the rulesets with no rule that applies to the host. One row per standard among the
+selected rules ends the summary, `no violations found` in green or its findings
+and the rules holding them:
 
 ```text
+Final report
+
 Rating            B
-Errors            5
-Warnings          9
-Info              0
-Passed            577
-Not run           24
+Errors            5 findings in 3 rules
+Warnings          9 findings in 4 rules
+Info              0 findings in 0 rules
+Passed            577 checks
+Not run           4 rules
   3 rules need root:
     accounts/shadow-missing, files/owner, logs/file-mode
   1 rule needs an opt-in flag:
     tls/expired
-Nothing to check  21, the host has nothing these rules judge
+Nothing to check  21 checks, the host has nothing these rules judge
+cis               5 findings in 3 rules
+stig              no violations found
 
 Not applicable to this host: gdm, nftables, tls.
 ```
@@ -506,9 +519,10 @@ tags, lists each subject on its own dash line with the value it failed on, then 
 ends with one `Fix:` line, or a fix under each subject when they differ. A rule
 with a remedy puts its command under each subject as a `Run:` line with no full
 stop, so it pastes into a shell, in place of the `Fix:` line, and closes with the `systemlint fix --tags`
-call that makes every change. A `References:` line names its control tags
-and each reference’s title, so an upstream ID (`Lynis USB-1000`) stays there to
-look up; `-v` turns each reference into a `See:` line with its URL.
+call that makes every change. A `References:` line names the rule’s own
+control tags (CIS, STIG) and each reference’s title, so an upstream ID
+(`Lynis USB-1000`) stays there to look up; `-v` adds the mapped framework
+controls, which JSON and SARIF always carry, and turns each reference into a `See:` line with its URL.
 Failures that name each other, the two sides of `apt/overlap`, list as one
 problem. `--plain` prints one tab-separated line per finding instead: outcome
 or level, score, rule, subject, message, fix, the message without the subject

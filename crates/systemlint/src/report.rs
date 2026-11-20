@@ -408,12 +408,28 @@ fn header(label: &str, check: &Check, on: bool) -> String {
     out
 }
 
-/// The control tags of `check`, `cis-ubuntu-26.04:3.2.1`, which the human report lists under `References:`.
-fn controls(check: &Check) -> Vec<&str> {
+/// The standards whose controls CIS maps a rule to, which `-v` lists beside the rule’s own citations.
+const MAPPED: [&str; 9] = [
+    "cis-controls-v8",
+    "pci-dss-4",
+    "hipaa",
+    "iso-27001-2022",
+    "nist-800-53",
+    "nist-800-171-r2",
+    "nist-800-171-r3",
+    "nist-csf-2",
+    "fips-140-3",
+];
+
+/// The control tags of `check`, `cis-ubuntu-26.04:3.2.1`, which the human report lists under `References:`, the mapped frameworks’ only when `mapped`.
+fn controls(check: &Check, mapped: bool) -> Vec<&str> {
     check
         .tags
         .iter()
-        .filter(|t| t.contains(':'))
+        .filter(|t| {
+            t.split_once(':')
+                .is_some_and(|(s, _)| mapped || !MAPPED.contains(&s))
+        })
         .map(String::as_str)
         .collect()
 }
@@ -705,7 +721,7 @@ fn failure_block(
         let command = format!("systemlint fix --tags {}", worst.rule);
         let _ = writeln!(tail, "{lead}\n  {}", paint(on, SHOWN, &command));
     }
-    let mut named = controls(worst);
+    let mut named = controls(worst, verbose);
     // Without `-v` the reference titles join the controls, so each upstream ID stays visible.
     named.extend(
         worst
@@ -790,47 +806,75 @@ fn row(label: &str, value: &str) -> String {
     format!("{label:<18}{value}\n")
 }
 
-/// The summary counts as label, count and what the count means: each level’s failures, the passes, the other outcomes, then what did not run, split into what the user can turn on and what this host has nothing for; zero counts left out but the levels and the passes.
+/// `noun` in the plural unless `count` is 1.
+fn plural(count: usize, noun: &str) -> String {
+    format!("{noun}{}", if count == 1 { "" } else { "s" })
+}
+
+/// `count` and its `noun`, pluralised.
+fn unit(count: usize, noun: &str) -> String {
+    format!("{} {}", numbers::count(count as u64), plural(count, noun))
+}
+
+/// The distinct rules among `checks`.
+fn rules_in<'a>(checks: impl Iterator<Item = &'a Check>) -> BTreeSet<&'a str> {
+    checks.map(|c| c.rule.as_str()).collect()
+}
+
+/// The summary counts as label, count and the words after the count: each level’s failures and the rules holding them, the passes, the other outcomes, then what did not run, split into what the user can turn on and what this host has nothing for; zero counts left out but the levels and the passes.
 fn counts(
     document: &Value,
     checks: &[Check],
     left_out: usize,
-) -> Vec<(&'static str, usize, &'static str, Option<Severity>)> {
-    let failing = |level: Severity| {
-        checks
-            .iter()
-            .filter(|c| c.is_failing() && c.severity == Some(level))
-            .count()
-    };
+) -> Vec<(&'static str, usize, String, Option<Severity>)> {
     let s = summary(checks);
     let n = |key: &str| s[key].as_u64().unwrap_or_default() as usize;
-    let not_run = checks
-        .iter()
-        .filter(|c| skip_reason(document, c).is_some())
-        .count();
-    let level = |label, l| (label, failing(l), "", Some(l));
+    let stopped = |c: &&Check| skip_reason(document, c).is_some();
+    let not_run = checks.iter().filter(stopped).count();
+    let level = |label, l: Severity| {
+        let failing = || {
+            checks
+                .iter()
+                .filter(|c| c.is_failing() && c.severity == Some(l))
+        };
+        let held = failing().count();
+        let words = format!(
+            " {} in {}",
+            plural(held, "finding"),
+            unit(rules_in(failing()).len(), "rule")
+        );
+        (label, held, words, Some(l))
+    };
+    let of = |label, count, noun: &str, why: &str| {
+        (label, count, format!(" {}{why}", plural(count, noun)), None)
+    };
     [
         level("Errors", Severity::Error),
         level("Warnings", Severity::Warning),
         level("Info", Severity::Info),
         level("Advice", Severity::Advice),
-        ("Passed", n("pass"), "", None),
-        ("Waived", n("waived"), "", None),
-        ("Unknown", n("unknown") - not_run, "", None),
-        ("Manual", n("manual"), ", for a person to check", None),
-        ("Conflict", n("conflict"), "", None),
-        (
+        of("Passed", n("pass"), "check", ""),
+        of("Waived", n("waived"), "finding", ""),
+        of("Unknown", n("unknown") - not_run, "check", ""),
+        of("Manual", n("manual"), "rule", ", for a person to check"),
+        of("Conflict", n("conflict"), "rule", ""),
+        of(
             "Not selected",
             left_out,
+            "rule",
             ", run them by naming their ruleset in --tags",
-            None,
         ),
-        ("Not run", not_run, "", None),
-        (
+        of(
+            "Not run",
+            rules_in(checks.iter().filter(stopped)).len(),
+            "rule",
+            "",
+        ),
+        of(
             "Nothing to check",
             n("skip") + n("not-applicable"),
+            "check",
             ", the host has nothing these rules judge",
-            None,
         ),
     ]
     .into_iter()
@@ -841,7 +885,7 @@ fn counts(
     .collect()
 }
 
-/// The closing rows: the rating, then one row per count, a level’s failures in its colour.
+/// The closing rows: the rating, then one row per count, a level’s failures in its colour, then one per standard.
 fn summary_rows(document: &Value, checks: &[Check], left_out: usize, on: bool) -> String {
     let rating = rate(checks).map_or_else(
         || "none, since no check was judged".to_owned(),
@@ -854,7 +898,8 @@ fn summary_rows(document: &Value, checks: &[Check], left_out: usize, on: bool) -
             paint(on, &format!("1;{code}"), &r.grade.to_string())
         },
     );
-    let mut out = row("Rating", &rating);
+    let mut out = format!("{}\n\n", paint(on, "1", "Final report"));
+    out += &row("Rating", &rating);
     for (label, count, why, level) in counts(document, checks, left_out) {
         let shown = match level.filter(|_| count > 0) {
             Some(l) => paint(on, level_word(Some(l)).1, &numbers::count(count as u64)),
@@ -864,6 +909,36 @@ fn summary_rows(document: &Value, checks: &[Check], left_out: usize, on: bool) -
         if label == "Not run" {
             out += &not_run_rows(document, checks, on);
         }
+    }
+    out + &compliance_rows(checks, on)
+}
+
+/// One row per standard among `checks`, by its name: no violations in green, else the findings and the rules holding them.
+fn compliance_rows(checks: &[Check], on: bool) -> String {
+    let mut names: BTreeSet<&str> = BTreeSet::new();
+    names.extend(
+        checks
+            .iter()
+            .flat_map(|c| c.standards.iter().map(String::as_str)),
+    );
+    let mut out = String::new();
+    for name in names {
+        let failing = || {
+            checks
+                .iter()
+                .filter(|c| c.is_failing() && c.standards.iter().any(|s| s == name))
+        };
+        let held = failing().count();
+        log::debug!("compliance {name}: {held} findings");
+        let value = match held {
+            0 => paint(on, "32", "no violations found"),
+            _ => format!(
+                "{} in {}",
+                unit(held, "finding"),
+                unit(rules_in(failing()).len(), "rule")
+            ),
+        };
+        out += &row(name, &value);
     }
     out
 }
@@ -902,10 +977,16 @@ fn not_run_rows(document: &Value, checks: &[Check], on: bool) -> String {
         needs.entry(need).or_default().insert(&check.rule);
     }
     let mut out = String::new();
+    let mut placed: BTreeSet<&str> = BTreeSet::new();
     for (key, one, many) in NEEDS {
         let Some(rules) = needs.get(key) else {
             continue;
         };
+        let rules: BTreeSet<&str> = rules.difference(&placed).copied().collect();
+        placed.extend(rules.iter().copied());
+        if rules.is_empty() {
+            continue;
+        }
         let what = if rules.len() == 1 { one } else { many };
         let noun = if rules.len() == 1 { "rule" } else { "rules" };
         log::debug!("not run, {key}: {} rules", rules.len());
@@ -1373,13 +1454,22 @@ pub fn lint_human_targets(
         out.push('\n');
     }
     if !quiet {
+        out.push_str(&format!("{}\n\n", paint(on, "1", "Final report")));
         out.push_str(&target_rows(&every, on));
         if left_out > 0 {
             out += &row(
                 "Not selected",
-                &format!("{left_out}, run them by naming their ruleset in --tags"),
+                &format!(
+                    "{}, run them by naming their ruleset in --tags",
+                    unit(left_out, "rule")
+                ),
             );
         }
+        let all: Vec<Check> = every
+            .iter()
+            .flat_map(|(_, _, c)| c.iter().cloned())
+            .collect();
+        out += &compliance_rows(&all, on);
     }
     out
 }

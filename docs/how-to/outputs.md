@@ -11,12 +11,14 @@ other tools, and `--output PATH` writes any format to a file through a
 temporary sibling and a rename, mode 0644 under the umask, so a reader never
 sees half a report. `--output -` prints to stdout.
 
-The human report prints its counts, and a `{got}` its rule gives a `unit`,
+The human report prints its counts, each with its unit (`30,788 checks`,
+`3 findings in 1 rule`), one row per standard after them, and a `{got}` its rule gives a `unit`,
 as people read them: digits grouped as the locale groups them, the first of
 `LC_ALL`, `LC_NUMERIC` and `LANG` that is set (`10,000` in English, `10.000`
 in Spanish), and bytes in binary units to one decimal (`1.5 GiB`). The C and
 POSIX locales, or one CLDR does not know, print plain digits. The other
-formats keep every number as it is, for the tools that read them.
+formats keep every number as it is, for the tools that read them; JSON and
+SARIF carry every control tag a rule has, the mapped frameworks included.
 
 ## SARIF
 
