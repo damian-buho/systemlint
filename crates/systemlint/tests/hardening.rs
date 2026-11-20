@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::collections::BTreeMap;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
+use std::rc::Rc;
 
 use serde_json::{Value, json};
 use systemlint::judge::{Outcome, compile, lint};
@@ -77,22 +79,34 @@ fn selected(
     document: &Value,
     config: Value,
 ) -> Vec<systemlint::judge::Check> {
-    let parsed = ruleset_yaml(ruleset);
-    let mut rulesets = BTreeMap::from([(ruleset.to_owned(), parsed)]);
-    let supplied = Supplied {
-        config: config.as_object().unwrap().clone(),
-        env: |_| None,
-        ..Supplied::default()
-    };
-    apply(&mut rulesets, &supplied).unwrap();
-    let library = Library::new(rulesets).unwrap();
-    let rules: Vec<_> = library
-        .select(selectors)
-        .unwrap()
-        .into_iter()
-        .map(|(id, spec)| compile(&id, spec).unwrap())
-        .collect();
+    let key = format!("{ruleset} {selectors:?} {config}");
+    let rules = COMPILED.with_borrow_mut(|compiled| {
+        Rc::clone(compiled.entry(key).or_insert_with(|| {
+            let parsed = ruleset_yaml(ruleset);
+            let mut rulesets = BTreeMap::from([(ruleset.to_owned(), parsed)]);
+            let supplied = Supplied {
+                config: config.as_object().unwrap().clone(),
+                env: |_| None,
+                ..Supplied::default()
+            };
+            apply(&mut rulesets, &supplied).unwrap();
+            let library = Library::new(rulesets).unwrap();
+            Rc::new(
+                library
+                    .select(selectors)
+                    .unwrap()
+                    .into_iter()
+                    .map(|(id, spec)| compile(&id, spec).unwrap())
+                    .collect(),
+            )
+        }))
+    });
     lint(&hosted(document), &rules, &[], "2026-11-12")
+}
+
+thread_local! {
+    // The rules each (ruleset, selectors, config) compiled to, so a test judging many documents compiles them once.
+    static COMPILED: RefCell<HashMap<String, Rc<Vec<systemlint::judge::Rule>>>> = RefCell::new(HashMap::new());
 }
 
 // `document` on a host booted by systemd with cron installed, and journald when it has journald facts, unless it says otherwise.
@@ -5447,10 +5461,9 @@ fn owned(rule: &str, id: &str, into: &str, stats: Value) -> Vec<(String, Outcome
                        "accounts-passwd": {"status": "ok", "into": "accounts.passwd"},
                        "auditd-binary": {"status": "ok", "into": "auditd.binary"}}});
     document[top][rest] = stats;
-    judge(ruleset, &document)
+    selected(ruleset, &[rule.to_owned()], &document, json!({}))
         .into_iter()
-        .filter(|(r, _, _)| r == rule)
-        .map(|(_, s, o)| (s, o))
+        .map(|c| (c.subject_label(), c.outcome))
         .collect()
 }
 
