@@ -883,6 +883,11 @@ fn a_daemon_json_set_key_merges_through_jq_keeping_every_other_key() {
         change.remedy.command(&change.path),
         "{ cat /etc/docker/daemon.json 2>/dev/null || echo '{}'; } | jq --arg value 100m 'setpath([\"log-opts\",\"max-size\"]; $value)' > /etc/docker/daemon.json.new && dockerd --validate --config-file /etc/docker/daemon.json.new && mv /etc/docker/daemon.json.new /etc/docker/daemon.json && systemctl restart docker.service"
     );
+    let steps = change.remedy.commands(&change.path);
+    assert_eq!(steps.len(), 4, "{steps:?}");
+    assert!(steps.iter().all(|s| !s.contains(" && ")), "{steps:?}");
+    assert_eq!(steps.join(" && "), change.remedy.command(&change.path));
+    assert_eq!(steps[3], "systemctl restart docker.service");
     if !Path::new("/usr/bin/jq").exists() {
         assert!(apply(&Root::open(&base("daemon-json-no-jq")).unwrap(), &change).is_err());
         return;

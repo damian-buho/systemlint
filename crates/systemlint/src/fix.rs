@@ -640,16 +640,16 @@ impl Remedy {
         }
     }
 
-    /// The shell command this remedy stands for on `subject`, a path or for a line `path:line`.
-    pub fn command(&self, subject: &str) -> String {
+    /// The shell commands this remedy runs on `subject`, a path or for a line `path:line`, in order, none after one that fails.
+    pub fn commands(&self, subject: &str) -> Vec<String> {
         match self {
-            Self::Chmod(spec) => format!("chmod {spec} {}", quote(subject)),
-            Self::Chown(uid) => format!("chown {uid} {}", quote(subject)),
-            Self::Chgrp(gid) => format!("chgrp {gid} {}", quote(subject)),
-            Self::DisableLine(_) => match line_of(subject) {
+            Self::Chmod(spec) => vec![format!("chmod {spec} {}", quote(subject))],
+            Self::Chown(uid) => vec![format!("chown {uid} {}", quote(subject))],
+            Self::Chgrp(gid) => vec![format!("chgrp {gid} {}", quote(subject))],
+            Self::DisableLine(_) => vec![match line_of(subject) {
                 Some((path, line)) => format!("sed -i '{line}s/^/#/' {}", quote(path)),
                 None => format!("# no line named in {}", quote(subject)),
-            },
+            }],
             Self::DropIn(drop) => {
                 let drop = drop.for_subject(subject).unwrap_or_else(|| drop.clone());
                 let lines: Vec<String> = drop.lines.iter().map(|l| quote(l)).collect();
@@ -658,27 +658,29 @@ impl Remedy {
                     lines.join(" "),
                     quote(&drop.path())
                 );
-                match drop
+                let after = drop
                     .unloading()
                     .or_else(|| drop.loading())
-                    .or_else(|| drop.checking())
-                {
-                    Some(command) => format!("{written} && {command}"),
-                    None => written,
-                }
+                    .or_else(|| drop.checking());
+                std::iter::once(written).chain(after).collect()
             }
-            Self::Mask => match unit_of(subject) {
+            Self::Mask => vec![match unit_of(subject) {
                 Some(unit) => format!("systemctl mask --now {}", quote(unit)),
                 None => format!("# no unit named in {}", quote(subject)),
-            },
+            }],
             Self::SetKey(set) if set.file == KeyFile::DockerDaemon => {
                 let path = quote(&set.file.path());
                 let new = quote(&format!("{}.new", set.file.path()));
                 let args: Vec<String> = set.jq_args().iter().map(|a| quote(a)).collect();
-                format!(
-                    "{{ cat {path} 2>/dev/null || echo '{{}}'; }} | jq {} > {new} && dockerd --validate --config-file {new} && mv {new} {path} && systemctl restart {DOCKER_UNIT}",
-                    args.join(" ")
-                )
+                vec![
+                    format!(
+                        "{{ cat {path} 2>/dev/null || echo '{{}}'; }} | jq {} > {new}",
+                        args.join(" ")
+                    ),
+                    format!("dockerd --validate --config-file {new}"),
+                    format!("mv {new} {path}"),
+                    format!("systemctl restart {DOCKER_UNIT}"),
+                ]
             }
             Self::SetKey(set) => {
                 let path = match subject.starts_with('/') {
@@ -686,16 +688,21 @@ impl Remedy {
                     false => set.file.path(),
                 };
                 let line = format!("{} {}", set.key, set.value);
-                match set.was {
+                vec![match set.was {
                     Some(_) => format!(
                         "sed --in-place {} {}",
                         quote(&format!("s/^{}[[:space:]].*/{line}/", set.key)),
                         quote(&path)
                     ),
                     None => format!("echo {} >> {}", quote(&line), quote(&path)),
-                }
+                }]
             }
         }
+    }
+
+    /// The commands of `commands` as one line for a shell, each run only when the one before succeeded.
+    pub fn command(&self, subject: &str) -> String {
+        self.commands(subject).join(" && ")
     }
 }
 

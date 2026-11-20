@@ -1192,7 +1192,8 @@ fn fix(config: &Config, root: Option<&Path>, selection: &Selection, ask: Ask, qu
         );
         let plan: String = changes
             .iter()
-            .map(|c| c.remedy.command(&shown(c)) + "\n")
+            .flat_map(|c| c.remedy.commands(&shown(c)))
+            .map(|command| command + "\n")
             .collect();
         document::write(Path::new("-"), &plan, 0).map_err(|error| {
             eprintln!("{error}");

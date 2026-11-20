@@ -438,7 +438,8 @@ disables the last line its owner has, such as an account’s only authorized key
 own `fact` or `facts` drops the inherited remedy.
 
 `systemlint fix` lints the live host, or with `--root DIR` a root filesystem
-such as an image being built, prints each change as its command on stdout,
+such as an image being built, prints each change as its commands on stdout,
+one per line, in the order they run and none after one that fails,
 naming the path under that root, and asks before making them when stdin is a terminal. `--dry-run`
 stops after the list, `--force` skips the question, and `--no-input` fails
 naming `--force` instead of asking. Each file is opened again right before its
@@ -517,8 +518,8 @@ A failure block opens with the level, the highest score of the rule and its ID,
 then the `title` on its own line, a `Tags:` line of its tags but the control
 tags, lists each subject on its own dash line with the value it failed on, then a `Rationale:` line, and
 ends with one `Fix:` line, or a fix under each subject when they differ. A rule
-with a remedy puts its command under each subject as a `Run:` line with no full
-stop, so it pastes into a shell, in place of the `Fix:` line, and closes with the `systemlint fix --tags`
+with a remedy puts its commands under each subject as one `Run:` line joined with `&&` and no full
+stop, so it pastes into a shell and stops at the first failure, in place of the `Fix:` line, and closes with the `systemlint fix --tags`
 call that makes every change. A `References:` line names the rule’s own
 control tags (CIS, STIG) and each reference’s title, so an upstream ID
 (`Lynis USB-1000`) stays there to look up; `-v` adds the mapped framework
