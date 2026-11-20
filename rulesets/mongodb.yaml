@@ -14,9 +14,10 @@ rules:
       any:
         - {fact: ports, expect: {properties: {"tcp:27017": {properties: {addresses: {items: {pattern: "^(127\\.|::1$)"}}}}}}}
         - {fact: "/mongodb/conf/~1etc~1mongod.conf", expect: {required: [security], properties: {security: {required: [authorization], properties: {authorization: {const: enabled}}}}}}
+        - {fact: "/mongodb/conf/~1etc~1mongod.conf", expect: {required: [security], properties: {security: {required: [keyFile], not: {required: [transitionToAuth], properties: {transitionToAuth: {const: true}}}}}}}
     severity: error
     score: 9.0
-    message: "mongod listens beyond the loopback on TCP 27017 and /etc/mongod.conf leaves security.authorization unset or disabled, so whoever reaches it reads and drops every database"
+    message: "mongod listens beyond the loopback on TCP 27017 and /etc/mongod.conf leaves security.authorization unset or disabled, with no security.keyFile enforcing it, so whoever reaches it reads and drops every database"
     rationale: anyone on the network can read, change or delete all the data, and attackers routinely wipe such databases for ransom
     fix:
       - Create an administrator.
