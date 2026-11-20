@@ -30,7 +30,7 @@ pub enum Remedy {
     /// Writes one systemlint-owned file of lines that only turn something off, refused when it holds anything else.
     #[serde(rename = "drop-in")]
     DropIn(DropIn),
-    /// Masks the subject unit: links it to `/dev/null` in [`UNITS`], then on the live host stops it through systemctl.
+    /// Masks the subject unit through `systemctl mask`, `--now` on the live host, `--root` otherwise.
     Mask,
 }
 
@@ -648,52 +648,34 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
     }
 }
 
-/// Links the unit `change` names to `/dev/null`, refusing a file of its own there, then masks and stops it on the live root.
+/// Masks the unit `change` names through systemctl, stopping it too on the live root.
 fn mask(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
-    let invalid = |why: &str| std::io::Error::new(std::io::ErrorKind::InvalidInput, why.to_owned());
-    let unit = unit_of(&change.path).ok_or_else(|| invalid("it names no unit"))?;
-    match root.stat(&change.path) {
-        Ok(stat) => {
-            log::debug!("{}: links to {:?}", change.path, stat.linked_to);
-            return match stat.linked_to.as_deref() {
-                Some("/dev/null") => Ok(None),
-                _ => Err(std::io::Error::new(
-                    std::io::ErrorKind::AlreadyExists,
-                    "it holds a unit of its own, so systemlint leaves it",
-                )),
-            };
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            root.symlink_new(UNITS, unit, "/dev/null")?
-        }
-        Err(e) => return Err(e),
-    }
+    let unit = unit_of(&change.path)
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "it names no unit"))?;
     let live = root.path() == std::path::Path::new("/");
-    log::debug!("{unit}: linked to /dev/null, live root {live}");
-    if !live {
-        return Ok(Some(("unmasked".to_owned(), "masked".to_owned())));
-    }
+    let at = format!("--root={}", root.path().display());
+    let args = match live {
+        true => ["mask", "--now", "--", unit],
+        false => [at.as_str(), "mask", "--", unit],
+    };
     let output = crate::runner::run(
         std::path::Path::new(SYSTEMCTL),
-        &["mask", "--now", "--", unit],
+        &args,
         None,
         UNLOAD_TIMEOUT,
         crate::runner::OUTPUT_CAP,
         None,
     )
     .map_err(std::io::Error::other)?;
-    log::debug!("systemctl mask --now {unit}: exit {}", output.code());
+    log::debug!("systemctl {}: exit {}", args.join(" "), output.code());
     if output.code() != 0 {
         let answer = String::from_utf8_lossy(&output.stderr).trim().to_owned();
-        return Ok(Some((
-            "unmasked".to_owned(),
-            format!("masked, still running until the next boot (systemctl answered “{answer}”)"),
+        return Err(std::io::Error::other(format!(
+            "systemctl answered “{answer}”"
         )));
     }
-    Ok(Some((
-        "unmasked".to_owned(),
-        "masked and stopped".to_owned(),
-    )))
+    let after = if live { "masked and stopped" } else { "masked" };
+    Ok(Some(("unmasked".to_owned(), after.to_owned())))
 }
 
 /// Writes `drop` and unloads its modules, refusing first when the running kernel uses one of them.

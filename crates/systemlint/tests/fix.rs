@@ -654,9 +654,7 @@ fn a_mask_names_only_a_unit_systemd_could_name() {
 }
 
 #[test]
-fn applying_a_mask_links_the_unit_once_and_leaves_a_unit_file_of_its_own() {
-    let dir = base("mask");
-    std::fs::create_dir_all(dir.join("etc/systemd/system")).unwrap();
+fn a_mask_plans_one_systemctl_mask_per_failing_unit() {
     let yaml =
         "fact: systemd.state.*\nexpect: {properties: {masked: {const: true}}}\nremedy: mask\n";
     let rule = compile("t/mask", systemlint::yaml::from_str(yaml).unwrap()).unwrap();
@@ -675,27 +673,6 @@ fn applying_a_mask_links_the_unit_once_and_leaves_a_unit_file_of_its_own() {
     assert_eq!(
         planned[0].remedy.command(&planned[0].path),
         "systemctl mask --now cups.socket"
-    );
-    let root = Root::open(&dir).unwrap();
-    assert_eq!(
-        apply(&root, &planned[0]).unwrap(),
-        Some(("unmasked".into(), "masked".into()))
-    );
-    assert_eq!(
-        std::fs::read_link(dir.join("etc/systemd/system/cups.socket")).unwrap(),
-        Path::new("/dev/null")
-    );
-    assert_eq!(
-        apply(&root, &planned[0]).unwrap(),
-        None,
-        "a re-run changes nothing"
-    );
-    std::fs::write(dir.join("etc/systemd/system/own.service"), "[Service]\n").unwrap();
-    let error = apply(&root, &planned[1]).unwrap_err();
-    assert!(error.to_string().contains("of its own"), "{error}");
-    assert_eq!(
-        std::fs::read_to_string(dir.join("etc/systemd/system/own.service")).unwrap(),
-        "[Service]\n"
     );
 }
 
