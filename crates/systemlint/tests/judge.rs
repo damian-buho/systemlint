@@ -1507,3 +1507,26 @@ fn a_stricter_failure_folds_the_looser_one_on_its_subject_or_on_a_subjectless_on
     );
     assert_eq!(failing(&[WHOLE, NONE], &[]), ["t/whole "]);
 }
+
+#[test]
+fn subjects_sort_their_numbers_as_numbers() {
+    let long = "f:18446744073709551616";
+    let document = json!({"f": {"f:10": 1, "f:9": 1, "f:3": 1, "g:1": 1, "f:07": 1, "f:7": 1, (long): 1, "f:18446744073709551615": 1}});
+    let subjects: Vec<_> = run("fact: f.*\nexpect: {const: 0}\n", &document)
+        .iter()
+        .map(Check::subject_text)
+        .collect();
+    assert_eq!(
+        subjects,
+        [
+            "f:3",
+            "f:07",
+            "f:7",
+            "f:9",
+            "f:10",
+            "f:18446744073709551615",
+            long,
+            "g:1"
+        ]
+    );
+}

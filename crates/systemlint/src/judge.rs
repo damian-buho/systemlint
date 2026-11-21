@@ -336,6 +336,30 @@ fn subjects(document: &Value, path: &[Segment]) -> Option<Vec<Vec<String>>> {
     walk(document, document, prefix, &[], Vec::new(), &mut found).then_some(found)
 }
 
+/// A key as its text runs and number runs, so `sources.list:3` sorts before `sources.list:14` and `1.1.2` before `1.1.10`.
+pub fn natural(key: &str) -> Vec<(String, u64)> {
+    let mut parts = Vec::new();
+    let mut rest = key;
+    while !rest.is_empty() {
+        let text = rest
+            .find(|c: char| c.is_ascii_digit())
+            .unwrap_or(rest.len());
+        let end = rest[text..]
+            .find(|c: char| !c.is_ascii_digit())
+            .map_or(rest.len(), |n| text + n);
+        let digits = &rest[text..end];
+        // A run too long for u64 sorts after every shorter number, ties broken by the text.
+        let number = if digits.is_empty() {
+            0
+        } else {
+            digits.parse().unwrap_or(u64::MAX)
+        };
+        parts.push((rest[..text].to_owned(), number));
+        rest = &rest[end..];
+    }
+    parts
+}
+
 fn walk(
     document: &Value,
     value: &Value,
@@ -364,7 +388,7 @@ fn walk(
                     keys.push(owed);
                 }
             }
-            keys.sort();
+            keys.sort_by_cached_key(|key| (natural(key), key.clone()));
             keys
         }),
     };

@@ -318,7 +318,7 @@ pub fn write_all(dir: &Path, library: &Library) -> Result<usize, String> {
     }
     for (s, controls) in &standards {
         let mut controls: Vec<_> = controls.iter().collect();
-        controls.sort_by_key(|(control, _)| natural(control));
+        controls.sort_by_key(|(control, _)| (crate::judge::natural(control), *control));
         let rows = controls.iter().flat_map(|(control, ids)| {
             ids.iter().map(move |id| {
                 format!(
@@ -339,14 +339,6 @@ pub fn write_all(dir: &Path, library: &Library) -> Result<usize, String> {
     write(dir, "index.md", &index)?;
     log::info!("{} rule pages written to {}", count + 1, dir.display());
     Ok(count + 1)
-}
-
-/// A control as numbers where it has them, so `1.1.1.2` sorts before `1.1.1.10`.
-fn natural(control: &str) -> Vec<(u64, String)> {
-    control
-        .split(['.', '-'])
-        .map(|part| (part.parse().unwrap_or(u64::MAX), part.to_owned()))
-        .collect()
 }
 
 fn title(library: &Library, id: &str) -> String {
