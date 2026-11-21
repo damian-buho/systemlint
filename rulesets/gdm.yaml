@@ -23,7 +23,7 @@ rules:
       - Restart gdm.
       - Then reach this desktop over SSH or a VPN.
     docs: https://help.gnome.org/admin/gdm/stable/configuration.html.en
-    tags: [gdm, cis-ubuntu-26.04:1.7.6, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [gdm, cis-ubuntu-26.04:1.7.6, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4]
   gdm/wayland-enabled:
     title: GDM offers Wayland sessions, which run X11 programs through Xwayland
     fact: gdm.config.*
@@ -41,4 +41,4 @@ rules:
       - Set “WaylandEnable=false” in the “[daemon]” section of {subject}.
       - Restart gdm.
     docs: https://help.gnome.org/admin/gdm/stable/configuration.html.en
-    tags: [gdm, cis-ubuntu-26.04:1.7.7, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
+    tags: [gdm, cis-ubuntu-26.04:1.7.7, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4, '!default']

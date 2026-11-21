@@ -22,7 +22,7 @@ rules:
       - 'Then turn the firewall on:'
       - run: ufw enable
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
-    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.1, stig-ubuntu-26.04:UBTU-24-100300, cis-controls-v8:4.4, cis-controls-v8:4.5, iso-27001-2022:A6.7, iso-27001-2022:A8.1, nist-800-171-r3:03.13.06, nist-800-53:CA-9, nist-800-53:SC-7, nist-800-53:SC-7(5), pci-dss-4:1.2.1, pci-dss-4:1.4.1, '!default']
+    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.1, stig-ubuntu-26.04:UBTU-24-100300, cis-controls-v8:4.4, cis-controls-v8:4.5, nist-800-171-r3:03.13.06, nist-800-53:SC-7, nist-800-53:SC-7(5), pci-dss-4:1.2.1, pci-dss-4:1.4.1, '!default']
   ufw/disabled:
     title: ufw is installed but switched off
     fact: ufw.conf.ENABLED
@@ -102,7 +102,7 @@ rules:
     rationale: every service listening on an unlisted port, including ones installed by accident, can be reached from the network
     fix: run “ufw default deny incoming” once the rules allow your own SSH session
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
-    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.3, cis-controls-v8:4.4, cis-controls-v8:4.5, iso-27001-2022:A6.7, iso-27001-2022:A8.1, nist-800-171-r3:03.13.06, nist-800-53:CA-9, nist-800-53:SC-7, nist-800-53:SC-7(5), pci-dss-4:1.2.1, pci-dss-4:1.4.1]
+    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.3, cis-controls-v8:4.4, cis-controls-v8:4.5, nist-800-171-r3:03.13.06, nist-800-53:SC-7, nist-800-53:SC-7(5), pci-dss-4:1.2.1, pci-dss-4:1.4.1]
   ufw/output-accepted:
     title: ufw accepts outgoing traffic by default
     fact: ufw.defaults.DEFAULT_OUTPUT_POLICY
@@ -119,7 +119,7 @@ rules:
       - 'Then deny the rest:'
       - run: ufw default deny outgoing
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
-    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.4, cis-controls-v8:4.4, cis-controls-v8:4.5, iso-27001-2022:A6.7, iso-27001-2022:A8.1, nist-800-171-r3:03.13.06, nist-800-53:CA-9, nist-800-53:SC-7, nist-800-53:SC-7(5), pci-dss-4:1.2.1, pci-dss-4:1.4.1, '!default']
+    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.4, cis-controls-v8:4.4, cis-controls-v8:4.5, nist-800-171-r3:03.13.06, nist-800-53:SC-7, nist-800-53:SC-7(5), pci-dss-4:1.2.1, pci-dss-4:1.4.1, '!default']
   ufw/routed-accepted:
     title: ufw does not deny routed traffic by default
     fact: ufw.defaults.DEFAULT_FORWARD_POLICY
@@ -134,7 +134,7 @@ rules:
       - run: ufw default deny routed
       - Then run “ufw route allow” for each forward the host needs.
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ufw.8.html
-    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.5, cis-controls-v8:4.4, cis-controls-v8:4.5, iso-27001-2022:A6.7, iso-27001-2022:A8.1, nist-800-171-r3:03.13.06, nist-800-53:CA-9, nist-800-53:SC-7, nist-800-53:SC-7(5), pci-dss-4:1.2.1, pci-dss-4:1.4.1, '!default']
+    tags: [ufw, firewall, cis-ubuntu-26.04:4.1.5, cis-controls-v8:4.4, cis-controls-v8:4.5, nist-800-171-r3:03.13.06, nist-800-53:SC-7, nist-800-53:SC-7(5), pci-dss-4:1.2.1, pci-dss-4:1.4.1, '!default']
   ufw/logging-off:
     title: ufw logs no blocked packet
     fact: ufw.conf

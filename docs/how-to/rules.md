@@ -401,12 +401,14 @@ standards:
   nist-sp-800-63b-4: [nist]
 ```
 
-Every CIS rule also carries the controls CIS maps it to in other frameworks
-(`cis-controls-v8`, `pci-dss-4`, `hipaa`, `iso-27001-2022`, `nist-800-53`,
-`nist-800-171-r2`, `nist-800-171-r3`, `nist-csf-2`), so `--tags hipaa` or
-`--tags 'hipaa:164.312(e)*'` selects them; `fips-140-3` is on two rules, named
-by their STIG ID. A framework tag means the rule contributes to that control,
-never that it satisfies it.
+A CIS rule also carries the CIS Controls safeguard its benchmark names and the
+controls of other frameworks (`pci-dss-4`, `hipaa`, `iso-27001-2022`,
+`nist-800-53`, `nist-800-171-r2`, `nist-800-171-r3`, `nist-csf-2`) whose own
+text asks for what the rule checks, so `--tags hipaa` or
+`--tags 'hipaa:164.312(e)*'` selects them; `fips-140-3` names the section of
+FIPS 140-3 a rule serves (`9` validated modules, `10` approved functions). A
+framework tag means the rule contributes to that control, never that it
+satisfies it: most controls also ask for a process an assessor reviews.
 
 ## Remedies
 

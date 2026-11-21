@@ -21,7 +21,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.1, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.1, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/cramfs-loaded:
     title: Kernel module “cramfs” is loaded
     fact: kernel.loaded
@@ -35,7 +35,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.1, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.1, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/freevxfs:
     title: Kernel module “freevxfs” loads automatically
     when: {kernel.shipped: {required: [freevxfs]}}
@@ -51,7 +51,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.2, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.2, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/freevxfs-loaded:
     title: Kernel module “freevxfs” is loaded
     fact: kernel.loaded
@@ -65,7 +65,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.2, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.2, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/hfs:
     title: Kernel module “hfs” loads automatically
     when: {kernel.shipped: {required: [hfs]}}
@@ -81,7 +81,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.3, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.3, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/hfs-loaded:
     title: Kernel module “hfs” is loaded
     fact: kernel.loaded
@@ -95,7 +95,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.3, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.3, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/hfsplus:
     title: Kernel module “hfsplus” loads automatically
     when: {kernel.shipped: {required: [hfsplus]}}
@@ -111,7 +111,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.4, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.4, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/hfsplus-loaded:
     title: Kernel module “hfsplus” is loaded
     fact: kernel.loaded
@@ -125,7 +125,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.4, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.4, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/jffs2:
     title: Kernel module “jffs2” loads automatically
     when: {kernel.shipped: {required: [jffs2]}}
@@ -141,7 +141,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.5, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.5, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/jffs2-loaded:
     title: Kernel module “jffs2” is loaded
     fact: kernel.loaded
@@ -155,7 +155,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.5, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.5, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/overlay:
     title: Kernel module “overlay” loads automatically
     when: {kernel.shipped: {required: [overlay]}, kernel: {not: &overlay-in-use {required: [loaded], properties: {loaded: {required: [overlay], properties: {overlay: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}, runtimes.containers: {maxProperties: 0}}
@@ -169,7 +169,7 @@ rules:
     rationale: a user who can mount in a user namespace can attack overlayfs, whose past bugs gave an ordinary user root
     remedy: {drop-in: {into: modprobe, name: block-overlay-autoloading, lines: ["install overlay /bin/false", "blacklist overlay"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.6, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.6, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4, '!default']
   kernel-modules/overlay-loaded:
     title: Kernel module “overlay” is loaded
     fact: kernel.loaded
@@ -181,7 +181,7 @@ rules:
     rationale: overlayfs is already in the kernel for a user who can mount in a user namespace, and its past bugs gave an ordinary user root
     remedy: {drop-in: {into: modprobe, name: block-overlay-autoloading, lines: ["install overlay /bin/false", "blacklist overlay"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.6, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.6, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4, '!default']
   kernel-modules/squashfs:
     title: Kernel module “squashfs” loads automatically
     when: {kernel.shipped: {required: [squashfs]}, kernel: {not: &squashfs-in-use {required: [loaded], properties: {loaded: {required: [squashfs], properties: {squashfs: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}, snapd.binary: {maxProperties: 0}}
@@ -197,7 +197,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.7, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.7, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4, '!default']
   kernel-modules/squashfs-loaded:
     title: Kernel module “squashfs” is loaded
     fact: kernel.loaded
@@ -211,7 +211,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.7, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.7, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4, '!default']
   kernel-modules/udf:
     title: Kernel module “udf” loads automatically
     when: {kernel.shipped: {required: [udf]}, kernel: {not: &udf-in-use {required: [loaded], properties: {loaded: {required: [udf], properties: {udf: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}, azure: {not: &on-azure {anyOf: [{required: [agent], properties: {agent: {minProperties: 1}}}, {required: [chassis], properties: {chassis: {not: {additionalProperties: {not: {contains: {const: "7783-7084-3265-9085-8269-3286-77"}}}}}}}]}}}
@@ -227,7 +227,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.8, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.8, dev-sec-linux-baseline:os-10, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/udf-loaded:
     title: Kernel module “udf” is loaded
     fact: kernel.loaded
@@ -241,7 +241,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis FILE-6430, url: "https://cisofy.com/lynis/controls/FILE-6430/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.8, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.8, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/firewire-core:
     title: Kernel module “firewire-core” loads automatically
     when: {kernel.shipped: {required: [firewire-core]}}
@@ -257,7 +257,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis STRG-1846, url: "https://cisofy.com/lynis/controls/STRG-1846/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.9, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.9, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/firewire-core-loaded:
     title: Kernel module “firewire-core” is loaded
     fact: kernel.loaded
@@ -269,7 +269,7 @@ rules:
     rationale: the FireWire driver is active, so a device plugged in can read or overwrite the host’s memory, passwords and encryption keys included
     remedy: {drop-in: {into: modprobe, name: block-firewire-core-autoloading, lines: ["install firewire_core /bin/false", "blacklist firewire_core"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.9, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.9, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/usb-storage:
     title: Kernel module “usb-storage” loads automatically
     when: {kernel.shipped: {required: [usb-storage]}, kernel: {not: &usb-storage-in-use {required: [loaded], properties: {loaded: {required: [usb_storage], properties: {usb_storage: {required: [instances], properties: {instances: {exclusiveMinimum: 0}}}}}}}}}
@@ -285,7 +285,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis USB-1000, url: "https://cisofy.com/lynis/controls/USB-1000/"}
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.10, stig-ubuntu-26.04:UBTU-24-300039, lynis, cis-controls-v8:10.3, hipaa:164.310(d)(1), nist-800-171-r2:3.8.7, nist-800-171-r3:03.08.07, nist-800-53:MP-7, '!default']
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.10, stig-ubuntu-26.04:UBTU-24-300039, lynis, cis-controls-v8:10.3, nist-800-171-r2:3.8.7, nist-800-171-r3:03.08.07, nist-800-53:MP-7, '!default']
   kernel-modules/usb-storage-loaded:
     title: Kernel module “usb-storage” is loaded
     fact: kernel.loaded
@@ -297,7 +297,7 @@ rules:
     rationale: a USB stick or disk already mounts on this host, so anyone with one can copy data off it or bring malware onto it
     remedy: {drop-in: {into: modprobe, name: block-usb-storage-autoloading, lines: ["install usb_storage /bin/false", "blacklist usb_storage"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:1.1.1.10, cis-controls-v8:10.3, hipaa:164.310(d)(1), nist-800-171-r2:3.8.7, nist-800-171-r3:03.08.07, nist-800-53:MP-7, '!default']
+    tags: [kernel, cis-ubuntu-26.04:1.1.1.10, cis-controls-v8:10.3, nist-800-171-r2:3.8.7, nist-800-171-r3:03.08.07, nist-800-53:MP-7, '!default']
   kernel-modules/atm:
     title: Kernel module “atm” loads automatically
     when: {kernel.shipped: {required: [atm]}}
@@ -311,7 +311,7 @@ rules:
     rationale: any local user can open a atm socket and so load kernel code for asynchronous transfer mode networking that nobody on this host uses, where one bug gives root
     remedy: {drop-in: {into: modprobe, name: block-atm-autoloading, lines: ["install atm /bin/false", "blacklist atm"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.1, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.1, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/atm-loaded:
     title: Kernel module “atm” is loaded
     fact: kernel.loaded
@@ -323,7 +323,7 @@ rules:
     rationale: the atm code for asynchronous transfer mode networking is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
     remedy: {drop-in: {into: modprobe, name: block-atm-autoloading, lines: ["install atm /bin/false", "blacklist atm"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.1, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.1, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/can:
     title: Kernel module “can” loads automatically
     when: {kernel.shipped: {required: [can]}}
@@ -337,7 +337,7 @@ rules:
     rationale: any local user can open a can socket and so load kernel code for vehicle bus networking that nobody on this host uses, where one bug gives root
     remedy: {drop-in: {into: modprobe, name: block-can-autoloading, lines: ["install can /bin/false", "blacklist can"]}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/can-loaded:
     title: Kernel module “can” is loaded
     fact: kernel.loaded
@@ -349,7 +349,7 @@ rules:
     rationale: the can code for vehicle bus networking is already in the kernel, so any local user can reach its bugs, which can give them root, for a service nobody here uses
     remedy: {drop-in: {into: modprobe, name: block-can-autoloading, lines: ["install can /bin/false", "blacklist can"], unload: true}}
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
-    tags: [kernel, cis-ubuntu-26.04:3.2.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/dccp:
     title: Kernel module “dccp” loads automatically
     when: {kernel.shipped: {required: [dccp]}}
@@ -365,7 +365,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
-    tags: [kernel, cis-ubuntu-26.04:3.2.3, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.3, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/dccp-loaded:
     title: Kernel module “dccp” is loaded
     fact: kernel.loaded
@@ -379,7 +379,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
-    tags: [kernel, cis-ubuntu-26.04:3.2.3, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.3, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/rds:
     title: Kernel module “rds” loads automatically
     when: {kernel.shipped: {required: [rds]}}
@@ -395,7 +395,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
-    tags: [kernel, cis-ubuntu-26.04:3.2.4, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.4, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/rds-loaded:
     title: Kernel module “rds” is loaded
     fact: kernel.loaded
@@ -409,7 +409,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
-    tags: [kernel, cis-ubuntu-26.04:3.2.4, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.4, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/sctp:
     title: Kernel module “sctp” loads automatically
     when: {kernel.shipped: {required: [sctp]}}
@@ -425,7 +425,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
-    tags: [kernel, cis-ubuntu-26.04:3.2.5, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.5, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/sctp-loaded:
     title: Kernel module “sctp” is loaded
     fact: kernel.loaded
@@ -439,7 +439,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
-    tags: [kernel, cis-ubuntu-26.04:3.2.5, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.5, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/tipc:
     title: Kernel module “tipc” loads automatically
     when: {kernel.shipped: {required: [tipc]}}
@@ -455,7 +455,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
-    tags: [kernel, cis-ubuntu-26.04:3.2.6, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.6, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/tipc-loaded:
     title: Kernel module “tipc” is loaded
     fact: kernel.loaded
@@ -469,7 +469,7 @@ rules:
     docs: https://man7.org/linux/man-pages/man5/modprobe.d.5.html
     references:
       - {title: Lynis NETW-3200, url: "https://cisofy.com/lynis/controls/NETW-3200/"}
-    tags: [kernel, cis-ubuntu-26.04:3.2.6, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [kernel, cis-ubuntu-26.04:3.2.6, lynis, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   kernel-modules/builtin:
     title: A kernel builds a module in, beyond modprobe.d’s reach
     fact: kernel.builtin.*

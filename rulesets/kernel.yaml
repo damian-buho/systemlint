@@ -108,7 +108,7 @@ rules:
     rationale: a user can switch to a looser profile and regain a capability the confinement was meant to deny, which turns kernel bugs into root access
     fix: set “kernel.apparmor_restrict_unprivileged_unconfined = 1”
     docs: https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
-    tags: [kernel, sysctl, cis-ubuntu-26.04:1.3.1.4, cis-controls-v8:10.5, iso-27001-2022:A8.7, nist-800-53:SI-16]
+    tags: [kernel, sysctl, cis-ubuntu-26.04:1.3.1.4, cis-controls-v8:10.5]
   kernel/sysrq:
     title: Magic SysRq keys are enabled
     fact: sysctl.settings.kernel.sysrq
@@ -133,4 +133,4 @@ rules:
       - run: pro enable fips-updates
       - Then reboot.
     docs: https://ubuntu.com/security/certifications/docs/fips
-    tags: [kernel, sysctl, stig-ubuntu-26.04:UBTU-24-600030, fips-140-3:UBTU-24-600030, '!default']
+    tags: [kernel, sysctl, stig-ubuntu-26.04:UBTU-24-600030, fips-140-3:9, '!default']

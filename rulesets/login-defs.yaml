@@ -24,7 +24,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
       - {title: Lynis AUTH-9328, url: "https://cisofy.com/lynis/controls/AUTH-9328/"}
-    tags: [auth, cis-ubuntu-26.04:5.4.3.3, lynis, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [auth, cis-ubuntu-26.04:5.4.3.3, lynis, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   login-defs/umask-077:
     title: The login umask lets the group read new files
     folds: [login-defs/umask]
@@ -54,7 +54,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
       - {title: Lynis AUTH-9229, url: "https://cisofy.com/lynis/controls/AUTH-9229/"}
-    tags: [auth, cis-ubuntu-26.04:5.4.1.4, lynis, cis-controls-v8:3.11, hipaa:164.312(a)(2)(iv), hipaa:164.312(e)(2)(ii), iso-27001-2022:A5.33, nist-800-171-r2:3.13.16, nist-800-171-r2:3.8.1, nist-800-171-r3:03.05.07, nist-800-171-r3:03.13.08, nist-800-53:AU-9(3), nist-800-53:IA-5(1), nist-800-53:SC-28, nist-800-53:SC-28(1), nist-csf-2:PR.DS-01, pci-dss-4:3.1.1, pci-dss-4:3.3.2, pci-dss-4:3.3.3, pci-dss-4:3.5.1, pci-dss-4:3.5.1.2, pci-dss-4:3.5.1.3, pci-dss-4:8.3.2]
+    tags: [auth, cis-ubuntu-26.04:5.4.1.4, lynis, cis-controls-v8:3.11, fips-140-3:10, nist-800-171-r2:3.5.10, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:8.3.2]
   login-defs/encrypt-method-sha512:
     title: New passwords are hashed with a scheme other than SHA512
     folds: [login-defs/encrypt-method]
@@ -70,7 +70,7 @@ rules:
       - lines: ["ENCRYPT_METHOD SHA512"]
       - Then have every user change their password so it is hashed again.
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
-    tags: [auth, stig-ubuntu-26.04:UBTU-24-400400, fips-140-3:UBTU-24-400400, '!default']
+    tags: [auth, stig-ubuntu-26.04:UBTU-24-400400, '!default']
   login-defs/sha-rounds:
     title: SHA password hashes take fewer rounds than the default
     fact: auth.login-defs
@@ -103,7 +103,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
       - {title: Lynis AUTH-9286, url: "https://cisofy.com/lynis/controls/AUTH-9286/"}
-    tags: [auth, cis-ubuntu-26.04:5.4.1.1, lynis, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [auth, cis-ubuntu-26.04:5.4.1.1, lynis, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-53:IA-5, '!default']
     conflicts: [login-defs/pass-rotation]
   login-defs/pass-rotation:
     title: New accounts must change their password on a schedule
@@ -137,7 +137,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
     references:
       - {title: Lynis AUTH-9286, url: "https://cisofy.com/lynis/controls/AUTH-9286/"}
-    tags: [auth, cis-ubuntu-26.04:5.4.1.2, lynis, stig-ubuntu-26.04:UBTU-24-400300, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [auth, cis-ubuntu-26.04:5.4.1.2, lynis, stig-ubuntu-26.04:UBTU-24-400300, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-53:IA-5, '!default']
   login-defs/pass-warn-age:
     title: New accounts get less password expiry warning than asked
     fact: auth.login-defs
@@ -151,4 +151,4 @@ rules:
       - lines: ["PASS_WARN_AGE ${password-warn-days}"]
       - Then run “chage --warndays ${password-warn-days}” for existing accounts.
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/login.defs.5.html
-    tags: [auth, cis-ubuntu-26.04:5.4.1.3, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [auth, cis-ubuntu-26.04:5.4.1.3, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-53:IA-5, '!default']

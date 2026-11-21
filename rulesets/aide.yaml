@@ -22,7 +22,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/aide.1.html
     references:
       - {title: Lynis FINT-4350, url: "https://cisofy.com/lynis/controls/FINT-4350/"}
-    tags: [integrity, cis-ubuntu-26.04:6.3.1, lynis, stig-ubuntu-26.04:UBTU-24-100100, cis-controls-v8:3.14, hipaa:164.312(b), hipaa:164.312(c)(1), hipaa:164.312(c)(2), iso-27001-2022:A8.15, nist-800-53:AC-6(9), nist-800-53:AU-12, nist-800-53:AU-2, nist-800-53:SI-4(20), pci-dss-4:10.2.1, pci-dss-4:10.2.1.1, '!default']
+    tags: [integrity, cis-ubuntu-26.04:6.3.1, lynis, stig-ubuntu-26.04:UBTU-24-100100, cis-controls-v8:3.14, hipaa:164.312(c)(1), hipaa:164.312(c)(2), nist-800-53:SI-7, pci-dss-4:11.5.2, '!default']
   aide/unscheduled:
     title: AIDE is installed but never runs on a schedule
     fact: systemd.state
@@ -42,7 +42,7 @@ rules:
       - 'Then enable and start the timer:'
       - run: systemctl enable --now dailyaidecheck.timer
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/aide.1.html
-    tags: [integrity, cis-ubuntu-26.04:6.3.2, stig-ubuntu-26.04:UBTU-24-100120, cis-controls-v8:3.14, hipaa:164.312(b), hipaa:164.312(c)(1), hipaa:164.312(c)(2), iso-27001-2022:A8.15, nist-800-53:AC-6(9), nist-800-53:AU-12, nist-800-53:AU-2, nist-800-53:SI-4(20), pci-dss-4:10.2.1, pci-dss-4:10.2.1.1]
+    tags: [integrity, cis-ubuntu-26.04:6.3.2, stig-ubuntu-26.04:UBTU-24-100120, cis-controls-v8:3.14, hipaa:164.312(c)(1), hipaa:164.312(c)(2), nist-800-53:SI-7, pci-dss-4:11.5.2]
   aide/no-config:
     title: AIDE is installed without a configuration file
     fact: aide.config

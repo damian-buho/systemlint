@@ -39,7 +39,7 @@ rules:
     rationale: scheduled jobs such as log rotation and security upkeep never run, so logs fill the disk and routine tasks silently stop
     fix: run “systemctl enable --now {subject}”, or remove the cron package if no job is wanted
     docs: https://manpages.debian.org/unstable/cron/cron.8.en.html
-    tags: [cron, cis-ubuntu-26.04:2.4.1.1, cis-controls-v8:0.0, '!default']
+    tags: [cron, cis-ubuntu-26.04:2.4.1.1, '!default']
   cron/no-allow:
     title: crontab is open to users not named in cron.allow
     fact: cron.access.*.exists
@@ -57,7 +57,7 @@ rules:
       - 'Then limit it to its owner and group:'
       - run: chmod 0640 {subject}
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
-    tags: [cron, cis-ubuntu-26.04:2.4.1.9, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   cron/access-mode:
     title: cron.allow or cron.deny is more open than 0640
     fact: cron.access.*.mode
@@ -74,7 +74,7 @@ rules:
       - 'Then limit it to its owner and that group:'
       - run: chmod 0640 {subject}
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
-    tags: [cron, cis-ubuntu-26.04:2.4.1.9, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   cron/access-owner:
     title: cron.allow or cron.deny is not owned by root
     fact: cron.access.*.uid
@@ -88,7 +88,7 @@ rules:
     fix: run “chown root {subject}”
     remedy: {chown: 0}
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
-    tags: [cron, cis-ubuntu-26.04:2.4.1.9, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   cron/access-group:
     title: cron.allow or cron.deny is in a group other than root or crontab
     fact: cron.access.*.gid
@@ -101,4 +101,4 @@ rules:
     rationale: members of that group can edit the list of who may schedule jobs, and so give themselves a way to keep a foothold on the host
     fix: run “chgrp crontab {subject}”
     docs: https://manpages.debian.org/unstable/cron/crontab.1.en.html
-    tags: [cron, cis-ubuntu-26.04:2.4.1.9, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [cron, cis-ubuntu-26.04:2.4.1.9, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]

@@ -188,7 +188,7 @@ rules:
     rationale: an attacker who records traffic now can read it years later with a quantum computer
     fix: add “mlkem768x25519-sha256” and “sntrup761x25519-sha512” to the front of “KexAlgorithms”, or remove the “KexAlgorithms” line to get OpenSSH’s defaults
     docs: https://www.openssh.com/pq.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.14, cis-controls-v8:3.10, hipaa:164.312(a)(2)(iv), hipaa:164.312(e)(1), hipaa:164.312(e)(2)(i), hipaa:164.312(e)(2)(ii), iso-27001-2022:A5.14, nist-800-171-r2:3.1.13, nist-800-171-r2:3.13.8, nist-800-171-r2:3.5.10, nist-800-171-r3:03.01.12, nist-800-171-r3:03.05.07, nist-800-171-r3:03.13.08, nist-800-53:AC-17(2), nist-800-53:IA-5, nist-800-53:IA-5(1), nist-800-53:SC-8, nist-800-53:SC-8(1), nist-csf-2:PR.DS-02, pci-dss-4:2.2.7, pci-dss-4:4.1.1, pci-dss-4:4.2.1, pci-dss-4:4.2.1.2, pci-dss-4:4.2.2, pci-dss-4:8.3.2]
+    tags: [ssh, cis-ubuntu-26.04:5.1.14, cis-controls-v8:3.10, hipaa:164.312(e)(1), hipaa:164.312(e)(2)(i), hipaa:164.312(e)(2)(ii), nist-800-171-r2:3.1.13, nist-800-171-r2:3.13.8, nist-800-171-r2:3.5.10, nist-800-171-r3:03.01.12, nist-800-171-r3:03.05.07, nist-800-171-r3:03.13.08, nist-800-53:AC-17(2), nist-800-53:IA-5(1), nist-800-53:SC-8, nist-800-53:SC-8(1), nist-csf-2:PR.DS-02, pci-dss-4:2.2.7, pci-dss-4:4.2.1, pci-dss-4:8.3.2]
   ssh/max-auth-tries:
     title: Many authentication attempts are allowed
     fact: sshd.settings.maxauthtries.*
@@ -238,7 +238,7 @@ rules:
     rationale: any account with a shell, including forgotten service accounts, can be used to log in remotely
     fix: set “AllowGroups” to the group of the people who log in over SSH
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.5, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1, '!default']
+    tags: [ssh, cis-ubuntu-26.04:5.1.5, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6, '!default']
   ssh/banner-none:
     title: sshd shows no banner before login
     fact: sshd.settings.banner.*
@@ -249,7 +249,7 @@ rules:
     rationale: an intruder can later claim they were never told the system is private and monitored
     fix: set “Banner /etc/issue.net”, with a notice that names no system details
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.6, stig-ubuntu-26.04:UBTU-24-200640, cis-controls-v8:0.0, '!default']
+    tags: [ssh, cis-ubuntu-26.04:5.1.6, stig-ubuntu-26.04:UBTU-24-200640, '!default']
   ssh/client-alive-interval:
     title: sshd never checks that an idle client is still there
     fact: sshd.settings.clientaliveinterval.*
@@ -260,7 +260,7 @@ rules:
     rationale: a session left behind by a crashed or abandoned client stays open for anyone who reaches that terminal
     fix: set “ClientAliveInterval 15” and “ClientAliveCountMax 3”, or the timeout your site asks
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.8, cis-controls-v8:0.0]
+    tags: [ssh, cis-ubuntu-26.04:5.1.8]
   ssh/client-alive-count-max:
     title: sshd never drops an unresponsive client
     fact: sshd.settings.clientalivecountmax.*
@@ -271,7 +271,7 @@ rules:
     rationale: a dead client’s session is never closed, so it stays open for anyone who takes over that connection
     fix: set “ClientAliveCountMax 3”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.8, cis-controls-v8:0.0]
+    tags: [ssh, cis-ubuntu-26.04:5.1.8]
   ssh/gssapi-authentication:
     title: GSSAPI authentication is accepted
     fact: sshd.settings.gssapiauthentication.*
@@ -282,7 +282,7 @@ rules:
     rationale: a flaw in the Kerberos code can be reached by any stranger who connects, before they log in
     fix: set “GSSAPIAuthentication no”, unless users log in with Kerberos tickets
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.10, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3]
+    tags: [ssh, cis-ubuntu-26.04:5.1.10, cis-controls-v8:5.2]
   ssh/max-sessions:
     title: Many sessions are allowed per connection
     fact: sshd.settings.maxsessions.*
@@ -293,7 +293,7 @@ rules:
     rationale: one logged-in user can open dozens of sessions over a single connection and exhaust the server
     fix: set “MaxSessions ${ssh-max-sessions}” or lower
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.19, cis-controls-v8:0.0, '!default']
+    tags: [ssh, cis-ubuntu-26.04:5.1.19, '!default']
   ssh/max-startups:
     title: Many unauthenticated connections are allowed
     fact: sshd.global.*.maxstartups
@@ -304,7 +304,7 @@ rules:
     rationale: an attacker can pile up half-open logins and keep real users from connecting
     fix: set “MaxStartups 10:30:60”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.20, cis-controls-v8:0.0, '!default']
+    tags: [ssh, cis-ubuntu-26.04:5.1.20, '!default']
   ssh/use-pam:
     title: sshd skips PAM
     fact: sshd.global.*.usepam
@@ -315,7 +315,7 @@ rules:
     rationale: locked, expired and rate-limited accounts can still log in because the account checks never run
     fix: set “UsePAM yes”
     docs: https://manpages.debian.org/unstable/openssh-server/sshd_config.5.en.html
-    tags: [ssh, cis-ubuntu-26.04:5.1.24, stig-ubuntu-26.04:UBTU-24-500050, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3]
+    tags: [ssh, cis-ubuntu-26.04:5.1.24, stig-ubuntu-26.04:UBTU-24-500050, cis-controls-v8:5.2]
   ssh/x11-use-localhost:
     title: Forwarded X11 displays listen on every address
     fact: sshd.settings.x11uselocalhost.*

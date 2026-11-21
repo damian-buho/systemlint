@@ -25,34 +25,21 @@ org:
               - accounts
               - cis-ubuntu-26.04:5.4.2.2
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
               - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An account other than root has group root as its primary group
           - id: accounts/group-nis-entry
             ruleset: accounts
@@ -89,34 +76,21 @@ org:
               - accounts
               - cis-ubuntu-26.04:5.4.2.8
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
               - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An account without a login shell has a usable password
           - id: accounts/nologin-shell
             ruleset: accounts
@@ -126,7 +100,6 @@ org:
               - default
               - accounts
               - cis-ubuntu-26.04:5.4.3.1
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -151,32 +124,15 @@ org:
               - stig-ubuntu-26.04:UBTU-24-400220
               - dev-sec-linux-baseline:os-03b
               - cis-controls-v8:3.11
-              - hipaa:164.312(a)(2)(iv)
-              - hipaa:164.312(e)(2)(ii)
-              - iso-27001-2022:A5.33
-              - nist-800-171-r2:3.13.16
-              - nist-800-171-r2:3.8.1
+              - nist-800-171-r2:3.5.10
               - nist-800-171-r3:03.05.07
-              - nist-800-171-r3:03.13.08
-              - nist-800-53:AU-9(3)
               - nist-800-53:IA-5(1)
-              - nist-800-53:SC-28
-              - nist-800-53:SC-28(1)
-              - nist-csf-2:PR.DS-01
-              - pci-dss-4:3.1.1
-              - pci-dss-4:3.3.2
-              - pci-dss-4:3.3.3
-              - pci-dss-4:3.5.1
-              - pci-dss-4:3.5.1.2
-              - pci-dss-4:3.5.1.3
               - pci-dss-4:8.3.2
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
               - dev-sec
-              - hipaa
-              - iso
               - nist
               - pci-dss
             title: An account keeps its password hash in /etc/passwd
@@ -197,19 +153,12 @@ org:
               - cis-ubuntu-26.04:5.4.1.5
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-53:IA-5
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: An expired password stays usable longer than asked
           - id: accounts/password-max-days
             ruleset: accounts
@@ -221,19 +170,12 @@ org:
               - lynis
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-53:IA-5
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: A password outlives the maximum age, or expires at once
           - id: accounts/password-min-days
             ruleset: accounts
@@ -244,19 +186,12 @@ org:
               - cis-ubuntu-26.04:5.4.1.2
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-53:IA-5
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: A password can be changed again before the minimum age
           - id: accounts/password-rotation
             ruleset: accounts
@@ -277,19 +212,12 @@ org:
               - cis-ubuntu-26.04:5.4.1.3
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-53:IA-5
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: A password expires with less warning than asked
           - id: accounts/root-gid
             ruleset: accounts
@@ -300,34 +228,21 @@ org:
               - accounts
               - cis-ubuntu-26.04:5.4.2.2
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
               - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: root’s primary group is not gid 0
           - id: accounts/shadow-empty-password
             ruleset: accounts
@@ -339,34 +254,21 @@ org:
               - lynis
               - cis-ubuntu-26.04:5.4.2.4
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
               - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An account has an empty password in /etc/shadow
           - id: accounts/shadow-group-members
             ruleset: accounts
@@ -377,34 +279,21 @@ org:
               - accounts
               - cis-ubuntu-26.04:7.2.4
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
               - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: The shadow group has members
           - id: accounts/shadow-group-primary
             ruleset: accounts
@@ -415,34 +304,21 @@ org:
               - accounts
               - cis-ubuntu-26.04:7.2.4
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
               - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An account has the shadow group as its primary group
           - id: accounts/shadow-missing
             ruleset: accounts
@@ -499,34 +375,21 @@ org:
               - accounts
               - cis-ubuntu-26.04:5.4.2.7
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
               - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A system account has a login shell
           - id: accounts/uid-unique
             ruleset: accounts
@@ -563,19 +426,12 @@ org:
               - cis-ubuntu-26.04:5.4.1.5
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-53:IA-5
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: New accounts keep an expired password usable longer than asked
           - id: aide/no-config
             ruleset: aide
@@ -609,22 +465,15 @@ org:
               - lynis
               - stig-ubuntu-26.04:UBTU-24-100100
               - cis-controls-v8:3.14
-              - hipaa:164.312(b)
               - hipaa:164.312(c)(1)
               - hipaa:164.312(c)(2)
-              - iso-27001-2022:A8.15
-              - nist-800-53:AC-6(9)
-              - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
+              - nist-800-53:SI-7
+              - pci-dss-4:11.5.2
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
               - hipaa
-              - iso
               - nist
               - pci-dss
             title: AIDE is not installed
@@ -650,22 +499,15 @@ org:
               - cis-ubuntu-26.04:6.3.2
               - stig-ubuntu-26.04:UBTU-24-100120
               - cis-controls-v8:3.14
-              - hipaa:164.312(b)
               - hipaa:164.312(c)(1)
               - hipaa:164.312(c)(2)
-              - iso-27001-2022:A8.15
-              - nist-800-53:AC-6(9)
-              - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
+              - nist-800-53:SI-7
+              - pci-dss-4:11.5.2
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
               - hipaa
-              - iso
               - nist
               - pci-dss
             title: AIDE is installed but never runs on a schedule
@@ -680,27 +522,13 @@ org:
               - cis-ubuntu-26.04:1.3.1.2
               - stig-ubuntu-26.04:UBTU-24-100510
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -708,7 +536,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: AppArmor is installed but confines nothing
           - id: apparmor/not-enforcing
             ruleset: apparmor
@@ -720,34 +547,19 @@ org:
               - lynis
               - cis-ubuntu-26.04:1.3.1.3
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An AppArmor profile is not enforced
           - id: apparmor/not-installed
             ruleset: apparmor
@@ -759,27 +571,13 @@ org:
               - cis-ubuntu-26.04:1.3.1.1
               - stig-ubuntu-26.04:UBTU-24-100500
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -787,7 +585,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: AppArmor is not installed
           - id: apparmor/service-off
             ruleset: apparmor
@@ -799,27 +596,13 @@ org:
               - cis-ubuntu-26.04:1.3.1.2
               - stig-ubuntu-26.04:UBTU-24-100510
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -827,7 +610,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: AppArmor profiles are not loaded at boot
           - id: apt/allow-downgrade-to-insecure
             ruleset: apt
@@ -838,15 +620,10 @@ org:
               - apt
               - cis-ubuntu-26.04:1.2.1.14
               - cis-controls-v8:7.3
-              - iso-27001-2022:A8.8
-              - nist-800-53:RA-5
-              - nist-800-53:RA-7
-              - nist-800-53:SI-2
-              - nist-800-53:SI-2(2)
+              - nist-800-53:CM-14
               - cis
               - ubuntu
               - ubuntu-26.04
-              - iso
               - nist
             title: apt drops a repository’s signature when it vanishes
           - id: apt/allow-insecure-repositories
@@ -858,15 +635,10 @@ org:
               - apt
               - cis-ubuntu-26.04:1.2.1.12
               - cis-controls-v8:7.3
-              - iso-27001-2022:A8.8
-              - nist-800-53:RA-5
-              - nist-800-53:RA-7
-              - nist-800-53:SI-2
-              - nist-800-53:SI-2(2)
+              - nist-800-53:CM-14
               - cis
               - ubuntu
               - ubuntu-26.04
-              - iso
               - nist
             title: apt reads unsigned repositories
           - id: apt/allow-unauthenticated
@@ -890,15 +662,10 @@ org:
               - apt
               - cis-ubuntu-26.04:1.2.1.13
               - cis-controls-v8:7.3
-              - iso-27001-2022:A8.8
-              - nist-800-53:RA-5
-              - nist-800-53:RA-7
-              - nist-800-53:SI-2
-              - nist-800-53:SI-2(2)
+              - nist-800-53:CM-14
               - cis
               - ubuntu
               - ubuntu-26.04
-              - iso
               - nist
             title: apt trusts weakly signed repositories
           - id: apt/check-date-off
@@ -910,16 +677,9 @@ org:
               - apt
               - cis-ubuntu-26.04:1.2.1.15
               - cis-controls-v8:3.4
-              - iso-27001-2022:A5.33
-              - nist-800-53:AU-11
-              - nist-800-53:SI-12
-              - pci-dss-4:3.2.1
               - cis
               - ubuntu
               - ubuntu-26.04
-              - iso
-              - nist
-              - pci-dss
             title: apt accepts Release files dated in the future
           - id: apt/duplicate
             ruleset: apt
@@ -1032,9 +792,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -1051,34 +809,19 @@ org:
               - at
               - cis-ubuntu-26.04:2.4.2.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: at.allow or at.deny is in a group other than root or daemon
           - id: at/access-mode
             ruleset: at
@@ -1089,34 +832,19 @@ org:
               - at
               - cis-ubuntu-26.04:2.4.2.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: at.allow or at.deny is more open than 0640
           - id: at/access-owner
             ruleset: at
@@ -1127,34 +855,19 @@ org:
               - at
               - cis-ubuntu-26.04:2.4.2.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: at.allow or at.deny is not owned by root
           - id: at/no-allow
             ruleset: at
@@ -1165,34 +878,20 @@ org:
               - at
               - cis-ubuntu-26.04:2.4.2.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: at is open to users not named in at.allow
           - id: audit/access-denied
             ruleset: audit
@@ -1204,23 +903,21 @@ org:
               - cis-ubuntu-26.04:6.2.3.11
               - stig-ubuntu-26.04:UBTU-24-900160
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
+              - pci-dss-4:10.2.1.4
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1234,22 +931,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.26
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1266,26 +960,13 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
               - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
               - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -1307,26 +988,13 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
               - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
               - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -1347,23 +1015,20 @@ org:
               - stig-ubuntu-26.04:UBTU-24-900130
               - stig-ubuntu-26.04:UBTU-24-900140
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1379,23 +1044,20 @@ org:
               - stig-ubuntu-26.04:UBTU-24-900130
               - stig-ubuntu-26.04:UBTU-24-900140
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1409,22 +1071,16 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.34
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1439,23 +1095,21 @@ org:
               - cis-ubuntu-26.04:6.2.3.12
               - stig-ubuntu-26.04:UBTU-24-200290
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
               - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1469,22 +1123,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.5
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1498,22 +1149,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.7
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1529,40 +1177,13 @@ org:
               - stig-ubuntu-26.04:UBTU-24-909000
               - cis-controls-v8:3.3
               - cis-controls-v8:8.5
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
-              - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
-              - iso-27001-2022:A5.15
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
-              - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
-              - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:03.03.02
-              - nist-800-171-r3:3.8.2
-              - nist-800-53:AC-3
-              - nist-800-53:AC-5
-              - nist-800-53:AC-6
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:1.3.1
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-9
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:7.1
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -1581,22 +1202,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.6
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1610,22 +1228,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.31
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1640,23 +1255,20 @@ org:
               - cis-ubuntu-26.04:6.2.3.23
               - stig-ubuntu-26.04:UBTU-24-900260
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1671,23 +1283,20 @@ org:
               - cis-ubuntu-26.04:6.2.3.33
               - stig-ubuntu-26.04:UBTU-24-900350
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1702,23 +1311,20 @@ org:
               - cis-ubuntu-26.04:6.2.3.32
               - stig-ubuntu-26.04:UBTU-24-900340
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1732,22 +1338,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.21
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1761,22 +1364,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.8
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1790,22 +1390,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.9
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1819,22 +1416,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.16
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1849,23 +1443,21 @@ org:
               - cis-ubuntu-26.04:6.2.3.15
               - stig-ubuntu-26.04:UBTU-24-200320
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
               - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1879,22 +1471,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.17
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1909,23 +1498,21 @@ org:
               - cis-ubuntu-26.04:6.2.3.13
               - stig-ubuntu-26.04:UBTU-24-200280
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
               - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1940,23 +1527,20 @@ org:
               - cis-ubuntu-26.04:6.2.3.25
               - stig-ubuntu-26.04:UBTU-24-900540
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -1973,23 +1557,20 @@ org:
               - stig-ubuntu-26.04:UBTU-24-900600
               - stig-ubuntu-26.04:UBTU-24-900610
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -2006,26 +1587,13 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
               - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
               - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2046,23 +1614,21 @@ org:
               - stig-ubuntu-26.04:UBTU-24-200300
               - stig-ubuntu-26.04:UBTU-24-200310
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
               - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -2078,23 +1644,21 @@ org:
               - stig-ubuntu-26.04:UBTU-24-900510
               - stig-ubuntu-26.04:UBTU-24-900520
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
+              - nist-800-53:AU-2
               - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -2108,22 +1672,19 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.3.4
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -2138,23 +1699,20 @@ org:
               - cis-ubuntu-26.04:6.2.3.24
               - stig-ubuntu-26.04:UBTU-24-900540
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -2169,23 +1727,21 @@ org:
               - cis-ubuntu-26.04:6.2.3.2
               - stig-ubuntu-26.04:UBTU-24-200580
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
+              - nist-800-53:AU-2
               - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -2202,26 +1758,13 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
               - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
               - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2242,23 +1785,20 @@ org:
               - stig-ubuntu-26.04:UBTU-24-900130
               - stig-ubuntu-26.04:UBTU-24-900140
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.01
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-800-53:AU-2
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -2274,26 +1814,10 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2314,26 +1838,10 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2353,7 +1861,6 @@ org:
               - cis-controls-v8:8.3
               - iso-27001-2022:A8.6
               - nist-800-53:AU-4
-              - nist-800-53:AU-5(1)
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2372,26 +1879,10 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2411,7 +1902,6 @@ org:
               - cis-controls-v8:8.3
               - iso-27001-2022:A8.6
               - nist-800-53:AU-4
-              - nist-800-53:AU-5(1)
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2430,26 +1920,10 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2468,27 +1942,14 @@ org:
               - cis-ubuntu-26.04:6.2.4.4
               - stig-ubuntu-26.04:UBTU-24-901380
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2496,7 +1957,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: The audit log directory is open too widely
           - id: auditd/log-file-group
             ruleset: auditd
@@ -2507,34 +1967,20 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.4.3
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An audit log is in a group other than root or adm
           - id: auditd/log-group
             ruleset: auditd
@@ -2545,34 +1991,20 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.4.3
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: auditd writes its logs for a group other than root or adm
           - id: auditd/log-mode
             ruleset: auditd
@@ -2583,34 +2015,20 @@ org:
               - audit
               - cis-ubuntu-26.04:6.2.4.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An audit log is readable too widely
           - id: auditd/log-owner
             ruleset: auditd
@@ -2622,27 +2040,14 @@ org:
               - cis-ubuntu-26.04:6.2.4.2
               - stig-ubuntu-26.04:UBTU-24-901310
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2650,7 +2055,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An audit log is not owned by root
           - id: auditd/low-space
             ruleset: auditd
@@ -2681,7 +2085,6 @@ org:
               - cis-controls-v8:8.3
               - iso-27001-2022:A8.6
               - nist-800-53:AU-4
-              - nist-800-53:AU-5(1)
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2706,23 +2109,17 @@ org:
               - cis-ubuntu-26.04:6.2.1.1
               - stig-ubuntu-26.04:UBTU-24-100400
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -2810,7 +2207,6 @@ org:
               - cis-ubuntu-26.04:1.6.3
               - cis-ubuntu-26.04:1.6.4
               - cis-ubuntu-26.04:1.6.5
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2828,34 +2224,19 @@ org:
               - cis-ubuntu-26.04:1.6.9
               - cis-ubuntu-26.04:1.6.10
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: The login banner is not owned by root
           - id: banner/stig-issue-empty
             ruleset: banner
@@ -2881,9 +2262,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2904,9 +2283,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -2927,34 +2304,19 @@ org:
               - cis-ubuntu-26.04:1.6.9
               - cis-ubuntu-26.04:1.6.10
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: The login banner is writable by other users
           - id: btrfs/device-errors
             ruleset: btrfs
@@ -2980,9 +2342,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3003,9 +2363,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3027,9 +2385,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3051,9 +2407,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3074,9 +2428,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3098,9 +2450,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3136,7 +2486,6 @@ org:
             tags:
               - coredump
               - cis-ubuntu-26.04:1.5.11
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3148,7 +2497,6 @@ org:
             tags:
               - coredump
               - cis-ubuntu-26.04:1.5.12
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3182,34 +2530,19 @@ org:
               - cron
               - cis-ubuntu-26.04:2.4.1.9
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: cron.allow or cron.deny is in a group other than root or crontab
           - id: cron/access-mode
             ruleset: cron
@@ -3220,34 +2553,19 @@ org:
               - cron
               - cis-ubuntu-26.04:2.4.1.9
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: cron.allow or cron.deny is more open than 0640
           - id: cron/access-owner
             ruleset: cron
@@ -3258,34 +2576,19 @@ org:
               - cron
               - cis-ubuntu-26.04:2.4.1.9
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: cron.allow or cron.deny is not owned by root
           - id: cron/no-allow
             ruleset: cron
@@ -3296,34 +2599,20 @@ org:
               - cron
               - cis-ubuntu-26.04:2.4.1.9
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: crontab is open to users not named in cron.allow
           - id: cron/off
             ruleset: cron
@@ -3332,7 +2621,6 @@ org:
             tags:
               - cron
               - cis-ubuntu-26.04:2.4.1.1
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3524,27 +2812,13 @@ org:
               - cis-ubuntu-26.04:7.1.9
               - dev-sec-linux-baseline:os-03
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3552,7 +2826,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An account database is not in group root
           - id: files/accounts-mode
             ruleset: files
@@ -3567,34 +2840,19 @@ org:
               - cis-ubuntu-26.04:7.1.4
               - cis-ubuntu-26.04:7.1.9
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An account database is more open than 0644
           - id: files/apt-auth-readable
             ruleset: files
@@ -3606,34 +2864,19 @@ org:
               - apt
               - cis-ubuntu-26.04:1.2.1.6
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: APT repository credentials are readable by every user
           - id: files/audit-config-group
             ruleset: files
@@ -3646,27 +2889,14 @@ org:
               - cis-ubuntu-26.04:6.2.4.7
               - stig-ubuntu-26.04:UBTU-24-900060
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3674,7 +2904,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: The audit configuration is not in group root
           - id: files/audit-config-mode
             ruleset: files
@@ -3687,27 +2916,14 @@ org:
               - cis-ubuntu-26.04:6.2.4.5
               - stig-ubuntu-26.04:UBTU-24-900040
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3715,7 +2931,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: The audit configuration is readable by other users
           - id: files/audit-config-owner
             ruleset: files
@@ -3740,27 +2955,14 @@ org:
               - cis-ubuntu-26.04:6.2.4.10
               - stig-ubuntu-26.04:UBTU-24-901250
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3768,7 +2970,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An audit tool is not in group root
           - id: files/audit-tools-mode
             ruleset: files
@@ -3781,27 +2982,14 @@ org:
               - cis-ubuntu-26.04:6.2.4.8
               - stig-ubuntu-26.04:UBTU-24-901230
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -3809,7 +2997,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An audit tool is more open than 0755
           - id: files/audit-tools-owner
             ruleset: files
@@ -3833,34 +3020,19 @@ org:
               - boot
               - cis-ubuntu-26.04:1.4.2
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: The bootloader configuration is readable by other users
           - id: files/command-group
             ruleset: files
@@ -3974,27 +3146,13 @@ org:
               - cis-ubuntu-26.04:7.1.8
               - dev-sec-linux-baseline:os-02
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4002,7 +3160,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: Password hashes are in a group other than root or shadow
           - id: files/shadow-mode
             ruleset: files
@@ -4103,9 +3260,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4129,7 +3284,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4147,27 +3301,13 @@ org:
               - lynis
               - stig-ubuntu-26.04:UBTU-24-102000
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4175,7 +3315,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: GRUB asks no password to edit a boot entry
           - id: home/dot-directory-mode
             ruleset: home
@@ -4185,34 +3324,19 @@ org:
               - files
               - cis-ubuntu-26.04:7.2.11
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A dot directory in a home is more open than 0750
           - id: home/dot-file-mode
             ruleset: home
@@ -4222,34 +3346,19 @@ org:
               - files
               - cis-ubuntu-26.04:7.2.10
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A dot file in a home is more open than 0644
           - id: home/forward
             ruleset: home
@@ -4259,34 +3368,19 @@ org:
               - files
               - cis-ubuntu-26.04:7.2.10
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A user forwards their mail with ~/.forward
           - id: home/history-mode
             ruleset: home
@@ -4297,34 +3391,19 @@ org:
               - files
               - cis-ubuntu-26.04:7.2.10
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A shell history is readable by other users
           - id: home/not-owned
             ruleset: home
@@ -4354,34 +3433,19 @@ org:
               - ssh
               - cis-ubuntu-26.04:7.2.11
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: ~/.ssh is more open than 0700
           - id: interfaces/promiscuous
             ruleset: interfaces
@@ -4404,20 +3468,13 @@ org:
               - dev-sec-linux-baseline:sysctl-03
               - cis-controls-v8:4.8
               - iso-27001-2022:A8.9
-              - nist-800-171-r2:3.4.7
-              - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
-              - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
-              - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - dev-sec
               - iso
               - nist
-              - pci-dss
             title: Bogus ICMP error replies are logged
           - id: ip-flood/broadcast-echo
             ruleset: ip-flood
@@ -4496,9 +3553,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4522,9 +3577,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4545,26 +3598,14 @@ org:
               - cis-ubuntu-26.04:3.3.1.17
               - dev-sec-linux-baseline:sysctl-17
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
-              - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
-              - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
               - dev-sec
               - iso
               - nist
-              - pci-dss
             title: Martian IPv4 packets are not logged
           - id: ip-routing/ipv4-redirects
             ruleset: ip-routing
@@ -4588,20 +3629,13 @@ org:
               - dev-sec-linux-baseline:sysctl-02
               - cis-controls-v8:4.8
               - iso-27001-2022:A8.9
-              - nist-800-171-r2:3.4.7
-              - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
-              - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
-              - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - dev-sec
               - iso
               - nist
-              - pci-dss
             title: The IPv4 reverse path filter is not strict
           - id: ip-routing/ipv4-secure-redirects
             ruleset: ip-routing
@@ -4620,9 +3654,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4648,9 +3680,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4685,9 +3715,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4722,9 +3750,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4810,9 +3836,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4836,9 +3860,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4867,38 +3889,13 @@ org:
               - cis-ubuntu-26.04:6.1.1.1.7
               - cis-controls-v8:8.2
               - cis-controls-v8:8.3
-              - hipaa:164.312(b)
-              - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
               - iso-27001-2022:A8.6
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
-              - nist-800-171-r3:03.03.03
-              - nist-800-53:AU-12
-              - nist-800-53:AU-2
               - nist-800-53:AU-4
-              - nist-800-53:AU-5(1)
-              - nist-800-53:AU-7
-              - nist-csf-2:PR.PS-04
-              - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
               - iso
               - nist
-              - pci-dss
             title: journald is set not to compress the journal
           - id: journald/inactive
             ruleset: journald
@@ -4912,26 +3909,10 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -4950,38 +3931,13 @@ org:
               - cis-ubuntu-26.04:6.1.1.1.3
               - cis-controls-v8:8.2
               - cis-controls-v8:8.9
-              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
-              - nist-800-171-r3:03.03.03
-              - nist-800-171-r3:03.03.06
-              - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-6(3)
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
-              - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:10.3.3
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
               - iso
               - nist
-              - pci-dss
             title: journald does not forward to rsyslog
           - id: journald/remote-listening
             ruleset: journald
@@ -5000,7 +3956,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5106,26 +4061,10 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5148,9 +4087,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5172,9 +4109,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5204,9 +4139,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5228,9 +4161,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5254,9 +4185,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5280,9 +4209,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5305,9 +4232,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5330,9 +4255,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5355,9 +4278,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5379,9 +4300,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5405,9 +4324,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5431,9 +4348,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5457,9 +4372,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5483,9 +4396,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5509,9 +4420,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5535,9 +4444,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5561,9 +4468,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5587,9 +4492,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5610,9 +4513,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5633,9 +4534,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5658,9 +4557,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5683,9 +4580,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5708,9 +4603,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5733,9 +4626,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5758,9 +4649,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5783,9 +4672,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5808,9 +4695,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5833,9 +4718,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5859,9 +4742,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5885,9 +4766,7 @@ org:
               - nist-800-171-r3:03.04.06
               - nist-800-53:CM-6
               - nist-800-53:CM-7
-              - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -5905,7 +4784,6 @@ org:
               - stig-ubuntu-26.04:UBTU-24-300039
               - lynis
               - cis-controls-v8:10.3
-              - hipaa:164.310(d)(1)
               - nist-800-171-r2:3.8.7
               - nist-800-171-r3:03.08.07
               - nist-800-53:MP-7
@@ -5913,7 +4791,6 @@ org:
               - ubuntu
               - ubuntu-26.04
               - stig
-              - hipaa
               - nist
             title: Kernel module “usb-storage” loads automatically
           - id: kernel-modules/usb-storage-loaded
@@ -5924,14 +4801,12 @@ org:
               - kernel
               - cis-ubuntu-26.04:1.1.1.10
               - cis-controls-v8:10.3
-              - hipaa:164.310(d)(1)
               - nist-800-171-r2:3.8.7
               - nist-800-171-r3:03.08.07
               - nist-800-53:MP-7
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
               - nist
             title: Kernel module “usb-storage” is loaded
           - id: kernel/apparmor-unconfined
@@ -5944,13 +4819,9 @@ org:
               - sysctl
               - cis-ubuntu-26.04:1.3.1.4
               - cis-controls-v8:10.5
-              - iso-27001-2022:A8.7
-              - nist-800-53:SI-16
               - cis
               - ubuntu
               - ubuntu-26.04
-              - iso
-              - nist
             title: Unconfined users may switch AppArmor profile to get user namespaces
           - id: kernel/aslr
             ruleset: kernel
@@ -6010,7 +4881,7 @@ org:
               - kernel
               - sysctl
               - stig-ubuntu-26.04:UBTU-24-600030
-              - fips-140-3:UBTU-24-600030
+              - fips-140-3:9
               - stig
               - ubuntu
               - ubuntu-26.04
@@ -6056,30 +4927,15 @@ org:
               - cis-ubuntu-26.04:5.4.1.4
               - lynis
               - cis-controls-v8:3.11
-              - hipaa:164.312(a)(2)(iv)
-              - hipaa:164.312(e)(2)(ii)
-              - iso-27001-2022:A5.33
-              - nist-800-171-r2:3.13.16
-              - nist-800-171-r2:3.8.1
+              - fips-140-3:10
+              - nist-800-171-r2:3.5.10
               - nist-800-171-r3:03.05.07
-              - nist-800-171-r3:03.13.08
-              - nist-800-53:AU-9(3)
               - nist-800-53:IA-5(1)
-              - nist-800-53:SC-28
-              - nist-800-53:SC-28(1)
-              - nist-csf-2:PR.DS-01
-              - pci-dss-4:3.1.1
-              - pci-dss-4:3.3.2
-              - pci-dss-4:3.3.3
-              - pci-dss-4:3.5.1
-              - pci-dss-4:3.5.1.2
-              - pci-dss-4:3.5.1.3
               - pci-dss-4:8.3.2
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
+              - fips
               - nist
               - pci-dss
             title: New passwords are hashed with a weak or unknown scheme
@@ -6090,11 +4946,9 @@ org:
             tags:
               - auth
               - stig-ubuntu-26.04:UBTU-24-400400
-              - fips-140-3:UBTU-24-400400
               - stig
               - ubuntu
               - ubuntu-26.04
-              - fips
             title: New passwords are hashed with a scheme other than SHA512
           - id: login-defs/pass-max-days
             ruleset: login-defs
@@ -6106,19 +4960,12 @@ org:
               - lynis
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-53:IA-5
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: New accounts get no maximum password age, or one above the maximum
           - id: login-defs/pass-min-days
             ruleset: login-defs
@@ -6131,20 +4978,13 @@ org:
               - stig-ubuntu-26.04:UBTU-24-400300
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-53:IA-5
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
               - iso
               - nist
-              - pci-dss
             title: New accounts can change their password again before the minimum age
           - id: login-defs/pass-rotation
             ruleset: login-defs
@@ -6165,19 +5005,12 @@ org:
               - cis-ubuntu-26.04:5.4.1.3
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-53:IA-5
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: New accounts get less password expiry warning than asked
           - id: login-defs/sha-rounds
             ruleset: login-defs
@@ -6198,34 +5031,19 @@ org:
               - cis-ubuntu-26.04:5.4.3.3
               - lynis
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: The login umask leaves new files open to other users
           - id: login-defs/umask-077
             ruleset: login-defs
@@ -6246,34 +5064,20 @@ org:
               - logging
               - cis-ubuntu-26.04:6.1.3.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An SSSD or GDM log is more open than 0660
           - id: logs/cis-login-records-mode
             ruleset: logs
@@ -6283,34 +5087,20 @@ org:
               - logging
               - cis-ubuntu-26.04:6.1.3.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A login record is more open than 0664
           - id: logs/cis-readable-mode
             ruleset: logs
@@ -6320,34 +5110,20 @@ org:
               - logging
               - cis-ubuntu-26.04:6.1.3.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: An apt, cloud-init or agent log is more open than 0644
           - id: logs/directory-group
             ruleset: logs
@@ -6397,27 +5173,14 @@ org:
               - stig-ubuntu-26.04:UBTU-24-700150
               - cis-ubuntu-26.04:6.1.3.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - stig
               - ubuntu
               - ubuntu-26.04
@@ -6425,7 +5188,6 @@ org:
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A log file is more open than 0640
           - id: logs/rotation-mode
             ruleset: logs
@@ -6551,34 +5313,19 @@ org:
               - cis-ubuntu-26.04:1.1.2.6.2
               - cis-ubuntu-26.04:1.1.2.7.2
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A data mount opens device files
           - id: mounts/partition-noexec
             ruleset: mounts
@@ -6589,34 +5336,19 @@ org:
               - cis-ubuntu-26.04:1.1.2.6.4
               - cis-ubuntu-26.04:1.1.2.7.4
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A data mount runs programs
           - id: mounts/partition-nosuid
             ruleset: mounts
@@ -6630,34 +5362,19 @@ org:
               - cis-ubuntu-26.04:1.1.2.6.3
               - cis-ubuntu-26.04:1.1.2.7.3
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A data mount honours set-user-ID bits
           - id: mounts/proc-hidepid
             ruleset: mounts
@@ -6675,34 +5392,9 @@ org:
               - mounts
               - cis-ubuntu-26.04:1.1.2.2.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
-              - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
-              - iso-27001-2022:A5.15
-              - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
-              - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
-              - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
-              - nist-800-53:AC-3
-              - nist-800-53:AC-5
-              - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
-              - nist
-              - pci-dss
             title: /dev/shm is not a separate mount
           - id: mounts/separate-home
             ruleset: mounts
@@ -6712,34 +5404,9 @@ org:
               - mounts
               - cis-ubuntu-26.04:1.1.2.3.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
-              - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
-              - iso-27001-2022:A5.15
-              - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
-              - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
-              - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
-              - nist-800-53:AC-3
-              - nist-800-53:AC-5
-              - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
-              - nist
-              - pci-dss
             title: /home is not a separate mount
           - id: mounts/separate-tmp
             ruleset: mounts
@@ -6749,34 +5416,9 @@ org:
               - mounts
               - cis-ubuntu-26.04:1.1.2.1.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
-              - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
-              - iso-27001-2022:A5.15
-              - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
-              - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
-              - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
-              - nist-800-53:AC-3
-              - nist-800-53:AC-5
-              - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
-              - nist
-              - pci-dss
             title: /tmp is not a separate mount
           - id: mounts/separate-var
             ruleset: mounts
@@ -6786,34 +5428,9 @@ org:
               - mounts
               - cis-ubuntu-26.04:1.1.2.4.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
-              - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
-              - iso-27001-2022:A5.15
-              - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
-              - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
-              - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
-              - nist-800-53:AC-3
-              - nist-800-53:AC-5
-              - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
-              - nist
-              - pci-dss
             title: /var is not a separate mount
           - id: mounts/separate-var-log
             ruleset: mounts
@@ -6825,7 +5442,6 @@ org:
               - cis-controls-v8:8.3
               - iso-27001-2022:A8.6
               - nist-800-53:AU-4
-              - nist-800-53:AU-5(1)
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -6842,7 +5458,6 @@ org:
               - cis-controls-v8:8.3
               - iso-27001-2022:A8.6
               - nist-800-53:AU-4
-              - nist-800-53:AU-5(1)
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -6856,7 +5471,6 @@ org:
             tags:
               - mounts
               - cis-ubuntu-26.04:1.1.2.5.1
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -6919,26 +5533,13 @@ org:
               - pam
               - cis-ubuntu-26.04:5.3.3.1.1
               - cis-controls-v8:6.2
-              - hipaa:164.308(a)(3)(ii)(C)
-              - iso-27001-2022:A5.16
-              - iso-27001-2022:A5.18
-              - iso-27001-2022:A6.5
-              - nist-800-171-r3:03.01.01
-              - nist-800-171-r3:03.09.02
-              - nist-800-53:AC-1
-              - nist-800-53:AC-2
-              - nist-800-53:AC-2(1)
-              - nist-800-53:PS-4(2)
-              - nist-csf-2:GV.RR-04
-              - pci-dss-4:8.2.4
-              - pci-dss-4:8.2.5
+              - nist-800-171-r2:3.1.8
+              - nist-800-171-r3:03.01.08
+              - nist-800-53:AC-7
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
               - nist
-              - pci-dss
             title: pam_faillock allows too many failed logins before locking
           - id: pam/faillock-root
             ruleset: pam
@@ -6949,26 +5550,13 @@ org:
               - pam
               - cis-ubuntu-26.04:5.3.3.1.3
               - cis-controls-v8:6.2
-              - hipaa:164.308(a)(3)(ii)(C)
-              - iso-27001-2022:A5.16
-              - iso-27001-2022:A5.18
-              - iso-27001-2022:A6.5
-              - nist-800-171-r3:03.01.01
-              - nist-800-171-r3:03.09.02
-              - nist-800-53:AC-1
-              - nist-800-53:AC-2
-              - nist-800-53:AC-2(1)
-              - nist-800-53:PS-4(2)
-              - nist-csf-2:GV.RR-04
-              - pci-dss-4:8.2.4
-              - pci-dss-4:8.2.5
+              - nist-800-171-r2:3.1.8
+              - nist-800-171-r3:03.01.08
+              - nist-800-53:AC-7
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
               - nist
-              - pci-dss
             title: Failed logins never lock root
           - id: pam/faillock-unlock-time
             ruleset: pam
@@ -6980,26 +5568,13 @@ org:
               - pam
               - cis-ubuntu-26.04:5.3.3.1.2
               - cis-controls-v8:6.2
-              - hipaa:164.308(a)(3)(ii)(C)
-              - iso-27001-2022:A5.16
-              - iso-27001-2022:A5.18
-              - iso-27001-2022:A6.5
-              - nist-800-171-r3:03.01.01
-              - nist-800-171-r3:03.09.02
-              - nist-800-53:AC-1
-              - nist-800-53:AC-2
-              - nist-800-53:AC-2(1)
-              - nist-800-53:PS-4(2)
-              - nist-csf-2:GV.RR-04
-              - pci-dss-4:8.2.4
-              - pci-dss-4:8.2.5
+              - nist-800-171-r2:3.1.8
+              - nist-800-171-r3:03.01.08
+              - nist-800-53:AC-7
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
               - nist
-              - pci-dss
             title: A locked account unlocks too soon
           - id: pam/no-lockout
             ruleset: pam
@@ -7039,13 +5614,8 @@ org:
               - cis-ubuntu-26.04:5.3.2.4
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-171-r2:3.5.8
+              - pci-dss-4:8.3.7
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7063,13 +5633,8 @@ org:
               - cis-ubuntu-26.04:5.3.3.3.1
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-171-r2:3.5.8
+              - pci-dss-4:8.3.7
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7087,13 +5652,8 @@ org:
               - cis-ubuntu-26.04:5.3.3.3.2
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-171-r2:3.5.8
+              - pci-dss-4:8.3.7
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7110,32 +5670,12 @@ org:
               - pam
               - cis-ubuntu-26.04:5.3.3.3.3
               - cis-controls-v8:3.11
-              - hipaa:164.312(a)(2)(iv)
-              - hipaa:164.312(e)(2)(ii)
-              - iso-27001-2022:A5.33
-              - nist-800-171-r2:3.13.16
-              - nist-800-171-r2:3.8.1
               - nist-800-171-r3:03.05.07
-              - nist-800-171-r3:03.13.08
-              - nist-800-53:AU-9(3)
               - nist-800-53:IA-5(1)
-              - nist-800-53:SC-28
-              - nist-800-53:SC-28(1)
-              - nist-csf-2:PR.DS-01
-              - pci-dss-4:3.1.1
-              - pci-dss-4:3.3.2
-              - pci-dss-4:3.3.3
-              - pci-dss-4:3.5.1
-              - pci-dss-4:3.5.1.2
-              - pci-dss-4:3.5.1.3
-              - pci-dss-4:8.3.2
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
               - nist
-              - pci-dss
             title: pam_pwhistory asks for the new password itself
           - id: pam/pwquality-enabled
             ruleset: pam
@@ -7153,10 +5693,7 @@ org:
               - nist-800-171-r2:3.5.7
               - nist-800-171-r3:03.05.07
               - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
               - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7211,34 +5748,20 @@ org:
               - pam
               - cis-ubuntu-26.04:5.2.7
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: su is open to every user
           - id: pam/unix-enabled
             ruleset: pam
@@ -7250,34 +5773,19 @@ org:
               - pam
               - cis-ubuntu-26.04:5.3.2.1
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: A common PAM stack does not call pam_unix
           - id: pam/unix-hash
             ruleset: pam
@@ -7289,30 +5797,13 @@ org:
               - pam
               - cis-ubuntu-26.04:5.3.3.4.3
               - cis-controls-v8:3.11
-              - hipaa:164.312(a)(2)(iv)
-              - hipaa:164.312(e)(2)(ii)
-              - iso-27001-2022:A5.33
-              - nist-800-171-r2:3.13.16
-              - nist-800-171-r2:3.8.1
+              - nist-800-171-r2:3.5.10
               - nist-800-171-r3:03.05.07
-              - nist-800-171-r3:03.13.08
-              - nist-800-53:AU-9(3)
               - nist-800-53:IA-5(1)
-              - nist-800-53:SC-28
-              - nist-800-53:SC-28(1)
-              - nist-csf-2:PR.DS-01
-              - pci-dss-4:3.1.1
-              - pci-dss-4:3.3.2
-              - pci-dss-4:3.3.3
-              - pci-dss-4:3.5.1
-              - pci-dss-4:3.5.1.2
-              - pci-dss-4:3.5.1.3
               - pci-dss-4:8.3.2
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
               - nist
               - pci-dss
             title: pam_unix names no strong hashing scheme for new passwords
@@ -7327,13 +5818,8 @@ org:
               - cis-ubuntu-26.04:5.3.3.4.2
               - cis-controls-v8:5.2
               - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
+              - nist-800-171-r2:3.5.8
+              - pci-dss-4:8.3.7
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7350,32 +5836,12 @@ org:
               - pam
               - cis-ubuntu-26.04:5.3.3.4.4
               - cis-controls-v8:3.11
-              - hipaa:164.312(a)(2)(iv)
-              - hipaa:164.312(e)(2)(ii)
-              - iso-27001-2022:A5.33
-              - nist-800-171-r2:3.13.16
-              - nist-800-171-r2:3.8.1
               - nist-800-171-r3:03.05.07
-              - nist-800-171-r3:03.13.08
-              - nist-800-53:AU-9(3)
               - nist-800-53:IA-5(1)
-              - nist-800-53:SC-28
-              - nist-800-53:SC-28(1)
-              - nist-csf-2:PR.DS-01
-              - pci-dss-4:3.1.1
-              - pci-dss-4:3.3.2
-              - pci-dss-4:3.3.3
-              - pci-dss-4:3.5.1
-              - pci-dss-4:3.5.1.2
-              - pci-dss-4:3.5.1.3
-              - pci-dss-4:8.3.2
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
               - nist
-              - pci-dss
             title: pam_unix asks for the new password itself
           - id: php/php2shell
             ruleset: php
@@ -7410,7 +5876,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7441,7 +5906,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7469,7 +5933,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7496,7 +5959,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7524,7 +5986,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7579,7 +6040,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7630,10 +6090,7 @@ org:
               - nist-800-171-r2:3.5.7
               - nist-800-171-r3:03.05.07
               - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
               - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7657,17 +6114,12 @@ org:
               - nist-800-171-r2:3.5.7
               - nist-800-171-r3:03.05.07
               - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
               - nist
               - stig
               - iso
-              - pci-dss
             title: New passwords are not checked against a dictionary
           - id: pwquality/difok
             ruleset: pwquality
@@ -7682,16 +6134,11 @@ org:
               - nist-800-171-r2:3.5.7
               - nist-800-171-r3:03.05.07
               - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: A new password may repeat most of the old one
           - id: pwquality/enforcing
             ruleset: pwquality
@@ -7707,10 +6154,7 @@ org:
               - nist-800-171-r2:3.5.7
               - nist-800-171-r3:03.05.07
               - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
               - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7731,16 +6175,11 @@ org:
               - nist-800-171-r2:3.5.7
               - nist-800-171-r3:03.05.07
               - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: New passwords may repeat one character without limit
           - id: pwquality/maxsequence
             ruleset: pwquality
@@ -7755,16 +6194,11 @@ org:
               - nist-800-171-r2:3.5.7
               - nist-800-171-r3:03.05.07
               - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
               - nist
-              - pci-dss
             title: New passwords may hold a long run of sequential characters
           - id: pwquality/minlen
             ruleset: pwquality
@@ -7780,10 +6214,7 @@ org:
               - nist-800-171-r2:3.5.7
               - nist-800-171-r3:03.05.07
               - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
               - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7819,10 +6250,7 @@ org:
               - nist-800-171-r2:3.5.7
               - nist-800-171-r3:03.05.07
               - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
               - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -7975,56 +6403,20 @@ org:
               - cis-ubuntu-26.04:6.1.2.3
               - cis-controls-v8:3.3
               - cis-controls-v8:8.2
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - hipaa:164.312(b)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
-              - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
-              - nist-800-171-r3:03.03.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - nist-csf-2:PR.PS-04
-              - pci-dss-4:1.3.1
-              - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: rsyslog creates log files more open than 0640
           - id: rsyslog/file-create-mode-unset
             ruleset: rsyslog
@@ -8037,56 +6429,20 @@ org:
               - cis-ubuntu-26.04:6.1.2.3
               - cis-controls-v8:3.3
               - cis-controls-v8:8.2
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - hipaa:164.312(b)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
-              - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
-              - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
-              - nist-800-171-r3:03.03.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - nist-csf-2:PR.PS-04
-              - pci-dss-4:1.3.1
-              - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
-              - pci-dss-4:7.1
+              - nist-800-53:AU-9
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: rsyslog creates log files readable by every user
           - id: rsyslog/forwards-in-clear
             ruleset: rsyslog
@@ -8097,34 +6453,19 @@ org:
               - logging
               - cis-ubuntu-26.04:6.1.2.9
               - cis-controls-v8:3.10
-              - hipaa:164.312(a)(2)(iv)
               - hipaa:164.312(e)(1)
               - hipaa:164.312(e)(2)(i)
               - hipaa:164.312(e)(2)(ii)
-              - iso-27001-2022:A5.14
-              - nist-800-171-r2:3.1.13
               - nist-800-171-r2:3.13.8
-              - nist-800-171-r2:3.5.10
-              - nist-800-171-r3:03.01.12
-              - nist-800-171-r3:03.05.07
               - nist-800-171-r3:03.13.08
-              - nist-800-53:AC-17(2)
-              - nist-800-53:IA-5
-              - nist-800-53:IA-5(1)
               - nist-800-53:SC-8
               - nist-800-53:SC-8(1)
               - nist-csf-2:PR.DS-02
-              - pci-dss-4:2.2.7
-              - pci-dss-4:4.1.1
               - pci-dss-4:4.2.1
-              - pci-dss-4:4.2.1.2
-              - pci-dss-4:4.2.2
-              - pci-dss-4:8.3.2
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
-              - iso
               - nist
               - pci-dss
             title: rsyslog forwards logs without TLS
@@ -8137,35 +6478,9 @@ org:
               - logging
               - cis-ubuntu-26.04:6.1.2.8
               - cis-controls-v8:8.2
-              - hipaa:164.312(b)
-              - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
-              - nist-800-171-r3:03.03.03
-              - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
-              - nist-csf-2:PR.PS-04
-              - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
-              - iso
-              - nist
-              - pci-dss
             title: rsyslog has no TLS network stream driver
           - id: rsyslog/off
             ruleset: rsyslog
@@ -8180,26 +6495,10 @@ org:
               - cis-controls-v8:8.2
               - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - iso-27001-2022:A8.20
-              - nist-800-171-r3:03.03.01
-              - nist-800-171-r3:03.03.02
               - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-2
-              - nist-800-53:AU-7
               - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
-              - pci-dss-4:10.2.1.1
-              - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.3
-              - pci-dss-4:10.2.1.4
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:10.2.1.6
-              - pci-dss-4:10.2.1.7
-              - pci-dss-4:10.2.2
-              - pci-dss-4:5.3.4
-              - pci-dss-4:6.4.1
-              - pci-dss-4:6.4.2
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -8225,7 +6524,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -8396,34 +6694,20 @@ org:
               - ssh
               - cis-ubuntu-26.04:5.1.5
               - cis-controls-v8:3.3
-              - hipaa:164.308(a)(3)(i)
-              - hipaa:164.308(a)(3)(ii)(A)
               - hipaa:164.312(a)(1)
-              - iso-27001-2022:A5.10
               - iso-27001-2022:A5.15
               - iso-27001-2022:A8.3
-              - iso-27001-2022:A8.4
               - nist-800-171-r2:3.1.1
               - nist-800-171-r2:3.1.2
-              - nist-800-171-r2:3.8.2
-              - nist-800-171-r3:03.01.01
               - nist-800-171-r3:03.01.02
-              - nist-800-171-r3:03.01.03
-              - nist-800-171-r3:3.8.2
               - nist-800-53:AC-3
-              - nist-800-53:AC-5
               - nist-800-53:AC-6
-              - nist-800-53:CA-3(6)
-              - nist-800-53:MP-2
-              - pci-dss-4:1.3.1
-              - pci-dss-4:7.1
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
               - iso
               - nist
-              - pci-dss
             title: sshd admits every account
           - id: ssh/banner-none
             ruleset: ssh
@@ -8433,7 +6717,6 @@ org:
               - ssh
               - cis-ubuntu-26.04:5.1.6
               - stig-ubuntu-26.04:UBTU-24-200640
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -8457,7 +6740,6 @@ org:
               - default
               - ssh
               - cis-ubuntu-26.04:5.1.8
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -8470,7 +6752,6 @@ org:
               - default
               - ssh
               - cis-ubuntu-26.04:5.1.8
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -8505,20 +6786,9 @@ org:
               - ssh
               - cis-ubuntu-26.04:5.1.10
               - cis-controls-v8:5.2
-              - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
-              - iso
-              - nist
-              - pci-dss
             title: GSSAPI authentication is accepted
           - id: ssh/hostbased
             ruleset: ssh
@@ -8560,11 +6830,9 @@ org:
               - ssh
               - cis-ubuntu-26.04:5.1.14
               - cis-controls-v8:3.10
-              - hipaa:164.312(a)(2)(iv)
               - hipaa:164.312(e)(1)
               - hipaa:164.312(e)(2)(i)
               - hipaa:164.312(e)(2)(ii)
-              - iso-27001-2022:A5.14
               - nist-800-171-r2:3.1.13
               - nist-800-171-r2:3.13.8
               - nist-800-171-r2:3.5.10
@@ -8572,22 +6840,17 @@ org:
               - nist-800-171-r3:03.05.07
               - nist-800-171-r3:03.13.08
               - nist-800-53:AC-17(2)
-              - nist-800-53:IA-5
               - nist-800-53:IA-5(1)
               - nist-800-53:SC-8
               - nist-800-53:SC-8(1)
               - nist-csf-2:PR.DS-02
               - pci-dss-4:2.2.7
-              - pci-dss-4:4.1.1
               - pci-dss-4:4.2.1
-              - pci-dss-4:4.2.1.2
-              - pci-dss-4:4.2.2
               - pci-dss-4:8.3.2
               - cis
               - ubuntu
               - ubuntu-26.04
               - hipaa
-              - iso
               - nist
               - pci-dss
             title: No post-quantum key exchange is offered
@@ -8651,7 +6914,6 @@ org:
             tags:
               - ssh
               - cis-ubuntu-26.04:5.1.19
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -8663,7 +6925,6 @@ org:
             tags:
               - ssh
               - cis-ubuntu-26.04:5.1.20
-              - cis-controls-v8:0.0
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -8765,21 +7026,10 @@ org:
               - cis-ubuntu-26.04:5.1.24
               - stig-ubuntu-26.04:UBTU-24-500050
               - cis-controls-v8:5.2
-              - iso-27001-2022:A5.17
-              - nist-800-171-r2:3.5.7
-              - nist-800-171-r3:03.05.07
-              - nist-800-53:IA-5(1)
-              - pci-dss-4:2.2.2
-              - pci-dss-4:8.3.5
-              - pci-dss-4:8.3.6
-              - pci-dss-4:8.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
-              - iso
-              - nist
-              - pci-dss
             title: sshd skips PAM
           - id: ssh/user-environment
             ruleset: ssh
@@ -8822,22 +7072,18 @@ org:
               - sudo
               - cis-ubuntu-26.04:5.2.3
               - cis-controls-v8:8.5
-              - iso-27001-2022:A5.28
+              - hipaa:164.312(b)
               - iso-27001-2022:A8.15
-              - nist-800-171-r3:03.03.02
+              - nist-800-171-r3:03.03.03
               - nist-800-53:AU-12
-              - nist-800-53:AU-3
-              - nist-800-53:AU-3(1)
-              - nist-800-53:AU-7
               - nist-800-53:SI-4(20)
-              - pci-dss-4:10.199999999999999
+              - nist-csf-2:PR.PS-04
               - pci-dss-4:10.2.1
               - pci-dss-4:10.2.1.2
-              - pci-dss-4:10.2.1.5
-              - pci-dss-4:9.4.5
               - cis
               - ubuntu
               - ubuntu-26.04
+              - hipaa
               - iso
               - nist
               - pci-dss
@@ -8852,21 +7098,12 @@ org:
               - cis-ubuntu-26.04:5.2.5
               - stig-ubuntu-26.04:UBTU-24-300021
               - cis-controls-v8:5.4
-              - iso-27001-2022:A5.15
               - iso-27001-2022:A8.2
-              - nist-800-171-r2:3.1.6
-              - nist-800-171-r2:3.1.7
-              - nist-800-171-r3:03.01.06
-              - nist-800-171-r3:03.01.07
-              - nist-800-53:AC-2(11)
-              - nist-800-53:AC-6(2)
-              - nist-800-53:AC-6(5)
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
               - iso
-              - nist
             title: sudo runs commands without asking for a password
           - id: sudo-defaults/no-pty
             ruleset: sudo-defaults
@@ -8884,20 +7121,11 @@ org:
               - sudo
               - cis-ubuntu-26.04:5.2.6
               - cis-controls-v8:5.4
-              - iso-27001-2022:A5.15
               - iso-27001-2022:A8.2
-              - nist-800-171-r2:3.1.6
-              - nist-800-171-r2:3.1.7
-              - nist-800-171-r3:03.01.06
-              - nist-800-171-r3:03.01.07
-              - nist-800-53:AC-2(11)
-              - nist-800-53:AC-6(2)
-              - nist-800-53:AC-6(5)
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
-              - nist
             title: sudo remembers a password for too long
           - id: sudo-defaults/use-pty
             ruleset: sudo-defaults
@@ -8908,20 +7136,11 @@ org:
               - sudo
               - cis-ubuntu-26.04:5.2.2
               - cis-controls-v8:5.4
-              - iso-27001-2022:A5.15
               - iso-27001-2022:A8.2
-              - nist-800-171-r2:3.1.6
-              - nist-800-171-r2:3.1.7
-              - nist-800-171-r3:03.01.06
-              - nist-800-171-r3:03.01.07
-              - nist-800-53:AC-2(11)
-              - nist-800-53:AC-6(2)
-              - nist-800-53:AC-6(5)
               - cis
               - ubuntu
               - ubuntu-26.04
               - iso
-              - nist
             title: sudo Defaults do not set use_pty
           - id: sudo/invalid-sudoers
             ruleset: sudo
@@ -8941,21 +7160,12 @@ org:
               - cis-ubuntu-26.04:5.2.4
               - stig-ubuntu-26.04:UBTU-24-300020
               - cis-controls-v8:5.4
-              - iso-27001-2022:A5.15
               - iso-27001-2022:A8.2
-              - nist-800-171-r2:3.1.6
-              - nist-800-171-r2:3.1.7
-              - nist-800-171-r3:03.01.06
-              - nist-800-171-r3:03.01.07
-              - nist-800-53:AC-2(11)
-              - nist-800-53:AC-6(2)
-              - nist-800-53:AC-6(5)
               - cis
               - ubuntu
               - ubuntu-26.04
               - stig
               - iso
-              - nist
             title: An account runs sudo commands without a password
           - id: sudo/not-installed
             ruleset: sudo
@@ -8965,15 +7175,10 @@ org:
               - sudo
               - cis-ubuntu-26.04:5.2.1
               - cis-controls-v8:5.4
-              - iso-27001-2022:A5.15
               - iso-27001-2022:A8.2
               - nist-800-171-r2:3.1.6
-              - nist-800-171-r2:3.1.7
               - nist-800-171-r3:03.01.06
-              - nist-800-171-r3:03.01.07
-              - nist-800-53:AC-2(11)
               - nist-800-53:AC-6(2)
-              - nist-800-53:AC-6(5)
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -8991,13 +7196,9 @@ org:
               - cis-controls-v8:8.4
               - iso-27001-2022:A8.17
               - nist-800-171-r2:3.3.7
-              - nist-800-171-r3:03.03.07
-              - nist-800-53:AU-12(1)
-              - nist-800-53:AU-8
-              - pci-dss-4:10.6
+              - nist-800-53:SC-45
               - pci-dss-4:10.6.1
               - pci-dss-4:10.6.2
-              - pci-dss-4:10.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9016,13 +7217,9 @@ org:
               - cis-controls-v8:8.4
               - iso-27001-2022:A8.17
               - nist-800-171-r2:3.3.7
-              - nist-800-171-r3:03.03.07
-              - nist-800-53:AU-12(1)
-              - nist-800-53:AU-8
-              - pci-dss-4:10.6
+              - nist-800-53:SC-45
               - pci-dss-4:10.6.1
               - pci-dss-4:10.6.2
-              - pci-dss-4:10.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9117,13 +7314,9 @@ org:
               - cis-controls-v8:8.4
               - iso-27001-2022:A8.17
               - nist-800-171-r2:3.3.7
-              - nist-800-171-r3:03.03.07
-              - nist-800-53:AU-12(1)
-              - nist-800-53:AU-8
-              - pci-dss-4:10.6
+              - nist-800-53:SC-45
               - pci-dss-4:10.6.1
               - pci-dss-4:10.6.2
-              - pci-dss-4:10.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9142,13 +7335,9 @@ org:
               - cis-controls-v8:8.4
               - iso-27001-2022:A8.17
               - nist-800-171-r2:3.3.7
-              - nist-800-171-r3:03.03.07
-              - nist-800-53:AU-12(1)
-              - nist-800-53:AU-8
-              - pci-dss-4:10.6
+              - nist-800-53:SC-45
               - pci-dss-4:10.6.1
               - pci-dss-4:10.6.2
-              - pci-dss-4:10.6.3
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9221,10 +7410,7 @@ org:
               - cis-ubuntu-26.04:4.1.3
               - cis-controls-v8:4.4
               - cis-controls-v8:4.5
-              - iso-27001-2022:A6.7
-              - iso-27001-2022:A8.1
               - nist-800-171-r3:03.13.06
-              - nist-800-53:CA-9
               - nist-800-53:SC-7
               - nist-800-53:SC-7(5)
               - pci-dss-4:1.2.1
@@ -9232,7 +7418,6 @@ org:
               - cis
               - ubuntu
               - ubuntu-26.04
-              - iso
               - nist
               - pci-dss
             title: ufw is switched on but accepts incoming traffic by default
@@ -9257,10 +7442,7 @@ org:
               - stig-ubuntu-26.04:UBTU-24-100300
               - cis-controls-v8:4.4
               - cis-controls-v8:4.5
-              - iso-27001-2022:A6.7
-              - iso-27001-2022:A8.1
               - nist-800-171-r3:03.13.06
-              - nist-800-53:CA-9
               - nist-800-53:SC-7
               - nist-800-53:SC-7(5)
               - pci-dss-4:1.2.1
@@ -9269,7 +7451,6 @@ org:
               - ubuntu
               - ubuntu-26.04
               - stig
-              - iso
               - nist
               - pci-dss
             title: ufw is not installed
@@ -9283,10 +7464,7 @@ org:
               - cis-ubuntu-26.04:4.1.4
               - cis-controls-v8:4.4
               - cis-controls-v8:4.5
-              - iso-27001-2022:A6.7
-              - iso-27001-2022:A8.1
               - nist-800-171-r3:03.13.06
-              - nist-800-53:CA-9
               - nist-800-53:SC-7
               - nist-800-53:SC-7(5)
               - pci-dss-4:1.2.1
@@ -9294,7 +7472,6 @@ org:
               - cis
               - ubuntu
               - ubuntu-26.04
-              - iso
               - nist
               - pci-dss
             title: ufw accepts outgoing traffic by default
@@ -9308,10 +7485,7 @@ org:
               - cis-ubuntu-26.04:4.1.5
               - cis-controls-v8:4.4
               - cis-controls-v8:4.5
-              - iso-27001-2022:A6.7
-              - iso-27001-2022:A8.1
               - nist-800-171-r3:03.13.06
-              - nist-800-53:CA-9
               - nist-800-53:SC-7
               - nist-800-53:SC-7(5)
               - pci-dss-4:1.2.1
@@ -9319,7 +7493,6 @@ org:
               - cis
               - ubuntu
               - ubuntu-26.04
-              - iso
               - nist
               - pci-dss
             title: ufw does not deny routed traffic by default
@@ -9411,7 +7584,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9427,14 +7599,12 @@ org:
               - services
               - cis-ubuntu-26.04:2.1.1
               - cis-controls-v8:10.3
-              - hipaa:164.310(d)(1)
               - nist-800-171-r2:3.8.7
               - nist-800-171-r3:03.08.07
               - nist-800-53:MP-7
               - cis
               - ubuntu
               - ubuntu-26.04
-              - hipaa
               - nist
             title: The automounter is enabled or running
           - id: unused-services/avahi
@@ -9452,7 +7622,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9475,7 +7644,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9498,7 +7666,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9521,7 +7688,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9544,7 +7710,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9567,7 +7732,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9590,7 +7754,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9613,7 +7776,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9637,7 +7799,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9661,7 +7822,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9684,7 +7844,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9707,7 +7866,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9730,7 +7888,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9753,7 +7910,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9776,7 +7932,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9799,7 +7954,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9822,7 +7976,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9845,7 +7998,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04
@@ -9868,7 +8020,6 @@ org:
               - nist-800-53:CM-7
               - pci-dss-4:1.2.5
               - pci-dss-4:2.2.4
-              - pci-dss-4:6.4.1
               - cis
               - ubuntu
               - ubuntu-26.04

@@ -408,7 +408,7 @@ fn header(label: &str, check: &Check, on: bool) -> String {
     out
 }
 
-/// The standards whose controls CIS maps a rule to, which `-v` lists beside the rule’s own citations.
+/// The framework standards a rule contributes to beside the benchmark it implements, which `-v` lists beside the rule’s own citations.
 const MAPPED: [&str; 9] = [
     "cis-controls-v8",
     "pci-dss-4",

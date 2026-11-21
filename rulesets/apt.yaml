@@ -198,7 +198,7 @@ rules:
     rationale: a forged package list from a mirror or anyone on the network path gets accepted and its packages installed
     fix: remove “Acquire::AllowInsecureRepositories” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"0"”
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
-    tags: [apt, cis-ubuntu-26.04:1.2.1.12, cis-controls-v8:7.3, iso-27001-2022:A8.8, nist-800-53:RA-5, nist-800-53:RA-7, nist-800-53:SI-2, nist-800-53:SI-2(2)]
+    tags: [apt, cis-ubuntu-26.04:1.2.1.12, cis-controls-v8:7.3, nist-800-53:CM-14]
   apt/allow-weak-repositories:
     title: apt trusts weakly signed repositories
     fact: apt.config
@@ -209,7 +209,7 @@ rules:
     rationale: an attacker can forge a package list signed with a broken hash or key and have the host install their packages
     fix: remove “Acquire::AllowWeakRepositories” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"0"”
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
-    tags: [apt, cis-ubuntu-26.04:1.2.1.13, cis-controls-v8:7.3, iso-27001-2022:A8.8, nist-800-53:RA-5, nist-800-53:RA-7, nist-800-53:SI-2, nist-800-53:SI-2(2)]
+    tags: [apt, cis-ubuntu-26.04:1.2.1.13, cis-controls-v8:7.3, nist-800-53:CM-14]
   apt/allow-downgrade-to-insecure:
     title: apt drops a repository’s signature when it vanishes
     fact: apt.config
@@ -220,7 +220,7 @@ rules:
     rationale: an attacker on the network path can remove a repository’s signature and have the host install their packages unchecked
     fix: remove “Acquire::AllowDowngradeToInsecureRepositories” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"0"”
     docs: https://manpages.debian.org/unstable/apt/apt-secure.8.en.html
-    tags: [apt, cis-ubuntu-26.04:1.2.1.14, cis-controls-v8:7.3, iso-27001-2022:A8.8, nist-800-53:RA-5, nist-800-53:RA-7, nist-800-53:SI-2, nist-800-53:SI-2(2)]
+    tags: [apt, cis-ubuntu-26.04:1.2.1.14, cis-controls-v8:7.3, nist-800-53:CM-14]
   apt/check-date-off:
     title: apt accepts Release files dated in the future
     fact: apt.config
@@ -231,7 +231,7 @@ rules:
     rationale: a mirror can replay an old package list, keeping the host on versions with known holes while apt reports everything up to date
     fix: remove “Acquire::Check-Date” from “/etc/apt/apt.conf” and “/etc/apt/apt.conf.d”, or set it to “"true"”
     docs: https://manpages.debian.org/unstable/apt/apt.conf.5.en.html
-    tags: [apt, cis-ubuntu-26.04:1.2.1.15, cis-controls-v8:3.4, iso-27001-2022:A5.33, nist-800-53:AU-11, nist-800-53:SI-12, pci-dss-4:3.2.1]
+    tags: [apt, cis-ubuntu-26.04:1.2.1.15, cis-controls-v8:3.4]
   apt/weak-dependencies:
     title: apt installs recommended and suggested packages
     fact: apt.config
@@ -245,4 +245,4 @@ rules:
     rationale: every install brings along extra packages nobody asked for, each adding code that needs patching and can hold a vulnerability
     remedy: {drop-in: {into: apt, name: skip-recommends-and-suggests, lines: ['APT::Install-Recommends "0";', 'APT::Install-Suggests "0";']}}
     docs: https://manpages.debian.org/unstable/apt/apt.conf.5.en.html
-    tags: [apt, cis-ubuntu-26.04:1.2.1.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [apt, cis-ubuntu-26.04:1.2.1.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]

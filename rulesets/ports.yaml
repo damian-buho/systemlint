@@ -67,4 +67,4 @@ rules:
       - lines: ["inet_interfaces = loopback-only"]
       - Then restart the MTA.
     docs: https://www.postfix.org/postconf.5.html#inet_interfaces
-    tags: [mail, network, cis-ubuntu-26.04:2.1.22, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [mail, network, cis-ubuntu-26.04:2.1.22, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4]

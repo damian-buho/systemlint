@@ -20,7 +20,7 @@ rules:
     rationale: any program that runs as the user, such as malware in a browser, gets root rights with no password
     fix: remove “!authenticate” from the Defaults lines in “/etc/sudoers” and “/etc/sudoers.d” that apply to {subject}, editing them with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
-    tags: [sudo, cis-ubuntu-26.04:5.2.5, stig-ubuntu-26.04:UBTU-24-300021, cis-controls-v8:5.4, iso-27001-2022:A5.15, iso-27001-2022:A8.2, nist-800-171-r2:3.1.6, nist-800-171-r2:3.1.7, nist-800-171-r3:03.01.06, nist-800-171-r3:03.01.07, nist-800-53:AC-2(11), nist-800-53:AC-6(2), nist-800-53:AC-6(5)]
+    tags: [sudo, cis-ubuntu-26.04:5.2.5, stig-ubuntu-26.04:UBTU-24-300021, cis-controls-v8:5.4, iso-27001-2022:A8.2]
   sudo-defaults/no-pty:
     title: sudo runs commands on the caller’s terminal
     fact: sudo.defaults.*
@@ -44,7 +44,7 @@ rules:
     rationale: a program started through sudo can push keystrokes into the user’s terminal after sudo has returned, and run commands as that user
     remedy: {drop-in: {into: sudoers, name: use-pty, lines: [Defaults use_pty]}}
     docs: https://www.sudo.ws/docs/man/sudoers.man/
-    tags: [sudo, cis-ubuntu-26.04:5.2.2, cis-controls-v8:5.4, iso-27001-2022:A5.15, iso-27001-2022:A8.2, nist-800-171-r2:3.1.6, nist-800-171-r2:3.1.7, nist-800-171-r3:03.01.06, nist-800-171-r3:03.01.07, nist-800-53:AC-2(11), nist-800-53:AC-6(2), nist-800-53:AC-6(5)]
+    tags: [sudo, cis-ubuntu-26.04:5.2.2, cis-controls-v8:5.4, iso-27001-2022:A8.2]
   sudo-defaults/logfile:
     title: sudo keeps no log file of its own
     fact: sudo.defaults.*
@@ -56,7 +56,7 @@ rules:
     rationale: the record of who ran what through sudo lives only in the system log, where a user who gains access can erase or alter it
     remedy: {drop-in: {into: sudoers, name: logfile, lines: ['Defaults logfile="/var/log/sudo.log"']}}
     docs: https://www.sudo.ws/docs/man/sudoers.man/
-    tags: [sudo, cis-ubuntu-26.04:5.2.3, cis-controls-v8:8.5, iso-27001-2022:A5.28, iso-27001-2022:A8.15, nist-800-171-r3:03.03.02, nist-800-53:AU-12, nist-800-53:AU-3, nist-800-53:AU-3(1), nist-800-53:AU-7, nist-800-53:SI-4(20), pci-dss-4:10.199999999999999, pci-dss-4:10.2.1, pci-dss-4:10.2.1.2, pci-dss-4:10.2.1.5, pci-dss-4:9.4.5, '!default']
+    tags: [sudo, cis-ubuntu-26.04:5.2.3, cis-controls-v8:8.5, hipaa:164.312(b), iso-27001-2022:A8.15, nist-800-171-r3:03.03.03, nist-800-53:AU-12, nist-800-53:SI-4(20), nist-csf-2:PR.PS-04, pci-dss-4:10.2.1, pci-dss-4:10.2.1.2, '!default']
   sudo-defaults/timestamp-timeout:
     title: sudo remembers a password for too long
     fact: sudo.defaults.*
@@ -68,4 +68,4 @@ rules:
     rationale: a stolen or unattended session can run root commands with no password for a long time, or for good
     fix: set “Defaults timestamp_timeout=${sudo-timestamp-timeout}” in “/etc/sudoers” with visudo
     docs: https://www.sudo.ws/docs/man/sudoers.man/
-    tags: [sudo, cis-ubuntu-26.04:5.2.6, cis-controls-v8:5.4, iso-27001-2022:A5.15, iso-27001-2022:A8.2, nist-800-171-r2:3.1.6, nist-800-171-r2:3.1.7, nist-800-171-r3:03.01.06, nist-800-171-r3:03.01.07, nist-800-53:AC-2(11), nist-800-53:AC-6(2), nist-800-53:AC-6(5), '!default']
+    tags: [sudo, cis-ubuntu-26.04:5.2.6, cis-controls-v8:5.4, iso-27001-2022:A8.2, '!default']

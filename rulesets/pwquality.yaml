@@ -27,7 +27,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     references:
       - {title: Lynis AUTH-9262, url: "https://cisofy.com/lynis/controls/AUTH-9262/"}
-    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.2, lynis, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.2, lynis, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:8.3.6, '!default']
   pwquality/minlen-single-factor:
     title: New passwords may be shorter than 15 characters
     fact: auth.pwquality
@@ -58,7 +58,7 @@ rules:
     rationale: a short password padded with a few digits or symbols counts as long enough and is easy to crack
     fix: set “{field} = 0” in “/etc/security/pwquality.conf”, or a negative value to require that class
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
-    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.3, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3]
+    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.3, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:8.3.6]
   pwquality/composition:
     title: New passwords must mix character classes
     fact: auth.pwquality
@@ -145,7 +145,7 @@ rules:
     rationale: a user can change a leaked password by one letter and an attacker who knew the old one guesses the new one at once
     fix: set “difok = ${pwquality-difok}” in “/etc/security/pwquality.conf.d/50-pwdifok.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
-    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.1, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.1, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), '!default']
   pwquality/stig-difok:
     title: A new password may repeat most of the old one
     folds: [pwquality/difok]
@@ -170,7 +170,7 @@ rules:
     rationale: passwords like “aaaaaaaa1” are accepted, and attackers try them early
     fix: set “maxrepeat = ${pwquality-maxrepeat}” in “/etc/security/pwquality.conf.d/50-pwrepeat.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
-    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.4, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.4, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), '!default']
   pwquality/maxsequence:
     title: New passwords may hold a long run of sequential characters
     fact: auth.pwquality
@@ -182,7 +182,7 @@ rules:
     rationale: passwords like “abcde123” are accepted, and attackers try such runs early
     fix: set “maxsequence = ${pwquality-maxsequence}” in “/etc/security/pwquality.conf.d/50-pwmaxsequence.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
-    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.5, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.5, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), '!default']
   pwquality/dictcheck:
     title: New passwords are not checked against a dictionary
     fact: auth
@@ -202,7 +202,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
     references:
       - {title: NIST SP 800-63B-4 3.1.1.2, url: "https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver"}
-    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.6, nist-sp-800-63b-4:3.1.1.2, stig-ubuntu-26.04:UBTU-24-300014, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3]
+    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.6, nist-sp-800-63b-4:3.1.1.2, stig-ubuntu-26.04:UBTU-24-300014, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1)]
   pwquality/enforcing:
     title: pam_pwquality only warns about a weak password
     fact: auth
@@ -220,7 +220,7 @@ rules:
       - 'Remove “enforcing = 0” from “/etc/security/pwquality.conf” and from every file in “/etc/security/pwquality.conf.d/”.'
       - 'Remove “enforcing=0” from the “pam_pwquality” line under “/etc/pam.d/”.'
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/pwquality.conf.5.html
-    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.7, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3]
+    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.7, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:8.3.6]
   pwquality/root:
     title: root may set a password pam_pwquality rejects
     facts:
@@ -233,4 +233,4 @@ rules:
     rationale: root can set a weak password for itself, and root’s password is the one worth most to an attacker
     fix: add “enforce_for_root” to “/etc/security/pwquality.conf.d/50-pwroot.conf”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_pwquality.8.html
-    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.8, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [auth, pwquality, cis-ubuntu-26.04:5.3.3.2.8, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:8.3.6, '!default']

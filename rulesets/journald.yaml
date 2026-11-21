@@ -26,7 +26,7 @@ rules:
       - run: 'systemctl mask --now {subject}'
       - 'If it does collect them, let only those hosts reach its port in the firewall.'
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journal-remote.service.8.html
-    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4]
   journald/inactive:
     title: systemd-journald is not running
     fact: systemd.state.*.active
@@ -44,7 +44,7 @@ rules:
       - 'Read why it stopped:'
       - run: 'journalctl --boot --unit {subject}'
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/systemd-journald.service.8.html
-    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.1, cis-controls-v8:8.2, hipaa:164.312(b), iso-27001-2022:A8.15, iso-27001-2022:A8.20, nist-800-171-r3:03.03.01, nist-800-171-r3:03.03.02, nist-800-171-r3:03.03.03, nist-800-53:AU-12, nist-800-53:AU-2, nist-800-53:AU-7, nist-csf-2:PR.PS-04, pci-dss-4:10.2.1, pci-dss-4:10.2.1.1, pci-dss-4:10.2.1.2, pci-dss-4:10.2.1.3, pci-dss-4:10.2.1.4, pci-dss-4:10.2.1.5, pci-dss-4:10.2.1.6, pci-dss-4:10.2.1.7, pci-dss-4:10.2.2, pci-dss-4:5.3.4, pci-dss-4:6.4.1, pci-dss-4:6.4.2]
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.1, cis-controls-v8:8.2, hipaa:164.312(b), iso-27001-2022:A8.15, nist-800-171-r3:03.03.03, nist-800-53:AU-12, nist-csf-2:PR.PS-04, pci-dss-4:10.2.1]
   journald/no-syslog-forward:
     title: journald does not forward to rsyslog
     fact: journald
@@ -66,7 +66,7 @@ rules:
       - 'Restart journald:'
       - run: 'systemctl restart systemd-journald.service'
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
-    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.3, cis-controls-v8:8.2, cis-controls-v8:8.9, hipaa:164.312(b), iso-27001-2022:A8.15, iso-27001-2022:A8.20, nist-800-171-r3:03.03.01, nist-800-171-r3:03.03.02, nist-800-171-r3:03.03.03, nist-800-171-r3:03.03.06, nist-800-53:AU-12, nist-800-53:AU-2, nist-800-53:AU-6(3), nist-800-53:AU-7, nist-csf-2:PR.PS-04, pci-dss-4:10.2.1, pci-dss-4:10.2.1.1, pci-dss-4:10.2.1.2, pci-dss-4:10.2.1.3, pci-dss-4:10.2.1.4, pci-dss-4:10.2.1.5, pci-dss-4:10.2.1.6, pci-dss-4:10.2.1.7, pci-dss-4:10.2.2, pci-dss-4:10.3.3, pci-dss-4:5.3.4, pci-dss-4:6.4.1, pci-dss-4:6.4.2, '!default']
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.3, cis-controls-v8:8.2, cis-controls-v8:8.9, iso-27001-2022:A8.15, nist-csf-2:PR.PS-04, '!default']
   journald/storage-not-persistent:
     title: journald is not set to keep the journal on disk
     fact: journald
@@ -84,7 +84,7 @@ rules:
       - 'Restart journald:'
       - run: 'systemctl restart systemd-journald.service'
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
-    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.6, cis-controls-v8:8.2, hipaa:164.312(b), iso-27001-2022:A8.15, iso-27001-2022:A8.20, nist-800-171-r3:03.03.01, nist-800-171-r3:03.03.02, nist-800-171-r3:03.03.03, nist-800-53:AU-12, nist-800-53:AU-2, nist-800-53:AU-7, nist-csf-2:PR.PS-04, pci-dss-4:10.2.1, pci-dss-4:10.2.1.1, pci-dss-4:10.2.1.2, pci-dss-4:10.2.1.3, pci-dss-4:10.2.1.4, pci-dss-4:10.2.1.5, pci-dss-4:10.2.1.6, pci-dss-4:10.2.1.7, pci-dss-4:10.2.2, pci-dss-4:5.3.4, pci-dss-4:6.4.1, pci-dss-4:6.4.2]
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.6, cis-controls-v8:8.2, hipaa:164.312(b), iso-27001-2022:A8.15, nist-800-171-r3:03.03.03, nist-800-53:AU-12, nist-csf-2:PR.PS-04, pci-dss-4:10.2.1]
   journald/compress-off:
     title: journald is set not to compress the journal
     fact: journald
@@ -102,7 +102,7 @@ rules:
       - 'Restart journald:'
       - run: 'systemctl restart systemd-journald.service'
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/journald.conf.5.html
-    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.7, cis-controls-v8:8.2, cis-controls-v8:8.3, hipaa:164.312(b), iso-27001-2022:A8.15, iso-27001-2022:A8.20, iso-27001-2022:A8.6, nist-800-171-r3:03.03.01, nist-800-171-r3:03.03.02, nist-800-171-r3:03.03.03, nist-800-53:AU-12, nist-800-53:AU-2, nist-800-53:AU-4, nist-800-53:AU-5(1), nist-800-53:AU-7, nist-csf-2:PR.PS-04, pci-dss-4:10.2.1, pci-dss-4:10.2.1.1, pci-dss-4:10.2.1.2, pci-dss-4:10.2.1.3, pci-dss-4:10.2.1.4, pci-dss-4:10.2.1.5, pci-dss-4:10.2.1.6, pci-dss-4:10.2.1.7, pci-dss-4:10.2.2, pci-dss-4:5.3.4, pci-dss-4:6.4.1, pci-dss-4:6.4.2]
+    tags: [journald, logging, cis-ubuntu-26.04:6.1.1.1.7, cis-controls-v8:8.2, cis-controls-v8:8.3, iso-27001-2022:A8.6, nist-800-53:AU-4]
   journald/stig-directory-mode:
     title: A journal directory is more open than 2750
     fact: journald.files.*.mode

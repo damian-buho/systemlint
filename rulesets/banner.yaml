@@ -19,7 +19,7 @@ rules:
     references:
       - {title: Lynis BANN-7126, url: "https://cisofy.com/lynis/controls/BANN-7126/"}
       - {title: Lynis BANN-7130, url: "https://cisofy.com/lynis/controls/BANN-7130/"}
-    tags: [banner, lynis, cis-ubuntu-26.04:1.6.1, cis-ubuntu-26.04:1.6.2, cis-ubuntu-26.04:1.6.3, cis-ubuntu-26.04:1.6.4, cis-ubuntu-26.04:1.6.5, cis-controls-v8:0.0, '!default']
+    tags: [banner, lynis, cis-ubuntu-26.04:1.6.1, cis-ubuntu-26.04:1.6.2, cis-ubuntu-26.04:1.6.3, cis-ubuntu-26.04:1.6.4, cis-ubuntu-26.04:1.6.5, '!default']
   banner/writable:
     title: The login banner is writable by other users
     facts:
@@ -33,7 +33,7 @@ rules:
     fix: run “chmod go-w” on the file
     remedy: {chmod: go-w}
     docs: https://manpages.debian.org/unstable/manpages/motd.5.en.html
-    tags: [banner, cis-ubuntu-26.04:1.6.6, cis-ubuntu-26.04:1.6.7, cis-ubuntu-26.04:1.6.8, cis-ubuntu-26.04:1.6.9, cis-ubuntu-26.04:1.6.10, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [banner, cis-ubuntu-26.04:1.6.6, cis-ubuntu-26.04:1.6.7, cis-ubuntu-26.04:1.6.8, cis-ubuntu-26.04:1.6.9, cis-ubuntu-26.04:1.6.10, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   banner/owner:
     title: The login banner is not owned by root
     fact: banner.*.*.uid
@@ -45,7 +45,7 @@ rules:
     fix: run “chown root” on the file
     remedy: {chown: 0}
     docs: https://manpages.debian.org/unstable/manpages/motd.5.en.html
-    tags: [banner, cis-ubuntu-26.04:1.6.6, cis-ubuntu-26.04:1.6.7, cis-ubuntu-26.04:1.6.8, cis-ubuntu-26.04:1.6.9, cis-ubuntu-26.04:1.6.10, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [banner, cis-ubuntu-26.04:1.6.6, cis-ubuntu-26.04:1.6.7, cis-ubuntu-26.04:1.6.8, cis-ubuntu-26.04:1.6.9, cis-ubuntu-26.04:1.6.10, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   banner/update-notifier-service:
     title: The update-notifier motd service is enabled or running
     fact: systemd.state.*
@@ -63,7 +63,7 @@ rules:
     fix: run “systemctl mask --now” on the unit
     remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_motd.8.html
-    tags: [banner, cis-ubuntu-26.04:1.6.11, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
+    tags: [banner, cis-ubuntu-26.04:1.6.11, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4, '!default']
   banner/update-notifier-timer:
     title: The update-notifier motd timer is enabled or running
     fact: systemd.state.*
@@ -76,7 +76,7 @@ rules:
     fix: run “systemctl mask --now” on the unit
     remedy: mask
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pam_motd.8.html
-    tags: [banner, cis-ubuntu-26.04:1.6.12, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1, '!default']
+    tags: [banner, cis-ubuntu-26.04:1.6.12, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4, '!default']
   banner/stig-issue-empty:
     title: The local login banner is empty
     fact: banner-text.files

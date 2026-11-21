@@ -19,7 +19,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/ypbind.8.html
     references:
       - {title: Lynis INSE-8314, url: "https://cisofy.com/lynis/controls/INSE-8314/"}
-    tags: [clients, lynis, cis-ubuntu-26.04:2.2.1, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [clients, lynis, cis-ubuntu-26.04:2.2.1, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   clients/rsh:
     title: An rsh client is on disk
     fact: clients.binaries.*
@@ -33,7 +33,7 @@ rules:
     docs: https://manpages.debian.org/bookworm/rsh-client/netkit-rsh.1.en.html
     references:
       - {title: Lynis INSE-8300, url: "https://cisofy.com/lynis/controls/INSE-8300/"}
-    tags: [clients, lynis, cis-ubuntu-26.04:2.2.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [clients, lynis, cis-ubuntu-26.04:2.2.2, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   clients/talk:
     title: A talk client is on disk
     fact: clients.binaries.*
@@ -45,7 +45,7 @@ rules:
     rationale: anyone on the network path can read the chat in plain text
     fix: remove the package that ships {subject} (“apt purge talk”)
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/netkit-ntalk.1.html
-    tags: [clients, cis-ubuntu-26.04:2.2.3, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [clients, cis-ubuntu-26.04:2.2.3, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   clients/telnet:
     title: A telnet client is on disk
     fact: clients.binaries.*
@@ -59,7 +59,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/inetutils-telnet.1.html
     references:
       - {title: Lynis INSE-8310, url: "https://cisofy.com/lynis/controls/INSE-8310/"}
-    tags: [clients, lynis, cis-ubuntu-26.04:2.2.4, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [clients, lynis, cis-ubuntu-26.04:2.2.4, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   clients/ldap:
     title: The OpenLDAP command-line clients are on disk
     fact: clients.binaries.*
@@ -71,7 +71,7 @@ rules:
     rationale: a tool that can query and change directory entries lies unused on the host, ready for an intruder to browse or edit accounts
     fix: remove the package that ships {subject} (“apt purge ldap-utils”), unless this host administers LDAP
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/ldapsearch.1.html
-    tags: [clients, cis-ubuntu-26.04:2.2.5, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [clients, cis-ubuntu-26.04:2.2.5, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]
   clients/ftp:
     title: An FTP or TFTP client is on disk
     fact: clients.binaries.*
@@ -85,4 +85,4 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man1/tnftp.1.html
     references:
       - {title: Lynis INSE-8318, url: "https://cisofy.com/lynis/controls/INSE-8318/"}
-    tags: [clients, lynis, cis-ubuntu-26.04:2.2.6, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:1.2.5, pci-dss-4:2.2.4, pci-dss-4:6.4.1]
+    tags: [clients, lynis, cis-ubuntu-26.04:2.2.6, cis-controls-v8:4.8, iso-27001-2022:A8.9, nist-800-171-r2:3.4.7, nist-800-171-r3:03.04.06, nist-800-53:CM-6, nist-800-53:CM-7, pci-dss-4:2.2.4]

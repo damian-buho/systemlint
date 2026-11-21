@@ -110,7 +110,7 @@ rules:
       - 'Then set a new password, since the old one may already be cracked:'
       - run: passwd {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/pwconv.8.html
-    tags: [accounts, cis-ubuntu-26.04:7.2.1, stig-ubuntu-26.04:UBTU-24-400220, dev-sec-linux-baseline:os-03b, cis-controls-v8:3.11, hipaa:164.312(a)(2)(iv), hipaa:164.312(e)(2)(ii), iso-27001-2022:A5.33, nist-800-171-r2:3.13.16, nist-800-171-r2:3.8.1, nist-800-171-r3:03.05.07, nist-800-171-r3:03.13.08, nist-800-53:AU-9(3), nist-800-53:IA-5(1), nist-800-53:SC-28, nist-800-53:SC-28(1), nist-csf-2:PR.DS-01, pci-dss-4:3.1.1, pci-dss-4:3.3.2, pci-dss-4:3.3.3, pci-dss-4:3.5.1, pci-dss-4:3.5.1.2, pci-dss-4:3.5.1.3, pci-dss-4:8.3.2]
+    tags: [accounts, cis-ubuntu-26.04:7.2.1, stig-ubuntu-26.04:UBTU-24-400220, dev-sec-linux-baseline:os-03b, cis-controls-v8:3.11, nist-800-171-r2:3.5.10, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:8.3.2]
   accounts/shadow-empty-password:
     title: An account has an empty password in /etc/shadow
     fact: accounts.shadow.*.password
@@ -124,7 +124,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     references:
       - {title: Lynis AUTH-9283, url: "https://cisofy.com/lynis/controls/AUTH-9283/"}
-    tags: [accounts, lynis, cis-ubuntu-26.04:5.4.2.4, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [accounts, lynis, cis-ubuntu-26.04:5.4.2.4, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   accounts/shadow-missing:
     title: An account defers to /etc/shadow, which has no line for it
     fact: accounts.shadow.*.password
@@ -161,7 +161,7 @@ rules:
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
     references:
       - {title: Lynis AUTH-9282, url: "https://cisofy.com/lynis/controls/AUTH-9282/"}
-    tags: [accounts, cis-ubuntu-26.04:5.4.1.1, lynis, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [accounts, cis-ubuntu-26.04:5.4.1.1, lynis, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-53:IA-5, '!default']
     conflicts: [accounts/password-rotation]
   accounts/password-rotation:
     title: A password must change on a schedule
@@ -193,7 +193,7 @@ rules:
       - 'Then set this line in “/etc/login.defs” for new accounts:'
       - lines: ["PASS_MIN_DAYS ${password-min-days}"]
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.1.2, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [accounts, cis-ubuntu-26.04:5.4.1.2, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-53:IA-5, '!default']
   accounts/password-warn-days:
     title: A password expires with less warning than asked
     fact: accounts.shadow.*.warn-days
@@ -209,7 +209,7 @@ rules:
       - 'Then set this line in “/etc/login.defs” for new accounts:'
       - lines: ["PASS_WARN_AGE ${password-warn-days}"]
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.1.3, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [accounts, cis-ubuntu-26.04:5.4.1.3, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-53:IA-5, '!default']
   accounts/password-inactive-days:
     title: An expired password stays usable longer than asked
     fact: accounts.shadow.*.inactive-days
@@ -221,7 +221,7 @@ rules:
     rationale: an abandoned account with an expired password stays open to an attacker for weeks
     fix: run “chage --inactive ${password-inactive-days} {subject}”, and “useradd -D -f ${password-inactive-days}” for new accounts
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.1.5, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [accounts, cis-ubuntu-26.04:5.4.1.5, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-53:IA-5, '!default']
   accounts/no-shell-unlocked:
     title: An account without a login shell has a usable password
     fact: accounts.shadow.*.password
@@ -236,7 +236,7 @@ rules:
     rationale: an account meant only for a service can still be broken into by guessing its password through mail or FTP
     fix: run “usermod --lock {subject}”, unless a service logs it in by password on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.2.8, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [accounts, cis-ubuntu-26.04:5.4.2.8, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   accounts/shell-not-listed:
     title: A login shell is missing from /etc/shells
     fact: accounts.passwd.*.login-shell
@@ -260,7 +260,7 @@ rules:
     rationale: every file the account creates is shared with root’s group, readable or writable by other members of it
     fix: give {subject} its own primary group with “usermod --gid”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/passwd.5.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.2.2, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [accounts, cis-ubuntu-26.04:5.4.2.2, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   accounts/root-gid:
     title: root’s primary group is not gid 0
     fact: accounts.passwd.*.gid
@@ -272,7 +272,7 @@ rules:
     rationale: members of that group can read, and often change, files root creates, from logs to keys
     fix: run “usermod --gid 0 root”, then “chgrp” back to root what root created under gid {got}
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.2.2, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [accounts, cis-ubuntu-26.04:5.4.2.2, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   accounts/passwd-nis-entry: &nis-entry
     title: /etc/passwd pulls accounts from NIS
     fact: accounts.compat.passwd.*
@@ -318,7 +318,7 @@ rules:
     rationale: those users can read every password hash on the machine and crack them offline
     fix: remove each member with “gpasswd --delete <user> shadow”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
-    tags: [accounts, cis-ubuntu-26.04:7.2.4, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [accounts, cis-ubuntu-26.04:7.2.4, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   accounts/shadow-group-primary:
     title: An account has the shadow group as its primary group
     fact: accounts.passwd.*.gid
@@ -330,7 +330,7 @@ rules:
     rationale: that account can read every password hash on the machine and crack them offline
     fix: give {subject} another primary group with “usermod --gid”
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shadow.5.html
-    tags: [accounts, cis-ubuntu-26.04:7.2.4, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1]
+    tags: [accounts, cis-ubuntu-26.04:7.2.4, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6]
   accounts/nologin-shell:
     title: /etc/shells lists nologin as a valid shell
     fact: accounts.shells.*
@@ -341,7 +341,7 @@ rules:
     rationale: accounts meant to be unable to log in can still pass the shell check of FTP and similar services
     fix: delete the “nologin” lines from {subject}
     docs: https://manpages.ubuntu.com/manpages/resolute/man5/shells.5.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.3.1, cis-controls-v8:0.0]
+    tags: [accounts, cis-ubuntu-26.04:5.4.3.1]
   accounts/system-login-shell:
     title: A system account has a login shell
     fact: accounts.passwd.*.login-shell
@@ -356,7 +356,7 @@ rules:
     rationale: anyone who steals a service account’s key or password gets an interactive shell on the machine
     fix: run “usermod --shell /usr/sbin/nologin {subject}”, unless a person logs in as it on purpose
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/usermod.8.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.2.7, cis-controls-v8:3.3, hipaa:164.308(a)(3)(i), hipaa:164.308(a)(3)(ii)(A), hipaa:164.312(a)(1), iso-27001-2022:A5.10, iso-27001-2022:A5.15, iso-27001-2022:A8.3, iso-27001-2022:A8.4, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r2:3.8.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-171-r3:03.01.03, nist-800-171-r3:3.8.2, nist-800-53:AC-3, nist-800-53:AC-5, nist-800-53:AC-6, nist-800-53:CA-3(6), nist-800-53:MP-2, pci-dss-4:1.3.1, pci-dss-4:7.1, '!default']
+    tags: [accounts, cis-ubuntu-26.04:5.4.2.7, cis-controls-v8:3.3, hipaa:164.312(a)(1), iso-27001-2022:A5.15, iso-27001-2022:A8.3, nist-800-171-r2:3.1.1, nist-800-171-r2:3.1.2, nist-800-171-r3:03.01.01, nist-800-171-r3:03.01.02, nist-800-53:AC-3, nist-800-53:AC-6, '!default']
   accounts/useradd-inactive:
     title: New accounts keep an expired password usable longer than asked
     fact: auth.useradd
@@ -367,7 +367,7 @@ rules:
     rationale: every account created from now on stays open to an attacker long after its owner stopped using it
     fix: run “useradd -D -f ${password-inactive-days}”
     docs: https://manpages.ubuntu.com/manpages/resolute/man8/useradd.8.html
-    tags: [accounts, cis-ubuntu-26.04:5.4.1.5, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-171-r2:3.5.7, nist-800-171-r3:03.05.07, nist-800-53:IA-5(1), pci-dss-4:2.2.2, pci-dss-4:8.3.5, pci-dss-4:8.3.6, pci-dss-4:8.6.3, '!default']
+    tags: [accounts, cis-ubuntu-26.04:5.4.1.5, cis-controls-v8:5.2, iso-27001-2022:A5.17, nist-800-53:IA-5, '!default']
   accounts/stig-useradd-inactive:
     title: New accounts are not disabled after 35 days of inactivity
     folds: [accounts/useradd-inactive]
