@@ -6,7 +6,7 @@
 
 set -eu
 
-# build-binaries.sh — build every binary crate as a static musl binary for one TARGET_OS/TARGET_ARCH cell, stamping SYSTEMLINT_VERSION.
+# build-binaries.sh — build every binary crate as static musl for one TARGET_OS/TARGET_ARCH cell and pack them into one release archive.
 
 log() { printf '[build-binaries] %s\n' "$*" >&2; }
 
@@ -48,15 +48,6 @@ if eval "[ -z \"\${${cc_var}:-}\" ]" && command -v "${cc}" >/dev/null 2>&1; then
 fi
 
 cargo build --release --locked --quiet --workspace --target "${triple}"
-
-for main in crates/*/src/main.rs; do
-	crate="${main#crates/}"
-	crate="${crate%%/*}"
-	asset="$(TARGET_OS="${target_os}" TARGET_ARCH="${target_arch}" .makefile/core/scripts/asset-name.sh "dist/${crate}")"
-	log "copying target/${triple}/release/${crate} -> ${asset}"
-	cp "target/${triple}/release/${crate}" "${asset}"
-	printf '%s\n' "${asset}" # callers capture these to find the binaries
-done
 
 stage="target/${triple}/stage"
 rm -rf "${stage}"

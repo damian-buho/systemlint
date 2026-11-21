@@ -17,7 +17,7 @@ log() { printf '[install-binary] %s\n' "$*" >&2; }
 log "building the host-native archive"
 assets="$(.scripts/build-binaries.sh)"
 tarball="${assets##*"
-"}" # the archive is the last asset printed
+"}" # the archive build-binaries.sh prints
 
 stage="${prefix:?}.new"
 old="${prefix}.old"
