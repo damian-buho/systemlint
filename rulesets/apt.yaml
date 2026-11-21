@@ -81,7 +81,7 @@ rules:
     severity: error
     score: 7.0
     message: "{subject} fetches over {got}, which shows every package name to the network and lets it withhold updates"
-    rationale: anyone on the network path can read which packages are installed, hold back updates, or swap in a different package
+    rationale: anyone on the network path can read which packages are installed and hold back updates by replaying an older signed index; apt’s signatures stop a changed package, not that
     fix: switch the source to “https://”
     docs: https://manpages.debian.org/unstable/apt/sources.list.5.en.html
     tags: [apt]
