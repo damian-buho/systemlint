@@ -26,8 +26,8 @@ identity:
 
       Ядро читає кожен файл і виконує кожну команду; кожен плагін — окремий статичний бінарний файл, який лише перетворює ці байти на факти. Написаний на Rust.
   visibility: public
-  version: 0.268.0
-  released: "2026-11-20"
+  version: 0.268.1
+  released: "2026-11-21"
 kind: SoftwareSourceCode
 keywords:
   - linter
