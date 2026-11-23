@@ -1811,7 +1811,7 @@ dependencies = [
 
 [[package]]
 name = "systemlint"
-version = "0.0.0"
+version = "0.268.1"
 dependencies = [
  "cel",
  "clap",
@@ -1847,7 +1847,7 @@ dependencies = [
 
 [[package]]
 name = "systemlint-apt"
-version = "0.0.0"
+version = "0.268.1"
 dependencies = [
  "serde_json",
  "sha2",
@@ -1857,7 +1857,7 @@ dependencies = [
 
 [[package]]
 name = "systemlint-env"
-version = "0.0.0"
+version = "0.268.1"
 dependencies = [
  "serde_json",
  "systemlint-formats",
@@ -1866,7 +1866,7 @@ dependencies = [
 
 [[package]]
 name = "systemlint-firewall"
-version = "0.0.0"
+version = "0.268.1"
 dependencies = [
  "serde_json",
  "systemlint-formats",
@@ -1875,7 +1875,7 @@ dependencies = [
 
 [[package]]
 name = "systemlint-formats"
-version = "0.0.0"
+version = "0.268.1"
 dependencies = [
  "regex",
  "serde",
@@ -1887,7 +1887,7 @@ dependencies = [
 
 [[package]]
 name = "systemlint-proc"
-version = "0.0.0"
+version = "0.268.1"
 dependencies = [
  "serde_json",
  "systemlint-formats",
@@ -1896,7 +1896,7 @@ dependencies = [
 
 [[package]]
 name = "systemlint-protocol"
-version = "0.0.0"
+version = "0.268.1"
 dependencies = [
  "clap",
  "serde",
@@ -1905,7 +1905,7 @@ dependencies = [
 
 [[package]]
 name = "systemlint-sshd"
-version = "0.0.0"
+version = "0.268.1"
 dependencies = [
  "serde_json",
  "sha2",
@@ -1914,7 +1914,7 @@ dependencies = [
 
 [[package]]
 name = "systemlint-systemd"
-version = "0.0.0"
+version = "0.268.1"
 dependencies = [
  "serde_json",
  "systemlint-formats",

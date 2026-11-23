@@ -28,15 +28,29 @@ identity:
   visibility: public
   version: 0.268.1
   released: "2026-11-21"
-kind: SoftwareSourceCode
+  modified: "2026-11-21"
+includes:
+  - .makefile/b19/ci.yaml
+  - .makefile/b19/images/rust.yaml
+  - .makefile/b19/images/ubuntu.yaml
+  - .makefile/b19/traits/image/attested.yaml
+  - .makefile/b19/traits/image/signed.yaml
+  - .makefile/container/traits/image/malware-scan.yaml
+  - .makefile/core/traits/release.yaml
+  - .makefile/library/languages/rust.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/codeberg-release.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/github.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/registry/dockerhub.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/has-rules.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/personal-image.yaml
 keywords:
   - linter
   - compliance
+  - audit
   - hardening
-  - apt
-  - sshd
   - file-permissions
-  - rust
+kind: SoftwareSourceCode
 license:
   covers: project
   spdx: AGPL-3.0-only
@@ -237,22 +251,9 @@ repositories:
   - role: mirror
     type: git
     url: git@github.com:damian-buho/systemlint.git
-includes:
-  - .makefile/b19/ci.yaml
-  - .makefile/b19/images/rust.yaml
-  - .makefile/b19/images/ubuntu.yaml
-  - .makefile/b19/traits/image/attested.yaml
-  - .makefile/b19/traits/image/sbom.yaml
-  - .makefile/b19/traits/image/signed.yaml
-  - .makefile/container/traits/image/malware-scan.yaml
-  - .makefile/library/languages/rust.yaml
-  - .makefile/library/traits/binary.yaml
-  - .makefile/core/traits/release.yaml
-  - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/codeberg-release.yaml
-  - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/github.yaml
-  - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
-  - https://kiota.ch/damian-buho/metadata/raw/branch/main/registry/dockerhub.yaml
-  - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/has-rules.yaml
-  - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/personal-image.yaml
+  - role: mirror
+    type: git
+    url: ssh://git@codeberg.org/damian-buho/systemlint.git
 technologies:
+  - python
   - rust

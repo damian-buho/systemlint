@@ -7,10 +7,13 @@ members = ["crates/*"]
 resolver = "3"
 
 [workspace.package]
-version = "0.0.0"
+version = "0.268.1"
 edition = "2024"
 license = "AGPL-3.0-only"
 repository = "https://kiota.ch/damian-buho/systemlint"
+authors = ["Damián Búho <damian.buho@proton.me>"]
+description = "Linter for operating systems, from apt sources to file permissions"
+keywords = ["linter", "compliance", "hardening", "apt", "sshd", "file-permissions", "rust"]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
