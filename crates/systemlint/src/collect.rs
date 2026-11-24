@@ -90,13 +90,15 @@ impl std::fmt::Debug for HashKey {
 impl HashKey {
     /// A fresh random 32-byte key from the kernel.
     pub fn random() -> Result<Self, String> {
-        let mut key = vec![0u8; 32];
-        let mut filled = 0;
-        while filled < key.len() {
-            filled +=
-                rustix::rand::getrandom(&mut key[filled..], rustix::rand::GetRandomFlags::empty())
-                    .map_err(|e| format!("can’t draw a random hash key: {e}"))?;
+        let mut key: Vec<u8> = Vec::with_capacity(32);
+        while key.len() < 32 {
+            rustix::rand::getrandom(
+                rustix::buffer::spare_capacity(&mut key),
+                rustix::rand::GetRandomFlags::empty(),
+            )
+            .map_err(|e| format!("can’t draw a random hash key: {e}"))?;
         }
+        key.truncate(32);
         Ok(Self {
             key,
             configured: false,

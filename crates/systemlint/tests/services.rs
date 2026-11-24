@@ -60,7 +60,11 @@ fn facts(id: &str) -> Value {
         reply.diagnostics,
     );
     systemlint::steps::tree(&c.parse.tree, &mut facts, &mut diagnostics);
-    assert!(diagnostics.is_empty(), "{id}: {diagnostics:?}");
+    assert!(
+        diagnostics.is_empty(),
+        "{id}: {} diagnostics",
+        diagnostics.len()
+    );
     facts
 }
 

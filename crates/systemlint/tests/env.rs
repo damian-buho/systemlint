@@ -183,8 +183,8 @@ fn every_source_lands_with_secrets_hashed_and_proxy_passwords_masked() {
         "http://user:[redacted]@proxy.example:3128"
     );
     let text = document.to_string();
-    for secret in ["abc123", "hunter2", ":pw@"] {
-        assert!(!text.contains(secret), "{secret} leaked");
+    for needle in ["abc123", "hunter2", ":pw@"] {
+        assert!(!text.contains(needle), "{needle} leaked");
     }
 }
 

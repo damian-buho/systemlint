@@ -41,9 +41,12 @@ impl Trust {
         let core = std::env::current_exe()
             .and_then(std::fs::metadata)
             .map_or(uid, |m| m.uid());
-        log::debug!("trusting owners uid 0, uid {uid} and the core’s owner uid {core}");
         let mut uids = vec![0, uid, core];
         uids.dedup();
+        log::debug!(
+            "trusting {} owners: root, the user and the core’s owner",
+            uids.len()
+        );
         Self {
             uids,
             top: PathBuf::from("/"),
@@ -83,11 +86,7 @@ impl Trust {
                     ancestor.display()
                 )));
             }
-            log::trace!(
-                "trusted {} uid {} mode {mode:04o}",
-                ancestor.display(),
-                meta.uid()
-            );
+            log::trace!("trusted {} mode {mode:04o}", ancestor.display());
             if ancestor == self.top {
                 break;
             }

@@ -54,7 +54,8 @@ fn parsed(id: &str, sudo: &str, file: &str) -> Value {
     systemlint::steps::tree(&collector.parse.tree, &mut facts, &mut diagnostics);
     assert!(
         diagnostics.is_empty(),
-        "{id} {sudo} {file}: {diagnostics:?}"
+        "{id} {sudo} {file}: {} diagnostics",
+        diagnostics.len()
     );
     facts
 }

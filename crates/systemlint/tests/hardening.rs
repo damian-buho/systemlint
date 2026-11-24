@@ -1661,17 +1661,17 @@ fn accounts(passwd: Value, group: Value, shadow: Value) -> Value {
 }
 
 // One passwd entry with the given uid and password word, never repeated.
-fn user(uid: u32, password: &str) -> Value {
-    json!({"uid": uid, "password": password, "shadowed": []})
+fn user(number: u32, status: &str) -> Value {
+    json!({"uid": number, "password": status, "shadowed": []})
 }
 
 // The (subject, outcome) pairs one accounts rule gives.
-fn account_rule(rule: &str, document: &Value) -> Vec<(String, Outcome)> {
-    account_rule_with(rule, document, json!({}))
+fn verdicts(rule: &str, document: &Value) -> Vec<(String, Outcome)> {
+    verdicts_with(rule, document, json!({}))
 }
 
-// Like account_rule, its vars filled from `config`, the rules `rule` conflicts with left out.
-fn account_rule_with(rule: &str, document: &Value, config: Value) -> Vec<(String, Outcome)> {
+// Like verdicts, its vars filled from `config`, the rules `rule` conflicts with left out.
+fn verdicts_with(rule: &str, document: &Value, config: Value) -> Vec<(String, Outcome)> {
     selected("accounts", &keeping("accounts", rule), document, config)
         .into_iter()
         .filter(|c| c.rule == rule)
@@ -1687,7 +1687,7 @@ fn a_second_uid_zero_fails_once_and_a_shared_uid_fails_every_holder() {
         json!({}),
     );
     assert_eq!(
-        account_rule("accounts/uid-zero", &document),
+        verdicts("accounts/uid-zero", &document),
         [
             ("a".into(), Outcome::Pass),
             ("b".into(), Outcome::Pass),
@@ -1698,7 +1698,7 @@ fn a_second_uid_zero_fails_once_and_a_shared_uid_fails_every_holder() {
         "uid 1 is the edge: only 0 is root"
     );
     assert_eq!(
-        account_rule("accounts/uid-unique", &document),
+        verdicts("accounts/uid-unique", &document),
         [
             ("a".into(), Outcome::Fail),
             ("b".into(), Outcome::Fail),
@@ -1720,7 +1720,7 @@ fn a_shared_gid_and_a_repeated_name_fail() {
         json!({}),
     );
     assert_eq!(
-        account_rule("accounts/gid-unique", &document),
+        verdicts("accounts/gid-unique", &document),
         [
             ("adm".into(), Outcome::Pass),
             ("tty".into(), Outcome::Fail),
@@ -1728,7 +1728,7 @@ fn a_shared_gid_and_a_repeated_name_fail() {
         ]
     );
     assert_eq!(
-        account_rule("accounts/group-repeated", &document),
+        verdicts("accounts/group-repeated", &document),
         [
             ("adm".into(), Outcome::Pass),
             ("tty".into(), Outcome::Pass),
@@ -1736,7 +1736,7 @@ fn a_shared_gid_and_a_repeated_name_fail() {
         ]
     );
     assert_eq!(
-        account_rule("accounts/user-repeated", &document),
+        verdicts("accounts/user-repeated", &document),
         [("root".into(), Outcome::Fail)]
     );
 }
@@ -1751,7 +1751,7 @@ fn an_empty_password_fails_where_the_system_reads_it() {
                "stale": {"password": "empty", "in-passwd": false}}),
     );
     assert_eq!(
-        account_rule("accounts/passwd-empty-password", &document),
+        verdicts("accounts/passwd-empty-password", &document),
         [
             ("inline".into(), Outcome::Pass),
             ("locked".into(), Outcome::Pass),
@@ -1760,7 +1760,7 @@ fn an_empty_password_fails_where_the_system_reads_it() {
         ]
     );
     assert_eq!(
-        account_rule("accounts/passwd-hash", &document),
+        verdicts("accounts/passwd-hash", &document),
         [
             ("inline".into(), Outcome::Fail),
             ("locked".into(), Outcome::Pass),
@@ -1770,7 +1770,7 @@ fn an_empty_password_fails_where_the_system_reads_it() {
         "only a hash fails: empty is passwd-empty-password’s finding"
     );
     assert_eq!(
-        account_rule("accounts/shadow-empty-password", &document),
+        verdicts("accounts/shadow-empty-password", &document),
         [
             ("inline".into(), Outcome::Skip),
             ("locked".into(), Outcome::Pass),
@@ -1788,7 +1788,7 @@ fn an_empty_password_fails_where_the_system_reads_it() {
     unprivileged["collectors"]["accounts-shadow"] =
         json!({"status": "skipped", "into": "accounts.shadow", "reason": "privileged"});
     assert_eq!(
-        account_rule("accounts/shadow-empty-password", &unprivileged),
+        verdicts("accounts/shadow-empty-password", &unprivileged),
         [(String::new(), Outcome::Unknown)],
         "an unprivileged run never reads as a pass"
     );
@@ -1815,7 +1815,7 @@ fn shadow_ageing_fails_past_each_cis_bound_and_only_for_a_usable_password() {
     ];
     for rule in ["min-days", "warn-days", "inactive-days"] {
         assert_eq!(
-            account_rule(&format!("accounts/password-{rule}"), &document),
+            verdicts(&format!("accounts/password-{rule}"), &document),
             expected,
             "{rule}"
         );
@@ -1823,12 +1823,12 @@ fn shadow_ageing_fails_past_each_cis_bound_and_only_for_a_usable_password() {
     let mut zero = expected.clone();
     zero[2].1 = Outcome::Fail;
     assert_eq!(
-        account_rule("accounts/password-max-days", &document),
+        verdicts("accounts/password-max-days", &document),
         zero,
         "a maximum of 0 expires every password at once"
     );
     assert_eq!(
-        account_rule_with(
+        verdicts_with(
             "accounts/password-max-days",
             &document,
             json!({"password-max-days": 1})
@@ -1871,7 +1871,7 @@ fn nist_rotation_fails_any_scheduled_expiry_and_contradicts_the_cis_maximum() {
                "zero": max("hash", json!(0)), "daemon": max("locked", json!(90))}),
     );
     assert_eq!(
-        account_rule("accounts/password-rotation", &document),
+        verdicts("accounts/password-rotation", &document),
         [
             ("below".into(), Outcome::Fail),
             ("cis".into(), Outcome::Fail),
@@ -1917,7 +1917,7 @@ fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
     document["collectors"]["accounts-shell-files"] =
         json!({"status": "ok", "into": "accounts.shell-files"});
     assert_eq!(
-        account_rule("accounts/shadow-missing", &document),
+        verdicts("accounts/shadow-missing", &document),
         [
             ("alice".into(), Outcome::Pass),
             ("ghost".into(), Outcome::Fail),
@@ -1931,7 +1931,7 @@ fn a_missing_shadow_line_fails_and_a_shell_less_account_must_be_locked() {
         ]
     );
     assert_eq!(
-        account_rule("accounts/no-shell-unlocked", &document),
+        verdicts("accounts/no-shell-unlocked", &document),
         [
             ("alice".into(), Outcome::Skip),
             ("ghost".into(), Outcome::Pass),
@@ -1982,7 +1982,7 @@ fn group_root_and_group_shadow_belong_to_no_account_but_their_own() {
     let group = |members: Value| json!({"shadow": {"gid": 42, "members": members, "shadowed": []}});
     let document = accounts(passwd.clone(), group(json!(["reader"])), json!({}));
     assert_eq!(
-        account_rule("accounts/gid-zero", &document),
+        verdicts("accounts/gid-zero", &document),
         [
             ("above".into(), Outcome::Pass),
             ("below".into(), Outcome::Pass),
@@ -1993,15 +1993,15 @@ fn group_root_and_group_shadow_belong_to_no_account_but_their_own() {
         "gid 1 is the edge; root, sync, shutdown, halt and operator are CIS’s exceptions"
     );
     assert_eq!(
-        account_rule("accounts/shadow-group-members", &document),
+        verdicts("accounts/shadow-group-members", &document),
         [("shadow".into(), Outcome::Fail)]
     );
     let empty = accounts(passwd.clone(), group(json!([])), json!({}));
     assert_eq!(
-        account_rule("accounts/shadow-group-members", &empty),
+        verdicts("accounts/shadow-group-members", &empty),
         [("shadow".into(), Outcome::Pass)]
     );
-    let primary: Vec<_> = account_rule("accounts/shadow-group-primary", &document)
+    let primary: Vec<_> = verdicts("accounts/shadow-group-primary", &document)
         .into_iter()
         .filter(|(_, o)| *o != Outcome::Pass)
         .collect();
@@ -2016,7 +2016,7 @@ fn group_root_and_group_shadow_belong_to_no_account_but_their_own() {
         json!({}),
     );
     assert!(
-        account_rule("accounts/shadow-group-primary", &other)
+        verdicts("accounts/shadow-group-primary", &other)
             .iter()
             .all(|(_, o)| *o == Outcome::Skip),
         "a shadow group off Debian’s fixed gid 42 is never guessed"
@@ -2033,7 +2033,7 @@ fn a_system_account_below_uid_min_or_nobody_has_no_login_shell() {
         json!({}),
     );
     assert_eq!(
-        account_rule("accounts/system-login-shell", &document),
+        verdicts("accounts/system-login-shell", &document),
         [
             ("alice".into(), Outcome::Skip),
             ("daemon".into(), Outcome::Pass),
@@ -2043,7 +2043,7 @@ fn a_system_account_below_uid_min_or_nobody_has_no_login_shell() {
         ],
         "999 and 65534 are judged, 1000 and 65533 are not; root and sync are CIS’s exceptions"
     );
-    let raised = account_rule_with(
+    let raised = verdicts_with(
         "accounts/system-login-shell",
         &document,
         json!({"uid-min": 500}),
@@ -2060,7 +2060,7 @@ fn nologin_in_etc_shells_fails_unless_commented_out() {
         json!({"accounts": {"shells": {"/etc/shells": lines}},
                "collectors": {"accounts-shells": {"status": "ok", "into": "accounts.shells"}}})
     };
-    let rule = |document: &Value| account_rule("accounts/nologin-shell", document);
+    let rule = |document: &Value| verdicts("accounts/nologin-shell", document);
     let stock = shells(json!([
         "# /etc/shells: valid login shells",
         "/bin/sh",

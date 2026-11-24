@@ -903,15 +903,14 @@ fn native_roots() -> &'static Result<Arc<RootCertStore>, String> {
     static ROOTS: OnceLock<Result<Arc<RootCertStore>, String>> = OnceLock::new();
     ROOTS.get_or_init(|| {
         let found = rustls_native_certs::load_native_certs();
-        log::debug!(
-            "{} native CA certificates, {} errors",
-            found.certs.len(),
-            found.errors.len()
-        );
         let mut store = RootCertStore::empty();
-        let (added, ignored) = store.add_parsable_certificates(found.certs);
-        log::debug!("trusting {added} CA certificates, {ignored} unparsable");
-        match store.is_empty() {
+        store.add_parsable_certificates(found.certs);
+        let empty = store.is_empty();
+        log::debug!(
+            "native CA store loaded on {}, empty: {empty}",
+            std::env::consts::OS
+        );
+        match empty {
             true => Err("this host trusts no CA certificate".to_owned()),
             false => Ok(Arc::new(store)),
         }
@@ -935,11 +934,8 @@ impl Recorder {
                     .map_err(|e| Failure::Final(format!("can’t read {}: {e}", file.display())))?;
                 let mut store = RootCertStore::empty();
                 let certs = CertificateDer::pem_slice_iter(&pem).filter_map(Result::ok);
-                let (added, ignored) = store.add_parsable_certificates(certs);
-                log::debug!(
-                    "{}: {added} CA certificates, {ignored} unparsable",
-                    file.display()
-                );
+                store.add_parsable_certificates(certs);
+                log::debug!("{}: CA store empty: {}", file.display(), store.is_empty());
                 match store.is_empty() {
                     true => Err(format!("{} holds no CA certificate", file.display())),
                     false => Ok(Arc::new(store)),

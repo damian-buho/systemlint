@@ -172,7 +172,7 @@ mod tests {
         exec(&["/usr/sbin/sshd", "-T"], exit, stdout, stderr)
     }
 
-    fn account(user: &str, exit: i32, stdout: &str) -> Input {
+    fn login(user: &str, exit: i32, stdout: &str) -> Input {
         let spec = format!("user={user},host=client.invalid,addr=192.0.2.1");
         exec(&["/usr/sbin/sshd", "-T", "-C", &spec], exit, stdout, "")
     }
@@ -226,12 +226,12 @@ mod tests {
                 "permitrootlogin no\nx11forwarding no\nciphers aes128-ctr\n",
                 "",
             ),
-            account(
+            login(
                 "root",
                 0,
                 "permitrootlogin no\nx11forwarding no\nciphers aes128-ctr\n",
             ),
-            account(
+            login(
                 "sftp",
                 0,
                 "permitrootlogin no\nx11forwarding yes\nciphers aes128-ctr\n",
@@ -288,7 +288,7 @@ mod tests {
             error,
             "/usr/sbin/sshd exited 1: sshd: no hostkeys available -- exiting."
         );
-        let error = server(&[account("alice", 255, "")]).unwrap_err();
+        let error = server(&[login("alice", 255, "")]).unwrap_err();
         assert!(
             error.starts_with("/usr/sbin/sshd exited 255 for alice: "),
             "{error}"

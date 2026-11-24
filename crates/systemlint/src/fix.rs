@@ -946,7 +946,7 @@ pub fn apply(root: &Root, change: &Change) -> Result<Applied, std::io::Error> {
             Ok(Some((format!("{before:04o}"), format!("{after:04o}"))))
         }
         Remedy::Chown(uid) => {
-            log::debug!("{}: uid {}, wanted {uid}", change.path, meta.uid());
+            log::debug!("{}: chown to root wanted", change.path);
             if meta.uid() == *uid {
                 return Ok(None);
             }

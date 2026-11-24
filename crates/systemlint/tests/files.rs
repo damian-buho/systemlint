@@ -115,8 +115,8 @@ fn document() -> Value {
         let reply = systemlint_formats::op(request).unwrap();
         assert!(
             reply.diagnostics.is_empty(),
-            "{id}: {:?}",
-            reply.diagnostics
+            "{id}: {} diagnostics",
+            reply.diagnostics.len()
         );
         groups.insert(
             c.into.strip_prefix("files.").unwrap().to_owned(),

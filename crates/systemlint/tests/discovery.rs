@@ -147,7 +147,11 @@ fn production_trust_holds_the_running_core_owner() {
         &std::fs::metadata(std::env::current_exe().unwrap()).unwrap(),
     );
     let uids = Trust::invoking_user().uids;
-    assert!(uids.contains(&0) && uids.contains(&owner), "{uids:?}");
+    assert!(
+        uids.contains(&0) && uids.contains(&owner),
+        "{} trusted owners miss root or the core’s owner",
+        uids.len()
+    );
 }
 
 #[test]
