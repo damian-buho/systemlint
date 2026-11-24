@@ -48,7 +48,7 @@ systemlint-protocol = { path = "crates/systemlint-protocol" }
 systemlint-sshd = { path = "crates/systemlint-sshd" }
 systemlint-systemd = { path = "crates/systemlint-systemd" }
 toml = { version = "=1.2.1", default-features = false, features = ["std", "serde", "parse"] }
-url = "=2.5.8"
+url = "=2.5.9"
 wait-timeout = "=0.2.1"
 x509-parser = "=0.18.1"
 
