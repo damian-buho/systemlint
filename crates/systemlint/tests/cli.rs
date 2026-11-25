@@ -196,7 +196,10 @@ fn a_refused_ruleset_directory_exits_5_naming_chmod() {
     );
     assert_eq!(code, 5, "{stderr}");
     assert!(stderr.contains("chmod go-w"), "{stderr}");
-    assert!(stderr.contains("\n  trusting owners uid 0"), "{stderr}");
+    assert!(
+        stderr.contains(" owners: root, the user and the core’s owner"),
+        "{stderr}"
+    );
 }
 
 #[test]
