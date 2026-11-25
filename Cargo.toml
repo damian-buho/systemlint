@@ -13,7 +13,15 @@ license = "AGPL-3.0-only"
 repository = "https://kiota.ch/damian-buho/systemlint"
 authors = ["Damián Búho <damian.buho@proton.me>"]
 description = "Linter for operating systems, from apt sources to file permissions"
-keywords = ["linter", "compliance", "hardening", "apt", "sshd", "file-permissions", "rust"]
+keywords = [
+    "linter",
+    "compliance",
+    "hardening",
+    "apt",
+    "sshd",
+    "file-permissions",
+    "rust",
+]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
