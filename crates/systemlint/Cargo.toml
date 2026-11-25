@@ -4,11 +4,13 @@
 
 [package]
 name = "systemlint"
-description = "Collects operating system facts and lints them with declarative rules"
+description.workspace = true
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
 
 [dependencies]
 cel.workspace = true
