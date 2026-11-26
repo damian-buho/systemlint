@@ -10,15 +10,32 @@ pub const CONTAINER: &str = "container:";
 /// Leaf prefixes of the cgroup scopes container engines create, before the container ID.
 pub const CONTAINER_SCOPES: [&str; 4] = ["docker-", "libpod-", "cri-containerd-", "crio-"];
 
+/// Whether `segment` looks like a container ID (at least 12 ASCII hex characters).
+fn hex_id(segment: &str) -> bool {
+    segment.len() >= 12 && segment.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// Whether `parent` names a Kubernetes pod cgroup directory (`pod<uid>` or `kubepods-…-pod<uid>.slice`).
+pub fn is_pod_cgroup(parent: &str) -> bool {
+    parent.starts_with("pod") || parent.contains("-pod")
+}
+
 /// What owns a cgroup: a system service by its unit name, or a container by `container:` and the first 12 characters of its ID.
 pub fn owner(cgroup: &str) -> Option<String> {
-    let leaf = cgroup.rsplit('/').next()?;
+    let mut rev = cgroup.rsplit('/');
+    let leaf = rev.next()?;
+    let parent = rev.next().unwrap_or_default();
     if let Some(id) = CONTAINER_SCOPES
         .iter()
         .find_map(|p| leaf.strip_prefix(p))
         .and_then(|rest| rest.strip_suffix(".scope"))
     {
         return Some(format!("{CONTAINER}{}", &id[..id.len().min(12)]));
+    }
+    if hex_id(leaf)
+        && (matches!(parent, "docker" | "containerd" | "crio" | "podman") || is_pod_cgroup(parent))
+    {
+        return Some(format!("{CONTAINER}{}", &leaf[..12]));
     }
     (cgroup.starts_with("/system.slice/") && leaf.ends_with(".service")).then(|| leaf.to_owned())
 }
@@ -72,6 +89,14 @@ mod tests {
         assert_eq!(
             owner("/kubepods.slice/kubepods-pod1.slice/cri-containerd-abc.scope").as_deref(),
             Some("container:abc")
+        );
+        assert_eq!(
+            owner("/kubepods/burstable/pod1234/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef").as_deref(),
+            Some("container:0123456789ab")
+        );
+        assert_eq!(
+            owner("/containerd/fedcba9876543210fedcba9876543210").as_deref(),
+            Some("container:fedcba987654")
         );
         assert_eq!(
             owner("/user.slice/user-1000.slice/user@1000.service/app.slice/foo.service"),

@@ -83,6 +83,41 @@ fn discover_finds_each_container_once_with_its_parent_and_name() {
 }
 
 #[test]
+fn discover_finds_cgroupfs_kubernetes_and_containerd_containers() {
+    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("targets-cgroupfs");
+    let _ = std::fs::remove_dir_all(&root);
+    process(&root, 1, 0, "/init.scope", "1");
+    process(
+        &root,
+        40,
+        5,
+        &format!("/kubepods/burstable/pod12345678/{A}"),
+        "40\t1",
+    );
+    process(&root, 50, 5, &format!("/containerd/{B}"), "50\t1");
+    process(&root, 60, 5, &format!("/crio/{C}"), "60\t1");
+    let namespace = |pid: u32| match pid {
+        40 => Some((1, 40)),
+        50 => Some((1, 50)),
+        60 => Some((1, 60)),
+        _ => Some((1, 0)),
+    };
+    let found = discover(&Root::open(&root).unwrap(), &namespace);
+    let summary: Vec<(&str, &str, u32)> = found
+        .iter()
+        .map(|f| (f.engine, f.id.as_str(), f.pid))
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            ("containerd", &A[..12], 40),
+            ("cri-o", &C[..12], 60),
+            ("containerd", &B[..12], 50)
+        ]
+    );
+}
+
+#[test]
 fn a_process_root_reads_proc_self_as_the_container_init() {
     let pid = std::process::id();
     let root = Root::process(pid, pid).unwrap();
