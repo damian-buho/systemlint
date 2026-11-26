@@ -530,7 +530,7 @@ mod tests {
         assert_eq!(env["path"], json!(["/usr/bin", "", "bin"]));
         assert_eq!(env["library-path"], json!(["/opt/containerd/lib", ""]));
         assert_eq!(env["python-path"], json!(["lib"]));
-        assert_eq!(env["vars"]["http_proxy"], "http://u:[redacted]@proxy:3128");
+        assert_eq!(env["vars"]["http_proxy"], "http://[redacted]@proxy:3128");
         assert_eq!(reply.hash, ["/~1etc~1a~0b/vars/TOKEN"]);
         assert!(place_without_path());
     }
@@ -775,6 +775,30 @@ mod tests {
             image(&[file("/y.json", "nope")])
                 .unwrap_err()
                 .contains("not valid JSON")
+        );
+    }
+
+    #[test]
+    fn proxy_vars_redact_bearer_and_username_token_userinfo() {
+        let mut reply = Reply::default();
+        let vars = BTreeMap::from([
+            (
+                "https_proxy".to_owned(),
+                "https://secret-bearer-token@proxy.example.com:3128/".to_owned(),
+            ),
+            (
+                "http_proxy".to_owned(),
+                "http://oauth-pat:x-oauth-basic@proxy.example.com:3128/".to_owned(),
+            ),
+        ]);
+        place(&mut reply, "test", "file", vars, Map::new());
+        assert_eq!(
+            reply.facts["test"]["vars"]["https_proxy"],
+            "https://[redacted]@proxy.example.com:3128/"
+        );
+        assert_eq!(
+            reply.facts["test"]["vars"]["http_proxy"],
+            "http://[redacted]@proxy.example.com:3128/"
         );
     }
 }

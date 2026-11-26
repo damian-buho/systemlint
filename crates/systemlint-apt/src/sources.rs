@@ -648,9 +648,14 @@ mod tests {
     fn passwords_never_reach_the_facts() {
         assert_eq!(
             mask("https://user:s3cret@host/p:a@b"),
-            "https://user:[redacted]@host/p:a@b"
+            "https://[redacted]@host/p:a@b"
         );
-        assert_eq!(mask("https://token@host/"), "https://token@host/");
+        assert_eq!(mask("https://token@host/"), "https://[redacted]@host/");
+        assert_eq!(
+            mask("https://oauth-pat:x-oauth-basic@host/repo"),
+            "https://[redacted]@host/repo"
+        );
+        assert_eq!(mask("https://key:@host/"), "https://[redacted]@host/");
         assert_eq!(mask("cdrom:[x]/"), "cdrom:[x]/");
     }
 

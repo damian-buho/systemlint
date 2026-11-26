@@ -180,7 +180,7 @@ fn every_source_lands_with_secrets_hashed_and_proxy_passwords_masked() {
     );
     assert_eq!(
         env["files"]["/etc/profile.d/site.sh"]["vars"]["https_proxy"],
-        "http://user:[redacted]@proxy.example:3128"
+        "http://[redacted]@proxy.example:3128"
     );
     let text = document.to_string();
     for needle in ["abc123", "hunter2", ":pw@"] {
