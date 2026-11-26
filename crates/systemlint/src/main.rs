@@ -1094,7 +1094,11 @@ fn lint(
         {
             eprintln!();
         }
-        document::write(output.unwrap_or(Path::new("-")), &text, 0o644).map_err(|error| {
+        let mode = match format {
+            Format::Textfile => 0o644,
+            Format::Human | Format::Json | Format::Sarif => 0o600,
+        };
+        document::write(output.unwrap_or(Path::new("-")), &text, mode).map_err(|error| {
             eprintln!("{error}");
             EXIT_OUTPUT
         })?;
