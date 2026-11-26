@@ -223,6 +223,51 @@ fn write_to_a_dash_prints_and_creates_no_file() {
     );
 }
 
+#[test]
+fn check_output_uses_0600_for_reports_and_0644_for_textfile() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("report-check-modes");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let facts_path = dir.join("facts.json");
+    systemlint::document::save(&facts("root"), &facts_path).unwrap();
+
+    let json_out = dir.join("report.json");
+    let status = std::process::Command::new(env!("CARGO_BIN_EXE_systemlint"))
+        .args([
+            "check",
+            "--format",
+            "json",
+            "-o",
+            json_out.to_str().unwrap(),
+            facts_path.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(matches!(status.code(), Some(0 | 1)));
+    assert_eq!(
+        std::fs::metadata(&json_out).unwrap().permissions().mode() & 0o7777,
+        0o600 & !umask()
+    );
+
+    let prom_out = dir.join("systemlint.prom");
+    let status = std::process::Command::new(env!("CARGO_BIN_EXE_systemlint"))
+        .args([
+            "check",
+            "--format",
+            "textfile",
+            "-o",
+            prom_out.to_str().unwrap(),
+            facts_path.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(matches!(status.code(), Some(0 | 1)));
+    assert_eq!(
+        std::fs::metadata(&prom_out).unwrap().permissions().mode() & 0o7777,
+        0o644 & !umask()
+    );
+}
+
 fn umask() -> u32 {
     let mask = rustix::process::umask(rustix::fs::Mode::empty());
     rustix::process::umask(mask);
