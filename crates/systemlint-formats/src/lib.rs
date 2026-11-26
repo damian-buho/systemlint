@@ -1051,21 +1051,18 @@ fn unit_name(name: &str) -> bool {
         .is_some_and(|(stem, kind)| !stem.is_empty() && UNIT_TYPES.contains(&kind))
 }
 
-/// `uri` with its password replaced, so no credential reaches the facts.
+/// `uri` with its userinfo replaced, so no credential (password, OAuth token-as-username, or single bearer token) reaches the facts.
 pub fn mask(uri: &str) -> String {
     let Some((scheme, rest)) = uri.split_once("://") else {
         return uri.to_owned();
     };
-    let authority = rest.split('/').next().unwrap_or_default();
-    match authority
-        .rsplit_once('@')
-        .and_then(|(info, host)| info.split_once(':').map(|(user, _)| (user, host)))
-    {
-        Some((user, host)) => format!(
-            "{scheme}://{user}:[redacted]@{host}{}",
-            &rest[authority.len()..]
-        ),
-        None => uri.to_owned(),
+    let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+    let authority = &rest[..authority_end];
+    match authority.rsplit_once('@') {
+        Some((info, host)) if !info.is_empty() => {
+            format!("{scheme}://[redacted]@{host}{}", &rest[authority_end..])
+        }
+        _ => uri.to_owned(),
     }
 }
 
@@ -1848,12 +1845,25 @@ mod tests {
     }
 
     #[test]
-    fn mask_hides_a_password_only() {
+    fn mask_hides_all_userinfo_shapes() {
         assert_eq!(
             mask("http://u:p@proxy:3128/"),
-            "http://u:[redacted]@proxy:3128/"
+            "http://[redacted]@proxy:3128/"
+        );
+        assert_eq!(
+            mask("https://secret-bearer-token@apt.example.com/debian/"),
+            "https://[redacted]@apt.example.com/debian/"
+        );
+        assert_eq!(
+            mask("https://oauth-pat:x-oauth-basic@proxy.example.com:8443/path"),
+            "https://[redacted]@proxy.example.com:8443/path"
+        );
+        assert_eq!(
+            mask("https://api-key:@proxy.example.com?q=1"),
+            "https://[redacted]@proxy.example.com?q=1"
         );
         assert_eq!(mask("http://proxy:3128"), "http://proxy:3128");
+        assert_eq!(mask("https://@host/"), "https://@host/");
     }
 
     #[test]
