@@ -63,6 +63,12 @@ pub fn chain(cgroup: &str) -> Vec<(&'static str, &str)> {
         match scoped {
             Some((engine, id)) if hex(id) => found.push((engine, id)),
             _ if previous == "docker" && hex(segment) => found.push(("docker", segment)),
+            _ if previous == "containerd" && hex(segment) => found.push(("containerd", segment)),
+            _ if previous == "crio" && hex(segment) => found.push(("cri-o", segment)),
+            _ if previous == "podman" && hex(segment) => found.push(("podman", segment)),
+            _ if proc::is_pod_cgroup(previous) && hex(segment) => {
+                found.push(("containerd", segment))
+            }
             _ => {}
         }
         previous = segment;
