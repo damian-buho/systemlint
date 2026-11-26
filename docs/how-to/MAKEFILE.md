@@ -901,6 +901,14 @@ Audit Forgejo Actions workflows for security issues
 
 > Image: D9T_RUST_TOOLS_IMAGE
 
+### `auto-zizmor-github`
+
+Audit GitHub Actions workflows for security issues
+
+`auto-zizmor --forge github`
+
+> Image: D9T_RUST_TOOLS_IMAGE
+
 ### `buf-lint`
 
 Lint protobuf sources with buf
@@ -1481,6 +1489,14 @@ Format Rust source with rustfmt
 
 > Image: RUST_TOOL_IMAGE
 
+### `cargo-lock-sync`
+
+Stamp the projectfile version into Cargo.lock, keeping every locked dependency
+
+`cargo update --workspace --offline`
+
+> Image: RUST_TOOL_IMAGE
+
 ### `cargo-mutants`
 
 Run Rust mutation testing and enforce the minimum caught share
@@ -1493,7 +1509,7 @@ Run Rust mutation testing and enforce the minimum caught share
 
 Check that Cargo.toml dependencies are sorted
 
-`cargo sort --check`
+`cargo sort --workspace --check --check-format`
 
 > Image: D9T_RUST_TOOLS_IMAGE
 
@@ -1501,7 +1517,7 @@ Check that Cargo.toml dependencies are sorted
 
 Sort Cargo.toml dependencies in place
 
-`cargo sort`
+`cargo sort --workspace --check-format`
 
 > Image: D9T_RUST_TOOLS_IMAGE
 
@@ -1528,6 +1544,22 @@ Check toolbox Cargo pins for upstream drift
 `.makefile/core/scripts/check-outdated.sh ' -> ' .makefile/core/scripts/check-outdated-deps.sh .container/*/deps/cargo.deps`
 
 > Image: B19_RUST_GNU_BASE_IMAGE
+
+### `pf-bridge-cargo-toml-check`
+
+Verify Cargo.toml and the projectfile agree
+
+`pf-bridge cargo --check`
+
+> Image: PF_BRIDGE_IMAGE
+
+### `pf-bridge-cargo-toml-sync`
+
+Sync Cargo.toml with the projectfile
+
+`pf-bridge cargo`
+
+> Image: PF_BRIDGE_IMAGE
 
 ## Secrets
 
