@@ -74,7 +74,7 @@ Each environment holds:
 
 A value stays in clear only for the names the rules read and that hold no
 secret: `PATH`, `PYTHONPATH`, `LANG`, `LANGUAGE`, `LC_*`, `LD_*`, every `*_proxy` (any case,
-a password in the URL replaced by `[redacted]`), `NODE_OPTIONS`,
+user and password in the URL replaced by `[redacted]`), `NODE_OPTIONS`,
 `NODE_TLS_REJECT_UNAUTHORIZED`, `GIT_SSL_NO_VERIFY`, `PYTHONHTTPSVERIFY`,
 `CURL_CA_BUNDLE`, `SSL_CERT_FILE`, `SSL_CERT_DIR` and `REQUESTS_CA_BUNDLE`,
 plus any value that is a switch word (`true`, `false`, `yes`, `no`, `on`,

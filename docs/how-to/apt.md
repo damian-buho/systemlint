@@ -39,7 +39,7 @@ the line it starts on, such as `/etc/apt/sources.list.d/docker.sources:5`.
 | --- | --- |
 | `file`, `line`, `format` | where the source is written, `deb822` or `one-line` |
 | `enabled` | `false` for `Enabled: no`; every shipped rule skips a disabled source |
-| `types`, `uris`, `suites`, `components`, `architectures` | as written; a password in a URI reads `[redacted]` |
+| `types`, `uris`, `suites`, `components`, `architectures` | as written; a URI’s user and password read `[redacted]` |
 | `signed-by` | keyring paths or fingerprints, `(inline)` for an embedded key, empty when absent |
 | `insecure-options` | which of `trusted`, `allow-insecure`, `allow-weak`, `allow-downgrade-to-insecure` are set |
 | `options` | every other field or option, lowercase name to raw value |
