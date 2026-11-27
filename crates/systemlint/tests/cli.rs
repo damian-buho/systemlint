@@ -754,7 +754,7 @@ fn ctrl_c_says_so_and_exits_130() {
     let dir = base("interrupt");
     let path = dir.join("config.yaml");
     std::fs::write(&path, "").unwrap();
-    let child = core()
+    let mut child = core()
         .arg("--config")
         .arg(&path)
         .args(["check", "-"])
@@ -762,6 +762,8 @@ fn ctrl_c_says_so_and_exits_130() {
         .stderr(std::process::Stdio::piped())
         .spawn()
         .unwrap();
+    // Held open past the wait, so only the signal can end `check -`.
+    let stdin = child.stdin.take();
     let caught = || {
         std::fs::read_to_string(format!("/proc/{}/status", child.id()))
             .ok()
@@ -784,6 +786,7 @@ fn ctrl_c_says_so_and_exits_130() {
     )
     .unwrap();
     let out = child.wait_with_output().unwrap();
+    drop(stdin);
     assert_eq!(out.status.code(), Some(130), "{:?}", out.status);
     assert_eq!(
         String::from_utf8_lossy(&out.stderr),
