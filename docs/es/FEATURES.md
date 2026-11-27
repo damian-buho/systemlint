@@ -190,7 +190,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Monitorización de estado integrada (healthcheck.d)
 
-- Healthcheck nativo de Docker heredado por todas las imágenes derivadas sin configuración extra.
+- Healthcheck nativo de Docker heredado por todas las imágenes derivadas sin configuración extra, más una respuesta de liveness aparte para Kubernetes: una dependencia lenta solo saca el contenedor de la rotación, y solo un proceso muerto lo reinicia.
 - Las comprobaciones de salida son opcionales: un contenedor que nunca llega a internet no lleva ninguna comprobación que un tercero pueda hacer fallar, mientras que uno cuyo trabajo es internet se marca como no disponible en cuanto el exterior desaparece.
 - Funciona igual sin conexión que en línea: las comprobaciones de salida se retiran automáticamente en modo offgrid.
 - Añadir una comprobación es dejar caer un script en un directorio, no escribir configuración de Docker.
@@ -283,7 +283,7 @@ Consulte [use-healthcheck.d](https://codeberg.org/b19/ubuntu/src/branch/main/doc
 - Renderizado de plantillas compatible con Jinja2 tanto en tiempo de compilación como al arrancar el contenedor.
 - Deja caer un archivo `.j2` en cualquier parte del directorio de la aplicación; se descubre en tiempo de compilación y se renderiza en cada arranque con todas las variables de entorno disponibles.
 - El renderizado en runtime es paralelo y automático: las imágenes derivadas lo obtienen sin configuración alguna.
-- El modo inmutable (`B19_IMMUTABLE=Y`) congela el sistema de archivos en el estado de compilación, saltándose todo renderizado en runtime.
+- Funciona con la raíz en solo lectura: las plantillas se renderizan en el tmpfs `/run/b19`, y si falta ese tmpfs el arranque se detiene en lugar de servir valores de compilación.
 
 ### Framework de tests integrado (test.d)
 

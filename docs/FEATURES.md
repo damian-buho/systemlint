@@ -187,7 +187,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Built-in health monitoring (healthcheck.d)
 
-- Docker-native healthcheck inherited by every downstream image with no extra configuration.
+- Docker-native healthcheck inherited by every downstream image with no extra configuration, plus a separate liveness answer for Kubernetes: a slow dependency only takes the container out of rotation, and only a dead process restarts it.
 - Egress checks are opt-in: a container that never reaches the internet carries no check a third party can fail, while one whose job is the internet reports unhealthy the moment the outside is gone.
 - Works the same offline as online — egress checks stand down automatically under offgrid mode.
 - Adding a check is dropping a script in a directory, not writing Docker plumbing.
@@ -280,7 +280,7 @@ See [use-healthcheck.d](https://codeberg.org/b19/ubuntu/src/branch/main/docs/how
 - Drop a `.j2` file anywhere in the app directory; it is discovered at build time and rendered at every startup with all environment variables available.
 - Runtime rendering is parallel and automatic — downstream images get it with zero configuration.
 - Skip specific templates at runtime with `B19_J2_SKIP_FILES` (comma-separated basenames).
-- Immutable mode (`B19_IMMUTABLE=Y`) locks the filesystem to build-time state, skipping all runtime rendering.
+- Runs on a read-only root: templates render into the `/run/b19` tmpfs, and a missing tmpfs stops the start instead of serving build-time values.
 
 ### Built-in test framework (test.d)
 
