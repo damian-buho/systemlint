@@ -31,5 +31,5 @@ keywords:
   - file-permissions
 repository-code: https://kiota.ch/damian-buho/systemlint
 license: AGPL-3.0-only
-version: 0.268.3
-date-released: "2026-11-25"
+version: 0.268.4
+date-released: "2026-11-27"
