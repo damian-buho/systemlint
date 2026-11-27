@@ -110,7 +110,7 @@ fn discover_finds_cgroupfs_kubernetes_and_containerd_containers() {
     assert_eq!(
         summary,
         [
-            ("containerd", &A[..12], 40),
+            ("kubernetes", &A[..12], 40),
             ("cri-o", &C[..12], 60),
             ("containerd", &B[..12], 50)
         ]

@@ -67,7 +67,7 @@ pub fn chain(cgroup: &str) -> Vec<(&'static str, &str)> {
             _ if previous == "crio" && hex(segment) => found.push(("cri-o", segment)),
             _ if previous == "podman" && hex(segment) => found.push(("podman", segment)),
             _ if proc::is_pod_cgroup(previous) && hex(segment) => {
-                found.push(("containerd", segment))
+                found.push(("kubernetes", segment))
             }
             _ => {}
         }
